@@ -44,9 +44,14 @@ a { color: inherit; }
   flex-direction: column;
 }
 
+.grid-2 > aside.card {
+  padding: 16px;
+  padding-top: 5px;
+}
+
 .grid {
   display: grid;
-  gap: 20px;
+  gap: 16px;
   flex: 1;
   min-height: 0;
 }
@@ -116,7 +121,8 @@ a { color: inherit; }
 }
 
 .chat-log {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 

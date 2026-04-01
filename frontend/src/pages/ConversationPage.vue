@@ -50,7 +50,7 @@
 
             <div v-if="msg.citations?.length" class="sources">
               <div v-for="citation in msg.citations" :key="citation.chunkId + citation.text.slice(0,20)" class="source-card">
-                <strong>{{ citation.fileName }}</strong>
+                <strong>{{ cleanFileName(citation.fileName) }}</strong>
                 <div v-if="citation.section">Section: {{ citation.section }}</div>
                 <div v-if="citation.page !== null && citation.page !== undefined">Page: {{ citation.page }}</div>
                 <div style="margin-top:8px; white-space: pre-wrap; max-height: 300px; overflow-y: auto">{{ citation.text }}</div>
@@ -61,63 +61,63 @@
       </section>
 
       <aside class="card">
-        <h2>Uploaded files</h2>
-        <div>
-          <span v-for="file in status.files" :key="file.id" class="file-pill">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+          <h3 style="margin: 0; font-size: 0.95rem">Uploaded files</h3>
+          <button v-if="canUpload" class="button" style="padding: 6px 12px; font-size: 13px" @click="moreFilesInput?.click()">
+            + Add
+          </button>
+        </div>
+        <div style="margin-bottom: 16px">
+          <span v-for="file in status.files" :key="file.id" class="file-pill" style="font-size: 13px">
             {{ cleanFileName(file.originalName) }}
           </span>
         </div>
 
-        <div v-if="canUpload" style="margin-top:24px">
-          <h2>Add more files</h2>
-          <input ref="moreFilesInput" type="file" multiple @change="onMoreFilesChange" />
-          <div class="file-list" v-if="moreFiles.length">
-            <div v-for="file in moreFiles" :key="file.name" class="file-pill">
+        <input ref="moreFilesInput" type="file" multiple @change="onMoreFilesChange" style="display:none" />
+        <div v-if="moreFiles.length" style="margin-bottom: 12px">
+          <div class="file-list">
+            <div v-for="file in moreFiles" :key="file.name" class="file-pill" style="font-size: 13px">
               {{ file.name }}
             </div>
           </div>
-          <div style="margin-top:12px">
-            <button class="button" :disabled="uploadingMore || !moreFiles.length" @click="uploadMore">
-              {{ uploadingMore ? "Uploading..." : "Upload more files" }}
-            </button>
-          </div>
+          <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px" :disabled="uploadingMore || !moreFiles.length" @click="uploadMore">
+            {{ uploadingMore ? "Uploading..." : "Upload" }}
+          </button>
         </div>
 
-        <div v-else style="margin-top:24px">
-          <h2>Request upload access</h2>
-          <input v-model="displayName" placeholder="Your name" style="width:100%; padding:10px; border-radius:12px; border:1px solid #cbd5e1;" />
-          <div style="margin-top:12px">
-            <button class="button" :disabled="requestingAccess || !displayName" @click="requestAccess">
-              {{ requestingAccess ? "Requesting..." : "Ask for upload access" }}
-            </button>
-          </div>
-          <p v-if="pendingRequestId" style="margin-top:10px">
-            Request sent. Waiting for owner approval.
+        <div v-if="!canUpload" style="margin-bottom: 16px">
+          <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Request upload access</h3>
+          <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size: 13px" />
+          <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px; width: 100%" :disabled="requestingAccess || !displayName" @click="requestAccess">
+            {{ requestingAccess ? "Requesting..." : "Request access" }}
+          </button>
+          <p v-if="pendingRequestId" style="margin-top:8px; margin-bottom:0; font-size: 12px; color: #64748b">
+            Request sent. Waiting for approval.
           </p>
         </div>
 
-        <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-top:24px">
-          <h2>Pending access requests</h2>
-          <div v-for="req in status.accessRequests" :key="req.id" class="source-card" style="margin-top:10px">
-            <strong>{{ req.displayName }}</strong>
-            <div>Status: {{ req.status }}</div>
-            <div style="margin-top:10px" v-if="req.status === 'pending'">
-              <button class="button" @click="approveRequest(req.id)">Approve editor access</button>
-            </div>
+        <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0">
+          <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Access requests</h3>
+          <div v-for="req in status.accessRequests" :key="req.id" style="font-size: 13px; margin-bottom: 8px; padding: 8px; background: #f1f5f9; border-radius: 8px">
+            <div style="font-weight: 500">{{ req.displayName }}</div>
+            <div style="color: #64748b; font-size: 12px">{{ req.status }}</div>
+            <button v-if="req.status === 'pending'" class="button" style="margin-top: 6px; font-size: 12px; padding: 4px 8px" @click="approveRequest(req.id)">Approve</button>
           </div>
         </div>
 
-        <h2 style="margin-top:24px">Suggested questions</h2>
-        <div>
-          <button
-            v-for="q in status.suggestedQuestions"
-            :key="q"
-            class="question-pill"
-            style="border:none; cursor:pointer"
-            @click="question = q; questionInput?.focus()"
-          >
-            {{ q }}
-          </button>
+        <div style="padding-top: 12px; border-top: 1px solid #e2e8f0">
+          <h3 style="margin: 0 0 10px 0; font-size: 0.95rem">Suggested questions</h3>
+          <div>
+            <button
+              v-for="q in status.suggestedQuestions"
+              :key="q"
+              class="question-pill"
+              style="border:none; cursor:pointer; font-size: 12px; padding: 6px 10px; margin: 4px 0"
+              @click="question = q; questionInput?.focus()"
+            >
+              {{ q }}
+            </button>
+          </div>
         </div>
       </aside>
     </div>
@@ -180,7 +180,9 @@ async function loadConversation() {
 
 function scrollToBottom() {
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+    // Force a reflow
+    const scrollHeight = chatContainer.value.scrollHeight;
+    chatContainer.value.scrollTop = scrollHeight;
   }
 }
 
@@ -193,6 +195,7 @@ async function ask() {
 
   asking.value = true;
   const currentQuestion = question.value;
+  question.value = "";
 
   try {
     const response = await askQuestion(conversationId, currentQuestion);
@@ -202,7 +205,6 @@ async function ask() {
       content: response.answer,
       citations: response.citations
     });
-    question.value = "";
     await loadConversation();
   } finally {
     asking.value = false;
@@ -219,6 +221,8 @@ async function askStreaming() {
   asking.value = true;
 
   const currentQuestion = question.value;
+  question.value = "";
+
   const assistantMessage: ChatMessage = {
     role: "assistant",
     content: "",
@@ -243,7 +247,6 @@ async function askStreaming() {
   source.addEventListener("done", async () => {
     source.close();
     asking.value = false;
-    question.value = "";
     await loadConversation();
   });
 
@@ -305,15 +308,15 @@ async function copyUrl() {
 // Auto-scroll to bottom when messages update
 watch(messages, async () => {
   await nextTick();
-  scrollToBottom();
-});
+  setTimeout(() => scrollToBottom(), 0);
+}, { deep: true, flush: 'post' });
 
 let intervalHandle: number | undefined;
 
 onMounted(async () => {
   await loadConversation();
   await nextTick();
-  scrollToBottom();
+  setTimeout(() => scrollToBottom(), 100);
 
   intervalHandle = window.setInterval(async () => {
     await loadConversation();
