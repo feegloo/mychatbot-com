@@ -13,7 +13,8 @@
         :class="{ active: conv.conversationId === currentId }"
       >
         <span class="conv-nav-name">{{ convLabel(conv) }}</span>
-        <span class="conv-nav-badge" :class="conv.status">{{ conv.status }}</span>
+        <span v-if="conv.status === 'processing'" class="conv-nav-dot processing"></span>
+        <span v-else-if="conv.status === 'failed'" class="conv-nav-dot failed"></span>
       </router-link>
 
       <p v-if="!conversations.length && !loading" class="conv-nav-empty">
@@ -24,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
@@ -41,11 +42,34 @@ const route = useRoute();
 const conversations = ref<ConversationSummary[]>([]);
 const loading = ref(false);
 const currentId = ref("");
+let pollHandle: number | undefined;
+
+function hasProcessing() {
+  return conversations.value.some(c => c.status === "processing");
+}
+
+function startPolling() {
+  stopPolling();
+  pollHandle = window.setInterval(async () => {
+    await load();
+    if (!hasProcessing()) stopPolling();
+  }, 1500);
+}
+
+function stopPolling() {
+  if (pollHandle !== undefined) {
+    clearInterval(pollHandle);
+    pollHandle = undefined;
+  }
+}
 
 async function load() {
   loading.value = true;
   try {
     conversations.value = await listMyConversations();
+    if (hasProcessing() && pollHandle === undefined) {
+      startPolling();
+    }
   } catch {
     // silently fail – sidebar is non-critical
   } finally {
@@ -66,6 +90,16 @@ watch(
   () => route.path,
   () => load()
 );
+
+onMounted(() => {
+  load();
+  window.addEventListener('conversation-updated', load);
+});
+
+onUnmounted(() => {
+  stopPolling();
+  window.removeEventListener('conversation-updated', load);
+});
 
 onMounted(load);
 </script>

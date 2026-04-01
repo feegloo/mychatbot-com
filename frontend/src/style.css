@@ -53,7 +53,7 @@ a:hover { color: #a5b4fc; }
 /* ── Conversation nav sidebar ── */
 
 .conv-nav {
-  width: 240px;
+  width: 210px;
   flex-shrink: 0;
   background: #0f172a;
   color: #e2e8f0;
@@ -117,17 +117,26 @@ a:hover { color: #a5b4fc; }
   text-overflow: ellipsis;
 }
 
-.conv-nav-badge {
-  font-size: 10px;
-  border-radius: 999px;
-  padding: 2px 6px;
-  background: #334155;
+.conv-nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
-.conv-nav-badge.ready { background: #166534; color: #bbf7d0; }
-.conv-nav-badge.processing { background: #854d0e; color: #fef08a; }
-.conv-nav-badge.failed { background: #991b1b; color: #fecaca; }
+.conv-nav-dot.processing {
+  background: #facc15;
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+.conv-nav-dot.failed {
+  background: #f87171;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
 
 .conv-nav-empty {
   color: #64748b;

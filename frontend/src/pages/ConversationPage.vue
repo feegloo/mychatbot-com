@@ -57,7 +57,7 @@
         :status="status"
         :conversationId="conversationId"
         :canUpload="canUpload"
-        @reload="loadConversation"
+        @reload="onReload"
         @select-question="question = $event; questionInput?.focus()"
       />
     </div>
@@ -110,6 +110,10 @@ const conversationTitle = computed(() => {
   return `Conversation ${conversationId.slice(0, 8)}…`;
 });
 
+watch(conversationTitle, (title) => {
+  document.title = `chatbotqa.app | ${title}`;
+}, { immediate: true });
+
 async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
@@ -117,6 +121,11 @@ async function loadConversation() {
     messages.value = response.messages || [];
   }
   loaded.value = true;
+}
+
+async function onReload() {
+  await loadConversation();
+  window.dispatchEvent(new CustomEvent('conversation-updated'));
 }
 
 function scrollToBottom() {
