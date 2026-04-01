@@ -1,6 +1,14 @@
 import Router from "@koa/router";
-import { getConversation, resolveConversationRole } from "../repositories/conversations.js";
+import multer from "@koa/multer";
+import path from "node:path";
+import { z } from "zod";
+import { v4 as uuidv4 } from "uuid";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken } from "../repositories/conversations.js";
+import { createStorageProvider } from "../storage/index.js";
+import { config } from "../config.js";
+import { indexConversation } from "../python/indexing.js";
 
+const upload = multer({ storage: multer.memoryStorage() });
 export const conversationsRouter = new Router();
 
 conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
@@ -39,4 +47,202 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
     })),
     errorMessage: data.conversation.error_message
   };
+});
+
+conversationsRouter.post("/conversations/:conversationId/files", upload.array("files"), async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+  const token = String(ctx.headers["x-conversation-token"] || "");
+  const role = await resolveConversationRole(conversationId, token);
+  const files = (ctx.files || []) as Express.Multer.File[];
+
+  if (!files.length) {
+    ctx.status = 400;
+    ctx.body = { error: "No files uploaded" };
+    return;
+  }
+
+  if (role !== "owner" && role !== "editor") {
+    ctx.status = 403;
+    ctx.body = { error: "You don't have permission to upload files" };
+    return;
+  }
+
+  const data = await getConversation(conversationId, role);
+
+  if (!data.conversation) {
+    ctx.status = 404;
+    ctx.body = { error: "Conversation not found" };
+    return;
+  }
+
+  const storage = createStorageProvider();
+  const namespace = data.conversation.storage_namespace;
+  const absolutePaths: string[] = [];
+
+  for (const file of files) {
+    const saved = await storage.save(namespace, file.originalname, {
+      originalName: file.originalname,
+      mimeType: file.mimetype || "application/octet-stream",
+      buffer: file.buffer
+    });
+
+    const storedName = path.basename(saved.storageKey);
+
+    await insertUploadedFile({
+      id: uuidv4(),
+      conversation_id: conversationId,
+      original_name: file.originalname,
+      stored_name: storedName,
+      mime_type: file.mimetype || "application/octet-stream",
+      size_bytes: file.size,
+      storage_key: saved.storageKey
+    });
+
+    if (saved.absolutePath) {
+      absolutePaths.push(saved.absolutePath);
+    }
+  }
+
+  // Set status to processing while indexing
+  await updateConversationStatus(conversationId, "processing");
+
+  indexConversation({
+    conversationId,
+    collectionName: data.conversation.vector_collection_name,
+    files: absolutePaths,
+    mode: (config.pythonIndexingMode === "notebook" ? "notebook" : "script")
+  })
+    .then(async (result) => {
+      const suggestedQuestions = result.parsedJson?.suggested_questions || [];
+      await appendSuggestedQuestions(conversationId, suggestedQuestions);
+      await updateConversationStatus(conversationId, "ready");
+    })
+    .catch(async (error) => {
+      console.error(`[indexing error for ${conversationId}]:`, error.message);
+      await updateConversationStatus(conversationId, "failed", error.message);
+    });
+
+  ctx.body = {
+    conversationId,
+    status: "processing"
+  };
+});
+
+// POST /conversations/:conversationId/access-requests
+// Viewer requests access to upload files
+const requestAccessSchema = z.object({
+  displayName: z.string().min(1)
+});
+
+conversationsRouter.post("/conversations/:conversationId/access-requests", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+  const parsed = requestAccessSchema.safeParse(ctx.request.body);
+
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid request" };
+    return;
+  }
+
+  const { displayName } = parsed.data;
+
+  try {
+    const data = await getConversation(conversationId);
+    if (!data.conversation) {
+      ctx.status = 404;
+      ctx.body = { error: "Conversation not found" };
+      return;
+    }
+
+    const requestId = uuidv4();
+    await createAccessRequest({
+      id: requestId,
+      conversation_id: conversationId,
+      display_name: displayName,
+      status: "pending",
+      editor_token: null
+    });
+
+    ctx.body = { requestId, status: "pending" };
+  } catch (err: any) {
+    console.error("[access-request error]:", err.message);
+    ctx.status = 500;
+    ctx.body = { error: "Failed to create access request" };
+  }
+});
+
+// GET /conversations/:conversationId/access-requests/:requestId
+// Check if access request was approved
+conversationsRouter.get("/conversations/:conversationId/access-requests/:requestId", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+  const requestId = ctx.params.requestId;
+
+  try {
+    const request = await getAccessRequest(conversationId, requestId);
+
+    if (!request) {
+      ctx.status = 404;
+      ctx.body = { error: "Access request not found" };
+      return;
+    }
+
+    ctx.body = {
+      requestId: request.id,
+      status: request.status,
+      editorToken: request.editor_token || null
+    };
+  } catch (err: any) {
+    console.error("[get-access-request error]:", err.message);
+    ctx.status = 500;
+    ctx.body = { error: "Failed to get access request" };
+  }
+});
+
+// POST /conversations/:conversationId/access-requests/:requestId/approve
+// Owner approves access request
+conversationsRouter.post("/conversations/:conversationId/access-requests/:requestId/approve", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+  const requestId = ctx.params.requestId;
+  const token = String(ctx.headers["x-conversation-token"] || "");
+  const role = await resolveConversationRole(conversationId, token);
+
+  if (role !== "owner") {
+    ctx.status = 403;
+    ctx.body = { error: "Only owner can approve access requests" };
+    return;
+  }
+
+  try {
+    const request = await getAccessRequest(conversationId, requestId);
+
+    if (!request) {
+      ctx.status = 404;
+      ctx.body = { error: "Access request not found" };
+      return;
+    }
+
+    if (request.status !== "pending") {
+      ctx.status = 400;
+      ctx.body = { error: `Cannot approve ${request.status} request` };
+      return;
+    }
+
+    const editorToken = uuidv4();
+
+    // Create access token for the requester
+    await insertAccessToken({
+      token: editorToken,
+      conversation_id: conversationId,
+      role: "editor"
+    });
+
+    // Mark request as approved with the token
+    await approveAccessRequest(conversationId, requestId, editorToken);
+
+    ctx.body = { requestId, status: "approved" };
+  } catch (err: any) {
+    console.error("[approve-access-request error]:", err.message);
+    ctx.status = 500;
+    ctx.body = { error: "Failed to approve access request" };
+  }
 });

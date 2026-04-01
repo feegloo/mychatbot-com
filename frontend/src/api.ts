@@ -4,16 +4,34 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
 });
 
-function tokenKey(conversationId: string) {
-  return `conversation-token:${conversationId}`;
+const TOKENS_STORAGE_KEY = "conversation-token";
+
+type TokensMap = {
+  [conversationId: string]: string;
+};
+
+function getTokensMap(): TokensMap {
+  try {
+    const stored = localStorage.getItem(TOKENS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTokensMap(tokens: TokensMap) {
+  localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
 }
 
 export function saveConversationToken(conversationId: string, token: string) {
-  localStorage.setItem(tokenKey(conversationId), token);
+  const tokens = getTokensMap();
+  tokens[conversationId] = token;
+  saveTokensMap(tokens);
 }
 
 export function getConversationToken(conversationId: string) {
-  return localStorage.getItem(tokenKey(conversationId)) || "";
+  const tokens = getTokensMap();
+  return tokens[conversationId] || "";
 }
 
 function authHeaders(conversationId: string) {

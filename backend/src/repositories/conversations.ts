@@ -102,6 +102,25 @@ export async function replaceSuggestedQuestions(conversationId: string, question
   }
 }
 
+export async function appendSuggestedQuestions(conversationId: string, questions: string[]) {
+  // Get current max sort_order
+  const result = await query<{ max: number | null }>(
+    `SELECT MAX(sort_order) as max FROM suggested_questions WHERE conversation_id = $1`,
+    [conversationId]
+  );
+
+  const startIndex = (result.rows[0]?.max ?? -1) + 1;
+
+  // Add new questions without deleting old ones
+  for (const [index, question] of questions.entries()) {
+    await query(
+      `INSERT INTO suggested_questions (id, conversation_id, question, sort_order)
+       VALUES (gen_random_uuid(), $1, $2, $3)`,
+      [conversationId, question, startIndex + index]
+    );
+  }
+}
+
 export async function insertAccessToken(record: AccessTokenRecord) {
   await query(
     `INSERT INTO conversation_access_tokens (token, conversation_id, role)

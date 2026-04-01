@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import { createStorageProvider } from "../storage/index.js";
-import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus } from "../repositories/conversations.js";
+import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken } from "../repositories/conversations.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
 
@@ -19,6 +19,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   }
 
   const conversationId = uuidv4();
+  const ownerToken = uuidv4();
   const namespace = conversationId;
   const collectionName = `conversation_${conversationId.replace(/-/g, "_")}`;
   const storage = createStorageProvider();
@@ -30,6 +31,13 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     vector_collection_name: collectionName,
     indexing_mode: config.pythonIndexingMode,
     error_message: null
+  });
+
+  // Create owner access token
+  await insertAccessToken({
+    token: ownerToken,
+    conversation_id: conversationId,
+    role: "owner"
   });
 
   const absolutePaths: string[] = [];
@@ -76,6 +84,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   ctx.body = {
     conversationId,
     status: "processing",
-    url: `/c/${conversationId}`
+    url: `/c/${conversationId}`,
+    ownerToken
   };
 });

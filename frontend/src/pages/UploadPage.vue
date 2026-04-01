@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { uploadFiles } from "../api";
+import { uploadFiles, saveConversationToken } from "../api";
 
 const router = useRouter();
 const files = ref<File[]>([]);
@@ -83,6 +83,10 @@ async function submit() {
 
   try {
     const data = await uploadFiles(files.value);
+    // Save owner token for this conversation
+    if (data.ownerToken) {
+      saveConversationToken(data.conversationId, data.ownerToken);
+    }
     router.push(data.url);
   } catch (err: any) {
     error.value = err?.response?.data?.error || err?.message || "Upload failed";

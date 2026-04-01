@@ -1,10 +1,12 @@
 <template>
   <div class="page">
-    <div class="header">
+    <div class="header" style="margin-bottom: 12px">
       <div>
-        <h1>Conversation {{ conversationId }}</h1>
-        <div class="status-badge">Status: {{ status.status }}</div>
-        <div class="status-badge" style="margin-left:8px">Role: {{ status.role }}</div>
+        <h1 style="font-size: 1.1rem; margin: 0 0 4px 0">Conversation {{ conversationId }}</h1>
+        <div style="display: flex; gap: 8px">
+          <div class="status-badge">Status: {{ status.status }}</div>
+          <div class="status-badge">Role: {{ status.role }}</div>
+        </div>
       </div>
       <div style="display:flex; gap:12px">
         <button class="button secondary" @click="copyUrl">Copy shareable URL</button>
@@ -21,6 +23,7 @@
 
         <div style="margin-bottom: 12px">
           <textarea
+            ref="questionInput"
             class="big-input"
             v-model="question"
             placeholder="Ask a question about the uploaded documents..."
@@ -40,7 +43,7 @@
           Conversation is currently {{ status.status }}. Asking will work after indexing finishes successfully.
         </p>
 
-        <div class="chat-log">
+        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
           <div v-for="(msg, index) in messages" :key="msg.id || index" class="message" :class="msg.role">
             <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
             <p style="white-space: pre-wrap">{{ msg.content }}</p>
@@ -50,7 +53,7 @@
                 <strong>{{ citation.fileName }}</strong>
                 <div v-if="citation.section">Section: {{ citation.section }}</div>
                 <div v-if="citation.page !== null && citation.page !== undefined">Page: {{ citation.page }}</div>
-                <div style="margin-top:8px; white-space: pre-wrap">{{ citation.text }}</div>
+                <div style="margin-top:8px; white-space: pre-wrap; max-height: 300px; overflow-y: auto">{{ citation.text }}</div>
               </div>
             </div>
           </div>
@@ -61,7 +64,7 @@
         <h2>Uploaded files</h2>
         <div>
           <span v-for="file in status.files" :key="file.id" class="file-pill">
-            {{ file.originalName }}
+            {{ cleanFileName(file.originalName) }}
           </span>
         </div>
 
@@ -93,9 +96,8 @@
           </p>
         </div>
 
-        <div v-if="status.role === 'owner'" style="margin-top:24px">
+        <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-top:24px">
           <h2>Pending access requests</h2>
-          <div v-if="status.accessRequests.length === 0">No requests yet.</div>
           <div v-for="req in status.accessRequests" :key="req.id" class="source-card" style="margin-top:10px">
             <strong>{{ req.displayName }}</strong>
             <div>Status: {{ req.status }}</div>
@@ -112,7 +114,7 @@
             :key="q"
             class="question-pill"
             style="border:none; cursor:pointer"
-            @click="question = q"
+            @click="question = q; questionInput?.focus()"
           >
             {{ q }}
           </button>
@@ -123,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import {
   askQuestion,
   getConversation,
@@ -142,6 +144,8 @@ const props = defineProps<{ conversationId: string }>();
 const conversationId = props.conversationId;
 const question = ref("");
 const asking = ref(false);
+const questionInput = ref<HTMLTextAreaElement | null>(null);
+const chatContainer = ref<HTMLDivElement | null>(null);
 const uploadingMore = ref(false);
 const requestingAccess = ref(false);
 const displayName = ref("");
@@ -160,12 +164,24 @@ const status = ref<ConversationStatus>({
 });
 const messages = ref<ChatMessage[]>([]);
 
+// Helper function to remove UUID prefix from filename (e.g., "uuid_filename.ext" -> "filename.ext")
+const cleanFileName = (name: string): string => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i;
+  return name.replace(uuidPattern, "");
+};
+
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
 
 async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
   messages.value = response.messages || [];
+}
+
+function scrollToBottom() {
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  }
 }
 
 async function ask() {
@@ -286,10 +302,18 @@ async function copyUrl() {
   await navigator.clipboard.writeText(window.location.href);
 }
 
+// Auto-scroll to bottom when messages update
+watch(messages, async () => {
+  await nextTick();
+  scrollToBottom();
+});
+
 let intervalHandle: number | undefined;
 
 onMounted(async () => {
   await loadConversation();
+  await nextTick();
+  scrollToBottom();
 
   intervalHandle = window.setInterval(async () => {
     await loadConversation();
