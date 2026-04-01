@@ -16,3 +16,10 @@ ALTER TABLE conversations
 ALTER COLUMN salt SET NOT NULL;
 
 COMMIT;
+
+BEGIN;
+
+ALTER TABLE conversations
+ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+COMMIT;

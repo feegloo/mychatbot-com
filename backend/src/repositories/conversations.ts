@@ -34,9 +34,18 @@ export async function updateConversationStatus(id: string, status: ConversationR
   );
 }
 
+export async function updateConversationDisplayName(id: string, displayName: string) {
+  await query(
+    `UPDATE conversations
+     SET display_name = $2, updated_at = NOW()
+     WHERE id = $1`,
+    [id, displayName]
+  );
+}
+
 export async function getConversation(id: string, role: ConversationRole = "viewer") {
   const conversationResult = await query<ConversationRecord>(
-    `SELECT id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message
+    `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message
      FROM conversations
      WHERE id = $1`,
     [id]

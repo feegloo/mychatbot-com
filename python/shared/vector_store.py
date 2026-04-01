@@ -61,7 +61,7 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     }
 
 
-def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> list[dict]:
+def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4, max_distance: float = 1.4) -> list[dict]:
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
     embeddings = get_embeddings()
@@ -71,20 +71,25 @@ def query_chunks(collection_name: str, conversation_id: str, question: str, top_
         query_embeddings=[query_vector],
         n_results=top_k,
         where={"conversation_id": conversation_id},
+        include=["documents", "metadatas", "distances"],
     )
 
     rows = []
     ids = result.get("ids", [[]])[0]
     documents = result.get("documents", [[]])[0]
     metadatas = result.get("metadatas", [[]])[0]
+    distances = result.get("distances", [[]])[0]
 
-    for chunk_id, document, metadata in zip(ids, documents, metadatas):
+    for chunk_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
+        if distance > max_distance:
+            continue
         rows.append({
             "chunk_id": chunk_id,
             "text": document,
             "file_name": metadata.get("file_name", "Unknown file"),
             "section": metadata.get("section") or None,
             "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
+            "distance": distance,
             "metadata": metadata,
         })
     return rows

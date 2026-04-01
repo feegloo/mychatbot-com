@@ -1,27 +1,41 @@
 <template>
   <div class="page">
     <div class="header" style="margin-bottom: 12px">
-      <div>
-        <h1 style="font-size: 1.1rem; margin: 0 0 4px 0">Conversation {{ conversationId }}</h1>
+      <div style="flex: 1; min-width: 0">
+        <h1
+          v-if="!editingName"
+          class="conv-title"
+          :title="canUpload ? 'Click to rename' : ''"
+          :style="canUpload ? 'cursor: pointer' : ''"
+          @click="canUpload && startRename()"
+        >{{ conversationTitle }}</h1>
+        <input
+          v-else
+          ref="nameInput"
+          class="conv-title-input"
+          v-model="editNameValue"
+          @keydown.enter="saveRename"
+          @keydown.escape="editingName = false"
+          @blur="saveRename"
+        />
         <div style="display: flex; gap: 8px">
-          <div class="status-badge">Status: {{ status.status }}</div>
-          <div class="status-badge">Role: {{ status.role }}</div>
+          <div class="status-badge">{{ status.status }}</div>
+          <div class="status-badge">{{ status.role }}</div>
         </div>
       </div>
       <div style="display:flex; gap:12px">
-        <button class="button secondary" @click="copyUrl">Copy shareable URL</button>
+        <button class="button secondary" @click="copyUrl">Share</button>
       </div>
     </div>
 
-    <p v-if="status.errorMessage" style="color:#b91c1c; margin-bottom:16px">
+    <p v-if="status.errorMessage" style="color:#f87171; margin-bottom:16px">
       {{ status.errorMessage }}
     </p>
 
     <div class="grid grid-2">
-      <section class="card">
-        <h3 style="margin: 4px 0 8px; font-size: 0.95rem">Chat</h3>
+      <section class="chat-panel">
 
-        <p v-if="status.status !== 'ready'" style="margin-bottom:12px; color:#92400e">
+        <p v-if="status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
           Conversation is currently {{ status.status }}. Asking will work after indexing finishes successfully.
         </p>
 
@@ -36,7 +50,7 @@
 
             <div v-if="msg.citations?.length" class="sources">
               <div class="source-card">
-                <span class="citation-filename"><span style="color: #94a3b8; font-weight: 400">source: </span><strong>{{ cleanFileName(msg.citations[activeCitationTab[index] ?? 0].fileName) }}</strong></span>
+                <span class="citation-filename"><span style="color: #64748b; font-weight: 400">source: </span><strong style="color: #c4b5fd">{{ cleanFileName(msg.citations[activeCitationTab[index] ?? 0].fileName) }}</strong></span>
                 <div style="display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px">
                   <button
                     v-for="(citation, cIdx) in msg.citations"
@@ -48,7 +62,7 @@
                     {{ citation.section || (citation.page !== null && citation.page !== undefined ? 'Page ' + citation.page : 'Source ' + (cIdx + 1)) }}
                   </button>
                 </div>
-                <div style="white-space: pre-wrap; font-size: 12px">
+                <div style="white-space: pre-wrap; font-size: 12px; color: #94a3b8; font-style: italic;">
                   {{ msg.citations[activeCitationTab[index] ?? 0].text }}
                 </div>
               </div>
@@ -124,23 +138,23 @@
             </p>
           </div>
           <div v-else>
-            <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size: 13px" />
+        <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #e2e8f0; font-size: 13px" />
             <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px; width: 100%" :disabled="requestingAccess || !displayName" @click="requestAccess">
               {{ requestingAccess ? "Requesting..." : "Request access" }}
             </button>
           </div>
         </div>
 
-        <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0">
+        <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06)">
           <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Access requests</h3>
-          <div v-for="req in status.accessRequests" :key="req.id" style="font-size: 13px; margin-bottom: 8px; padding: 8px; background: #f1f5f9; border-radius: 8px">
+          <div v-for="req in status.accessRequests" :key="req.id" style="font-size: 13px; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06)">
             <div style="font-weight: 500">{{ req.displayName }}</div>
             <div style="color: #64748b; font-size: 12px">{{ req.status }}</div>
             <button v-if="req.status === 'pending'" class="button" style="margin-top: 6px; font-size: 12px; padding: 4px 8px" @click="approveRequest(req.id)">Approve</button>
           </div>
         </div>
 
-        <div style="padding-top: 12px; border-top: 1px solid #e2e8f0">
+        <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06)">
           <h3 style="margin: 0 0 10px 0; font-size: 0.95rem">Suggested questions</h3>
           <div>
             <button
@@ -171,7 +185,8 @@ import {
   requestUploadAccess,
   getUploadAccessRequest,
   approveUploadAccess,
-  saveConversationToken
+  saveConversationToken,
+  renameConversation
 } from "../api";
 
 const props = defineProps<{ conversationId: string }>();
@@ -188,9 +203,13 @@ const displayName = ref("");
 const pendingRequestId = ref(localStorage.getItem(`pending-access-request:${conversationId}`) || "");
 const moreFiles = ref<File[]>([]);
 const moreFilesInput = ref<HTMLInputElement | null>(null);
+const editingName = ref(false);
+const editNameValue = ref("");
+const nameInput = ref<HTMLInputElement | null>(null);
 
 const status = ref<ConversationStatus>({
   conversationId,
+  displayName: null,
   status: "processing",
   role: "viewer",
   files: [],
@@ -208,6 +227,30 @@ const cleanFileName = (name: string): string => {
 };
 
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
+
+const conversationTitle = computed(() => {
+  if (status.value.displayName) return status.value.displayName;
+  if (status.value.files.length) {
+    return status.value.files.map(f => cleanFileName(f.originalName)).join(", ");
+  }
+  return `Conversation ${conversationId.slice(0, 8)}…`;
+});
+
+async function startRename() {
+  editingName.value = true;
+  editNameValue.value = status.value.displayName || conversationTitle.value;
+  await nextTick();
+  nameInput.value?.select();
+}
+
+async function saveRename() {
+  if (!editingName.value) return;
+  editingName.value = false;
+  const trimmed = editNameValue.value.trim();
+  if (!trimmed || trimmed === status.value.displayName) return;
+  await renameConversation(conversationId, trimmed);
+  status.value.displayName = trimmed;
+}
 
 async function loadConversation() {
   const response = await getConversation(conversationId);

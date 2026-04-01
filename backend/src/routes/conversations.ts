@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
@@ -26,6 +26,7 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
 
   ctx.body = {
     conversationId: data.conversation.id,
+    displayName: data.conversation.display_name || null,
     status: data.conversation.status,
     role,
     files: data.files.map((file) => ({
@@ -255,4 +256,31 @@ conversationsRouter.post("/conversations/:conversationId/access-requests/:reques
     ctx.status = 500;
     ctx.body = { error: "Failed to approve access request" };
   }
+});
+
+// PATCH /conversations/:conversationId/name
+const renameSchema = z.object({
+  displayName: z.string().min(1).max(200)
+});
+
+conversationsRouter.patch("/conversations/:conversationId/name", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+  const token = String(ctx.headers["x-conversation-token"] || "");
+  const role = await resolveConversationRole(conversationId, token);
+
+  if (role !== "owner" && role !== "editor") {
+    ctx.status = 403;
+    ctx.body = { error: "Only owner or editor can rename conversations" };
+    return;
+  }
+
+  const parsed = renameSchema.safeParse(ctx.request.body);
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid display name" };
+    return;
+  }
+
+  await updateConversationDisplayName(conversationId, parsed.data.displayName);
+  ctx.body = { displayName: parsed.data.displayName };
 });

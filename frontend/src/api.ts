@@ -48,6 +48,7 @@ export type ChatMessage = {
 
 export type ConversationStatus = {
   conversationId: string;
+  displayName: string | null;
   status: "processing" | "ready" | "failed";
   role: "owner" | "editor" | "viewer";
   files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
@@ -118,4 +119,13 @@ export async function approveUploadAccess(conversationId: string, requestId: str
     { headers: authHeaders(conversationId) }
   );
   return response.data as { requestId: string; status: "approved" };
+}
+
+export async function renameConversation(conversationId: string, displayName: string) {
+  const response = await api.patch(
+    `/conversations/${conversationId}/name`,
+    { displayName },
+    { headers: authHeaders(conversationId) }
+  );
+  return response.data as { displayName: string };
 }

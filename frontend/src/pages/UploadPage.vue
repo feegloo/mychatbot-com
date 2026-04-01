@@ -2,8 +2,8 @@
   <div class="page">
     <div class="header">
       <div>
-        <h1>MyChatbot</h1>
-        <p>Upload your own files, generate embeddings, then chat with a RAG bot at a unique shareable URL.</p>
+        <h1 style="font-size: 1.5rem; margin: 0 0 6px">MyChatbot</h1>
+        <p style="color: #64748b; margin: 0; font-size: 14px">Upload your own files, generate embeddings, then chat with a RAG bot at a unique shareable URL.</p>
       </div>
     </div>
 
@@ -35,12 +35,12 @@
           </button>
         </div>
 
-        <p v-if="error" style="color:#b91c1c; margin-top:12px">{{ error }}</p>
+        <p v-if="error" style="color:#f87171; margin-top:12px">{{ error }}</p>
       </section>
 
       <aside class="card">
-        <h2>How it works</h2>
-        <ol>
+        <h2 style="font-size: 1rem; margin: 8px 0 12px">How it works</h2>
+        <ol style="color: #94a3b8; line-height: 1.8; padding-left: 20px; font-size: 14px">
           <li>Files are uploaded to the server.</li>
           <li>Node stores file metadata and creates a conversation URL.</li>
           <li>Python indexes content into Chroma using notebook mode or script mode.</li>
