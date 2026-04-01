@@ -69,7 +69,31 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
 
 def stream_answer_events(collection_name: str, conversation_id: str, question: str):
-    result = answer_with_citations(collection_name, conversation_id, question)
-    for token in result["answer"]:
-        yield f"event: token\ndata: {json.dumps({'token': token})}"
-    yield f"event: citations\ndata: {json.dumps({'citations': result['citations']})}"
+    settings = get_settings()
+    rows = query_chunks(collection_name, conversation_id, question, top_k=4)
+    context = build_context(rows)
+
+    llm = ChatOpenAI(
+        model=settings.openai_chat_model,
+        temperature=0,
+        api_key=settings.openai_api_key,
+        streaming=True,
+    )
+    chain = ANSWER_PROMPT | llm | StrOutputParser()
+
+    # Stream real tokens from the LLM
+    for token in chain.stream({"question": question, "context": context}):
+        if token:
+            yield f"event: token\ndata: {json.dumps({'token': token})}"
+
+    # Send citations after streaming is done
+    citations = []
+    for row in rows:
+        citations.append({
+            "fileName": row["file_name"],
+            "chunkId": row["chunk_id"],
+            "text": row["text"],
+            "section": row.get("section"),
+            "page": row.get("page"),
+        })
+    yield f"event: citations\ndata: {json.dumps({'citations': citations})}"

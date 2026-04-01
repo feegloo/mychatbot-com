@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 from typing import Iterable, List
 
@@ -15,12 +16,30 @@ TEXT_EXTENSIONS = {
 }
 
 
+def _reflow_pdf_text(raw: str) -> str:
+    """Join lines broken by PDF layout into flowing paragraphs.
+
+    Only blank lines (double newlines) are treated as paragraph breaks.
+    All other single newlines are treated as soft wraps from the PDF layout
+    and joined with a space.
+    """
+    paragraphs = raw.split("\n\n")
+    reflowed: list[str] = []
+    for para in paragraphs:
+        # Join all lines within a paragraph into one continuous string
+        joined = " ".join(line.strip() for line in para.split("\n") if line.strip())
+        if joined:
+            reflowed.append(joined)
+    return "\n\n".join(reflowed)
+
+
 def extract_pdf(path: Path) -> str:
     reader = PdfReader(str(path))
     parts: List[str] = []
     for page_number, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
-        parts.append(f"# Page {page_number}\n\n{text.strip()}")
+        text = _reflow_pdf_text(text.strip())
+        parts.append(f"# Page {page_number}\n\n{text}")
     return "\n\n".join(parts).strip()
 
 

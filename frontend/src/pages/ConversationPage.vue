@@ -19,50 +19,75 @@
 
     <div class="grid grid-2">
       <section class="card">
-        <h2>Chat</h2>
-
-        <div style="margin-bottom: 12px">
-          <textarea
-            ref="questionInput"
-            class="big-input"
-            v-model="question"
-            placeholder="Ask a question about the uploaded documents..."
-          />
-        </div>
-
-        <div style="display:flex; gap:12px; margin-bottom:12px;">
-          <button class="button" :disabled="asking || !question.trim()" @click="ask">
-            {{ asking ? "Thinking..." : "Ask question" }}
-          </button>
-          <button class="button secondary" :disabled="asking || !question.trim()" @click="askStreaming">
-            Live answer
-          </button>
-        </div>
+        <h3 style="margin: 4px 0 8px; font-size: 0.95rem">Chat</h3>
 
         <p v-if="status.status !== 'ready'" style="margin-bottom:12px; color:#92400e">
           Conversation is currently {{ status.status }}. Asking will work after indexing finishes successfully.
         </p>
 
         <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
+          <div style="flex: 1"></div>
           <div v-for="(msg, index) in messages" :key="msg.id || index" class="message" :class="msg.role">
             <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
-            <p style="white-space: pre-wrap">{{ msg.content }}</p>
+            <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
 
             <div v-if="msg.citations?.length" class="sources">
-              <div v-for="citation in msg.citations" :key="citation.chunkId + citation.text.slice(0,20)" class="source-card">
-                <strong>{{ cleanFileName(citation.fileName) }}</strong>
-                <div v-if="citation.section">Section: {{ citation.section }}</div>
-                <div v-if="citation.page !== null && citation.page !== undefined">Page: {{ citation.page }}</div>
-                <div style="margin-top:8px; white-space: pre-wrap; max-height: 300px; overflow-y: auto">{{ citation.text }}</div>
+              <div class="source-card">
+                <span class="citation-filename"><span style="color: #94a3b8; font-weight: 400">source: </span><strong>{{ cleanFileName(msg.citations[activeCitationTab[index] ?? 0].fileName) }}</strong></span>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px">
+                  <button
+                    v-for="(citation, cIdx) in msg.citations"
+                    :key="cIdx"
+                    class="citation-tab"
+                    :class="{ active: (activeCitationTab[index] ?? 0) === cIdx }"
+                    @click="activeCitationTab[index] = cIdx"
+                  >
+                    {{ citation.section || (citation.page !== null && citation.page !== undefined ? 'Page ' + citation.page : 'Source ' + (cIdx + 1)) }}
+                  </button>
+                </div>
+                <div style="white-space: pre-wrap; font-size: 12px">
+                  {{ msg.citations[activeCitationTab[index] ?? 0].text }}
+                </div>
               </div>
             </div>
           </div>
-          <div v-if="asking" class="message assistant typing-indicator">
-            <strong>Assistant</strong>
-            <div class="typing-dots">
-              <span></span><span></span><span></span>
-            </div>
-          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <button
+            v-show="false"
+            class="live-toggle"
+            :class="{ active: liveMode }"
+            @click="liveMode = !liveMode"
+            title="Toggle live streaming"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 3h6l1 7H8L9 3z"/>
+              <path d="M8 10l-1.5 11h11L16 10"/>
+              <line x1="12" y1="3" x2="12" y2="0.5"/>
+            </svg>
+            Live
+          </button>
+          <textarea
+            ref="questionInput"
+            class="chat-textarea"
+            v-model="question"
+            placeholder="Ask a question..."
+            rows="1"
+            @input="autoResize"
+            @keydown.enter.exact.prevent="submitQuestion"
+          ></textarea>
+          <button
+            class="send-btn"
+            :disabled="asking || !question.trim()"
+            @click="submitQuestion"
+          >
+            <svg v-if="!asking" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            <div v-else class="typing-dots" style="margin:0"><span></span><span></span><span></span></div>
+          </button>
         </div>
       </section>
 
@@ -154,6 +179,7 @@ const props = defineProps<{ conversationId: string }>();
 const conversationId = props.conversationId;
 const question = ref("");
 const asking = ref(false);
+const liveMode = ref(false);
 const questionInput = ref<HTMLTextAreaElement | null>(null);
 const chatContainer = ref<HTMLDivElement | null>(null);
 const uploadingMore = ref(false);
@@ -173,6 +199,7 @@ const status = ref<ConversationStatus>({
   accessRequests: []
 });
 const messages = ref<ChatMessage[]>([]);
+const activeCitationTab = ref<Record<number, number>>({});
 
 // Helper function to remove UUID prefix from filename (e.g., "uuid_filename.ext" -> "filename.ext")
 const cleanFileName = (name: string): string => {
@@ -211,17 +238,38 @@ async function ask() {
   question.value = "";
   messages.value.push({ role: "user", content: currentQuestion });
 
+  // Add placeholder for assistant response (replaces 3-dot indicator in-place)
+  const assistantPlaceholder: ChatMessage = { role: "assistant", content: "" };
+  messages.value.push(assistantPlaceholder);
+
   try {
     const response = await askQuestion(conversationId, currentQuestion);
-    messages.value.push({
-      role: "assistant",
-      content: response.answer,
-      citations: response.citations
-    });
+    // Update in-place instead of pushing new message
+    assistantPlaceholder.content = response.answer;
+    assistantPlaceholder.citations = response.citations;
     await loadConversation();
   } finally {
     asking.value = false;
   }
+}
+
+function submitQuestion() {
+  if (asking.value || !question.value.trim()) return;
+  if (liveMode.value) {
+    askStreaming();
+  } else {
+    ask();
+  }
+  // Reset textarea height
+  if (questionInput.value) {
+    questionInput.value.style.height = 'auto';
+  }
+}
+
+function autoResize(e: Event) {
+  const el = e.target as HTMLTextAreaElement;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 async function askStreaming() {
@@ -236,25 +284,23 @@ async function askStreaming() {
   const currentQuestion = question.value;
   question.value = "";
 
-  const assistantMessage: ChatMessage = {
-    role: "assistant",
-    content: "",
-    citations: []
-  };
-
   messages.value.push({ role: "user", content: currentQuestion });
-  messages.value.push(assistantMessage);
+  messages.value.push({ role: "assistant", content: "", citations: [] });
+
+  // Get the reactive proxy so mutations trigger Vue updates
+  const reactiveMsg = messages.value[messages.value.length - 1];
 
   const source = new EventSource(getStreamUrl(conversationId, currentQuestion));
 
   source.addEventListener("token", (event: MessageEvent) => {
     const payload = JSON.parse(event.data);
-    assistantMessage.content += payload.token;
+    reactiveMsg.content += payload.token;
+    nextTick(() => scrollToBottom());
   });
 
   source.addEventListener("citations", (event: MessageEvent) => {
     const payload = JSON.parse(event.data);
-    assistantMessage.citations = payload.citations;
+    reactiveMsg.citations = payload.citations;
   });
 
   source.addEventListener("done", async () => {
@@ -319,10 +365,14 @@ async function copyUrl() {
 }
 
 // Auto-scroll to bottom when messages update
-watch(messages, async () => {
-  await nextTick();
-  setTimeout(() => scrollToBottom(), 0);
-}, { deep: true, flush: 'post' });
+let prevMessageCount = 0;
+watch(() => messages.value.length, async (newLen) => {
+  if (newLen > prevMessageCount) {
+    await nextTick();
+    setTimeout(() => scrollToBottom(), 0);
+  }
+  prevMessageCount = newLen;
+});
 
 let intervalHandle: number | undefined;
 
