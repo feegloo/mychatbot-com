@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
@@ -81,9 +81,20 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
   const namespace = data.conversation.storage_namespace;
   const absolutePaths: string[] = [];
 
+  const existingNames = new Set(data.files.map((f) => f.original_name));
+  const duplicates: string[] = [];
+
   for (const file of files) {
-    const saved = await storage.save(namespace, file.originalname, {
-      originalName: file.originalname,
+    const originalName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
+
+    if (existingNames.has(originalName)) {
+      duplicates.push(originalName);
+      continue;
+    }
+    existingNames.add(originalName);
+
+    const saved = await storage.save(namespace, originalName, {
+      originalName,
       mimeType: file.mimetype || "application/octet-stream",
       buffer: file.buffer
     });
@@ -93,7 +104,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     await insertUploadedFile({
       id: uuidv4(),
       conversation_id: conversationId,
-      original_name: file.originalname,
+      original_name: originalName,
       stored_name: storedName,
       mime_type: file.mimetype || "application/octet-stream",
       size_bytes: file.size,
@@ -103,6 +114,12 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath);
     }
+  }
+
+  if (!absolutePaths.length) {
+    ctx.status = 409;
+    ctx.body = { error: "File already uploaded", duplicates };
+    return;
   }
 
   // Set status to processing while indexing
@@ -126,7 +143,8 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
 
   ctx.body = {
     conversationId,
-    status: "processing"
+    status: "processing",
+    ...(duplicates.length ? { duplicates } : {})
   };
 });
 
@@ -283,4 +301,39 @@ conversationsRouter.patch("/conversations/:conversationId/name", async (ctx) => 
 
   await updateConversationDisplayName(conversationId, parsed.data.displayName);
   ctx.body = { displayName: parsed.data.displayName };
+});
+
+const batchSchema = z.object({
+  conversations: z.array(z.object({
+    conversationId: z.string().uuid(),
+    token: z.string()
+  })).max(100)
+});
+
+conversationsRouter.post("/conversations/batch", async (ctx) => {
+  const parsed = batchSchema.safeParse(ctx.request.body);
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid request body" };
+    return;
+  }
+
+  const ids = parsed.data.conversations.map((c) => c.conversationId);
+  const summaries = await getConversationSummaries(ids);
+
+  const results = await Promise.all(
+    summaries.map(async (row) => {
+      const entry = parsed.data.conversations.find((c) => c.conversationId === row.id);
+      const role = await resolveConversationRole(row.id, entry?.token);
+      return {
+        conversationId: row.id,
+        displayName: row.display_name || null,
+        status: row.status,
+        role,
+        fileNames: row.fileNames
+      };
+    })
+  );
+
+  ctx.body = { conversations: results };
 });

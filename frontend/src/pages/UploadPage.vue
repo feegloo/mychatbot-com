@@ -8,7 +8,7 @@
     </div>
 
     <div class="grid grid-2">
-      <section class="card">
+      <section>
         <h2>Upload files</h2>
         <div
           class="dropzone"
@@ -18,7 +18,7 @@
           @drop.prevent="onDrop"
         >
           <p><strong>Drag and drop</strong> PDF, DOCX, TXT, MD, CSV, XLSX, HTML, XML, JSON, and other text-like files here.</p>
-          <p>Future version: images and other unstructured files.</p>
+          <!-- <p>Future version: images and other unstructured files.</p> -->
           <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
           <button class="button secondary" @click="openFilePicker">Choose files</button>
         </div>
@@ -38,7 +38,7 @@
         <p v-if="error" style="color:#f87171; margin-top:12px">{{ error }}</p>
       </section>
 
-      <aside class="card">
+      <aside>
         <h2 style="font-size: 1rem; margin: 8px 0 12px">How it works</h2>
         <ol style="color: #94a3b8; line-height: 1.8; padding-left: 20px; font-size: 14px">
           <li>Files are uploaded to the server.</li>

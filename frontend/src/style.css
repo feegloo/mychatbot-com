@@ -31,6 +31,111 @@ body {
 a { color: #c4b5fd; text-decoration: none; }
 a:hover { color: #a5b4fc; }
 
+/* ── App layout with sidebar ── */
+
+.app-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0b0f1a;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(167, 139, 250, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(14, 165, 233, 0.08), transparent);
+}
+
+/* ── Conversation nav sidebar ── */
+
+.conv-nav {
+  width: 240px;
+  flex-shrink: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.conv-nav-new {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: 0.15s;
+}
+
+.conv-nav-new:hover {
+  background: #334155;
+}
+
+.conv-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.conv-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #cbd5e1;
+  font-size: 13px;
+  transition: 0.15s;
+  overflow: hidden;
+}
+
+.conv-nav-item:hover {
+  background: #1e293b;
+}
+
+.conv-nav-item.active {
+  background: #334155;
+  color: #fff;
+}
+
+.conv-nav-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-nav-badge {
+  font-size: 10px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #334155;
+  flex-shrink: 0;
+}
+
+.conv-nav-badge.ready { background: #166534; color: #bbf7d0; }
+.conv-nav-badge.processing { background: #854d0e; color: #fef08a; }
+.conv-nav-badge.failed { background: #991b1b; color: #fecaca; }
+
+.conv-nav-empty {
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+  margin: 24px 0;
+}
+
 .page {
   max-width: 1200px;
   margin: 0 auto;
@@ -453,4 +558,8 @@ h1, h2, h3 {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
+}
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }

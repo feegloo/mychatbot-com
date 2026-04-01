@@ -231,3 +231,36 @@ export async function listConversationMessages(conversationId: string) {
 
   return result.rows;
 }
+
+export async function getConversationSummaries(conversationIds: string[]) {
+  if (!conversationIds.length) return [];
+
+  const placeholders = conversationIds.map((_, i) => `$${i + 1}`).join(", ");
+  const result = await query<Pick<ConversationRecord, "id" | "display_name" | "status">>(
+    `SELECT id, display_name, status
+     FROM conversations
+     WHERE id IN (${placeholders})
+     ORDER BY updated_at DESC`,
+    conversationIds
+  );
+
+  const fileResults = await query<Pick<UploadedFileRecord, "conversation_id" | "original_name">>(
+    `SELECT conversation_id, original_name
+     FROM uploaded_files
+     WHERE conversation_id IN (${placeholders})
+     ORDER BY created_at ASC`,
+    conversationIds
+  );
+
+  const filesByConversation = new Map<string, string[]>();
+  for (const row of fileResults.rows) {
+    const list = filesByConversation.get(row.conversation_id) || [];
+    list.push(row.original_name);
+    filesByConversation.set(row.conversation_id, list);
+  }
+
+  return result.rows.map((row) => ({
+    ...row,
+    fileNames: filesByConversation.get(row.id) || []
+  }));
+}

@@ -46,8 +46,9 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   const absolutePaths: string[] = [];
 
   for (const file of files) {
-    const saved = await storage.save(namespace, file.originalname, {
-      originalName: file.originalname,
+    const originalName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
+    const saved = await storage.save(namespace, originalName, {
+      originalName,
       mimeType: file.mimetype || "application/octet-stream",
       buffer: file.buffer
     });
@@ -57,7 +58,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     await insertUploadedFile({
       id: uuidv4(),
       conversation_id: conversationId,
-      original_name: file.originalname,
+      original_name: originalName,
       stored_name: storedName,
       mime_type: file.mimetype || "application/octet-stream",
       size_bytes: file.size,

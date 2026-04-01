@@ -34,6 +34,29 @@ export function getConversationToken(conversationId: string) {
   return tokens[conversationId] || "";
 }
 
+export function getStoredConversationIds(): string[] {
+  return Object.keys(getTokensMap());
+}
+
+export type ConversationSummary = {
+  conversationId: string;
+  displayName: string | null;
+  status: "processing" | "ready" | "failed";
+  role: "owner" | "editor" | "viewer";
+  fileNames: string[];
+};
+
+export async function listMyConversations(): Promise<ConversationSummary[]> {
+  const tokens = getTokensMap();
+  const entries = Object.entries(tokens);
+  if (!entries.length) return [];
+
+  const response = await api.post("/conversations/batch", {
+    conversations: entries.map(([conversationId, token]) => ({ conversationId, token }))
+  });
+  return (response.data as { conversations: ConversationSummary[] }).conversations;
+}
+
 function authHeaders(conversationId: string) {
   const token = getConversationToken(conversationId);
   return token ? { "x-conversation-token": token } : {};

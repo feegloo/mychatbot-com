@@ -1,0 +1,158 @@
+<template>
+  <aside class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+      <h3 style="margin: 0; font-size: 0.95rem">Uploaded files</h3>
+      <button v-if="canUpload" class="button" style="padding: 6px 12px; font-size: 13px" @click="moreFilesInput?.click()">
+        + Add
+      </button>
+    </div>
+    <div style="margin-bottom: 16px">
+      <span v-for="file in status.files" :key="file.id" class="file-pill" style="font-size: 13px">
+        {{ cleanFileName(file.originalName) }}
+      </span>
+    </div>
+
+    <input ref="moreFilesInput" type="file" multiple @change="onMoreFilesChange" style="display:none" />
+    <div v-if="moreFiles.length || uploadError" style="margin-bottom: 12px">
+      <p v-if="uploadError" style="margin: 0 0 8px 0; font-size: 13px; color: #fbbf24">{{ uploadError }}</p>
+      <template v-if="moreFiles.length">
+        <div class="file-list">
+          <div v-for="file in moreFiles" :key="file.name" class="file-pill" style="font-size: 13px">
+            {{ file.name }}
+          </div>
+        </div>
+        <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px" :disabled="uploadingMore || !moreFiles.length" @click="uploadMore">
+          {{ uploadingMore ? "Uploading..." : "Upload" }}
+        </button>
+      </template>
+    </div>
+
+    <div v-if="!canUpload" style="margin-bottom: 16px">
+      <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Request upload access</h3>
+      <div v-if="pendingRequestId">
+        <p style="margin: 0; font-size: 12px; color: #64748b">
+          Request sent. Waiting for owner approval...
+        </p>
+      </div>
+      <div v-else>
+        <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #e2e8f0; font-size: 13px" />
+        <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px; width: 100%" :disabled="requestingAccess || !displayName" @click="requestAccess">
+          {{ requestingAccess ? "Requesting..." : "Request access" }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06)">
+      <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Access requests</h3>
+      <div v-for="req in status.accessRequests" :key="req.id" style="font-size: 13px; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06)">
+        <div style="font-weight: 500">{{ req.displayName }}</div>
+        <div style="color: #64748b; font-size: 12px">{{ req.status }}</div>
+        <button v-if="req.status === 'pending'" class="button" style="margin-top: 6px; font-size: 12px; padding: 4px 8px" @click="approveRequest(req.id)">Approve</button>
+      </div>
+    </div>
+
+    <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06)">
+      <h3 style="margin: 0 0 10px 0; font-size: 0.95rem">Suggested questions</h3>
+      <div>
+        <button
+          v-for="q in status.suggestedQuestions"
+          :key="q"
+          class="question-pill"
+          style="border:none; cursor:pointer; font-size: 12px; padding: 6px 10px; margin: 4px 0"
+          @click="$emit('select-question', q)"
+        >
+          {{ q }}
+        </button>
+      </div>
+    </div>
+  </aside>
+</template>
+
+<script setup lang="ts">
+import { ref } from "vue";
+import {
+  type ConversationStatus,
+  uploadMoreFiles,
+  requestUploadAccess,
+  getUploadAccessRequest,
+  approveUploadAccess,
+  saveConversationToken
+} from "../api";
+import { cleanFileName } from "../utils/text";
+
+const props = defineProps<{
+  status: ConversationStatus;
+  conversationId: string;
+  canUpload: boolean;
+}>();
+
+const emit = defineEmits<{
+  reload: [];
+  'select-question': [question: string];
+}>();
+
+const uploadingMore = ref(false);
+const uploadError = ref("");
+const moreFiles = ref<File[]>([]);
+const moreFilesInput = ref<HTMLInputElement | null>(null);
+const requestingAccess = ref(false);
+const displayName = ref("");
+const pendingRequestId = ref(localStorage.getItem(`pending-access-request:${props.conversationId}`) || "");
+
+function onMoreFilesChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  moreFiles.value = Array.from(target.files || []);
+  uploadError.value = "";
+}
+
+async function uploadMore() {
+  if (!moreFiles.value.length) return;
+  uploadingMore.value = true;
+  try {
+    await uploadMoreFiles(props.conversationId, moreFiles.value);
+    moreFiles.value = [];
+    if (moreFilesInput.value) moreFilesInput.value.value = "";
+    emit("reload");
+  } catch (err: any) {
+    if (err.response?.status === 409) {
+      const names = (err.response.data?.duplicates || []).join(", ");
+      uploadError.value = names ? `File ${names} already uploaded` : "File already uploaded";
+      moreFiles.value = [];
+      if (moreFilesInput.value) moreFilesInput.value.value = "";
+    } else {
+      throw err;
+    }
+  } finally {
+    uploadingMore.value = false;
+  }
+}
+
+async function requestAccess() {
+  requestingAccess.value = true;
+  try {
+    const response = await requestUploadAccess(props.conversationId, displayName.value);
+    pendingRequestId.value = response.requestId;
+    localStorage.setItem(`pending-access-request:${props.conversationId}`, response.requestId);
+  } finally {
+    requestingAccess.value = false;
+  }
+}
+
+async function pollAccessRequest() {
+  if (!pendingRequestId.value) return;
+  const response = await getUploadAccessRequest(props.conversationId, pendingRequestId.value);
+  if (response.status === "approved" && response.editorPassword) {
+    saveConversationToken(props.conversationId, response.editorPassword);
+    localStorage.removeItem(`pending-access-request:${props.conversationId}`);
+    pendingRequestId.value = "";
+    emit("reload");
+  }
+}
+
+async function approveRequest(requestId: string) {
+  await approveUploadAccess(props.conversationId, requestId);
+  emit("reload");
+}
+
+defineExpose({ pollAccessRequest });
+</script>
