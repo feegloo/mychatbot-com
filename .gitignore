@@ -1,0 +1,16 @@
+node_modules/
+**/node_modules/
+dist/
+coverage/
+.env
+.env.*
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+.ipynb_checkpoints/
+storage/
+data/
+playwright-report/
+test-results/

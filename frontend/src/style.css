@@ -1,0 +1,145 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #111827;
+  background: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a { color: inherit; }
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-2 {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.dropzone {
+  border: 2px dashed #94a3b8;
+  border-radius: 18px;
+  padding: 32px;
+  text-align: center;
+  background: #f8fafc;
+  transition: 0.2s ease;
+}
+
+.dropzone.dragover {
+  border-color: #0f172a;
+  background: #eef2ff;
+}
+
+.button {
+  appearance: none;
+  border: none;
+  background: #0f172a;
+  color: white;
+  border-radius: 12px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.button.secondary {
+  background: #e2e8f0;
+  color: #111827;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.file-pill,
+.question-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  margin: 6px 8px 0 0;
+}
+
+.chat-log {
+  display: grid;
+  gap: 16px;
+}
+
+.message {
+  border-radius: 18px;
+  padding: 16px;
+  background: white;
+}
+
+.message.user {
+  background: #dbeafe;
+}
+
+.message.assistant {
+  background: #f8fafc;
+}
+
+textarea.big-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  padding: 14px;
+  font: inherit;
+}
+
+.status-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #e2e8f0;
+}
+
+.sources {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.source-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
