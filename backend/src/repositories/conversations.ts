@@ -11,10 +11,11 @@ import type {
 
 export async function insertConversation(record: ConversationRecord) {
   await query(
-    `INSERT INTO conversations (id, status, storage_namespace, vector_collection_name, indexing_mode, error_message)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       record.id,
+      record.salt,
       record.status,
       record.storage_namespace,
       record.vector_collection_name,
@@ -35,7 +36,7 @@ export async function updateConversationStatus(id: string, status: ConversationR
 
 export async function getConversation(id: string, role: ConversationRole = "viewer") {
   const conversationResult = await query<ConversationRecord>(
-    `SELECT id, status, storage_namespace, vector_collection_name, indexing_mode, error_message
+    `SELECT id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message
      FROM conversations
      WHERE id = $1`,
     [id]

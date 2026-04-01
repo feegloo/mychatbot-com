@@ -6,6 +6,7 @@ import { createStorageProvider } from "../storage/index.js";
 import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken } from "../repositories/conversations.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
+import { deriveToken } from "../security.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 export const uploadRouter = new Router();
@@ -19,13 +20,15 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   }
 
   const conversationId = uuidv4();
-  const ownerToken = uuidv4();
+  const salt = uuidv4();
+  const ownerPassword = deriveToken(conversationId, salt);
   const namespace = conversationId;
   const collectionName = `conversation_${conversationId.replace(/-/g, "_")}`;
   const storage = createStorageProvider();
 
   await insertConversation({
     id: conversationId,
+    salt: salt,
     status: "processing",
     storage_namespace: namespace,
     vector_collection_name: collectionName,
@@ -33,9 +36,9 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     error_message: null
   });
 
-  // Create owner access token
+  // Create owner access token - use derived token
   await insertAccessToken({
-    token: ownerToken,
+    token: ownerPassword,
     conversation_id: conversationId,
     role: "owner"
   });
@@ -85,6 +88,6 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     conversationId,
     status: "processing",
     url: `/c/${conversationId}`,
-    ownerToken
+    ownerPassword
   };
 });

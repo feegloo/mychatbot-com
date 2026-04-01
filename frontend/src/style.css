@@ -140,6 +140,33 @@ a { color: inherit; }
   background: #f8fafc;
 }
 
+.typing-dots {
+  display: flex;
+  gap: 5px;
+  padding: 8px 0 4px;
+}
+
+.typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: typing-bounce 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
 textarea.big-input {
   width: 100%;
   min-height: 120px;

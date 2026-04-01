@@ -63,7 +63,7 @@ export async function uploadFiles(files: File[]) {
   const response = await api.post("/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
-  return response.data as { conversationId: string; url: string; status: string; ownerToken: string };
+  return response.data as { conversationId: string; url: string; status: string; ownerPassword: string };
 }
 
 export async function uploadMoreFiles(conversationId: string, files: File[]) {
@@ -108,7 +108,7 @@ export async function requestUploadAccess(conversationId: string, displayName: s
 
 export async function getUploadAccessRequest(conversationId: string, requestId: string) {
   const response = await api.get(`/conversations/${conversationId}/access-requests/${requestId}`);
-  return response.data as { requestId: string; status: "pending" | "approved" | "rejected"; editorToken: string | null };
+  return response.data as { requestId: string; status: "pending" | "approved" | "rejected"; editorPassword: string | null };
 }
 
 export async function approveUploadAccess(conversationId: string, requestId: string) {

@@ -57,6 +57,12 @@
               </div>
             </div>
           </div>
+          <div v-if="asking" class="message assistant typing-indicator">
+            <strong>Assistant</strong>
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -87,13 +93,17 @@
 
         <div v-if="!canUpload" style="margin-bottom: 16px">
           <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Request upload access</h3>
-          <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size: 13px" />
-          <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px; width: 100%" :disabled="requestingAccess || !displayName" @click="requestAccess">
-            {{ requestingAccess ? "Requesting..." : "Request access" }}
-          </button>
-          <p v-if="pendingRequestId" style="margin-top:8px; margin-bottom:0; font-size: 12px; color: #64748b">
-            Request sent. Waiting for approval.
-          </p>
+          <div v-if="pendingRequestId">
+            <p style="margin: 0; font-size: 12px; color: #64748b">
+              Request sent. Waiting for owner approval...
+            </p>
+          </div>
+          <div v-else>
+            <input v-model="displayName" placeholder="Your name" style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1; font-size: 13px" />
+            <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px; width: 100%" :disabled="requestingAccess || !displayName" @click="requestAccess">
+              {{ requestingAccess ? "Requesting..." : "Request access" }}
+            </button>
+          </div>
         </div>
 
         <div v-if="status.role === 'owner' && status.accessRequests.length > 0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0">
@@ -175,7 +185,10 @@ const canUpload = computed(() => status.value.role === "owner" || status.value.r
 async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
-  messages.value = response.messages || [];
+  // Don't overwrite messages while asking — local optimistic messages would be wiped
+  if (!asking.value) {
+    messages.value = response.messages || [];
+  }
 }
 
 function scrollToBottom() {
@@ -196,10 +209,10 @@ async function ask() {
   asking.value = true;
   const currentQuestion = question.value;
   question.value = "";
+  messages.value.push({ role: "user", content: currentQuestion });
 
   try {
     const response = await askQuestion(conversationId, currentQuestion);
-    messages.value.push({ role: "user", content: currentQuestion });
     messages.value.push({
       role: "assistant",
       content: response.answer,
@@ -288,8 +301,8 @@ async function requestAccess() {
 async function pollAccessRequest() {
   if (!pendingRequestId.value) return;
   const response = await getUploadAccessRequest(conversationId, pendingRequestId.value);
-  if (response.status === "approved" && response.editorToken) {
-    saveConversationToken(conversationId, response.editorToken);
+  if (response.status === "approved" && response.editorPassword) {
+    saveConversationToken(conversationId, response.editorPassword);
     localStorage.removeItem(`pending-access-request:${conversationId}`);
     pendingRequestId.value = "";
     await loadConversation();
@@ -321,7 +334,7 @@ onMounted(async () => {
   intervalHandle = window.setInterval(async () => {
     await loadConversation();
     await pollAccessRequest();
-  }, 2500);
+  }, 1000);
 });
 
 onUnmounted(() => {

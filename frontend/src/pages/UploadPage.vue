@@ -83,9 +83,9 @@ async function submit() {
 
   try {
     const data = await uploadFiles(files.value);
-    // Save owner token for this conversation
-    if (data.ownerToken) {
-      saveConversationToken(data.conversationId, data.ownerToken);
+    // Save owner password (persistent token) for this conversation
+    if (data.ownerPassword) {
+      saveConversationToken(data.conversationId, data.ownerPassword);
     }
     router.push(data.url);
   } catch (err: any) {

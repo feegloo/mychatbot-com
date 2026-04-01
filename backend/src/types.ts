@@ -3,6 +3,7 @@ export type ConversationRole = "owner" | "editor" | "viewer";
 
 export type ConversationRecord = {
   id: string;
+  salt: string;
   status: ConversationStatus;
   storage_namespace: string;
   vector_collection_name: string;

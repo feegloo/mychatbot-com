@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY,
+  salt UUID NOT NULL,
   status TEXT NOT NULL DEFAULT 'processing',
   storage_namespace TEXT NOT NULL,
   vector_collection_name TEXT NOT NULL,

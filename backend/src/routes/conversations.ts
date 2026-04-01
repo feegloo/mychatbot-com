@@ -7,6 +7,7 @@ import { getConversation, resolveConversationRole, insertUploadedFile, updateCon
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
+import { deriveToken } from "../security.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 export const conversationsRouter = new Router();
@@ -189,7 +190,7 @@ conversationsRouter.get("/conversations/:conversationId/access-requests/:request
     ctx.body = {
       requestId: request.id,
       status: request.status,
-      editorToken: request.editor_token || null
+      editorPassword: request.editor_token || null
     };
   } catch (err: any) {
     console.error("[get-access-request error]:", err.message);
@@ -227,19 +228,28 @@ conversationsRouter.post("/conversations/:conversationId/access-requests/:reques
       return;
     }
 
-    const editorToken = uuidv4();
+    // Get conversation to extract salt for deriving editor password
+    const conv = await getConversation(conversationId, "viewer");
+    if (!conv.conversation) {
+      ctx.status = 404;
+      ctx.body = { error: "Conversation not found" };
+      return;
+    }
 
-    // Create access token for the requester
+    // Derive editor password from conversationId + salt + "editor" suffix
+    const editorPassword = deriveToken(conversationId, `${conv.conversation.salt}:editor`);
+
+    // Create access token for the requester with derived password
     await insertAccessToken({
-      token: editorToken,
+      token: editorPassword,
       conversation_id: conversationId,
       role: "editor"
     });
 
-    // Mark request as approved with the token
-    await approveAccessRequest(conversationId, requestId, editorToken);
+    // Mark request as approved with the password
+    await approveAccessRequest(conversationId, requestId, editorPassword);
 
-    ctx.body = { requestId, status: "approved" };
+    ctx.body = { requestId, status: "approved", editorPassword };
   } catch (err: any) {
     console.error("[approve-access-request error]:", err.message);
     ctx.status = 500;
