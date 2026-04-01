@@ -100,6 +100,16 @@ export async function insertUploadedFile(file: UploadedFileRecord) {
   );
 }
 
+export async function getUploadedFile(conversationId: string, fileId: string) {
+  const result = await query<UploadedFileRecord>(
+    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key
+     FROM uploaded_files
+     WHERE id = $1 AND conversation_id = $2`,
+    [fileId, conversationId]
+  );
+  return result.rows[0] || null;
+}
+
 export async function replaceSuggestedQuestions(conversationId: string, questions: string[]) {
   await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId]);
 

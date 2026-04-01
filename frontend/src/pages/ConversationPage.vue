@@ -19,8 +19,8 @@
           @blur="saveRename"
         />
         <div style="display: flex; gap: 8px">
-          <div class="status-badge">{{ status.status }}</div>
-          <div class="status-badge">{{ status.role }}</div>
+          <div class="status-badge">status: {{ status.status }}</div>
+          <div class="status-badge">role: {{ status.role }}</div>
         </div>
       </div>
       <div style="display:flex; gap:12px">
@@ -35,7 +35,7 @@
     <div class="grid grid-2">
       <section class="chat-panel">
 
-        <p v-if="status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
+        <p v-if="loaded && status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
           Conversation is currently {{ status.status }}. Asking will work after indexing finishes successfully.
         </p>
 
@@ -62,7 +62,7 @@
                     {{ citation.section || (citation.page !== null && citation.page !== undefined ? 'Page ' + citation.page : 'Source ' + (cIdx + 1)) }}
                   </button>
                 </div>
-                <div style="white-space: pre-wrap; font-size: 12px; color: #94a3b8; font-style: italic;">
+                <div style="white-space: pre-wrap; font-size: 14px; color: #94a3b8; font-style: italic;">
                   {{ msg.citations[activeCitationTab[index] ?? 0].text }}
                 </div>
               </div>
