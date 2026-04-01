@@ -1,4 +1,5 @@
 export type ConversationStatus = "processing" | "ready" | "failed";
+export type ConversationRole = "owner" | "editor" | "viewer";
 
 export type ConversationRecord = {
   id: string;
@@ -24,4 +25,26 @@ export type SuggestedQuestionRecord = {
   conversation_id: string;
   question: string;
   sort_order: number;
+};
+
+export type AccessRequestRecord = {
+  id: string;
+  conversation_id: string;
+  display_name: string;
+  status: "pending" | "approved" | "rejected";
+  editor_token: string | null;
+};
+
+export type AccessTokenRecord = {
+  token: string;
+  conversation_id: string;
+  role: "owner" | "editor";
+};
+
+export type ConversationMessageRecord = {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations_json: any;
 };

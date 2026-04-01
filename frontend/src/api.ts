@@ -4,11 +4,39 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
 });
 
+function tokenKey(conversationId: string) {
+  return `conversation-token:${conversationId}`;
+}
+
+export function saveConversationToken(conversationId: string, token: string) {
+  localStorage.setItem(tokenKey(conversationId), token);
+}
+
+export function getConversationToken(conversationId: string) {
+  return localStorage.getItem(tokenKey(conversationId)) || "";
+}
+
+function authHeaders(conversationId: string) {
+  const token = getConversationToken(conversationId);
+  return token ? { "x-conversation-token": token } : {};
+}
+
+export type ChatMessage = {
+  id?: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
+};
+
 export type ConversationStatus = {
   conversationId: string;
   status: "processing" | "ready" | "failed";
+  role: "owner" | "editor" | "viewer";
   files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+  messages: ChatMessage[];
   suggestedQuestions: string[];
+  accessRequests: Array<{ id: string; displayName: string; status: "pending" | "approved" | "rejected" }>;
+  errorMessage?: string | null;
 };
 
 export async function uploadFiles(files: File[]) {
@@ -17,11 +45,25 @@ export async function uploadFiles(files: File[]) {
   const response = await api.post("/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
-  return response.data as { conversationId: string; url: string; status: string };
+  return response.data as { conversationId: string; url: string; status: string; ownerToken: string };
+}
+
+export async function uploadMoreFiles(conversationId: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  const response = await api.post(`/conversations/${conversationId}/files`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+      ...authHeaders(conversationId)
+    }
+  });
+  return response.data as { conversationId: string; status: string };
 }
 
 export async function getConversation(conversationId: string) {
-  const response = await api.get(`/conversations/${conversationId}`);
+  const response = await api.get(`/conversations/${conversationId}`, {
+    headers: authHeaders(conversationId)
+  });
   return response.data as ConversationStatus;
 }
 
@@ -39,4 +81,23 @@ export function getStreamUrl(conversationId: string, question: string) {
   url.searchParams.set("conversationId", conversationId);
   url.searchParams.set("question", question);
   return url.toString();
+}
+
+export async function requestUploadAccess(conversationId: string, displayName: string) {
+  const response = await api.post(`/conversations/${conversationId}/access-requests`, { displayName });
+  return response.data as { requestId: string; status: "pending" };
+}
+
+export async function getUploadAccessRequest(conversationId: string, requestId: string) {
+  const response = await api.get(`/conversations/${conversationId}/access-requests/${requestId}`);
+  return response.data as { requestId: string; status: "pending" | "approved" | "rejected"; editorToken: string | null };
+}
+
+export async function approveUploadAccess(conversationId: string, requestId: string) {
+  const response = await api.post(
+    `/conversations/${conversationId}/access-requests/${requestId}/approve`,
+    {},
+    { headers: authHeaders(conversationId) }
+  );
+  return response.data as { requestId: string; status: "approved" };
 }

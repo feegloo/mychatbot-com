@@ -1,6 +1,6 @@
 import Router from "@koa/router";
 import { z } from "zod";
-import { getConversation } from "../repositories/conversations.js";
+import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { answerQuestion } from "../python/answering.js";
 
 const askSchema = z.object({
@@ -29,9 +29,15 @@ askRouter.post("/ask", async (ctx) => {
 
   if (data.conversation.status !== "ready") {
     ctx.status = 409;
-    ctx.body = { error: "Conversation is not ready yet" };
+    ctx.body = { error: "Conversation is not ready yet", status: data.conversation.status };
     return;
   }
+
+  await insertConversationMessage({
+    conversationId,
+    role: "user",
+    content: question
+  });
 
   const result = await answerQuestion({
     conversationId,
@@ -39,8 +45,17 @@ askRouter.post("/ask", async (ctx) => {
     question
   });
 
-  ctx.body = result.parsedJson || {
+  const payload = result.parsedJson || {
     answer: result.stdout,
     citations: []
   };
+
+  await insertConversationMessage({
+    conversationId,
+    role: "assistant",
+    content: payload.answer || "",
+    citations: payload.citations || []
+  });
+
+  ctx.body = payload;
 });
