@@ -4,6 +4,9 @@
       <div>
         <h1>Conversation {{ conversationId }}</h1>
         <div class="status-badge">Status: {{ status.status }}</div>
+        <p v-if="status.status === 'failed' && status.errorMessage" style="color:#b91c1c; margin-top:10px;">
+  {{ status.errorMessage }}
+</p>
       </div>
       <div>
         <button class="button secondary" @click="copyUrl">Copy shareable URL</button>

@@ -24,6 +24,11 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
   ctx.set("Cache-Control", "no-cache");
   ctx.set("Connection", "keep-alive");
 
+  console.log("[stream-answer] starting", {
+    conversationId,
+    questionLength: question.length
+  });
+
   const child = spawn(config.pythonBin, [
     path.join(config.pythonProjectRoot, "stream_answer.py"),
     "--conversation-id", conversationId,
@@ -55,6 +60,7 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
   });
 
   child.on("close", () => {
+    console.log("[stream-answer] finished", { conversationId });
     ctx.res.write(`event: done\ndata: {}\n\n`);
     ctx.res.end();
   });

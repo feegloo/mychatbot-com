@@ -5,9 +5,16 @@ export async function answerQuestion(options: {
   collectionName: string;
   question: string;
 }) {
-  return runPythonScript("answer_question.py", [
-    "--conversation-id", options.conversationId,
-    "--collection-name", options.collectionName,
-    "--question", options.question
-  ]);
+  return runPythonScript(
+    "answer_question.py",
+    [
+      "--conversation-id", options.conversationId,
+      "--collection-name", options.collectionName,
+      "--question", options.question
+    ],
+    {
+      conversationId: options.conversationId,
+      purpose: "answer"
+    }
+  );
 }

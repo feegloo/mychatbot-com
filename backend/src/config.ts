@@ -22,5 +22,8 @@ export const config = {
   chromaPersistDir: resolvePath(process.env.CHROMA_PERSIST_DIR || "../data/chroma"),
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiChatModel: process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini",
-  openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small"
+  openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
+
+  // add this
+  logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs")
 };

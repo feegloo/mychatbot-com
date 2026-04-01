@@ -16,8 +16,14 @@ export async function indexConversation(options: {
   }
 
   if (options.mode === "notebook") {
-    return runPythonScript("run_notebook_indexer.py", args);
+    return runPythonScript("run_notebook_indexer.py", args, {
+      conversationId: options.conversationId,
+      purpose: "index"
+    });
   }
 
-  return runPythonScript("index_documents.py", args);
+  return runPythonScript("index_documents.py", args, {
+    conversationId: options.conversationId,
+    purpose: "index"
+  });
 }
