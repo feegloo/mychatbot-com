@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
+  // @ts-ignore
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
 });
 
@@ -118,6 +119,7 @@ export async function askQuestion(conversationId: string, question: string) {
 }
 
 export function getStreamUrl(conversationId: string, question: string) {
+  // @ts-ignore
   const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
   const url = new URL(`${base}/api/stream-answer`);
   url.searchParams.set("conversationId", conversationId);

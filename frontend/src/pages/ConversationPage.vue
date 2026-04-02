@@ -111,7 +111,7 @@ const conversationTitle = computed(() => {
 });
 
 watch(conversationTitle, (title) => {
-  document.title = `chatbotqa.app | ${title}`;
+  document.title = `chatrag.app | ${title}`;
 }, { immediate: true });
 
 async function loadConversation() {

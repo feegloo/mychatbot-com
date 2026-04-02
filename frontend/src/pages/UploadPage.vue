@@ -57,7 +57,7 @@ import { useRouter } from "vue-router";
 import { uploadFiles, saveConversationToken } from "../api";
 
 onMounted(() => {
-  document.title = "chatbotqa.app";
+  document.title = "chatrag.app";
 });
 
 const router = useRouter();

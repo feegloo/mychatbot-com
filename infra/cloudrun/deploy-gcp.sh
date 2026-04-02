@@ -145,7 +145,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --add-cloudsql-instances "$DB_CONNECTION_NAME" \
   --set-env-vars "\
 NODE_ENV=production,\
-PORT=8080,\
 DATABASE_URL=${DATABASE_URL},\
 CHROMA_MODE=cloud,\
 CHROMA_API_KEY=${CHROMA_API_KEY},\
