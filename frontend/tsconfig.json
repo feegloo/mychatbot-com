@@ -6,6 +6,8 @@
     "moduleResolution": "Node",
     "strict": true,
     "jsx": "preserve",
+    "skipLibCheck": true,
+    "noEmitOnError": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,

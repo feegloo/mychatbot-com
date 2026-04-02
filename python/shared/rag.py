@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
+from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 
 from .config import get_settings
 from .vector_store import query_chunks
+
+logger = logging.getLogger(__name__)
 
 
 ANSWER_PROMPT = ChatPromptTemplate.from_template(
@@ -40,17 +45,52 @@ def build_context(rows: list[dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
+def get_llm() -> Any:
+    """Get LLM instance based on configured provider.
+    
+    Raises ValueError if required API key is missing.
+    """
     settings = get_settings()
+    
+    if settings.llm_provider == "anthropic":
+        if not settings.anthropic_api_key:
+            raise ValueError(
+                "Anthropic API key not configured. Set ANTHROPIC_API_KEY environment variable "
+                "or set LLM_PROVIDER=openai with OPENAI_API_KEY"
+            )
+        logger.info(f"🤖 Using Anthropic Claude model: {settings.anthropic_chat_model}")
+        return ChatAnthropic(
+            model=settings.anthropic_chat_model,
+            api_key=settings.anthropic_api_key,
+            temperature=0,
+        )
+    else:  # openai
+        if not settings.openai_api_key:
+            raise ValueError(
+                "OpenAI API key not configured. Set OPENAI_API_KEY environment variable"
+            )
+        logger.info(f"🤖 Using OpenAI model: {settings.openai_chat_model}")
+        return ChatOpenAI(
+            model=settings.openai_chat_model,
+            api_key=settings.openai_api_key,
+            temperature=0,
+        )
+
+
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
+    logger.info(f"❓ Answering question: {question[:100]}...")
     rows = query_chunks(collection_name, conversation_id, question, top_k=top_k)
+    logger.info(f"📚 Retrieved {len(rows)} context chunks")
     context = build_context(rows)
 
-    llm = ChatOpenAI(model=settings.openai_chat_model, temperature=0, api_key=settings.openai_api_key)
+    llm = get_llm()
     chain = ANSWER_PROMPT | llm | StrOutputParser()
+    logger.info(f"🔗 Invoking LLM chain...")
     answer = chain.invoke({
         "question": question,
         "context": context,
     })
+    logger.info(f"✅ Generated answer: {answer[:100]}...")
 
     citations = []
     for row in rows:
@@ -69,17 +109,14 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
 
 def stream_answer_events(collection_name: str, conversation_id: str, question: str):
-    settings = get_settings()
+    logger.info(f"❓ Streaming answer for question: {question[:100]}...")
     rows = query_chunks(collection_name, conversation_id, question, top_k=4)
+    logger.info(f"📚 Retrieved {len(rows)} context chunks")
     context = build_context(rows)
 
-    llm = ChatOpenAI(
-        model=settings.openai_chat_model,
-        temperature=0,
-        api_key=settings.openai_api_key,
-        streaming=True,
-    )
+    llm = get_llm()
     chain = ANSWER_PROMPT | llm | StrOutputParser()
+    logger.info(f"🔗 Starting stream...")
 
     # Stream real tokens from the LLM
     for token in chain.stream({"question": question, "context": context}):

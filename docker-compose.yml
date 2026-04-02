@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
   chroma:
     image: chromadb/chroma:0.5.23
@@ -19,4 +19,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data/chroma:/chroma/chroma
+      - chroma_data:/chroma/chroma
+
+volumes:
+  postgres_data:
+  chroma_data:

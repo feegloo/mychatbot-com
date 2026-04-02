@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
 
 from shared.rag import stream_answer_events
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
 def main():

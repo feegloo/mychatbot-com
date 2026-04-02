@@ -7,7 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "docker:init": "cat sql/schema.sql | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot && cat sql/migration.sql | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot"
   },
   "dependencies": {
     "@koa/cors": "^5.0.0",
@@ -26,6 +29,9 @@
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
+    "@types/koa__cors": "^5.0.0",
+    "@types/koa__multer": "^3.0.0",
+    "@types/koa__router": "^14.0.0",
     "@types/koa-bodyparser": "^4.3.12",
     "@types/koa-send": "^4.1.6",
     "@types/koa-static": "^4.0.4",

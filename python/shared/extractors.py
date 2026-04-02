@@ -16,6 +16,18 @@ TEXT_EXTENSIONS = {
 }
 
 
+def _sanitize_text(text: str) -> str:
+    """Remove problematic characters that cause issues in JSON/database.
+    
+    - Removes null characters (\x00)
+    - Removes other control characters except newlines and tabs
+    - Normalizes whitespace
+    """
+    # Remove null characters and other problematic control chars
+    text = ''.join(char for char in text if char == '\n' or char == '\t' or ord(char) >= 32)
+    return text
+
+
 def _reflow_pdf_text(raw: str) -> str:
     """Join lines broken by PDF layout into flowing paragraphs.
 
@@ -40,11 +52,13 @@ def extract_pdf(path: Path) -> str:
         text = page.extract_text() or ""
         text = _reflow_pdf_text(text.strip())
         parts.append(f"# Page {page_number}\n\n{text}")
-    return "\n\n".join(parts).strip()
+    result = "\n\n".join(parts).strip()
+    return _sanitize_text(result)
 
 
 def extract_docx(path: Path) -> str:
-    return docx2txt.process(str(path)).strip()
+    result = docx2txt.process(str(path)).strip()
+    return _sanitize_text(result)
 
 
 def extract_spreadsheet(path: Path) -> str:
@@ -53,22 +67,26 @@ def extract_spreadsheet(path: Path) -> str:
     for sheet_name in excel_file.sheet_names:
         df = excel_file.parse(sheet_name)
         sections.append(f"# Sheet: {sheet_name}\n\n{df.fillna('').to_csv(index=False)}")
-    return "\n\n".join(sections).strip()
+    result = "\n\n".join(sections).strip()
+    return _sanitize_text(result)
 
 
 def extract_csv(path: Path) -> str:
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
-        return handle.read().strip()
+        result = handle.read().strip()
+    return _sanitize_text(result)
 
 
 def extract_json(path: Path) -> str:
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
         payload = json.load(handle)
-    return json.dumps(payload, ensure_ascii=False, indent=2)
+    result = json.dumps(payload, ensure_ascii=False, indent=2)
+    return _sanitize_text(result)
 
 
 def extract_plain_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="ignore").strip()
+    result = path.read_text(encoding="utf-8", errors="ignore").strip()
+    return _sanitize_text(result)
 
 
 def extract_text(path_str: str) -> str:

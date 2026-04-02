@@ -17,7 +17,7 @@
             :class="{ active: activeTab === cIdx }"
             @click="$emit('update:activeCitationIndex', cIdx)"
           >
-            {{ citation.section || (citation.page !== null && citation.page !== undefined ? 'Page ' + citation.page : 'Source ' + (cIdx + 1)) }}
+            {{ getSectionLabel(citation) }}
           </button>
         </div>
         <div style="white-space: pre-wrap; font-size: 14px; color: #94a3b8; font-style: italic;"
@@ -44,4 +44,28 @@ defineEmits<{
 }>();
 
 const activeTab = computed(() => props.activeCitationIndex ?? 0);
+
+function getSectionLabel(citation: any): string {
+  if (!citation.section) {
+    if (citation.page !== null && citation.page !== undefined) {
+      return 'Page ' + citation.page;
+    }
+    return 'Source';
+  }
+  
+  // If section is short enough (real section header), use it as-is
+  if (citation.section.length <= 30) {
+    return citation.section;
+  }
+  
+  // For long sections, try to extract the first meaningful phrase
+  // Split by common sentence delimiters and take the first part
+  const firstPhrase = citation.section.split(/[,;.!?]/)[0].trim();
+  if (firstPhrase.length > 30) {
+    // If still too long, take first N characters and add ellipsis
+    return firstPhrase.substring(0, 30) + '…';
+  }
+  
+  return firstPhrase || 'Source';
+}
 </script>

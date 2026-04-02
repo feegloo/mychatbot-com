@@ -63,14 +63,36 @@ gcloud services enable \
   run.googleapis.com \
   sqladmin.googleapis.com \
   containerregistry.googleapis.com \
-  cloudbuild.googleapis.com
+  cloudbuild.googleapis.com \
+  servicenetworking.googleapis.com \
+  compute.googleapis.com
+
+# ── Step 2b: Set up Private Service Connection ───────────────────────────────
+info "Step 2b/8: Setting up Private Service Connection..."
+if ! gcloud compute addresses describe google-managed-services-default --global &>/dev/null; then
+  warn "  Creating private connection address..."
+  gcloud compute addresses create google-managed-services-default \
+    --global \
+    --purpose=VPC_PEERING \
+    --prefix-length=16 \
+    --network=default
+fi
+
+if ! gcloud services vpc-peerings list --service=servicenetworking.googleapis.com 2>/dev/null | grep -q "servicenetworking-googleapis-com"; then
+  warn "  Creating VPC peering connection..."
+  gcloud services vpc-peerings connect \
+    --service=servicenetworking.googleapis.com \
+    --ranges=google-managed-services-default \
+    --network=default
+fi
+info "  Private Service Connection ready"
 
 # ── Step 3: Create Cloud SQL PostgreSQL instance ─────────────────────────────
 info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
 if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
   gcloud sql instances create "$DB_INSTANCE_NAME" \
     --database-version=POSTGRES_16 \
-    --tier=db-f1-micro \
+    --tier=db-perf-optimized-N-2 \
     --region="$REGION" \
     --root-password="$DB_PASSWORD" \
     --storage-size=10GB \
