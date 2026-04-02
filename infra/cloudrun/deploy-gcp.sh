@@ -97,7 +97,7 @@ if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &
     --root-password="$DB_PASSWORD" \
     --storage-size=10GB \
     --storage-auto-increase \
-    --no-assign-ip \
+    --assign-ip \
     --network=default
   info "  Created instance: $DB_INSTANCE_NAME"
 else
@@ -113,9 +113,25 @@ DB_CONNECTION_NAME=$(gcloud sql instances describe "$DB_INSTANCE_NAME" --format=
 info "  Connection name: $DB_CONNECTION_NAME"
 
 # ── Step 4: Initialize database schema ───────────────────────────────────────
-info "Step 4/8: Initializing database schema..."
-warn "  You may need to run schema.sql manually via Cloud SQL proxy or Studio."
-warn "  Schema file: backend/sql/schema.sql"
+info "Step 4/8: Getting Cloud SQL instance details..."
+
+# Get the public IP of the instance using jq to parse JSON
+DB_PUBLIC_IP=$(gcloud sql instances describe "$DB_INSTANCE_NAME" \
+  --format=json 2>/dev/null | jq -r '.ipAddresses[] | select(.type=="PRIMARY") | .ipAddress' | head -1)
+
+if [[ -z "$DB_PUBLIC_IP" ]]; then
+  error "Could not get public IP. Ensure instance has public IP enabled with: gcloud sql instances patch $DB_INSTANCE_NAME --assign-ip"
+fi
+
+info "  Cloud SQL public IP: $DB_PUBLIC_IP"
+
+# Allow all IPs for now (needed for Cloud Run to connect)
+warn "  Setting firewall to allow 0.0.0.0/0..."
+gcloud sql instances patch "$DB_INSTANCE_NAME" \
+  --authorized-networks=0.0.0.0/0 \
+  --quiet || error "Could not update firewall rules"
+
+info "  Firewall updated"
 
 # ── Step 5: Build Docker image ───────────────────────────────────────────────
 info "Step 5/8: Building Docker image..."
@@ -129,7 +145,9 @@ docker push "${IMAGE}:latest"
 # ── Step 7: Deploy to Cloud Run ──────────────────────────────────────────────
 info "Step 7/8: Deploying to Cloud Run..."
 
-DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@/${DB_NAME}?host=/cloudsql/${DB_CONNECTION_NAME}"
+DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PUBLIC_IP}:5432/${DB_NAME}"
+
+warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PUBLIC_IP}:5432/${DB_NAME}"
 
 gcloud run deploy "$SERVICE_NAME" \
   --image "${IMAGE}:latest" \
@@ -142,7 +160,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 300 \
-  --add-cloudsql-instances "$DB_CONNECTION_NAME" \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\

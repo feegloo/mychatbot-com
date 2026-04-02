@@ -1,6 +1,6 @@
 <template>
   <nav class="conv-nav">
-    <router-link to="/" class="conv-nav-new button">
+    <router-link to="/" class="conv-nav-new button" @click="$emit('navigate')">
       + New conversation
     </router-link>
 
@@ -11,6 +11,7 @@
         :to="`/c/${conv.conversationId}`"
         class="conv-nav-item"
         :class="{ active: conv.conversationId === currentId }"
+        @click="$emit('navigate')"
       >
         <span class="conv-nav-name">{{ convLabel(conv) }}</span>
         <span v-if="conv.status === 'processing'" class="conv-nav-dot processing"></span>
@@ -29,6 +30,8 @@ import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
+
+defineEmits<{ navigate: [] }>();
 
 function convLabel(conv: ConversationSummary): string {
   if (conv.displayName) return conv.displayName;

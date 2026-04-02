@@ -4,6 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
+ENV NODE_ENV=production
 RUN npm run build || echo "Frontend build completed with warnings"
 
 # ── Stage 2: Build backend ───────────────────────────────────────────────────
@@ -12,6 +13,7 @@ WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json* ./
 RUN npm ci
 COPY backend/ ./
+ENV NODE_ENV=production
 RUN npm run build || echo "Backend build completed with warnings"
 
 # ── Stage 3: Production image ────────────────────────────────────────────────
