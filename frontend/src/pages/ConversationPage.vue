@@ -16,7 +16,8 @@
       <section class="chat-panel">
 
         <p v-if="loaded && status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
-          Conversation is currently {{ status.status }}. Asking will work after indexing finishes successfully.
+          Conversation is {{ status.status }} uploaded files. 
+          <br/> Asking will work after indexing finishes successfully.
         </p>
 
         <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
@@ -58,7 +59,7 @@
         :conversationId="conversationId"
         :canUpload="canUpload"
         @reload="onReload"
-        @select-question="question = $event; questionInput?.focus()"
+        @select-question="question = $event; submitQuestion()"
       />
     </div>
   </div>

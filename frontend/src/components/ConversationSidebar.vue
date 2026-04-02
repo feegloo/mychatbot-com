@@ -63,6 +63,7 @@
         >
           {{ q }}
         </button>
+        <div v-if="status.status === 'processing'" style="display: flex; justify-content: center; margin: 8px 0 0 0"><div class="typing-dots"><span></span><span></span><span></span></div></div>
       </div>
     </div>
   </aside>
