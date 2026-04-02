@@ -14,6 +14,12 @@ from .chunkers import Chunk
 def get_client():
     settings = get_settings()
 
+    if settings.chroma_mode == "cloud":
+        return chromadb.CloudClient(
+            api_key=settings.chroma_api_key,
+            tenant=settings.chroma_tenant,
+            database=settings.chroma_database,
+        )
     if settings.chroma_mode == "http":
         return chromadb.HttpClient(host=settings.chroma_http_host.replace("http://", "").replace("https://", "").split(":")[0],
                                    port=int(settings.chroma_http_host.rsplit(":", 1)[-1]))

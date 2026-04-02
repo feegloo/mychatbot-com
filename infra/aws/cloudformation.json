@@ -1,0 +1,187 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "MyChatbot – App Runner + RDS PostgreSQL",
+
+  "Parameters": {
+    "DatabasePassword": {
+      "Type": "String",
+      "NoEcho": true,
+      "Description": "PostgreSQL master password"
+    },
+    "OpenAiApiKey": {
+      "Type": "String",
+      "NoEcho": true,
+      "Description": "OpenAI API key"
+    },
+    "ChromaApiKey": {
+      "Type": "String",
+      "NoEcho": true,
+      "Description": "ChromaDB Cloud API key"
+    },
+    "ImageUri": {
+      "Type": "String",
+      "Description": "ECR image URI (e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/mychatbot:latest)"
+    }
+  },
+
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [{ "Key": "Name", "Value": "mychatbot-vpc" }]
+      }
+    },
+    "SubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.1.0/24",
+        "AvailabilityZone": { "Fn::Select": ["0", { "Fn::GetAZs": "" }] }
+      }
+    },
+    "SubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.2.0/24",
+        "AvailabilityZone": { "Fn::Select": ["1", { "Fn::GetAZs": "" }] }
+      }
+    },
+    "DBSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "mychatbot db subnets",
+        "SubnetIds": [{ "Ref": "SubnetA" }, { "Ref": "SubnetB" }]
+      }
+    },
+    "DBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow postgres from App Runner",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [{
+          "IpProtocol": "tcp",
+          "FromPort": 5432,
+          "ToPort": 5432,
+          "CidrIp": "10.0.0.0/16"
+        }]
+      }
+    },
+    "PostgresDB": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceIdentifier": "mychatbot-db",
+        "Engine": "postgres",
+        "EngineVersion": "16",
+        "DBInstanceClass": "db.t4g.micro",
+        "AllocatedStorage": 20,
+        "MasterUsername": "mychatbot",
+        "MasterUserPassword": { "Ref": "DatabasePassword" },
+        "DBName": "mychatbot",
+        "VPCSecurityGroups": [{ "Ref": "DBSecurityGroup" }],
+        "DBSubnetGroupName": { "Ref": "DBSubnetGroup" },
+        "PubliclyAccessible": false,
+        "StorageType": "gp3",
+        "BackupRetentionPeriod": 7
+      }
+    },
+
+    "AppRunnerVpcConnector": {
+      "Type": "AWS::AppRunner::VpcConnector",
+      "Properties": {
+        "VpcConnectorName": "mychatbot-vpc-connector",
+        "Subnets": [{ "Ref": "SubnetA" }, { "Ref": "SubnetB" }],
+        "SecurityGroups": [{ "Ref": "DBSecurityGroup" }]
+      }
+    },
+
+    "AppRunnerAccessRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "mychatbot-apprunner-ecr-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": "build.apprunner.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
+        ]
+      }
+    },
+
+    "AppRunnerService": {
+      "Type": "AWS::AppRunner::Service",
+      "DependsOn": "PostgresDB",
+      "Properties": {
+        "ServiceName": "mychatbot",
+        "SourceConfiguration": {
+          "AuthenticationConfiguration": {
+            "AccessRoleArn": { "Fn::GetAtt": ["AppRunnerAccessRole", "Arn"] }
+          },
+          "ImageRepository": {
+            "ImageIdentifier": { "Ref": "ImageUri" },
+            "ImageRepositoryType": "ECR",
+            "ImageConfiguration": {
+              "Port": "8080",
+              "RuntimeEnvironmentVariables": [
+                { "Name": "NODE_ENV", "Value": "production" },
+                { "Name": "PORT", "Value": "8080" },
+                {
+                  "Name": "DATABASE_URL",
+                  "Value": {
+                    "Fn::Sub": "postgres://mychatbot:${DatabasePassword}@${PostgresDB.Endpoint.Address}:${PostgresDB.Endpoint.Port}/mychatbot"
+                  }
+                },
+                { "Name": "CHROMA_MODE", "Value": "cloud" },
+                { "Name": "CHROMA_API_KEY", "Value": { "Ref": "ChromaApiKey" } },
+                { "Name": "CHROMA_TENANT", "Value": "696cf798-1423-4a5f-bb61-c055be3b6318" },
+                { "Name": "CHROMA_DATABASE", "Value": "chatbotqa" },
+                { "Name": "OPENAI_API_KEY", "Value": { "Ref": "OpenAiApiKey" } },
+                { "Name": "STORAGE_PROVIDER", "Value": "disk" },
+                { "Name": "FRONTEND_DIST_PATH", "Value": "/app/frontend/dist" },
+                { "Name": "PYTHON_BIN", "Value": "/app/python/.venv/bin/python3" },
+                { "Name": "PYTHON_PROJECT_ROOT", "Value": "/app/python" }
+              ]
+            }
+          }
+        },
+        "InstanceConfiguration": {
+          "Cpu": "1 vCPU",
+          "Memory": "2 GB"
+        },
+        "NetworkConfiguration": {
+          "EgressConfiguration": {
+            "EgressType": "VPC",
+            "VpcConnectorArn": { "Fn::GetAtt": ["AppRunnerVpcConnector", "Arn"] }
+          }
+        },
+        "HealthCheckConfiguration": {
+          "Protocol": "HTTP",
+          "Path": "/api/health",
+          "Interval": 10,
+          "Timeout": 5,
+          "HealthyThreshold": 1,
+          "UnhealthyThreshold": 5
+        }
+      }
+    }
+  },
+
+  "Outputs": {
+    "AppUrl": {
+      "Value": { "Fn::GetAtt": ["AppRunnerService", "ServiceUrl"] },
+      "Description": "Public App Runner URL"
+    },
+    "DatabaseEndpoint": {
+      "Value": { "Fn::GetAtt": ["PostgresDB", "Endpoint.Address"] },
+      "Description": "RDS PostgreSQL endpoint"
+    }
+  }
+}

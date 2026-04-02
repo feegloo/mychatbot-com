@@ -13,6 +13,9 @@ class Settings:
     chroma_mode: str
     chroma_http_host: str
     chroma_persist_dir: str
+    chroma_api_key: str
+    chroma_tenant: str
+    chroma_database: str
 
 
 def get_settings() -> Settings:
@@ -23,4 +26,7 @@ def get_settings() -> Settings:
         chroma_mode=os.getenv("CHROMA_MODE", "local"),
         chroma_http_host=os.getenv("CHROMA_HTTP_HOST", "http://localhost:8000"),
         chroma_persist_dir=str(Path(os.getenv("CHROMA_PERSIST_DIR", "../data/chroma")).resolve()),
+        chroma_api_key=os.getenv("CHROMA_API_KEY", ""),
+        chroma_tenant=os.getenv("CHROMA_TENANT", ""),
+        chroma_database=os.getenv("CHROMA_DATABASE", ""),
     )

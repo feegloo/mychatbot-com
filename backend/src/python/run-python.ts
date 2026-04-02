@@ -66,7 +66,10 @@ export async function runPythonScript(
         OPENAI_EMBEDDING_MODEL: config.openAiEmbeddingModel,
         CHROMA_MODE: config.chromaMode,
         CHROMA_HTTP_HOST: config.chromaHttpHost,
-        CHROMA_PERSIST_DIR: config.chromaPersistDir
+        CHROMA_PERSIST_DIR: config.chromaPersistDir,
+        CHROMA_API_KEY: config.chromaApiKey,
+        CHROMA_TENANT: config.chromaTenant,
+        CHROMA_DATABASE: config.chromaDatabase
       }
     });
 

@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+#
+# deploy-gcp.sh — Deploy MyChatbot to Google Cloud Run (macOS)
+#
+# Usage:
+#   chmod +x infra/cloudrun/deploy-gcp.sh
+#   ./infra/cloudrun/deploy-gcp.sh
+#
+set -euo pipefail
+
+# ── Configuration (edit these) ───────────────────────────────────────────────
+PROJECT_ID="${GCP_PROJECT_ID:-}"
+REGION="us-central1"
+SERVICE_NAME="mychatbot"
+IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+
+DB_INSTANCE_NAME="mychatbot-db"
+DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 16)}"
+DB_USER="mychatbot"
+DB_NAME="mychatbot"
+
+OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+CHROMA_API_KEY="${CHROMA_API_KEY:-}"
+CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
+CHROMA_DATABASE="chatbotqa"
+
+# ── Colors ───────────────────────────────────────────────────────────────────
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+info()  { echo -e "${GREEN}[✓]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
+
+# ── Pre-flight checks ───────────────────────────────────────────────────────
+[[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
+[[ -z "$OPENAI_API_KEY" ]] && error "Set OPENAI_API_KEY env var"
+[[ -z "$CHROMA_API_KEY" ]] && error "Set CHROMA_API_KEY env var"
+
+# ── Step 1: Install prerequisites ────────────────────────────────────────────
+info "Step 1/8: Checking prerequisites..."
+
+if ! command -v brew &>/dev/null; then
+  warn "Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+if ! command -v gcloud &>/dev/null; then
+  warn "Installing Google Cloud SDK..."
+  brew install --cask google-cloud-sdk
+fi
+
+if ! command -v docker &>/dev/null; then
+  warn "Installing Docker..."
+  brew install --cask docker
+  echo "Please start Docker Desktop, then re-run this script."
+  exit 1
+fi
+
+# ── Step 2: Authenticate & set project ───────────────────────────────────────
+info "Step 2/8: Authenticating with GCP..."
+gcloud auth login --quiet 2>/dev/null || true
+gcloud config set project "$PROJECT_ID"
+gcloud services enable \
+  run.googleapis.com \
+  sqladmin.googleapis.com \
+  containerregistry.googleapis.com \
+  cloudbuild.googleapis.com
+
+# ── Step 3: Create Cloud SQL PostgreSQL instance ─────────────────────────────
+info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
+if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
+  gcloud sql instances create "$DB_INSTANCE_NAME" \
+    --database-version=POSTGRES_16 \
+    --tier=db-f1-micro \
+    --region="$REGION" \
+    --root-password="$DB_PASSWORD" \
+    --storage-size=10GB \
+    --storage-auto-increase \
+    --no-assign-ip \
+    --network=default
+  info "  Created instance: $DB_INSTANCE_NAME"
+else
+  warn "  Instance $DB_INSTANCE_NAME already exists, skipping."
+fi
+
+# Create database and user
+gcloud sql databases create "$DB_NAME" --instance="$DB_INSTANCE_NAME" 2>/dev/null || true
+gcloud sql users create "$DB_USER" --instance="$DB_INSTANCE_NAME" --password="$DB_PASSWORD" 2>/dev/null || true
+
+# Get connection name for Cloud Run
+DB_CONNECTION_NAME=$(gcloud sql instances describe "$DB_INSTANCE_NAME" --format='value(connectionName)')
+info "  Connection name: $DB_CONNECTION_NAME"
+
+# ── Step 4: Initialize database schema ───────────────────────────────────────
+info "Step 4/8: Initializing database schema..."
+warn "  You may need to run schema.sql manually via Cloud SQL proxy or Studio."
+warn "  Schema file: backend/sql/schema.sql"
+
+# ── Step 5: Build Docker image ───────────────────────────────────────────────
+info "Step 5/8: Building Docker image..."
+gcloud auth configure-docker --quiet
+docker build -t "${IMAGE}:latest" .
+
+# ── Step 6: Push to GCR ─────────────────────────────────────────────────────
+info "Step 6/8: Pushing image to Container Registry..."
+docker push "${IMAGE}:latest"
+
+# ── Step 7: Deploy to Cloud Run ──────────────────────────────────────────────
+info "Step 7/8: Deploying to Cloud Run..."
+
+DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@/${DB_NAME}?host=/cloudsql/${DB_CONNECTION_NAME}"
+
+gcloud run deploy "$SERVICE_NAME" \
+  --image "${IMAGE}:latest" \
+  --region "$REGION" \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 1Gi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 3 \
+  --timeout 300 \
+  --add-cloudsql-instances "$DB_CONNECTION_NAME" \
+  --set-env-vars "\
+NODE_ENV=production,\
+PORT=8080,\
+DATABASE_URL=${DATABASE_URL},\
+CHROMA_MODE=cloud,\
+CHROMA_API_KEY=${CHROMA_API_KEY},\
+CHROMA_TENANT=${CHROMA_TENANT},\
+CHROMA_DATABASE=${CHROMA_DATABASE},\
+OPENAI_API_KEY=${OPENAI_API_KEY},\
+STORAGE_PROVIDER=disk,\
+FRONTEND_DIST_PATH=/app/frontend/dist,\
+PYTHON_BIN=/app/python/.venv/bin/python3,\
+PYTHON_PROJECT_ROOT=/app/python"
+
+# ── Step 8: Get URL ─────────────────────────────────────────────────────────
+info "Step 8/8: Getting service URL..."
+SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
+
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
+echo ""
+echo "  Your conversations are at:"
+echo "    ${SERVICE_URL}/c/<conversation-id>"
+echo ""
+echo "  DB password: $DB_PASSWORD  (save this!)"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+echo "Next: map your domain chatbotqa.app"
+echo "  gcloud run domain-mappings create --service=$SERVICE_NAME --region=$REGION --domain=chatbotqa.app"
+echo "  Then add the DNS records shown to GoDaddy."

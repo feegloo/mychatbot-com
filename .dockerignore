@@ -1,0 +1,13 @@
+node_modules
+data
+logs
+storage
+.git
+.env
+.env.*
+**/.venv
+**/dist
+**/coverage
+**/__pycache__
+*.pyc
+.DS_Store

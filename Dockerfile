@@ -1,0 +1,61 @@
+# ── Stage 1: Build frontend ──────────────────────────────────────────────────
+FROM node:22-alpine AS frontend-build
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# ── Stage 2: Build backend ───────────────────────────────────────────────────
+FROM node:22-alpine AS backend-build
+WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json* ./
+RUN npm ci
+COPY backend/ ./
+RUN npm run build
+
+# ── Stage 3: Production image ────────────────────────────────────────────────
+FROM node:22-slim
+
+# Install Python 3 + pip for the AI engine
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-pip python3-venv && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# -- Python dependencies --
+COPY python/requirements.txt /app/python/requirements.txt
+RUN python3 -m venv /app/python/.venv && \
+    /app/python/.venv/bin/pip install --no-cache-dir -r /app/python/requirements.txt
+COPY python/ /app/python/
+
+# -- Backend production deps --
+COPY backend/package.json backend/package-lock.json* /app/backend/
+RUN cd /app/backend && npm ci --omit=dev
+
+# -- Backend compiled code --
+COPY --from=backend-build /app/backend/dist /app/backend/dist
+
+# -- Frontend static files --
+COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
+
+# -- SQL schemas --
+COPY backend/sql /app/backend/sql
+
+# Writable directories for runtime
+RUN mkdir -p /app/storage /app/logs /app/data/chroma
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV FRONTEND_DIST_PATH=/app/frontend/dist
+ENV PYTHON_BIN=/app/python/.venv/bin/python3
+ENV PYTHON_PROJECT_ROOT=/app/python
+ENV STORAGE_ROOT=/app/storage
+ENV LOGS_ROOT=/app/logs
+ENV CHROMA_PERSIST_DIR=/app/data/chroma
+
+EXPOSE 8080
+
+WORKDIR /app/backend
+CMD ["node", "dist/index.js"]
