@@ -36,12 +36,12 @@ The script will:
 | ChromaDB Cloud | Free tier |
 | **Total** | **~$18/mo** |
 
-## Map domain: chatbotqa.app
+## Map domain: chatrag.app
 
 1. Open **AWS Console → App Runner → mychatbot → Custom domains**
-2. Click **Link domain** → enter `chatbotqa.app`
+2. Click **Link domain** → enter `chatrag.app`
 3. AWS will show CNAME validation records
-4. Go to **GoDaddy → DNS Management** for chatbotqa.app:
+4. Go to **GoDaddy → DNS Management** for chatrag.app:
    - Add CNAME records for validation (shown by AWS)
    - Add CNAME: `@` → `<apprunner-url>` (or use A record with alias)
 5. Wait for DNS propagation and certificate validation (~10-30 min)
@@ -66,7 +66,7 @@ aws cloudformation deploy \
 
 After deployment, conversations work at:
 ```
-https://chatbotqa.app/c/742a8554-5660-4418-b8bd-d0b4ef089180
+https://chatrag.app/c/742a8554-5660-4418-b8bd-d0b4ef089180
 ```
 - S3 once you move beyond local disk
 - Route 53 or registrar DNS for custom domain

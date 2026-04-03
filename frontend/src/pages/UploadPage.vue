@@ -2,7 +2,7 @@
   <div class="page">
     <div class="header">
       <div>
-        <h1 style="font-size: 2rem; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.02em; color: #a78bfa">chatbotqa.app</h1>
+        <h1 style="font-size: 2rem; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.02em; color: #a78bfa">chatrag.app</h1>
         <p style="color: #64748b; margin: 0; font-size: 14px">Upload your own files, generate embeddings, then chat with a RAG bot at a unique shareable URL.</p>
       </div>
     </div>

@@ -37,16 +37,16 @@ The script will:
 | ChromaDB Cloud | Free tier |
 | **Total** | **~$7/mo idle** |
 
-## Map domain: chatbotqa.app
+## Map domain: chatrag.app
 
 ```bash
 # 1. Create domain mapping in Cloud Run
 gcloud run domain-mappings create \
   --service=mychatbot \
   --region=us-central1 \
-  --domain=chatbotqa.app
+  --domain=chatrag.app
 
-# 2. It will show DNS records needed. Go to GoDaddy → DNS Management for chatbotqa.app
+# 2. It will show DNS records needed. Go to GoDaddy → DNS Management for chatrag.app
 
 # 3. Add the records:
 #    Type: A     Name: @    Value: <IP from gcloud output>
@@ -54,7 +54,7 @@ gcloud run domain-mappings create \
 #    Type: CNAME Name: www  Value: ghs.googlehosted.com.
 
 # 4. Wait for DNS propagation (5-30 min), then verify:
-gcloud run domain-mappings describe --domain=chatbotqa.app --region=us-central1
+gcloud run domain-mappings describe --domain=chatrag.app --region=us-central1
 ```
 
 Cloud Run provides free managed SSL for custom domains.
@@ -63,7 +63,7 @@ Cloud Run provides free managed SSL for custom domains.
 
 After deployment, conversations work at:
 ```
-https://chatbotqa.app/c/742a8554-5660-4418-b8bd-d0b4ef089180
+https://chatrag.app/c/742a8554-5660-4418-b8bd-d0b4ef089180
 ```
 - deploy backend image to Cloud Run
 - use Cloud SQL for PostgreSQL
