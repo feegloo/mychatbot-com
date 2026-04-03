@@ -38,7 +38,7 @@
         <p v-if="error" style="color:#f87171; margin-top:12px">{{ error }}</p>
       </section>
 
-      <aside>
+      <aside v-if="false">
         <h2 style="font-size: 1rem; margin: 8px 0 12px">How it works</h2>
         <ol style="color: #94a3b8; line-height: 1.8; padding-left: 20px; font-size: 14px">
           <li>Files are uploaded to the server.</li>

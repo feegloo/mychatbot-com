@@ -5,6 +5,7 @@ import logging
 from .extractors import extract_many
 from .chunkers import split_into_chunks
 from .suggested_questions import suggest_questions_from_chunks
+from .lang_detect import detect_language
 from .vector_store import upsert_chunks
 
 logger = logging.getLogger(__name__)
@@ -16,11 +17,15 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
     logger.info(f"✅ Extracted {len(extracted)} document(s)")
 
     all_chunks = []
+    detected_language = None
     for document in extracted:
         logger.info(f"🔪 Chunking: {document['file_name']}")
         chunks = split_into_chunks(document["file_name"], document["text"])
         logger.info(f"   → Created {len(chunks)} chunks")
         all_chunks.extend(chunks)
+        # Detect language from the first document's text (first 2000 chars)
+        if detected_language is None and document["text"]:
+            detected_language = detect_language(document["text"][:2000])
 
     logger.info(f"📦 Upserting {len(all_chunks)} chunks to vector store...")
     upsert_result = upsert_chunks(
@@ -30,8 +35,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
     )
     logger.info(f"✅ Indexing complete")
 
-    suggested_questions = suggest_questions_from_chunks([chunk.text for chunk in all_chunks])
-    logger.info(f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions")
+    suggested_questions = suggest_questions_from_chunks([chunk.text for chunk in all_chunks], language=detected_language)
+    logger.info(f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions (lang={detected_language})")
 
     return {
         "conversation_id": conversation_id,
@@ -39,5 +44,6 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         "file_count": len(file_paths),
         "chunk_count": len(all_chunks),
         "suggested_questions": suggested_questions,
+        "detected_language": detected_language,
         **upsert_result,
     }
