@@ -1,12 +1,12 @@
 <template>
   <aside class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
       <h3 style="margin: 0; font-size: 0.95rem">Uploaded files</h3>
       <button v-if="canUpload" class="button" style="padding: 6px 12px; font-size: 13px" @click="moreFilesInput?.click()">
         + Add
       </button>
     </div>
-    <div style="margin-bottom: 16px">
+    <div style="margin-bottom: 10px">
       <span v-for="file in status.files" :key="file.id" class="file-pill" style="font-size: 13px">
         {{ cleanFileName(file.originalName) }}
       </span>

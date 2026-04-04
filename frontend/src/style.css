@@ -677,7 +677,7 @@ h1, h2, h3 {
   }
 
   .grid-2 > aside.card {
-    max-height: 160px;
+    max-height: 180px;
     overflow-y: auto;
     padding: 8px 12px;
   }
