@@ -1,1 +1,0 @@
-{"root":["./src/api.ts","./src/main.ts","./src/router.ts","./src/utils/text.ts","./src/App.vue","./src/components/ChatMessage.vue","./src/components/ConversationHeader.vue","./src/components/ConversationNav.vue","./src/components/ConversationSidebar.vue","./src/pages/ConversationPage.vue","./src/pages/UploadPage.vue"],"version":"5.9.3"}
