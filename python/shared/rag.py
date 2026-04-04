@@ -33,6 +33,9 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
 )
 
 
+    
+    
+    
 def build_context(rows: list[dict]) -> str:
     parts = []
     for row in rows:
@@ -79,7 +82,15 @@ def get_llm() -> Any:
 
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
-    rows = query_chunks(collection_name, conversation_id, question, top_k=top_k)
+    # Determine max_distance based on question word count
+    word_count = len([w for w in question.strip().split() if w])
+    max_distance = 1.1  # default for 3+ words
+    if word_count == 1:
+        max_distance = 1.5
+    elif word_count == 2:
+        max_distance = 1.3
+    logger.info(f"🔎 Using max_distance={max_distance} for question word count={word_count}")
+    rows = query_chunks(collection_name, conversation_id, question, top_k, max_distance)
     logger.info(f"📚 Retrieved {len(rows)} context chunks")
     context = build_context(rows)
 
@@ -110,6 +121,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
 def stream_answer_events(collection_name: str, conversation_id: str, question: str):
     logger.info(f"❓ Streaming answer for question: {question[:100]}...")
+    
     rows = query_chunks(collection_name, conversation_id, question, top_k=4)
     logger.info(f"📚 Retrieved {len(rows)} context chunks")
     context = build_context(rows)

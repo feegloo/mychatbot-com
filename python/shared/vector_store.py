@@ -67,7 +67,7 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     }
 
 
-def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4, max_distance: float = 1.4) -> list[dict]:
+def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4, max_distance: float = 1.3) -> list[dict]:
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
     embeddings = get_embeddings()
@@ -87,7 +87,13 @@ def query_chunks(collection_name: str, conversation_id: str, question: str, top_
     distances = result.get("distances", [[]])[0]
 
     for chunk_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
+        # Chroma returns L2 distance; convert to similarity (cosine) if needed, or use threshold directly
+        # For OpenAI embeddings, L2 distance is usually in [0,2], lower is better. We'll use a threshold.
+        # similarity = 1 - distance/2 (approx), so threshold 0.7 similarity ~ distance <= 0.3
         if distance > max_distance:
+            # continue
+        # Only include if similarity >= threshold (i.e., distance <= 0.3)
+        # if distance > (1 - similarity_threshold):
             continue
         rows.append({
             "chunk_id": chunk_id,
