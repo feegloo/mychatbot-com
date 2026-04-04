@@ -148,3 +148,58 @@ Once set up:
 - ✅ Docker image is built and pushed to GCR
 - ✅ Cloud Run service is updated with the new image
 - ✅ No manual deployment needed!
+
+---
+
+## Alternative: Deploy with Service Account Key (`deploy-gcp.yml`)
+
+The `deploy-gcp.yml` workflow uses a **service account JSON key** (`GCP_SA_KEY`) instead of Workload Identity Federation. This is simpler to configure — no identity pool setup required.
+
+### Step A: Create & Download a Service Account Key
+
+Follow Steps 1–2 above to create the service account and grant IAM roles, then download a JSON key:
+
+```bash
+# Create and download the JSON key
+gcloud iam service-accounts keys create ~/gcp-sa-key.json \
+  --iam-account=$SA_EMAIL \
+  --project=$GCP_PROJECT_ID
+```
+
+> **Reference:** [Creating service account keys — Google Cloud docs](https://cloud.google.com/iam/docs/keys-create-delete)
+
+### Step B: Base64-encode the Key
+
+GitHub secrets must be plain text, so encode the JSON file:
+
+```bash
+# macOS
+base64 -i ~/gcp-sa-key.json | tr -d '\n'
+
+# Linux
+base64 -w 0 ~/gcp-sa-key.json
+```
+
+Copy the full base64 string — this is the value you will paste as `GCP_SA_KEY`.
+
+### Step C: Add Secrets to GitHub
+
+1. Open your repository on GitHub.
+2. Go to **Settings → Secrets and variables → Actions**
+   ([direct link](https://github.com/feegloo/mychatbot-com/settings/secrets/actions))
+3. Click **New repository secret** for each secret below:
+
+| Secret name | Value |
+|---|---|
+| `GCP_SA_KEY` | Base64-encoded JSON key from Step B |
+| `GCP_PROJECT_ID` | Your GCP project ID (e.g. `chatbotqa-app`) |
+
+> **Reference:** [Using secrets in GitHub Actions — GitHub docs](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository)
+
+### Step D: Verify
+
+Push a commit to `main`. The **Deploy to GCP Cloud Run** workflow should appear in the [Actions tab](https://github.com/feegloo/mychatbot-com/actions) and complete successfully.
+
+> ⚠️ **Security note:** Service account keys are long-lived credentials. Store them only in GitHub Secrets, never commit them to source control. Rotate or delete the key if it is ever exposed. For production workloads, prefer the Workload Identity Federation approach (Steps 1–6 above).
+>
+> See also: [Best practices for managing service account keys](https://cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys)
