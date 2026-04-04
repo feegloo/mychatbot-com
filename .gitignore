@@ -16,3 +16,7 @@ storage/
 data/
 playwright-report/
 test-results/
+*.tsbuildinfo
+frontend/src/**/*.vue.js
+frontend/src/**/*.js
+!frontend/src/vite-env.d.ts

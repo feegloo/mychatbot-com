@@ -330,7 +330,7 @@ a:hover { color: #a5b4fc; }
 .typing-dots {
   display: flex;
   gap: 5px;
-  padding: 8px 0 4px;
+  padding: 24px 0 20px;
 }
 
 .typing-dots span {
