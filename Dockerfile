@@ -19,9 +19,9 @@ RUN npm run build || echo "Backend build completed with warnings"
 # ── Stage 3: Production image ────────────────────────────────────────────────
 FROM node:22-slim
 
-# Install Python 3 + pip for the AI engine
+# Install Python 3 + pip + curl (curl needed for health-check in entrypoint)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3 python3-pip python3-venv && \
+    apt-get install -y --no-install-recommends python3 python3-pip python3-venv curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -48,11 +48,16 @@ COPY backend/sql /app/backend/sql
 # Writable directories for runtime
 RUN mkdir -p /app/storage /app/logs /app/data/chroma
 
+# -- Entrypoint script --
+COPY backend/entrypoint.sh /app/backend/entrypoint.sh
+RUN chmod +x /app/backend/entrypoint.sh
+
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV FRONTEND_DIST_PATH=/app/frontend/dist
 ENV PYTHON_BIN=/app/python/.venv/bin/python3
 ENV PYTHON_PROJECT_ROOT=/app/python
+ENV PYTHON_SERVER_URL=http://localhost:8321
 ENV STORAGE_ROOT=/app/storage
 ENV LOGS_ROOT=/app/logs
 ENV CHROMA_PERSIST_DIR=/app/data/chroma
@@ -60,4 +65,4 @@ ENV CHROMA_PERSIST_DIR=/app/data/chroma
 EXPOSE 8080
 
 WORKDIR /app/backend
-CMD ["node", "dist/index.js"]
+CMD ["./entrypoint.sh"]

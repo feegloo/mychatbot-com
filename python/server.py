@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from shared.rag import answer_with_citations, stream_answer_events
+from shared.indexing import index_documents
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,9 +33,30 @@ class AnswerRequest(BaseModel):
     question: str
 
 
+class IndexRequest(BaseModel):
+    conversation_id: str
+    collection_name: str
+    file_paths: list[str]
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/index")
+async def index(req: IndexRequest):
+    try:
+        result = await asyncio.to_thread(
+            index_documents,
+            conversation_id=req.conversation_id,
+            collection_name=req.collection_name,
+            file_paths=req.file_paths,
+        )
+        return result
+    except Exception as e:
+        logger.exception("Error indexing documents")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/answer")

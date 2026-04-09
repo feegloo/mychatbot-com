@@ -158,8 +158,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --platform managed \
   --allow-unauthenticated \
   --port 8080 \
-  --memory 1Gi \
-  --cpu 1 \
+  --memory 2Gi \
+  --cpu 2 \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 300 \
@@ -174,7 +174,8 @@ OPENAI_API_KEY=${OPENAI_API_KEY},\
 STORAGE_PROVIDER=disk,\
 FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
-PYTHON_PROJECT_ROOT=/app/python"
+PYTHON_PROJECT_ROOT=/app/python,\
+PYTHON_SERVER_URL=http://localhost:8321"
 
 # ── Step 8: Get URL ─────────────────────────────────────────────────────────
 info "Step 8/8: Getting service URL..."

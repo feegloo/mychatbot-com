@@ -46,7 +46,8 @@ export async function runPythonScript(
       fullScriptPath,
       args,
       conversationId,
-      purpose
+      purpose,
+      timestamp: new Date().toISOString()
     });
 
     stdoutStream.write(`START ${new Date().toISOString()}\n`);
