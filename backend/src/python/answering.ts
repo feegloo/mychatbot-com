@@ -1,20 +1,31 @@
-import { runPythonScript } from "./run-python.js";
+import { config } from "../config.js";
 
 export async function answerQuestion(options: {
   conversationId: string;
   collectionName: string;
   question: string;
 }) {
-  return runPythonScript(
-    "answer_question.py",
-    [
-      "--conversation-id", options.conversationId,
-      "--collection-name", options.collectionName,
-      "--question", options.question
-    ],
-    {
-      conversationId: options.conversationId,
-      purpose: "answer"
-    }
-  );
+  const response = await fetch(`${config.pythonServerUrl}/answer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      conversation_id: options.conversationId,
+      collection_name: options.collectionName,
+      question: options.question,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Python server error (${response.status}): ${text}`);
+  }
+
+  const parsedJson = await response.json();
+  return {
+    stdout: JSON.stringify(parsedJson),
+    stderr: "",
+    parsedJson,
+    stdoutLogPath: "",
+    stderrLogPath: "",
+  };
 }

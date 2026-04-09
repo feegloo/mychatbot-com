@@ -28,6 +28,7 @@
             :msg="msg"
             :asking="asking"
             :activeCitationIndex="activeCitationTab[index] ?? 0"
+            :conversationId="conversationId"
             @update:activeCitationIndex="activeCitationTab[index] = $event"
           />
         </div>

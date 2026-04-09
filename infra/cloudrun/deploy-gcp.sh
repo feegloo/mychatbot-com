@@ -30,6 +30,9 @@ info()  { echo -e "${GREEN}[✓]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
+# ── Init env ─────────────────────────────────────────────────────────────────
+source infra/cloudrun/.env.gcp
+
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 [[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
 [[ -z "$OPENAI_API_KEY" ]] && error "Set OPENAI_API_KEY env var"

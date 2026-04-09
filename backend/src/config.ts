@@ -26,6 +26,7 @@ export const config = {
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiChatModel: process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini",
   openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
+  pythonServerUrl: process.env.PYTHON_SERVER_URL || "http://localhost:8321",
 
   // add this
   logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs")

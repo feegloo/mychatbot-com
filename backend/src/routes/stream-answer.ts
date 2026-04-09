@@ -1,6 +1,4 @@
 import Router from "@koa/router";
-import { spawn } from "node:child_process";
-import path from "node:path";
 import { config } from "../config.js";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 
@@ -41,69 +39,73 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
     questionLength: question.length
   });
 
-  const child = spawn(config.pythonBin, [
-    path.join(config.pythonProjectRoot, "stream_answer.py"),
-    "--conversation-id", conversationId,
-    "--collection-name", data.conversation.vector_collection_name,
-    "--question", question
-  ], {
-    cwd: config.pythonProjectRoot,
-    env: {
-      ...process.env,
-      OPENAI_API_KEY: config.openAiApiKey,
-      OPENAI_CHAT_MODEL: config.openAiChatModel,
-      OPENAI_EMBEDDING_MODEL: config.openAiEmbeddingModel,
-      CHROMA_MODE: config.chromaMode,
-      CHROMA_HTTP_HOST: config.chromaHttpHost,
-      CHROMA_PERSIST_DIR: config.chromaPersistDir
-    }
-  });
-
   let assistantText = "";
   let citations: unknown[] = [];
 
-  child.stdout.on("data", (chunk) => {
-    const lines = chunk.toString().split("\n").filter(Boolean);
+  try {
+    const response = await fetch(`${config.pythonServerUrl}/stream-answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        collection_name: data.conversation.vector_collection_name,
+        question,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+      ctx.res.write(`event: error\ndata: ${JSON.stringify({ error: text })}\n\n`);
+      ctx.res.write(`event: done\ndata: {}\n\n`);
+      ctx.res.end();
+      ctx.respond = false;
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
     let currentEvent = "";
-    for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        currentEvent = line.replace("event: ", "").trim();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.replace("event: ", "").trim();
+        }
+        if (line.startsWith("data: ")) {
+          const dataStr = line.replace("data: ", "");
+          try {
+            const payload = JSON.parse(dataStr);
+            if (currentEvent === "token" && payload.token) assistantText += payload.token;
+            if (currentEvent === "citations" && Array.isArray(payload.citations)) citations = payload.citations;
+          } catch {}
+        }
+        ctx.res.write(line + "\n");
       }
-      if (line.startsWith("data: ")) {
-        const dataStr = line.replace("data: ", "");
-        try {
-          const payload = JSON.parse(dataStr);
-          if (currentEvent === "token" && payload.token) assistantText += payload.token;
-          if (currentEvent === "citations" && Array.isArray(payload.citations)) citations = payload.citations;
-        } catch {}
-      }
-      ctx.res.write(line + "\n");
+      ctx.res.write("\n");
     }
-    ctx.res.write("\n");
-  });
+  } catch (err: any) {
+    console.error("[stream-answer] error", err);
+    ctx.res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
+  }
 
-  child.stderr.on("data", (chunk) => {
-    const text = chunk.toString();
-    console.error("[python:stream-answer:stderr]", text);
-    const payload = JSON.stringify({ error: text });
-    ctx.res.write(`event: error\ndata: ${payload}\n\n`);
-  });
+  console.log("[stream-answer] finished", { conversationId });
 
-  child.on("close", async () => {
-    console.log("[stream-answer] finished", { conversationId });
+  if (assistantText.trim()) {
+    await insertConversationMessage({
+      conversationId,
+      role: "assistant",
+      content: assistantText,
+      citations
+    });
+  }
 
-    if (assistantText.trim()) {
-      await insertConversationMessage({
-        conversationId,
-        role: "assistant",
-        content: assistantText,
-        citations
-      });
-    }
-
-    ctx.res.write(`event: done\ndata: {}\n\n`);
-    ctx.res.end();
-  });
-
+  ctx.res.write(`event: done\ndata: {}\n\n`);
+  ctx.res.end();
   ctx.respond = false;
 });

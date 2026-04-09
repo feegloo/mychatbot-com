@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 
-from .config import get_settings
+from .rag import get_llm
 
 
 from .lang_detect import detect_language
 
 def suggest_questions_from_chunks(chunks: list[str], language: str = None) -> list[str]:
-    settings = get_settings()
 
     # Use stratified sampling to capture diverse topics throughout the document
     if len(chunks) <= 8:
@@ -69,7 +67,7 @@ def suggest_questions_from_chunks(chunks: list[str], language: str = None) -> li
             """
         )
 
-    llm = ChatOpenAI(model=settings.openai_chat_model, temperature=0, api_key=settings.openai_api_key)
+    llm = get_llm()
     chain = prompt | llm | StrOutputParser()
     response = chain.invoke({"content": sample})
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]

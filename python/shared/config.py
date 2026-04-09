@@ -33,6 +33,10 @@ def get_settings() -> Settings:
     return Settings(
         llm_provider=llm_provider,
         openai_api_key=openai_key,
+        # Model tiers (speed vs quality):
+        #   Fast + cheap:  gpt-4.1-mini, gpt-4.1-nano, claude-3-5-haiku
+        #   Balanced:      gpt-4.1, claude-3-7-sonnet
+        #   Best quality:  o3, claude-3-7-sonnet (extended thinking)
         openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
         openai_embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
         anthropic_api_key=anthropic_key,

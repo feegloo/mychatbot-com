@@ -67,7 +67,7 @@ export type ChatMessage = {
   id?: string;
   role: "user" | "assistant";
   content: string;
-  citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
+  citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>;
 };
 
 export type ConversationStatus = {
@@ -125,6 +125,12 @@ export function getStreamUrl(conversationId: string, question: string) {
   url.searchParams.set("conversationId", conversationId);
   url.searchParams.set("question", question);
   return url.toString();
+}
+
+export function getImageUrl(conversationId: string, imageName: string) {
+  // @ts-ignore
+  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
+  return `${base}/api/storage/${conversationId}/${encodeURIComponent(imageName)}`;
 }
 
 export async function requestUploadAccess(conversationId: string, displayName: string) {
