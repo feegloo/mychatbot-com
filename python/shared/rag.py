@@ -33,11 +33,12 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
 
     Return a concise but useful answer.
     Additional guidelines:
-    - try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question),
-      but omit bullets if there are less than 3 points, avoid excessive bulleting and write more natural paragraphs instead, 
-      avoid starting with a bullet point but rather start with a short intro sentence if using bullets
-    - do not just repeat the retrieved text, try to synthesize it into a helpful answer
-    - try to use information from multiple chunks if relevant
+    a) try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question)
+    - but omit bullets if there are less than 3 points
+    - avoid starting with a bullet point but rather start with a short intro sentence if using bullets
+    - after bullets, you can add a concluding sentence if it adds value, but keep it concise
+    b) do not just repeat the retrieved text, try to synthesize it into a helpful answer
+    c) try to use information from multiple chunks if relevant
     """
 )
     
