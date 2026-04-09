@@ -37,8 +37,10 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     - but omit bullets if there are less than 3 points
     - avoid starting with a bullet point but rather start with a short intro sentence if using bullets
     - after bullets, you can add a concluding sentence if it adds value, but keep it concise
-    b) do not just repeat the retrieved text, try to synthesize it into a helpful answer
-    c) try to use information from multiple chunks if relevant
+    b) avoid too many sentences in a row without any formatting - break them up with bullets or newlines if it improves readability
+    c) use ** for bolding and _ for italics if it helps readability, use other markdown formatting sparingly
+    d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
+    e) try to use information from multiple chunks if relevant
     """
 )
     
