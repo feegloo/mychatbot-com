@@ -305,13 +305,13 @@ a:hover { color: #a5b4fc; }
 .message.user {
   background: rgba(167, 139, 250, 0.12);
   border: 1px solid rgba(167, 139, 250, 0.18);
-  color: #ede9fe;
+  color: #cdd5e1;
 }
 
 .message.assistant {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #e2e8f0;
+  color: #cdd5e1;
 }
 
 .message strong {
@@ -346,7 +346,7 @@ a:hover { color: #a5b4fc; }
   font-size: inherit;
   text-transform: none;
   letter-spacing: normal;
-  color: inherit;
+  color: #fff;
   font-weight: 600;
 }
 

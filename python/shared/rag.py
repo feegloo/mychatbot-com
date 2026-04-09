@@ -25,13 +25,6 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     Answer the user's question using only the retrieved context below.
     If the answer is not present, say that you could not find enough evidence in the uploaded files.
 
-    Question:
-    {question}
-
-    Retrieved context:
-    {context}
-
-    Return a concise but useful answer.
     Additional guidelines:
     a) try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question)
     - but omit bullets if there are less than 3 points
@@ -41,6 +34,18 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     c) use ** for bolding and _ for italics if it helps readability, use other markdown formatting sparingly
     d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
     e) try to use information from multiple chunks if relevant
+    ------------------------
+    
+    Question:
+    {question}
+
+    Retrieved context:
+    {context}
+
+    ------------------------
+
+    Return a concise but useful answer.
+
     """
 )
     
