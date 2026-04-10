@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS conversations (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   salt UUID NOT NULL,
   display_name TEXT,
   status TEXT NOT NULL DEFAULT 'processing',
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE TABLE IF NOT EXISTS uploaded_files (
   id UUID PRIMARY KEY,
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   original_name TEXT NOT NULL,
   stored_name TEXT NOT NULL,
   mime_type TEXT NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
 
 CREATE TABLE IF NOT EXISTS suggested_questions (
   id UUID PRIMARY KEY,
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   question TEXT NOT NULL,
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -34,14 +34,14 @@ CREATE TABLE IF NOT EXISTS suggested_questions (
 
 CREATE TABLE IF NOT EXISTS conversation_access_tokens (
   token TEXT PRIMARY KEY,
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('owner', 'editor')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS access_requests (
   id UUID PRIMARY KEY,
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   editor_token TEXT,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS access_requests (
 
 CREATE TABLE IF NOT EXISTS conversation_messages (
   id UUID PRIMARY KEY,
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
   citations_json JSONB,

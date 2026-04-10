@@ -133,6 +133,12 @@ export function getImageUrl(conversationId: string, imageName: string) {
   return `${base}/api/storage/${conversationId}/${encodeURIComponent(imageName)}`;
 }
 
+export function getDocumentUrl(conversationId: string, fileName: string) {
+  // @ts-ignore
+  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
+  return `${base}/api/storage/${conversationId}/${encodeURIComponent(fileName)}`;
+}
+
 export async function requestUploadAccess(conversationId: string, displayName: string) {
   const response = await api.post(`/conversations/${conversationId}/access-requests`, { displayName });
   return response.data as { requestId: string; status: "pending" };

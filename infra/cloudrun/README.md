@@ -43,7 +43,7 @@ The script will:
 # 1. Create domain mapping in Cloud Run
 gcloud run domain-mappings create \
   --service=mychatbot \
-  --region=us-central1 \
+  --region=europe-west1 \
   --domain=chatrag.app
 
 # 2. It will show DNS records needed. Go to GoDaddy → DNS Management for chatrag.app
@@ -54,7 +54,7 @@ gcloud run domain-mappings create \
 #    Type: CNAME Name: www  Value: ghs.googlehosted.com.
 
 # 4. Wait for DNS propagation (5-30 min), then verify:
-gcloud run domain-mappings describe --domain=chatrag.app --region=us-central1
+gcloud run domain-mappings describe --domain=chatrag.app --region=europe-west1
 ```
 
 Cloud Run provides free managed SSL for custom domains.

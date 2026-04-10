@@ -4,7 +4,7 @@
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
-    <div v-else-if="msg.role === 'assistant'" class="markdown-content" v-html="renderMarkdown(msg.content)"></div>
+    <div v-else-if="msg.role === 'assistant'" class="markdown-content" @click="onContentClick" v-html="renderedContent"></div>
     <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
 
     <!-- Inline image thumbnails from citations -->
@@ -20,7 +20,8 @@
       </div>
     </div>
 
-    <div v-if="msg.citations?.length" class="sources">
+    <!-- Fallback: old-style source pills for messages without inline citations -->
+    <div v-if="msg.citations?.length && !hasInlineSources" class="sources">
       <div class="source-card">
         <span class="citation-filename"><span style="color: #64748b; font-weight: 400">source: </span><strong style="color: #c4b5fd">{{ cleanFileName(msg.citations[activeTab].fileName) }}</strong></span>
         <div style="display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px">
@@ -34,7 +35,6 @@
             {{ getSectionLabel(citation) }}
           </button>
         </div>
-        <!-- Show image for active image citation -->
         <div v-if="msg.citations[activeTab].imageName" class="citation-active-image" @click="openImage(resolveImageCitation(msg.citations[activeTab]))">
           <img :src="resolveImageCitation(msg.citations[activeTab]).url" :alt="msg.citations[activeTab].section || 'Image'" loading="lazy" />
         </div>
@@ -50,6 +50,14 @@
       :alt="modalAlt"
       @close="modalOpen = false"
     />
+
+    <SourcePreviewModal
+      v-if="previewCitation"
+      :visible="previewOpen"
+      :citation="previewCitation"
+      :conversationId="conversationId"
+      @close="previewOpen = false"
+    />
   </div>
 </template>
 
@@ -61,6 +69,7 @@ import type { ChatMessage } from "../api";
 import { getImageUrl } from "../api";
 import { cleanFileName, linkify } from "../utils/text";
 import ImageModal from "./ImageModal.vue";
+import SourcePreviewModal from "./SourcePreviewModal.vue";
 
 marked.setOptions({
   breaks: true,
@@ -69,7 +78,14 @@ marked.setOptions({
 
 function renderMarkdown(content: string): string {
   const rawHtml = marked.parse(content, { async: false }) as string;
-  return DOMPurify.sanitize(rawHtml);
+  const sanitized = DOMPurify.sanitize(rawHtml);
+  // Replace [source:N] markers with clickable inline source buttons
+  return sanitized.replace(
+    /\[source:(\d+)\]/g,
+    (_, n) =>
+      `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}" title="Show source">` +
+      `<span class="inline-source-icon">↑</span>${n}</button>`
+  );
 }
 
 const props = defineProps<{
@@ -84,6 +100,24 @@ defineEmits<{
 }>();
 
 const activeTab = computed(() => props.activeCitationIndex ?? 0);
+
+const renderedContent = computed(() => renderMarkdown(props.msg.content));
+
+const hasInlineSources = computed(() => /\[source:\d+\]/.test(props.msg.content));
+
+// Source preview modal state
+const previewOpen = ref(false);
+const previewCitation = ref<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>();
+
+function onContentClick(e: MouseEvent) {
+  const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.sourceIdx || "0", 10) - 1; // 1-based to 0-based
+  if (props.msg.citations && props.msg.citations[idx]) {
+    previewCitation.value = props.msg.citations[idx] as any;
+    previewOpen.value = true;
+  }
+}
 
 // Image modal state
 const modalOpen = ref(false);
@@ -123,25 +157,48 @@ function getSectionLabel(citation: any): string {
     }
     return 'Source';
   }
-  
-  // If section is short enough (real section header), use it as-is
   if (citation.section.length <= 30) {
     return citation.section;
   }
-  
-  // For long sections, try to extract the first meaningful phrase
-  // Split by common sentence delimiters and take the first part
   const firstPhrase = citation.section.split(/[,;.!?]/)[0].trim();
   if (firstPhrase.length > 30) {
-    // If still too long, take first N characters and add ellipsis
     return firstPhrase.substring(0, 30) + '…';
   }
-  
   return firstPhrase || 'Source';
 }
 </script>
 
 <style scoped>
+/* Inline source buttons */
+:deep(.inline-source-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  background: #7c3aed33;
+  color: #c4b5fd;
+  border: 1px solid #7c3aed55;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 5px;
+  margin: 0 1px;
+  cursor: pointer;
+  vertical-align: super;
+  line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+:deep(.inline-source-btn:hover) {
+  background: #7c3aed55;
+  border-color: #a78bfa;
+}
+
+:deep(.inline-source-icon) {
+  font-size: 9px;
+}
+
+/* Image thumbnails */
 .citation-images {
   display: flex;
   flex-wrap: wrap;

@@ -10,7 +10,7 @@ set -euo pipefail
 
 # ── Configuration (edit these) ───────────────────────────────────────────────
 PROJECT_ID="${GCP_PROJECT_ID:-}"
-REGION="us-central1"
+REGION="europe-west1"
 SERVICE_NAME="mychatbot"
 IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 

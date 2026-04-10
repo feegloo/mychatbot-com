@@ -2,6 +2,7 @@ import Router from "@koa/router";
 import multer from "@koa/multer";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
+import { generateShortId } from "../utils/id.js";
 import { createStorageProvider } from "../storage/index.js";
 import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken } from "../repositories/conversations.js";
 import { config } from "../config.js";
@@ -19,11 +20,11 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     return;
   }
 
-  const conversationId = uuidv4();
+  const conversationId = generateShortId();
   const salt = uuidv4();
   const ownerPassword = deriveToken(conversationId, salt);
   const namespace = conversationId;
-  const collectionName = `conversation_${conversationId.replace(/-/g, "_")}`;
+  const collectionName = `conversation_${conversationId}`;
   const storage = createStorageProvider();
 
   await insertConversation({

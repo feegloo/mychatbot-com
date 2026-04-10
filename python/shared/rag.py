@@ -34,6 +34,7 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     c) use ** for bolding and _ for italics if it helps readability, use other markdown formatting sparingly
     d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
     e) try to use information from multiple chunks if relevant
+    f) IMPORTANT: When using information from a source, cite it inline by placing [source:N] immediately after the relevant sentence or claim, where N is the source number shown in the retrieved context. Always cite your sources. A single sentence may have multiple citations if it draws from multiple sources.
     ------------------------
     
     Question:
@@ -44,15 +45,15 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
 
     ------------------------
 
-    Return a concise but useful answer.
+    Return a concise but useful answer with inline source citations.
 
     """
 )
     
 def build_context(rows: list[dict]) -> str:
     parts = []
-    for row in rows:
-        label = f"File: {row['file_name']}"
+    for i, row in enumerate(rows, 1):
+        label = f"[{i}] File: {row['file_name']}"
         if row.get("section"):
             label += f" | Section: {row['section']}"
         if row.get("page") is not None:

@@ -305,7 +305,7 @@ conversationsRouter.patch("/conversations/:conversationId/name", async (ctx) => 
 
 const batchSchema = z.object({
   conversations: z.array(z.object({
-    conversationId: z.string().uuid(),
+    conversationId: z.string().regex(/^[0-9A-Za-z]{12}$/),
     token: z.string()
   })).max(100)
 });

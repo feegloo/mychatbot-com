@@ -13,19 +13,19 @@ export const storageRouter = new Router();
 storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
   const { conversationId, fileName } = ctx.params;
 
-  // Validate conversationId is a UUID pattern (prevents path traversal)
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId)) {
+  // Validate conversationId is a 12-char base62 string (prevents path traversal)
+  if (!/^[0-9A-Za-z]{12}$/.test(conversationId)) {
     ctx.status = 400;
     ctx.body = { error: "Invalid conversation ID" };
     return;
   }
 
-  // Only allow image file extensions
+  // Allow image and document file extensions for preview
   const ext = path.extname(fileName).toLowerCase();
-  const allowedExts = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+  const allowedExts = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"]);
   if (!allowedExts.has(ext)) {
     ctx.status = 403;
-    ctx.body = { error: "Only image files can be served" };
+    ctx.body = { error: "File type not allowed" };
     return;
   }
 
@@ -55,9 +55,14 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     ".jpeg": "image/jpeg",
     ".gif": "image/gif",
     ".webp": "image/webp",
+    ".pdf": "application/pdf",
   };
 
   ctx.set("Content-Type", mimeTypes[ext] || "application/octet-stream");
+  if (ext === ".pdf") {
+    ctx.set("Content-Disposition", "inline");
+    ctx.set("X-Content-Type-Options", "nosniff");
+  }
   ctx.set("Cache-Control", "public, max-age=86400");
   ctx.body = await fs.readFile(filePath);
 });
