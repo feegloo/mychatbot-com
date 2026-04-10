@@ -112,7 +112,7 @@ const conversationTitle = computed(() => {
 });
 
 watch(conversationTitle, (title) => {
-  document.title = `chatrag.app | ${title}`;
+  document.title = `${title} | chatrag.app`;
 }, { immediate: true });
 
 async function loadConversation() {

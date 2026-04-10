@@ -3,13 +3,13 @@
     <div class="header">
       <div>
         <h1 style="font-size: 2rem; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.02em; color: #a78bfa">chatrag.app</h1>
-        <p style="color: #64748b; margin: 0; font-size: 14px">Upload your own files, generate embeddings, then chat with a RAG bot at a unique shareable URL.</p>
+        <p style="color: #64748b; margin: 0; font-size: 14px">Upload pdf or text files, chat with AI over files with semantic search (RAG), get answers.</p>
       </div>
     </div>
 
     <div class="grid grid-2">
       <section>
-        <h2>Upload files</h2>
+        <h3>Upload files</h3>
         <div
           class="dropzone"
           :class="{ dragover }"
@@ -17,7 +17,7 @@
           @dragleave.prevent="dragover = false"
           @drop.prevent="onDrop"
         >
-          <p><strong>Drag and drop</strong> PDF, DOCX, TXT, MD, CSV, XLSX, HTML, XML, JSON, and other text-like files here.</p>
+          <p><strong>Drag and drop</strong> your files here (PDF, DOCX, CSV, other text files)</p>
           <!-- <p>Future version: images and other unstructured files.</p> -->
           <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
           <button class="button secondary" @click="openFilePicker">Choose files</button>
@@ -29,24 +29,10 @@
           </div>
         </div>
 
-        <div style="margin-top:16px">
-          <button class="button" :disabled="!files.length || submitting" @click="submit">
-            {{ submitting ? "Uploading..." : "Upload files" }}
-          </button>
-        </div>
+        <p v-if="submitting" style="margin-top:12px; color:#a78bfa">Uploading...</p>
 
         <p v-if="error" style="color:#f87171; margin-top:12px">{{ error }}</p>
       </section>
-
-      <aside v-if="false">
-        <h2 style="font-size: 1rem; margin: 8px 0 12px">How it works</h2>
-        <ol style="color: #94a3b8; line-height: 1.8; padding-left: 20px; font-size: 14px">
-          <li>Files are uploaded to the server.</li>
-          <li>Node stores file metadata and creates a conversation URL.</li>
-          <li>Python indexes content into Chroma using notebook mode or script mode.</li>
-          <li>You open the chat and ask questions grounded in your uploaded files.</li>
-        </ol>
-      </aside>
     </div>
   </div>
 </template>
@@ -74,11 +60,13 @@ function openFilePicker() {
 function onInputChange(event: Event) {
   const target = event.target as HTMLInputElement;
   files.value = Array.from(target.files || []);
+  if (files.value.length) submit();
 }
 
 function onDrop(event: DragEvent) {
   dragover.value = false;
   files.value = Array.from(event.dataTransfer?.files || []);
+  if (files.value.length) submit();
 }
 
 async function submit() {
