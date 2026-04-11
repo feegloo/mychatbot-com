@@ -18,9 +18,8 @@ _llm_instance = None
 _llm_provider_key = None
 
 
-ANSWER_PROMPT = ChatPromptTemplate.from_template(
-    """
-    You are a helpful RAG assistant.
+ANSWER_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are a helpful RAG assistant.
 
     Answer the user's question using only the retrieved context below.
     If the answer is not present, say that you could not find enough evidence in the uploaded files.
@@ -34,21 +33,15 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     c) use ** for bolding and _ for italics if it helps readability, use other markdown formatting sparingly
     d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
     e) try to use information from multiple chunks if relevant
-    f) IMPORTANT – citation format: After every sentence or claim that uses information from the retrieved context, you MUST insert an inline citation using EXACTLY this format: [source:N] where N is the source number. Examples of CORRECT citation format: [source:1], [source:2], [source:1][source:3]. If a sentence uses multiple sources, place multiple [source:N] markers, e.g. [source:1][source:2]. NEVER use bare brackets like [1], [2], [1][2][3][4], [1,2,3,4] — always include the "source:" prefix. Always cite your sources.
-    ------------------------
-    
-    Question:
+    f) IMPORTANT – citation format: After every sentence or claim that uses information from the retrieved context, you MUST insert an inline citation using EXACTLY this format: [source:N] where N is the source number. Examples of CORRECT citation format: [source:1], [source:2], [source:1][source:3]. If a sentence uses multiple sources, place multiple [source:N] markers, e.g. [source:1][source:2]. NEVER use bare brackets like [1], [2], [1][2][3][4], [1,2,3,4] — always include the "source:" prefix. ALWAYS write the word "source" in English, even if the rest of the answer is in another language. Do NOT translate "source" (e.g. do not write [źródło:1], [quelle:1], [fuente:1], etc.). Always cite your sources.
+
+    Return a concise but useful answer with inline source citations using [source:N] format."""),
+    ("human", """Question:
     {question}
 
     Retrieved context:
-    {context}
-
-    ------------------------
-
-    Return a concise but useful answer with inline source citations using [source:N] format.
-
-    """
-)
+    {context}"""),
+])
     
 def build_context(rows: list[dict]) -> str:
     parts = []
@@ -71,7 +64,7 @@ def get_llm() -> Any:
     settings = get_settings()
     
     # Cache key: provider + model so we reuse the same instance within a process
-    cache_key = f"{settings.llm_provider}:{settings.anthropic_chat_model if settings.llm_provider == 'anthropic' else settings.openai_chat_model}"
+    cache_key = f"{settings.llm_provider}:{settings.anthropic_chat_model if settings.llm_provider == 'anthropic' else settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
         return _llm_instance
     
@@ -93,11 +86,12 @@ def get_llm() -> Any:
             raise ValueError(
                 "OpenAI API key not configured. Set OPENAI_API_KEY environment variable"
             )
-        logger.info(f"🤖 Using OpenAI model: {settings.openai_chat_model}")
+        logger.info(f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})")
         _llm_instance = ChatOpenAI(
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
             temperature=0,
+            model_kwargs={"reasoning_effort": settings.openai_reasoning_effort},
         )
     
     _llm_provider_key = cache_key
@@ -135,12 +129,24 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     context = build_context(rows)
 
     llm = get_llm()
-    chain = ANSWER_PROMPT | llm | StrOutputParser()
+    chain = ANSWER_PROMPT | llm
     logger.info(f"🔗 Invoking LLM chain...")
-    answer = chain.invoke({
+    ai_message = chain.invoke({
         "question": question,
         "context": context,
     })
+    answer = ai_message.content
+
+    # Log prompt cache metrics if available
+    usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get("usage", {})
+    if usage:
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        if cached:
+            logger.info(f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached*100//prompt_tokens}%)")
+        else:
+            logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
+
     logger.info(f"✅ Generated answer: {answer[:100]}...")
 
     return {

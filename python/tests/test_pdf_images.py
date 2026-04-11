@@ -173,7 +173,7 @@ class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
     def test_max_tokens_is_150(self, mock_openai_cls, mock_settings):
-        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-4o-mini")
+        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-5.4-mini")
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
@@ -188,7 +188,7 @@ class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
     def test_prompt_is_concise(self, mock_openai_cls, mock_settings):
-        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-4o-mini")
+        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-5.4-mini")
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(

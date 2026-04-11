@@ -16,6 +16,7 @@ class Settings:
     chroma_mode: str
     chroma_http_host: str
     chroma_persist_dir: str
+    openai_reasoning_effort: str
     chroma_api_key: str
     chroma_tenant: str
     chroma_database: str
@@ -37,8 +38,9 @@ def get_settings() -> Settings:
         #   Fast + cheap:  gpt-4.1-mini, gpt-4.1-nano, claude-3-5-haiku
         #   Balanced:      gpt-4.1, claude-3-7-sonnet
         #   Best quality:  o3, claude-3-7-sonnet (extended thinking)
-        openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4.1-mini"),
+        openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-5.4-mini"),
         openai_embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+        openai_reasoning_effort=os.getenv("OPENAI_REASONING_EFFORT", "low"),
         anthropic_api_key=anthropic_key,
         anthropic_chat_model=os.getenv("ANTHROPIC_CHAT_MODEL", "claude-3-5-haiku-20241022"),
         chroma_mode=os.getenv("CHROMA_MODE", "local"),

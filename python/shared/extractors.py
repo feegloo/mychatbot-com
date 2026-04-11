@@ -85,13 +85,19 @@ def _describe_image(image_bytes: bytes) -> str:
     response = client.chat.completions.create(
         model=settings.openai_chat_model,
         max_tokens=150,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Return a brief factual caption (2-3 sentences max). State: subject/type, key text/labels/data visible, and visual layout. No filler words."},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}", "detail": "low"}},
-            ],
-        }],
+        reasoning_effort=settings.openai_reasoning_effort,
+        messages=[
+            {
+                "role": "system",
+                "content": "Return a brief factual caption (2-3 sentences max). State: subject/type, key text/labels/data visible, and visual layout. No filler words.",
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}", "detail": "low"}},
+                ],
+            },
+        ],
     )
     return response.choices[0].message.content.strip()
 

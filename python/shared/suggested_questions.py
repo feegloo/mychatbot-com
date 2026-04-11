@@ -35,9 +35,8 @@ def suggest_questions_from_chunks(chunks: list[str], language: str = None) -> li
 
     # Language-specific prompt
     if language == "pl":
-        prompt = ChatPromptTemplate.from_template(
-            """
-            Wygeneruj dokładnie 4 zwięzłe, przydatne pytania, które użytkownik mógłby zadać na podstawie poniższej treści.
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """Wygeneruj dokładnie 4 zwięzłe, przydatne pytania, które użytkownik mógłby zadać na podstawie poniższej treści.
 
             Zasady:
             - Każde pytanie w osobnej linii
@@ -45,16 +44,12 @@ def suggest_questions_from_chunks(chunks: list[str], language: str = None) -> li
             - Bez dodatkowych wyjaśnień
             - Pytania powinny być naturalne i klikalne w interfejsie
             - Obejmij różne tematy/sekcje z treści
-            - Wygeneruj tylko takie pytania, na które można znaleźć odpowiedź w treści, nie wymyślaj pytań, które nie mają podstaw w tekście
-
-            Treść:
-            {content}
-            """
-        )
+            - Wygeneruj tylko takie pytania, na które można znaleźć odpowiedź w treści, nie wymyślaj pytań, które nie mają podstaw w tekście"""),
+            ("human", "{content}"),
+        ])
     else:
-        prompt = ChatPromptTemplate.from_template(
-            """
-            Generate exactly 4 concise, useful questions a user might ask about the following uploaded content.
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """Generate exactly 4 concise, useful questions a user might ask about the following uploaded content.
 
             Rules:
             - Each question should be on its own line
@@ -62,12 +57,9 @@ def suggest_questions_from_chunks(chunks: list[str], language: str = None) -> li
             - No extra explanation
             - Questions should be natural and clickable in a UI
             - Cover different topics/sections mentioned in the content
-            - Only generate questions that can be answered based on the content, do not make up questions that are not grounded in the text
-
-            Content:
-            {content}
-            """
-        )
+            - Only generate questions that can be answered based on the content, do not make up questions that are not grounded in the text"""),
+            ("human", "{content}"),
+        ])
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
