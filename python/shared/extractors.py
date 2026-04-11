@@ -4,12 +4,14 @@ import base64
 import csv
 import json
 import logging
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Iterable, List
 
 import docx2txt
-import fitz  # pymupdf
+import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
 import pandas as pd
 from openai import OpenAI
 from pypdf import PdfReader
@@ -70,6 +72,10 @@ MIN_IMAGE_SIZE = 5_000  # Skip tiny images (icons, bullets) under 5 KB
 MIN_IMAGE_DIM = 50      # Skip images smaller than 50px in either dimension
 
 
+# Thread count: use 2× CPU cores (hyper-threading) for IO-bound tasks
+_NUM_THREADS = os.cpu_count() * 2 or 4
+
+
 def _describe_image(image_bytes: bytes) -> str:
     """Use GPT-4 vision to describe an image."""
     settings = get_settings()
@@ -78,11 +84,11 @@ def _describe_image(image_bytes: bytes) -> str:
 
     response = client.chat.completions.create(
         model=settings.openai_chat_model,
-        max_tokens=300,
+        max_tokens=150,
         messages=[{
             "role": "user",
             "content": [
-                {"type": "text", "text": "Describe this image concisely. Include all visible text, data, labels, and key visual elements. This description will be used for search retrieval."},
+                {"type": "text", "text": "Return a brief factual caption (2-3 sentences max). State: subject/type, key text/labels/data visible, and visual layout. No filler words."},
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}", "detail": "low"}},
             ],
         }],
@@ -90,13 +96,13 @@ def _describe_image(image_bytes: bytes) -> str:
     return response.choices[0].message.content.strip()
 
 
-def extract_pdf_images(pdf_path: Path, output_dir: Path) -> list[dict]:
-    """Extract images from a PDF, save as .png, describe with vision model.
+def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
+    """Extract raw images from PDF and save as .png (CPU-bound, no API calls).
 
-    Returns list of dicts: {image_path, file_name, description, page}
+    Returns list of dicts with image metadata and saved png_bytes.
     """
     doc = fitz.open(str(pdf_path))
-    images: list[dict] = []
+    saved: list[dict] = []
     stem = pdf_path.stem
 
     for page_idx in range(len(doc)):
@@ -135,24 +141,59 @@ def extract_pdf_images(pdf_path: Path, output_dir: Path) -> list[dict]:
                 pix.save(str(image_path))
 
             png_bytes = image_path.read_bytes()
-
             logger.info(f"🖼️  Extracted image: {image_name} ({width}x{height}, {len(image_bytes)} bytes)")
 
-            try:
-                description = _describe_image(png_bytes)
-            except Exception as e:
-                logger.warning(f"⚠️  Failed to describe {image_name}: {e}")
-                description = f"Image from page {page_idx + 1} of {pdf_path.name}"
-
-            images.append({
+            saved.append({
                 "image_path": str(image_path),
                 "image_name": image_name,
                 "file_name": pdf_path.name,
-                "description": description,
+                "png_bytes": png_bytes,
                 "page": page_idx + 1,
             })
 
     doc.close()
+    return saved
+
+
+def _describe_one(item: dict) -> dict:
+    """Describe a single extracted image. Used as ThreadPoolExecutor target."""
+    try:
+        description = _describe_image(item["png_bytes"])
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to describe {item['image_name']}: {e}")
+        description = f"Image from page {item['page']} of {item['file_name']}"
+    return {
+        "image_path": item["image_path"],
+        "image_name": item["image_name"],
+        "file_name": item["file_name"],
+        "description": description,
+        "page": item["page"],
+    }
+
+
+def extract_pdf_images(pdf_path: Path, output_dir: Path) -> list[dict]:
+    """Extract images from a PDF, save as .png, describe with vision model.
+
+    Phase 1: Extract & save images (CPU-bound, runs in-process via fast C lib).
+    Phase 2: Describe all images in parallel (IO-bound API calls, uses all threads).
+
+    Returns list of dicts: {image_path, file_name, description, page}
+    """
+    # Phase 1 – fast C-level extraction (PyMuPDF/MuPDF)
+    saved = _extract_and_save_images(pdf_path, output_dir)
+    if not saved:
+        return []
+
+    # Phase 2 – parallel API descriptions (IO-bound → threads)
+    logger.info(f"🖼️  Describing {len(saved)} images in parallel ({_NUM_THREADS} threads)")
+    images: list[dict] = []
+    with ThreadPoolExecutor(max_workers=_NUM_THREADS) as pool:
+        futures = {pool.submit(_describe_one, item): item for item in saved}
+        for future in as_completed(futures):
+            images.append(future.result())
+
+    # Preserve original page order
+    images.sort(key=lambda x: (x["page"], x["image_path"]))
     return images
 
 

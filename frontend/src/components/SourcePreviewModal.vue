@@ -142,7 +142,7 @@ const pdfUrl = computed(() => {
 
 .source-modal-iframe {
   width: 100%;
-  height: 55vh;
+  height: 80vh;
   border: none;
   background: #fff;
 }

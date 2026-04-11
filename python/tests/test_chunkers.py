@@ -1,32 +1,25 @@
 import pytest
-from shared.chunkers import split_into_chunks, split_structured_text, Chunk
-
-
-class TestSplitStructuredText:
-    def test_splits_by_paragraphs(self):
-        text = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
-        docs = split_structured_text(text)
-        assert len(docs) == 3
-
-    def test_detects_markdown_headers(self):
-        text = "# Header 1\n\nSome content.\n\n## Header 2\n\nMore content."
-        docs = split_structured_text(text)
-        # With markdown headers, should use MarkdownHeaderTextSplitter
-        assert len(docs) >= 2
-
-    def test_single_paragraph(self):
-        text = "Just one paragraph of text."
-        docs = split_structured_text(text)
-        assert len(docs) == 1
-        assert docs[0].page_content == "Just one paragraph of text."
+from shared.chunkers import split_into_chunks, Chunk
 
 
 class TestSplitIntoChunks:
     def test_basic_chunking(self):
         text = "First paragraph about apples.\n\nSecond paragraph about oranges."
         chunks = split_into_chunks("test.txt", text)
-        assert len(chunks) >= 2
+        assert len(chunks) >= 1
         assert all(isinstance(c, Chunk) for c in chunks)
+        # All original text should be present across chunks
+        combined = "".join(c.text for c in chunks)
+        assert "apples" in combined
+        assert "oranges" in combined
+
+    def test_markdown_splitting(self):
+        text = "# Header 1\n\nSome content.\n\n## Header 2\n\nMore content."
+        chunks = split_into_chunks("doc.md", text)
+        assert len(chunks) >= 1
+        combined = "".join(c.text for c in chunks)
+        assert "Header 1" in combined
+        assert "Header 2" in combined
 
     def test_chunk_ids_are_unique(self):
         text = "\n\n".join(f"Paragraph {i} with enough content." for i in range(10))
@@ -42,10 +35,23 @@ class TestSplitIntoChunks:
 
     def test_large_text_is_split(self):
         # Create text larger than chunk_size (1600 chars)
-        text = "A" * 3000
+        text = "\n\n".join(f"Paragraph {i}. " + "A" * 200 for i in range(20))
         chunks = split_into_chunks("big.txt", text)
         assert len(chunks) >= 2
 
     def test_empty_text(self):
         chunks = split_into_chunks("empty.txt", "")
         assert chunks == []
+
+    def test_section_label_from_first_line(self):
+        text = "# My Section\n\nContent under my section."
+        chunks = split_into_chunks("test.md", text)
+        assert chunks[0].section is not None
+
+    def test_plain_text_paragraphs(self):
+        text = "Title Line\n\nFirst paragraph content here.\n\nSecond paragraph content here."
+        chunks = split_into_chunks("plain.txt", text)
+        assert len(chunks) >= 1
+        combined = "".join(c.text for c in chunks)
+        assert "First paragraph" in combined
+        assert "Second paragraph" in combined

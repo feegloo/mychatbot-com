@@ -85,7 +85,7 @@ function renderMarkdown(content: string): string {
     /\[source:(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
-        `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}" title="Show source">` +
+        `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}">` +
         `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
       ).join('')
   );
@@ -111,6 +111,46 @@ const hasInlineSources = computed(() => /\[source:\d+(?:,\s*\d+)*\]/.test(props.
 // Source preview modal state
 const previewOpen = ref(false);
 const previewCitation = ref<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>();
+
+// Tooltip management for inline source buttons
+const contentEl = ref<HTMLElement>();
+const tooltipElements: HTMLElement[] = [];
+const MAX_TOOLTIP_LENGTH = 600;
+
+function truncateText(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + '…';
+}
+
+function setupTooltips() {
+  cleanupTooltips();
+  if (!contentEl.value) return;
+  const buttons = contentEl.value.querySelectorAll<HTMLElement>('.inline-source-btn');
+  buttons.forEach((btn) => {
+    const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1;
+    const citation = props.msg.citations?.[idx];
+    if (!citation?.text) return;
+    createTooltip(btn, {
+      content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
+      delay: { show: 1000, hide: 0 },
+      themes: ['tooltip'],
+    }, false);
+    tooltipElements.push(btn);
+  });
+}
+
+function cleanupTooltips() {
+  tooltipElements.forEach((el) => {
+    try { destroyTooltip(el); } catch {}
+  });
+  tooltipElements.length = 0;
+}
+
+watch(renderedContent, () => {
+  nextTick(setupTooltips);
+}, { immediate: true });
+
+onBeforeUnmount(cleanupTooltips);
 
 function onContentClick(e: MouseEvent) {
   const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
