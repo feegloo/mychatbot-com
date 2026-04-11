@@ -9,12 +9,19 @@
           <span v-if="citation.page" class="source-modal-page">Page {{ citation.page }}</span>
         </div>
 
-        <!-- PDF preview -->
-        <div v-if="isPdf" class="source-modal-pdf">
+        <!-- PDF preview (desktop: inline iframe, mobile: open in new tab) -->
+        <div v-if="isPdf && !isMobile" class="source-modal-pdf">
           <iframe
             :src="pdfUrl"
             class="source-modal-iframe"
           ></iframe>
+        </div>
+
+        <div v-if="isPdf && isMobile" class="source-modal-mobile-pdf">
+          <p class="source-modal-mobile-hint">PDF preview is not supported inline on mobile devices.</p>
+          <a :href="pdfUrl" target="_blank" rel="noopener" class="source-modal-open-btn">
+            Open PDF{{ citation.page ? ` (page ${citation.page})` : '' }}
+          </a>
         </div>
 
         <!-- Source text quote (non-PDF only) -->
@@ -53,6 +60,10 @@ const displayFileName = computed(() => cleanFileName(props.citation.fileName));
 
 const isPdf = computed(() =>
   props.citation.fileName.toLowerCase().endsWith(".pdf")
+);
+
+const isMobile = computed(() =>
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 );
 
 const pdfUrl = computed(() => {
@@ -168,5 +179,36 @@ const pdfUrl = computed(() => {
   font-style: italic;
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+.source-modal-mobile-pdf {
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.source-modal-mobile-hint {
+  color: #94a3b8;
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+
+.source-modal-open-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.source-modal-open-btn:hover {
+  background: #4f46e5;
 }
 </style>

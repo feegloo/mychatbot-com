@@ -1,13 +1,9 @@
 <template>
-  <aside class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-      <h3 style="margin: 0; font-size: 0.95rem">Uploaded files</h3>
-      <button v-if="canUpload" class="button" style="padding: 6px 12px; font-size: 13px" @click="moreFilesInput?.click()">
-        + Add
-      </button>
-    </div>
-    <div style="margin-bottom: 16px">
-      <span v-for="file in status.files" :key="file.id" class="file-pill" style="font-size: 13px">
+  <aside class="card sidebar-card">
+    <div class="files-row">
+      <button v-if="canUpload" class="add-btn" @click="moreFilesInput?.click()">+</button>
+      <span class="files-label">Uploaded files</span>
+      <span v-for="file in status.files" :key="file.id" class="file-pill">
         {{ cleanFileName(file.originalName) }}
       </span>
     </div>
@@ -51,8 +47,8 @@
       </div>
     </div>
 
-    <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06)">
-      <h3 style="margin: 0 0 10px 0; font-size: 0.95rem">Suggested questions</h3>
+    <div style="padding-top: 2px">
+      <h3 style="margin: 0 0 2px 0; font-size: 0.95rem">Suggested questions</h3>
       <div>
         <button
           v-for="q in status.suggestedQuestions"

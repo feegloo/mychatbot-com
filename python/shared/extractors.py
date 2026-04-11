@@ -99,10 +99,14 @@ def _describe_image(image_bytes: bytes) -> str:
 def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
     """Extract raw images from PDF and save as .png (CPU-bound, no API calls).
 
+    Deduplicates by xref so each unique image is extracted only once
+    (PDF templates/backgrounds reuse the same xref across many pages).
+
     Returns list of dicts with image metadata and saved png_bytes.
     """
     doc = fitz.open(str(pdf_path))
     saved: list[dict] = []
+    seen_xrefs: set[int] = set()
     stem = pdf_path.stem
 
     for page_idx in range(len(doc)):
@@ -111,6 +115,12 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
 
         for img_idx, img_info in enumerate(image_list):
             xref = img_info[0]
+
+            # Skip already-extracted images (same xref = same bytes)
+            if xref in seen_xrefs:
+                continue
+            seen_xrefs.add(xref)
+
             try:
                 base_image = doc.extract_image(xref)
             except Exception:

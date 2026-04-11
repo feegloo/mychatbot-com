@@ -15,9 +15,10 @@
     <div class="grid grid-2">
       <section class="chat-panel">
 
-        <p v-if="loaded && status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
-          Indexing files in progress... please wait
-        </p>
+        <div v-if="loaded && status.status !== 'ready'" class="indexing-bar">
+          <div class="indexing-spinner"></div>
+          Indexing files in progress…
+        </div>
 
         <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
           <div style="flex: 1"></div>

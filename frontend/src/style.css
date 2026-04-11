@@ -260,6 +260,43 @@ a:hover { color: #a5b4fc; }
   margin-top: 16px;
 }
 
+.files-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.files-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.add-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: rgba(167, 139, 250, 0.12);
+  color: #c4b5fd;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.add-btn:hover {
+  background: rgba(167, 139, 250, 0.25);
+}
+
 .file-pill {
   display: inline-flex;
   align-items: center;
@@ -269,7 +306,7 @@ a:hover { color: #a5b4fc; }
   color: #ddd6fe;
   border-radius: 999px;
   padding: 6px 12px;
-  margin: 4px 6px 0 0;
+  margin: 0;
   font-size: 13px;
 }
 
@@ -792,20 +829,29 @@ h1, h2, h3 {
   }
 
   .grid-2 > aside.card {
-    max-height: 210px;
+    max-height: 150px;
     overflow-y: auto;
-    padding: 8px 12px;
+    padding: 6px 10px;
   }
 
-  .grid-2 > aside.card h3 {
-    font-size: 0.85rem;
+  .files-row {
+    gap: 4px;
     margin-bottom: 4px;
+  }
+
+  .files-label {
+    font-size: 0.85rem;
+  }
+
+  .add-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 14px;
   }
 
   .file-pill {
     font-size: 12px;
     padding: 4px 10px;
-    margin: 2px 4px 0 0;
   }
 
   .question-pill {
@@ -827,6 +873,31 @@ h1, h2, h3 {
     font-size: 11px;
     padding: 3px 8px;
   }
+}
+
+/* ── Indexing spinner ── */
+
+.indexing-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(251, 191, 36, 0.25);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.indexing-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #fbbf24;
+  font-size: 14px;
 }
 
 /* floating-vue tooltip overrides for dark theme */
