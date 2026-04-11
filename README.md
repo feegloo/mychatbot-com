@@ -114,7 +114,6 @@ If you do not have Docker:
 
 Copy the examples:
 ```bash
-cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 cp python/.env.example python/.env

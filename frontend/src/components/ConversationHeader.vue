@@ -20,8 +20,7 @@
       />
       </div>
       <div class="header-badges" style="display: flex; gap: 8px">
-        <div class="status-badge">status: {{ status.status }}</div>
-        <div class="status-badge">role: {{ status.role }}</div>
+        <div v-if="status.role === 'editor'" class="status-badge">role: {{ status.role }}</div>
       </div>
     </div>
     <div class="header-actions" style="display:flex; gap:12px">

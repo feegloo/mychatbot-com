@@ -24,7 +24,7 @@ export const config = {
   chromaTenant: process.env.CHROMA_TENANT || "",
   chromaDatabase: process.env.CHROMA_DATABASE || "",
   openAiApiKey: process.env.OPENAI_API_KEY || "",
-  openAiChatModel: process.env.OPENAI_CHAT_MODEL || "gpt-4.1-nano",
+  openAiChatModel: process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini",
   openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
   pythonServerUrl: process.env.PYTHON_SERVER_URL || "http://localhost:8321",
 
