@@ -58,6 +58,7 @@
         :status="status"
         :conversationId="conversationId"
         :canUpload="canUpload"
+        :loaded="loaded"
         @reload="onReload"
         @select-question="question = $event; submitQuestion()"
       />
@@ -108,6 +109,7 @@ const conversationTitle = computed(() => {
   if (status.value.files.length) {
     return status.value.files.map(f => cleanFileName(f.originalName)).join(", ");
   }
+  if (!loaded.value) return "";
   return `Conversation ${conversationId.slice(0, 8)}…`;
 });
 

@@ -14,7 +14,7 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
   const { conversationId, fileName } = ctx.params;
 
   // Validate conversationId is a 12-char base62 string (prevents path traversal)
-  if (!/^[0-9A-Za-z]{12}$/.test(conversationId)) {
+  if (!/^[0-9A-Za-z]{16}$/.test(conversationId)) {
     ctx.status = 400;
     ctx.body = { error: "Invalid conversation ID" };
     return;

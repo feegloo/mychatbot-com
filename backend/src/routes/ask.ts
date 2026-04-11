@@ -4,7 +4,7 @@ import { getConversation, insertConversationMessage } from "../repositories/conv
 import { answerQuestion } from "../python/answering.js";
 
 const askSchema = z.object({
-  conversationId: z.string().regex(/^[0-9A-Za-z]{12}$/),
+  conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
   question: z.string().min(3)
 });
 

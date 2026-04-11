@@ -1,7 +1,7 @@
 <template>
   <nav class="conv-nav">
     <router-link to="/" class="conv-nav-new button" @click="$emit('navigate')">
-      + New conversation
+      + New chat
     </router-link>
 
     <div class="conv-nav-list">

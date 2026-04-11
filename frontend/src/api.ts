@@ -118,25 +118,20 @@ export async function askQuestion(conversationId: string, question: string) {
   };
 }
 
-export function getStreamUrl(conversationId: string, question: string) {
+function getBaseUrl() {
   // @ts-ignore
-  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
-  const url = new URL(`${base}/api/stream-answer`);
+  return (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
+}
+
+export function getStreamUrl(conversationId: string, question: string) {
+  const url = new URL(`${getBaseUrl()}/api/stream-answer`);
   url.searchParams.set("conversationId", conversationId);
   url.searchParams.set("question", question);
   return url.toString();
 }
 
-export function getImageUrl(conversationId: string, imageName: string) {
-  // @ts-ignore
-  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
-  return `${base}/api/storage/${conversationId}/${encodeURIComponent(imageName)}`;
-}
-
-export function getDocumentUrl(conversationId: string, fileName: string) {
-  // @ts-ignore
-  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
-  return `${base}/api/storage/${conversationId}/${encodeURIComponent(fileName)}`;
+export function getStorageUrl(conversationId: string, fileName: string) {
+  return `${getBaseUrl()}/api/storage/${conversationId}/${encodeURIComponent(fileName)}`;
 }
 
 export async function requestUploadAccess(conversationId: string, displayName: string) {

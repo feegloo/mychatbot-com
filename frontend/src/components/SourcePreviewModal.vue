@@ -17,8 +17,8 @@
           ></iframe>
         </div>
 
-        <!-- Source text quote -->
-        <div class="source-modal-quote">
+        <!-- Source text quote (non-PDF only) -->
+        <div v-if="!isPdf" class="source-modal-quote">
           <div class="source-modal-quote-label">Source text</div>
           <div class="source-modal-quote-text" v-html="linkify(citation.text)" />
         </div>
@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { getDocumentUrl } from "../api";
+import { getStorageUrl } from "../api";
 import { cleanFileName, linkify } from "../utils/text";
 
 const props = defineProps<{
@@ -56,7 +56,7 @@ const isPdf = computed(() =>
 );
 
 const pdfUrl = computed(() => {
-  const base = getDocumentUrl(props.conversationId, props.citation.fileName);
+  const base = getStorageUrl(props.conversationId, props.citation.fileName);
   if (props.citation.page) {
     return `${base}#page=${props.citation.page}`;
   }

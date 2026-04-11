@@ -100,16 +100,6 @@ export async function insertUploadedFile(file: UploadedFileRecord) {
   );
 }
 
-export async function getUploadedFile(conversationId: string, fileId: string) {
-  const result = await query<UploadedFileRecord>(
-    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key
-     FROM uploaded_files
-     WHERE id = $1 AND conversation_id = $2`,
-    [fileId, conversationId]
-  );
-  return result.rows[0] || null;
-}
-
 export async function replaceSuggestedQuestions(conversationId: string, questions: string[]) {
   await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId]);
 
@@ -170,18 +160,6 @@ export async function createAccessRequest(record: AccessRequestRecord) {
   );
 }
 
-export async function listAccessRequests(conversationId: string) {
-  const result = await query<AccessRequestRecord>(
-    `SELECT id, conversation_id, display_name, status, editor_token
-     FROM access_requests
-     WHERE conversation_id = $1
-     ORDER BY created_at DESC`,
-    [conversationId]
-  );
-
-  return result.rows;
-}
-
 export async function getAccessRequest(conversationId: string, requestId: string) {
   const result = await query<AccessRequestRecord>(
     `SELECT id, conversation_id, display_name, status, editor_token
@@ -218,18 +196,6 @@ export async function insertConversationMessage(params: {
       JSON.stringify(params.citations ?? null)
     ]
   );
-}
-
-export async function listConversationMessages(conversationId: string) {
-  const result = await query<ConversationMessageRecord>(
-    `SELECT id, conversation_id, role, content, citations_json
-     FROM conversation_messages
-     WHERE conversation_id = $1
-     ORDER BY created_at ASC`,
-    [conversationId]
-  );
-
-  return result.rows;
 }
 
 export async function getConversationSummaries(conversationIds: string[]) {

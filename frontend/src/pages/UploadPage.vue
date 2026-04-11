@@ -1,38 +1,41 @@
 <template>
-  <div class="page">
-    <div class="header">
-      <div>
-        <h1 style="font-size: 2rem; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.02em; color: #a78bfa">chatrag.app</h1>
-        <p style="color: #64748b; margin: 0; font-size: 14px">Upload pdf or text files, chat with AI over files with semantic search (RAG), get answers.</p>
-      </div>
+  <div class="page upload-page">
+    <div class="upload-hero">
+      <h1 class="upload-title">chatrag.app</h1>
+      <p class="upload-subtitle">Upload your files.<br/>Get answers with an AI chatbot using semantic search and RAG.</p>
     </div>
 
-    <div class="grid grid-2">
-      <section>
-        <h3>Upload files</h3>
-        <div
-          class="dropzone"
-          :class="{ dragover }"
-          @dragover.prevent="dragover = true"
-          @dragleave.prevent="dragover = false"
-          @drop.prevent="onDrop"
-        >
-          <p><strong>Drag and drop</strong> your files here (PDF, DOCX, CSV, other text files)</p>
-          <!-- <p>Future version: images and other unstructured files.</p> -->
-          <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
-          <button class="button secondary" @click="openFilePicker">Choose files</button>
+    <div class="upload-section">
+      <h3 class="upload-heading">Upload files</h3>
+      <div
+        class="dropzone upload-dropzone"
+        :class="{ dragover }"
+        @dragover.prevent="dragover = true"
+        @dragleave.prevent="dragover = false"
+        @drop.prevent="onDrop"
+      >
+        <div class="dropzone-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
         </div>
+        <p><strong>Drag and drop</strong> your files here</p>
+        <p class="dropzone-hint">PDF, DOCX, CSV, other text files</p>
+        <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
+        <button class="button secondary" @click="openFilePicker">Choose files</button>
+      </div>
 
-        <div class="file-list" v-if="files.length">
-          <div v-for="file in files" :key="file.name" class="file-pill">
-            {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
-          </div>
+      <div class="file-list" v-if="files.length" style="margin-top: 16px">
+        <div v-for="file in files" :key="file.name" class="file-pill">
+          {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
         </div>
+      </div>
 
-        <p v-if="submitting" style="margin-top:12px; color:#a78bfa">Uploading...</p>
+      <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
 
-        <p v-if="error" style="color:#f87171; margin-top:12px">{{ error }}</p>
-      </section>
+      <p v-if="error" style="color:#f87171; margin-top:12px; text-align:center">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -87,3 +90,86 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.upload-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32px 48px;
+  overflow-y: auto;
+}
+
+.upload-hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.upload-title {
+  font-size: 2.4rem;
+  margin: 0 0 10px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #a78bfa;
+}
+
+.upload-subtitle {
+  color: #64748b;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.upload-section {
+  width: 100%;
+  max-width: 560px;
+}
+
+.upload-heading {
+  font-size: 1.1rem;
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+.upload-dropzone {
+  padding: 48px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropzone-icon {
+  color: #7c3aed;
+  margin-bottom: 8px;
+  opacity: 0.7;
+}
+
+.upload-dropzone p {
+  margin: 4px 0;
+}
+
+.dropzone-hint {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.upload-dropzone .button {
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .upload-page {
+    padding: 24px 16px;
+  }
+
+  .upload-title {
+    font-size: 1.8rem;
+  }
+
+  .upload-dropzone {
+    padding: 32px 20px;
+  }
+}
+</style>

@@ -27,7 +27,7 @@
       </template>
     </div>
 
-    <div v-if="!canUpload" style="margin-bottom: 16px">
+    <div v-if="loaded && !canUpload" style="margin-bottom: 16px">
       <h3 style="margin: 0 0 8px 0; font-size: 0.95rem">Request upload access</h3>
       <div v-if="pendingRequestId">
         <p style="margin: 0; font-size: 12px; color: #64748b">
@@ -85,6 +85,7 @@ const props = defineProps<{
   status: ConversationStatus;
   conversationId: string;
   canUpload: boolean;
+  loaded: boolean;
 }>();
 
 const emit = defineEmits<{

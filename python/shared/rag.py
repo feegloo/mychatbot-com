@@ -104,6 +104,22 @@ def get_llm() -> Any:
     return _llm_instance
 
 
+def _build_citations(rows: list[dict]) -> list[dict]:
+    citations = []
+    for row in rows:
+        citation = {
+            "fileName": row["file_name"],
+            "chunkId": row["chunk_id"],
+            "text": row["text"],
+            "section": row.get("section"),
+            "page": row.get("page"),
+        }
+        if row.get("image_name"):
+            citation["imageName"] = row["image_name"]
+        citations.append(citation)
+    return citations
+
+
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
     # Determine max_distance based on question word count
@@ -127,22 +143,9 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     })
     logger.info(f"✅ Generated answer: {answer[:100]}...")
 
-    citations = []
-    for row in rows:
-        citation = {
-            "fileName": row["file_name"],
-            "chunkId": row["chunk_id"],
-            "text": row["text"],
-            "section": row.get("section"),
-            "page": row.get("page"),
-        }
-        if row.get("image_name"):
-            citation["imageName"] = row["image_name"]
-        citations.append(citation)
-
     return {
         "answer": answer,
-        "citations": citations,
+        "citations": _build_citations(rows),
     }
 
 
@@ -163,16 +166,4 @@ def stream_answer_events(collection_name: str, conversation_id: str, question: s
             yield f"event: token\ndata: {json.dumps({'token': token})}"
 
     # Send citations after streaming is done
-    citations = []
-    for row in rows:
-        citation = {
-            "fileName": row["file_name"],
-            "chunkId": row["chunk_id"],
-            "text": row["text"],
-            "section": row.get("section"),
-            "page": row.get("page"),
-        }
-        if row.get("image_name"):
-            citation["imageName"] = row["image_name"]
-        citations.append(citation)
-    yield f"event: citations\ndata: {json.dumps({'citations': citations})}"
+    yield f"event: citations\ndata: {json.dumps({'citations': _build_citations(rows)})}"

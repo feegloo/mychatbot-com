@@ -4,7 +4,7 @@
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
-    <div v-else-if="msg.role === 'assistant'" class="markdown-content" @click="onContentClick" v-html="renderedContent"></div>
+    <div v-else-if="msg.role === 'assistant'" ref="contentEl" class="markdown-content" @click="onContentClick" v-html="renderedContent"></div>
     <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
 
     <!-- Inline image thumbnails from citations -->
@@ -62,11 +62,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch, nextTick, onBeforeUnmount } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { createTooltip, destroyTooltip } from "floating-vue";
 import type { ChatMessage } from "../api";
-import { getImageUrl } from "../api";
+import { getStorageUrl } from "../api";
 import { cleanFileName, linkify } from "../utils/text";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
@@ -79,12 +80,14 @@ marked.setOptions({
 function renderMarkdown(content: string): string {
   const rawHtml = marked.parse(content, { async: false }) as string;
   const sanitized = DOMPurify.sanitize(rawHtml);
-  // Replace [source:N] markers with clickable inline source buttons
+  // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
   return sanitized.replace(
-    /\[source:(\d+)\]/g,
-    (_, n) =>
-      `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}" title="Show source">` +
-      `<span class="inline-source-icon">↑</span>${n}</button>`
+    /\[source:(\d+(?:,\s*\d+)*)\]/g,
+    (_, nums) =>
+      nums.split(/,\s*/).map((n: string) =>
+        `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}" title="Show source">` +
+        `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
+      ).join('')
   );
 }
 
@@ -103,7 +106,7 @@ const activeTab = computed(() => props.activeCitationIndex ?? 0);
 
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
-const hasInlineSources = computed(() => /\[source:\d+\]/.test(props.msg.content));
+const hasInlineSources = computed(() => /\[source:\d+(?:,\s*\d+)*\]/.test(props.msg.content));
 
 // Source preview modal state
 const previewOpen = ref(false);
@@ -128,7 +131,7 @@ type ImageCitationInfo = { url: string; section?: string; imageName: string };
 
 function resolveImageCitation(citation: any): ImageCitationInfo {
   return {
-    url: getImageUrl(props.conversationId, citation.imageName),
+    url: getStorageUrl(props.conversationId, citation.imageName),
     section: citation.section,
     imageName: citation.imageName,
   };
