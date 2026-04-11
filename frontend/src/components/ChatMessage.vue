@@ -82,7 +82,7 @@ function renderMarkdown(content: string): string {
   const sanitized = DOMPurify.sanitize(rawHtml);
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
   return sanitized.replace(
-    /\[source:(\d+(?:,\s*\d+)*)\]/g,
+    /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
         `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}">` +
@@ -106,7 +106,7 @@ const activeTab = computed(() => props.activeCitationIndex ?? 0);
 
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
-const hasInlineSources = computed(() => /\[source:\d+(?:,\s*\d+)*\]/.test(props.msg.content));
+const hasInlineSources = computed(() => /\[source:\s*\d+(?:,\s*\d+)*\]/.test(props.msg.content));
 
 // Source preview modal state
 const previewOpen = ref(false);

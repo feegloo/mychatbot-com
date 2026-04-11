@@ -16,8 +16,7 @@
       <section class="chat-panel">
 
         <p v-if="loaded && status.status !== 'ready'" style="margin-bottom:12px; color:#fbbf24">
-          Conversation is {{ status.status }} uploaded files. 
-          <br/> Asking will work after indexing finishes successfully.
+          Indexing files in progress... please wait
         </p>
 
         <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
@@ -150,13 +149,14 @@ async function ask() {
   question.value = "";
   messages.value.push({ role: "user", content: currentQuestion });
 
-  const assistantPlaceholder: ChatMessage = { role: "assistant", content: "" };
-  messages.value.push(assistantPlaceholder);
+  messages.value.push({ role: "assistant", content: "" });
+  // Use the reactive proxy so Vue detects content updates immediately
+  const reactiveMsg = messages.value[messages.value.length - 1];
 
   try {
     const response = await askQuestion(conversationId, currentQuestion);
-    assistantPlaceholder.content = response.answer;
-    assistantPlaceholder.citations = response.citations;
+    reactiveMsg.content = response.answer;
+    reactiveMsg.citations = response.citations;
     await loadConversation();
   } finally {
     asking.value = false;
