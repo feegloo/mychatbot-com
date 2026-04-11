@@ -60,8 +60,9 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
 
   ctx.set("Content-Type", mimeTypes[ext] || "application/octet-stream");
   if (ext === ".pdf") {
-    ctx.set("Content-Disposition", "inline");
+    ctx.set("Content-Disposition", `inline; filename="${encodeURIComponent(fileName)}"`);
     ctx.set("X-Content-Type-Options", "nosniff");
+    ctx.set("Accept-Ranges", "bytes");
   }
   ctx.set("Cache-Control", "public, max-age=86400");
   ctx.body = await fs.readFile(filePath);

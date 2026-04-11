@@ -1,9 +1,8 @@
 <template>
   <aside class="card sidebar-card">
     <div class="files-row">
-      <button v-if="canUpload" class="add-btn" @click="moreFilesInput?.click()">+</button>
-      <span class="files-label">Uploaded files</span>
-      <span v-for="file in status.files" :key="file.id" class="file-pill">
+      <button v-if="canUpload" class="add-btn" @click="moreFilesInput?.click()">+ Upload files</button>
+      <span v-for="file in status.files" :key="file.id" style="color: #ddd6fe; padding: 6px 12px; font-size: 0.85rem">
         {{ cleanFileName(file.originalName) }}
       </span>
     </div>

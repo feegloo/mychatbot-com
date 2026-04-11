@@ -20,29 +20,7 @@
       </div>
     </div>
 
-    <!-- Fallback: old-style source pills for messages without inline citations -->
-    <div v-if="msg.citations?.length && !hasInlineSources" class="sources">
-      <div class="source-card">
-        <span class="citation-filename"><span style="color: #64748b; font-weight: 400">source: </span><strong style="color: #c4b5fd">{{ cleanFileName(msg.citations[activeTab].fileName) }}</strong></span>
-        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px">
-          <button
-            v-for="(citation, cIdx) in msg.citations"
-            :key="cIdx"
-            class="citation-tab"
-            :class="{ active: activeTab === cIdx }"
-            @click="$emit('update:activeCitationIndex', cIdx)"
-          >
-            {{ getSectionLabel(citation) }}
-          </button>
-        </div>
-        <div v-if="msg.citations[activeTab].imageName" class="citation-active-image" @click="openImage(resolveImageCitation(msg.citations[activeTab]))">
-          <img :src="resolveImageCitation(msg.citations[activeTab]).url" :alt="msg.citations[activeTab].section || 'Image'" loading="lazy" />
-        </div>
-        <div style="white-space: pre-wrap; font-size: 14px; color: #94a3b8; font-style: italic;"
-          v-html="linkify(msg.citations[activeTab].text)"
-        />
-      </div>
-    </div>
+
 
     <ImageModal
       :visible="modalOpen"
@@ -68,7 +46,6 @@ import DOMPurify from "dompurify";
 import { createTooltip, destroyTooltip } from "floating-vue";
 import type { ChatMessage } from "../api";
 import { getStorageUrl } from "../api";
-import { cleanFileName, linkify } from "../utils/text";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
 
@@ -77,8 +54,25 @@ marked.setOptions({
   gfm: true,
 });
 
+function normalizeCitations(text: string): string {
+  // Convert bare [N] references to [source:N] format
+  // Handles [1][2][3], [1,2,3,4], [1, 2, 3], etc.
+  // First: comma-separated like [1,2,3,4] or [1, 2, 3, 4]
+  text = text.replace(
+    /\[(\d+(?:\s*,\s*\d+)+)\]/g,
+    (_, nums) => nums.split(/\s*,\s*/).map((n: string) => `[source:${n.trim()}]`).join('')
+  );
+  // Then: bare single [N] (not already [source:N])
+  text = text.replace(
+    /(?<!source:)(?<!\w)\[(\d+)\](?!\()/g,
+    (_, n) => `[source:${n}]`
+  );
+  return text;
+}
+
 function renderMarkdown(content: string): string {
-  const rawHtml = marked.parse(content, { async: false }) as string;
+  const normalized = normalizeCitations(content);
+  const rawHtml = marked.parse(normalized, { async: false }) as string;
   const sanitized = DOMPurify.sanitize(rawHtml);
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
   return sanitized.replace(
@@ -94,19 +88,10 @@ function renderMarkdown(content: string): string {
 const props = defineProps<{
   msg: ChatMessage;
   asking: boolean;
-  activeCitationIndex: number;
   conversationId: string;
 }>();
 
-defineEmits<{
-  'update:activeCitationIndex': [index: number];
-}>();
-
-const activeTab = computed(() => props.activeCitationIndex ?? 0);
-
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
-
-const hasInlineSources = computed(() => /\[source:\s*\d+(?:,\s*\d+)*\]/.test(props.msg.content));
 
 // Source preview modal state
 const previewOpen = ref(false);
@@ -188,26 +173,6 @@ function openImage(img: ImageCitationInfo) {
   modalSrc.value = img.url;
   modalAlt.value = img.section || "Image";
   modalOpen.value = true;
-}
-
-function getSectionLabel(citation: any): string {
-  if (citation.imageName) {
-    return citation.section || '🖼️ Image';
-  }
-  if (!citation.section) {
-    if (citation.page !== null && citation.page !== undefined) {
-      return 'Page ' + citation.page;
-    }
-    return 'Source';
-  }
-  if (citation.section.length <= 30) {
-    return citation.section;
-  }
-  const firstPhrase = citation.section.split(/[,;.!?]/)[0].trim();
-  if (firstPhrase.length > 30) {
-    return firstPhrase.substring(0, 30) + '…';
-  }
-  return firstPhrase || 'Source';
 }
 </script>
 

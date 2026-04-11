@@ -34,7 +34,7 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
     c) use ** for bolding and _ for italics if it helps readability, use other markdown formatting sparingly
     d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
     e) try to use information from multiple chunks if relevant
-    f) IMPORTANT: When using information from a source, cite it inline by placing [source:N] immediately after the relevant sentence or claim, where N is the source number shown in the retrieved context. Always cite your sources. A single sentence may have multiple citations if it draws from multiple sources.
+    f) IMPORTANT – citation format: After every sentence or claim that uses information from the retrieved context, you MUST insert an inline citation using EXACTLY this format: [source:N] where N is the source number. Examples of CORRECT citation format: [source:1], [source:2], [source:1][source:3]. If a sentence uses multiple sources, place multiple [source:N] markers, e.g. [source:1][source:2]. NEVER use bare brackets like [1], [2], [1][2][3][4], [1,2,3,4] — always include the "source:" prefix. Always cite your sources.
     ------------------------
     
     Question:
@@ -45,7 +45,7 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
 
     ------------------------
 
-    Return a concise but useful answer with inline source citations.
+    Return a concise but useful answer with inline source citations using [source:N] format.
 
     """
 )

@@ -27,9 +27,7 @@
             :key="msg.id || index"
             :msg="msg"
             :asking="asking"
-            :activeCitationIndex="activeCitationTab[index] ?? 0"
             :conversationId="conversationId"
-            @update:activeCitationIndex="activeCitationTab[index] = $event"
           />
         </div>
 
@@ -100,7 +98,7 @@ const status = ref<ConversationStatus>({
   accessRequests: []
 });
 const messages = ref<ChatMessage[]>([]);
-const activeCitationTab = ref<Record<number, number>>({});
+
 
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
 

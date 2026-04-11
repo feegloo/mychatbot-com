@@ -19,9 +19,9 @@
 
         <div v-if="isPdf && isMobile" class="source-modal-mobile-pdf">
           <p class="source-modal-mobile-hint">PDF preview is not supported inline on mobile devices.</p>
-          <a :href="pdfUrl" target="_blank" rel="noopener" class="source-modal-open-btn">
+          <button class="source-modal-open-btn" @click="openPdfInNewTab">
             Open PDF{{ citation.page ? ` (page ${citation.page})` : '' }}
-          </a>
+          </button>
         </div>
 
         <!-- Source text quote (non-PDF only) -->
@@ -73,6 +73,10 @@ const pdfUrl = computed(() => {
   }
   return base;
 });
+
+function openPdfInNewTab() {
+  window.open(pdfUrl.value, "_blank", "noopener");
+}
 </script>
 
 <style scoped>
@@ -90,7 +94,7 @@ const pdfUrl = computed(() => {
 .source-modal-content {
   position: relative;
   width: min(900px, 92vw);
-  max-height: 90vh;
+  max-height: 100vh;
   background: #1e293b;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
