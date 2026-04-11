@@ -61,7 +61,7 @@ a:hover { color: #a5b4fc; }
   flex-direction: column;
   padding: 12px;
   gap: 8px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .conv-nav-new {
@@ -84,15 +84,18 @@ a:hover { color: #a5b4fc; }
 .conv-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin-top: 4px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .conv-nav-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 12px 10px;
   border-radius: 8px;
   text-decoration: none;
   color: #cbd5e1;
@@ -789,7 +792,7 @@ h1, h2, h3 {
   }
 
   .grid-2 > aside.card {
-    max-height: 160px;
+    max-height: 200px;
     overflow-y: auto;
     padding: 8px 12px;
   }

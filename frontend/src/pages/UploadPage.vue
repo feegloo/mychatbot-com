@@ -27,15 +27,17 @@
         <button class="button secondary" @click="openFilePicker">Choose files</button>
       </div>
 
-      <div class="file-list" v-if="files.length" style="margin-top: 16px">
-        <div v-for="file in files" :key="file.name" class="file-pill">
-          {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
+      <div class="upload-status-area">
+        <div class="file-list" v-if="files.length" style="margin-top: 16px">
+          <div v-for="file in files" :key="file.name" class="file-pill">
+            {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
+          </div>
         </div>
+
+        <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
+
+        <p v-if="error" style="color:#f87171; margin-top:12px; text-align:center">{{ error }}</p>
       </div>
-
-      <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
-
-      <p v-if="error" style="color:#f87171; margin-top:12px; text-align:center">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -108,7 +110,7 @@ async function submit() {
 
 .upload-title {
   font-size: 2.4rem;
-  margin: 0 0 10px;
+  margin: -10px 0 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #a78bfa;
@@ -124,6 +126,14 @@ async function submit() {
 .upload-section {
   width: 100%;
   max-width: 560px;
+  position: relative;
+}
+
+.upload-status-area {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
 }
 
 .upload-heading {

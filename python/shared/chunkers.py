@@ -40,6 +40,26 @@ def _section_label(text: str) -> str | None:
     return first_line
 
 
+# Regex matching "# Page N" headers inserted by extract_pdf()
+_PAGE_HEADER_RE = re.compile(r"^# Page (\d+)\b", re.MULTILINE)
+
+
+def _extract_page_from_chunk(text: str) -> int | None:
+    """Return the page number from the first '# Page N' header in *text*."""
+    m = _PAGE_HEADER_RE.search(text)
+    return int(m.group(1)) if m else None
+
+
+def _last_page_before(text: str, offset: int) -> int | None:
+    """Return the page number from the last '# Page N' header before *offset*."""
+    page: int | None = None
+    for m in _PAGE_HEADER_RE.finditer(text):
+        if m.start() > offset:
+            break
+        page = int(m.group(1))
+    return page
+
+
 def _has_markdown_headers(text: str) -> bool:
     """Check if text contains markdown-style headers."""
     return bool(re.search(r"^#{1,6}\s", text, re.MULTILINE))
@@ -101,12 +121,18 @@ def split_into_chunks(file_name: str, text: str) -> list[Chunk]:
     chunks = []
     for index, raw in enumerate(raw_chunks):
         section = _section_label(raw.text)
+        # Try to find page number inside the chunk text itself,
+        # or fall back to the last "# Page N" header before this
+        # chunk's position in the original text.
+        page = _extract_page_from_chunk(raw.text)
+        if page is None:
+            page = _last_page_before(text, raw.start_index)
         chunks.append(Chunk(
             chunk_id=f"{Path(file_name).stem}_chunk_{index}",
             file_name=file_name,
             text=raw.text,
             section=section,
-            page=None,
+            page=page,
             metadata={},
         ))
 
