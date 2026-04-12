@@ -4,6 +4,7 @@ export async function answerQuestion(options: {
   conversationId: string;
   collectionName: string;
   question: string;
+  chatHistory?: { role: string; content: string }[];
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -12,6 +13,7 @@ export async function answerQuestion(options: {
       conversation_id: options.conversationId,
       collection_name: options.collectionName,
       question: options.question,
+      chat_history: options.chatHistory || null,
     }),
   });
 

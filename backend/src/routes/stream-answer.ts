@@ -2,6 +2,7 @@ import Router from "@koa/router";
 import { config } from "../config.js";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
+import { buildChatHistory } from "../utils/chat-history.js";
 
 export const streamAnswerRouter = new Router();
 
@@ -32,6 +33,9 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
   // Ensure vector collection has data (re-index if Chroma was lost on container restart)
   await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name);
 
+  // Build chat history from the last Q&A exchange (last user + assistant messages)
+  const chatHistory = buildChatHistory(data.messages);
+
   ctx.req.setTimeout(60_000);
 
   ctx.set("Content-Type", "text/event-stream");
@@ -54,6 +58,7 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
         conversation_id: conversationId,
         collection_name: data.conversation.vector_collection_name,
         question,
+        chat_history: chatHistory,
       }),
     });
 

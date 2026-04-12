@@ -32,6 +32,7 @@ class AnswerRequest(BaseModel):
     conversation_id: str
     collection_name: str
     question: str
+    chat_history: list[dict] | None = None
 
 
 class IndexRequest(BaseModel):
@@ -74,6 +75,7 @@ async def answer(req: AnswerRequest):
             collection_name=req.collection_name,
             conversation_id=req.conversation_id,
             question=req.question,
+            chat_history=req.chat_history,
         )
         return result
     except Exception as e:
@@ -92,6 +94,7 @@ async def stream_answer(req: AnswerRequest):
                     collection_name=req.collection_name,
                     conversation_id=req.conversation_id,
                     question=req.question,
+                    chat_history=req.chat_history,
                 ):
                     queue.put_nowait(event + "\n")
             except Exception as e:

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { answerQuestion } from "../python/answering.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
+import { buildChatHistory } from "../utils/chat-history.js";
 
 const askSchema = z.object({
   conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
@@ -43,10 +44,13 @@ askRouter.post("/ask", async (ctx) => {
   // Ensure vector collection has data (re-index if Chroma was lost on container restart)
   await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name);
 
+  const chatHistory = buildChatHistory(data.messages);
+
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,
-    question
+    question,
+    chatHistory
   });
 
   const payload = result.parsedJson || {

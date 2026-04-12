@@ -45,7 +45,10 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic"""),
-    ("human", """Question:
+    ("human", """Chat history (last exchange):
+    {chat_history}
+
+    Question:
     {question}
 
     Retrieved context:
@@ -58,6 +61,7 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages([
 
     Answer the user's question using only the retrieved context below.
     If the answer is not present, say that you could not find enough evidence in the uploaded files.
+    If provided, use the chat history to understand follow-up questions and resolve references (e.g. "it", "that", "more details").
 
     Additional guidelines:
     a) try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question)
@@ -69,10 +73,14 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages([
     d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
     e) try to use information from multiple chunks if relevant
     f) IMPORTANT – citation format: After every sentence or claim that uses information from the retrieved context, you MUST insert an inline citation using EXACTLY this format: [source:N] where N is the source number. Examples of CORRECT citation format: [source:1], [source:2], [source:1][source:3]. If a sentence uses multiple sources, place multiple [source:N] markers, e.g. [source:1][source:2]. NEVER use bare brackets like [1], [2], [1][2][3][4], [1,2,3,4] — always include the "source:" prefix. ALWAYS write the word "source" in English, even if the rest of the answer is in another language. Do NOT translate "source" (e.g. do not write [źródło:1], [quelle:1], [fuente:1], etc.). Always cite your sources.
+    g) Citation deduplication: If all or most items in a list/bullet section come from the same source, do NOT put the citation on every bullet. Instead, place a single citation at the end of the section or in a concluding sentence. Only add per-item citations when different items come from different sources.
 
     Return a concise but useful answer with inline source citations using [source:N] format.
     Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
-    ("human", """Question:
+    ("human", """Chat history (last exchange):
+    {chat_history}
+
+    Question:
     {question}
 
     Retrieved context:
@@ -154,7 +162,22 @@ def _is_quiz_request(question: str) -> bool:
     return bool(_QUIZ_PATTERNS.search(question))
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
+def _format_chat_history(chat_history: list[dict] | None) -> str:
+    """Format the last Q&A exchange into a string for the prompt."""
+    if not chat_history:
+        return "(no previous conversation)"
+    parts = []
+    for msg in chat_history:
+        role = msg.get("role", "user").capitalize()
+        content = msg.get("content", "")
+        # Truncate long assistant answers to keep context window reasonable
+        if len(content) > 1000:
+            content = content[:1000] + "..."
+        parts.append(f"{role}: {content}")
+    return "\n".join(parts)
+
+
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
     # Determine max_distance based on question word count
     word_count = len([w for w in question.strip().split() if w])
@@ -176,11 +199,14 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     if is_quiz:
         logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
 
+    history_str = _format_chat_history(chat_history)
+
     chain = prompt | llm
     logger.info(f"🔗 Invoking LLM chain...")
     ai_message = chain.invoke({
         "question": question,
         "context": context,
+        "chat_history": history_str,
     })
     answer = ai_message.content
 
@@ -202,7 +228,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     }
 
 
-def stream_answer_events(collection_name: str, conversation_id: str, question: str):
+def stream_answer_events(collection_name: str, conversation_id: str, question: str, chat_history: list[dict] | None = None):
     logger.info(f"❓ Streaming answer for question: {question[:100]}...")
     
     rows = query_chunks(collection_name, conversation_id, question, top_k=4)
@@ -220,8 +246,10 @@ def stream_answer_events(collection_name: str, conversation_id: str, question: s
     chain = prompt | llm | StrOutputParser()
     logger.info(f"🔗 Starting stream...")
 
+    history_str = _format_chat_history(chat_history)
+
     # Stream real tokens from the LLM
-    for token in chain.stream({"question": question, "context": context}):
+    for token in chain.stream({"question": question, "context": context, "chat_history": history_str}):
         if token:
             yield f"event: token\ndata: {json.dumps({'token': token})}"
 
