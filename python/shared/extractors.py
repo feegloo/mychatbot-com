@@ -25,6 +25,10 @@ TEXT_EXTENSIONS = {
     ".txt", ".md", ".csv", ".json", ".html", ".htm", ".xml", ".yaml", ".yml", ".rtf"
 }
 
+IMAGE_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"
+}
+
 
 def _sanitize_text(text: str) -> str:
     """Remove problematic characters that cause issues in JSON/database.
@@ -76,7 +80,7 @@ MIN_IMAGE_DIM = 50      # Skip images smaller than 50px in either dimension
 _NUM_THREADS = os.cpu_count() * 2 or 4
 
 
-def _describe_image(image_bytes: bytes) -> str:
+def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
     """Use GPT-4 vision to describe an image."""
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
@@ -84,17 +88,17 @@ def _describe_image(image_bytes: bytes) -> str:
 
     response = client.chat.completions.create(
         model=settings.openai_chat_model,
-        max_tokens=150,
+        max_tokens=300,
         reasoning_effort=settings.openai_reasoning_effort,
         messages=[
             {
                 "role": "system",
-                "content": "Return a brief factual caption (2-3 sentences max). State: subject/type, key text/labels/data visible, and visual layout. No filler words.",
+                "content": "Describe what you see in this image in detail. Include: what objects/people/scenes are shown, any visible text or captions, colors, layout, and mood. Be factual and specific. 3-5 sentences.",
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}", "detail": "low"}},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": "auto"}},
                 ],
             },
         ],
@@ -260,6 +264,8 @@ def extract_text(path_str: str) -> str:
         return extract_csv(path)
     if suffix == ".json":
         return extract_json(path)
+    if suffix in IMAGE_EXTENSIONS:
+        return extract_image(path)
     if suffix in TEXT_EXTENSIONS:
         return extract_plain_text(path)
 
@@ -267,23 +273,72 @@ def extract_text(path_str: str) -> str:
     return extract_plain_text(path)
 
 
+_MIME_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+}
+
+
+def extract_image(path: Path) -> str:
+    """Describe a standalone image file using vision model."""
+    image_bytes = path.read_bytes()
+    mime = _MIME_TYPES.get(path.suffix.lower(), "image/png")
+    try:
+        description = _describe_image(image_bytes, mime_type=mime)
+        logger.info(f"\U0001f5bc\ufe0f  Described image {path.name}: {description[:80]}...")
+        return _sanitize_text(description)
+    except Exception as e:
+        logger.warning(f"\u26a0\ufe0f  Vision description failed for {path.name}: {e}")
+        return f"Image file: {path.name}"
+
+
 def extract_many(paths: Iterable[str]) -> list[dict]:
     documents = []
     all_images = []
     for file_path in paths:
+        p = Path(file_path)
+        suffix = p.suffix.lower()
+
+        # Standalone image files: describe with vision and add as image entry
+        if suffix in IMAGE_EXTENSIONS:
+            text = extract_text(file_path)
+            documents.append({
+                "file_path": file_path,
+                "file_name": p.name,
+                "text": text,
+            })
+            # Also register as an image so the thumbnail shows in citations
+            output_dir = p.parent
+            image_name = p.name
+            all_images.append({
+                "image_path": str(p),
+                "image_name": image_name,
+                "file_name": p.name,
+                "description": text,
+                "page": None,
+            })
+            logger.info(f"\U0001f5bc\ufe0f  Processed standalone image: {p.name}")
+            continue
+
         text = extract_text(file_path)
         documents.append({
             "file_path": file_path,
-            "file_name": Path(file_path).name,
+            "file_name": p.name,
             "text": text,
         })
         # Extract images from PDFs
-        if Path(file_path).suffix.lower() == ".pdf":
-            output_dir = Path(file_path).parent
+        if suffix == ".pdf":
+            output_dir = p.parent
             try:
-                images = extract_pdf_images(Path(file_path), output_dir)
+                images = extract_pdf_images(p, output_dir)
                 all_images.extend(images)
-                logger.info(f"🖼️  Found {len(images)} images in {Path(file_path).name}")
+                logger.info(f"\U0001f5bc\ufe0f  Found {len(images)} images in {p.name}")
             except Exception as e:
                 logger.warning(f"⚠️  Image extraction failed for {file_path}: {e}")
     return documents, all_images
