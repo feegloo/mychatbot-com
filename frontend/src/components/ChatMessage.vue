@@ -143,13 +143,19 @@ function renderMarkdown(content: string): string {
     .replace(/<input\s+type="checkbox"\s+disabled=""\s*\/?>/gi,
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  return withChecklists.replace(
+  const withSources = withChecklists.replace(
     /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
         `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}">` +
         `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
       ).join('')
+  );
+  // Replace [action:Label] markers with clickable action buttons
+  return withSources.replace(
+    /\[action:\s*([^\]]+)\]/g,
+    (_, label) =>
+      `<button class="action-btn" data-action="${label.trim()}">${label.trim()}</button>`
   );
 }
 
@@ -337,6 +343,16 @@ function onContentClick(e: MouseEvent) {
   const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
   if (checkBox) {
     checkBox.classList.toggle("checked");
+    return;
+  }
+
+  // Handle action button clicks
+  const actionBtn = (e.target as HTMLElement).closest(".action-btn") as HTMLElement | null;
+  if (actionBtn) {
+    const action = actionBtn.dataset.action;
+    if (action) {
+      emit('select-question', action);
+    }
     return;
   }
 
@@ -658,5 +674,25 @@ function openFilePreview(file: FileInfo) {
 .upload-error {
   font-size: 12px;
   color: #fbbf24;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 6px 14px;
+  margin: 4px 6px 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.action-btn:hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.25);
+  color: #ddd6fe;
 }
 </style>

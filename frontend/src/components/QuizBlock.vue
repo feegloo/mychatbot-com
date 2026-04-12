@@ -121,7 +121,8 @@ const correctCount = computed(() =>
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.quiz-question:last-of-type {
+.quiz-question:last-child,
+.quiz-question:has(+ .quiz-summary) {
   border-bottom: none;
   margin-bottom: 8px;
   padding-bottom: 0;
@@ -147,8 +148,8 @@ const correctCount = computed(() =>
   gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 23, 42, 0.45);
   cursor: pointer;
   transition: all 0.15s;
   font-size: 13px;
@@ -157,13 +158,13 @@ const correctCount = computed(() =>
 }
 
 .quiz-option:hover:not(.correct):not(.wrong) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .quiz-option.selected:not(.correct):not(.wrong) {
-  background: rgba(124, 58, 237, 0.15);
-  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.3);
   color: #ddd6fe;
 }
 
