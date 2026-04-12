@@ -403,6 +403,50 @@ a:hover { color: #a5b4fc; }
   margin: 2px 0;
 }
 
+.markdown-content li input[type="checkbox"] {
+  accent-color: #22c55e;
+  width: 15px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* Interactive checklist checkboxes */
+.checklist-box {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.checklist-box:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.checklist-box.checked {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.checklist-box.checked::after {
+  content: '✓';
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
 .markdown-content code {
   background: rgba(255, 255, 255, 0.08);
   padding: 2px 5px;

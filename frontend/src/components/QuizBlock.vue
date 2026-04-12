@@ -24,11 +24,11 @@
             type="checkbox"
             :checked="selections[qi]?.has(oi)"
             :disabled="submitted[qi]"
+            class="quiz-checkbox"
             @change="toggleOption(qi, oi)"
           />
+          <span class="quiz-checkbox-custom"></span>
           <span class="quiz-option-text">{{ opt }}</span>
-          <span v-if="submitted[qi] && q.correct.includes(oi)" class="quiz-check">✓</span>
-          <span v-if="submitted[qi] && selections[qi]?.has(oi) && !q.correct.includes(oi)" class="quiz-cross">✗</span>
         </label>
       </div>
       <div v-if="submitted[qi] && q.explanation" class="quiz-explanation">
@@ -153,6 +153,7 @@ const correctCount = computed(() =>
   transition: all 0.15s;
   font-size: 13px;
   color: #cbd5e1;
+  position: relative;
 }
 
 .quiz-option:hover:not(.correct):not(.wrong) {
@@ -178,33 +179,81 @@ const correctCount = computed(() =>
   color: #fca5a5;
 }
 
-.quiz-option input[type="checkbox"] {
-  accent-color: #7c3aed;
-  width: 16px;
-  height: 16px;
+.quiz-option input[type="checkbox"].quiz-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.quiz-checkbox-custom {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
-.quiz-option.correct input[type="checkbox"] {
-  accent-color: #22c55e;
+/* Checked state (before submission) */
+.quiz-checkbox:checked ~ .quiz-checkbox-custom {
+  background: #7c3aed;
+  border-color: #7c3aed;
 }
 
-.quiz-option.wrong input[type="checkbox"] {
-  accent-color: #ef4444;
+.quiz-checkbox:checked ~ .quiz-checkbox-custom::after {
+  content: '✓';
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Correct answer after submission */
+.quiz-option.correct .quiz-checkbox-custom {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.quiz-option.correct .quiz-checkbox-custom::after {
+  content: '✓';
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Wrong answer after submission */
+.quiz-option.wrong .quiz-checkbox-custom {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.quiz-option.wrong .quiz-checkbox-custom::after {
+  content: '✗';
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Unselected correct option: show green outline but no fill */
+.quiz-option.correct .quiz-checkbox:not(:checked) ~ .quiz-checkbox-custom {
+  background: transparent;
+  border-color: #22c55e;
+}
+
+.quiz-option.correct .quiz-checkbox:not(:checked) ~ .quiz-checkbox-custom::after {
+  content: '';
 }
 
 .quiz-option-text {
   flex: 1;
-}
-
-.quiz-check {
-  color: #22c55e;
-  font-weight: 700;
-}
-
-.quiz-cross {
-  color: #ef4444;
-  font-weight: 700;
 }
 
 .quiz-explanation {

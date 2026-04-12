@@ -61,10 +61,8 @@
         Upload more files
       </button>
       <template v-if="selectedUploadFiles.length">
-        <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-pill">{{ file.name }}</span>
-        <button class="upload-inline-btn upload-go-btn" :disabled="uploadingFiles" @click="doUploadFiles">
-          {{ uploadingFiles ? 'Uploading…' : 'Upload' }}
-        </button>
+        <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
+        <span v-if="uploadingFiles" class="upload-file-status">Uploading…</span>
       </template>
       <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
     </div>
@@ -138,8 +136,14 @@ function renderMarkdown(content: string): string {
   const normalized = normalizeCitations(content);
   const rawHtml = marked.parse(normalized, { async: false }) as string;
   const sanitized = DOMPurify.sanitize(rawHtml);
+  // Replace disabled checkboxes from task lists with interactive custom checkboxes
+  const withChecklists = sanitized
+    .replace(/<input\s+type="checkbox"\s+checked=""\s+disabled=""\s*\/?>/gi,
+      '<span class="checklist-box checked" role="checkbox" tabindex="0"></span>')
+    .replace(/<input\s+type="checkbox"\s+disabled=""\s*\/?>/gi,
+      '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  return sanitized.replace(
+  return withChecklists.replace(
     /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
@@ -175,6 +179,9 @@ function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
   selectedUploadFiles.value = Array.from(target.files || []);
   uploadError.value = "";
+  if (selectedUploadFiles.value.length) {
+    doUploadFiles();
+  }
 }
 
 function doUploadFiles() {
@@ -326,6 +333,13 @@ watch(contentParts, () => {
 onBeforeUnmount(cleanupTooltips);
 
 function onContentClick(e: MouseEvent) {
+  // Handle checklist checkbox clicks
+  const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
+  if (checkBox) {
+    checkBox.classList.toggle("checked");
+    return;
+  }
+
   const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
   if (!btn) return;
   const idx = parseInt(btn.dataset.sourceIdx || "0", 10) - 1; // 1-based to 0-based
@@ -627,24 +641,18 @@ function openFilePreview(file: FileInfo) {
   cursor: not-allowed;
 }
 
-.upload-go-btn {
-  background: rgba(167, 139, 250, 0.15);
-  border-color: rgba(167, 139, 250, 0.3);
-  color: #c4b5fd;
-}
-
-.upload-file-pill {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 11px;
+.upload-file-name {
+  font-size: 12px;
   color: #cbd5e1;
-  max-width: 180px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.upload-file-status {
+  font-size: 12px;
+  color: #a78bfa;
 }
 
 .upload-error {

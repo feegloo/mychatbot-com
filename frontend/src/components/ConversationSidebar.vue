@@ -4,14 +4,12 @@
     <div v-if="moreFiles.length || uploadError" style="margin-bottom: 12px">
       <p v-if="uploadError" style="margin: 0 0 8px 0; font-size: 13px; color: #fbbf24">{{ uploadError }}</p>
       <template v-if="moreFiles.length">
-        <div class="file-list">
-          <div v-for="file in moreFiles" :key="file.name" class="file-pill" style="font-size: 13px">
+        <div style="margin-bottom: 4px">
+          <span v-for="file in moreFiles" :key="file.name" style="font-size: 13px; color: #cbd5e1; display: block">
             {{ file.name }}
-          </div>
+          </span>
         </div>
-        <button class="button" style="margin-top: 8px; font-size: 13px; padding: 6px 12px" :disabled="uploadingMore || !moreFiles.length" @click="uploadMore">
-          {{ uploadingMore ? "Uploading..." : "Upload" }}
-        </button>
+        <span v-if="uploadingMore" style="font-size: 13px; color: #a78bfa">Uploading...</span>
       </template>
     </div>
 
@@ -93,6 +91,9 @@ function onMoreFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
   moreFiles.value = Array.from(target.files || []);
   uploadError.value = "";
+  if (moreFiles.value.length) {
+    uploadMore();
+  }
 }
 
 async function uploadMore() {
