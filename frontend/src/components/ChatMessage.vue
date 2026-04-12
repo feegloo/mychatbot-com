@@ -676,7 +676,7 @@ function openFilePreview(file: FileInfo) {
   color: #fbbf24;
 }
 
-.action-btn {
+:deep(.action-btn) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -691,7 +691,7 @@ function openFilePreview(file: FileInfo) {
   transition: 0.15s;
 }
 
-.action-btn:hover {
+:deep(.action-btn:hover) {
   background: rgba(167, 139, 250, 0.1);
   border-color: rgba(167, 139, 250, 0.25);
   color: #ddd6fe;
