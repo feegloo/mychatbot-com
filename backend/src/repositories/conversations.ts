@@ -60,7 +60,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   );
 
   const questionsResult = await query<SuggestedQuestionRecord>(
-    `SELECT id, conversation_id, question, sort_order
+    `SELECT id, conversation_id, message_id, question, sort_order
      FROM suggested_questions
      WHERE conversation_id = $1
      ORDER BY sort_order ASC, created_at ASC`,
@@ -92,6 +92,16 @@ export async function getConversation(id: string, role: ConversationRole = "view
   };
 }
 
+export async function findStoredName(conversationId: string, originalName: string): Promise<string | null> {
+  const result = await query<UploadedFileRecord>(
+    `SELECT stored_name FROM uploaded_files
+     WHERE conversation_id = $1 AND original_name = $2
+     LIMIT 1`,
+    [conversationId, originalName]
+  );
+  return result.rows[0]?.stored_name ?? null;
+}
+
 export async function insertUploadedFile(file: UploadedFileRecord) {
   await query(
     `INSERT INTO uploaded_files (id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key)
@@ -100,19 +110,19 @@ export async function insertUploadedFile(file: UploadedFileRecord) {
   );
 }
 
-export async function replaceSuggestedQuestions(conversationId: string, questions: string[]) {
+export async function replaceSuggestedQuestions(conversationId: string, questions: string[], messageId?: string) {
   await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId]);
 
   for (const [index, question] of questions.entries()) {
     await query(
-      `INSERT INTO suggested_questions (id, conversation_id, question, sort_order)
-       VALUES (gen_random_uuid(), $1, $2, $3)`,
-      [conversationId, question, index]
+      `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+      [conversationId, messageId || null, question, index]
     );
   }
 }
 
-export async function appendSuggestedQuestions(conversationId: string, questions: string[]) {
+export async function appendSuggestedQuestions(conversationId: string, questions: string[], messageId?: string) {
   // Get current max sort_order
   const result = await query<{ max: number | null }>(
     `SELECT MAX(sort_order) as max FROM suggested_questions WHERE conversation_id = $1`,
@@ -124,9 +134,9 @@ export async function appendSuggestedQuestions(conversationId: string, questions
   // Add new questions without deleting old ones
   for (const [index, question] of questions.entries()) {
     await query(
-      `INSERT INTO suggested_questions (id, conversation_id, question, sort_order)
-       VALUES (gen_random_uuid(), $1, $2, $3)`,
-      [conversationId, question, startIndex + index]
+      `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+      [conversationId, messageId || null, question, startIndex + index]
     );
   }
 }
@@ -185,10 +195,11 @@ export async function insertConversationMessage(params: {
   role: "user" | "assistant";
   content: string;
   citations?: unknown;
-}) {
-  await query(
+}): Promise<string> {
+  const result = await query<{ id: string }>(
     `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4::jsonb)`,
+     VALUES (gen_random_uuid(), $1, $2, $3, $4::jsonb)
+     RETURNING id`,
     [
       params.conversationId,
       params.role,
@@ -196,6 +207,7 @@ export async function insertConversationMessage(params: {
       JSON.stringify(params.citations ?? null)
     ]
   );
+  return result.rows[0].id;
 }
 
 export async function getConversationSummaries(conversationIds: string[]) {

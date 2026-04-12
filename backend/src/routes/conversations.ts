@@ -39,12 +39,17 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
       const raw = message.citations_json;
       const uploadedFileNames = raw && !Array.isArray(raw) ? raw._uploadedFileNames : undefined;
       const citations = Array.isArray(raw) ? raw : [];
+      // Attach per-message suggested questions
+      const msgQuestions = data.suggestedQuestions
+        .filter((q) => q.message_id === message.id)
+        .map((q) => q.question);
       return {
         id: message.id,
         role: message.role,
         content: message.content,
         citations,
         ...(uploadedFileNames ? { uploadedFileNames } : {}),
+        ...(msgQuestions.length ? { suggestedQuestions: msgQuestions } : {}),
       };
     }),
     suggestedQuestions: data.suggestedQuestions.map((row) => row.question),
@@ -142,15 +147,16 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
-      await appendSuggestedQuestions(conversationId, suggestedQuestions);
+      let messageId: string | undefined;
       if (welcomeMessage) {
-        await insertConversationMessage({
+        messageId = await insertConversationMessage({
           conversationId,
           role: "assistant",
           content: welcomeMessage,
           citations: { _uploadedFileNames: uploadedFileNames },
         });
       }
+      await appendSuggestedQuestions(conversationId, suggestedQuestions, messageId);
       await updateConversationStatus(conversationId, "ready");
     })
     .catch(async (error) => {

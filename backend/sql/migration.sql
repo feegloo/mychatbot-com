@@ -47,3 +47,11 @@ ALTER TABLE access_requests ADD CONSTRAINT access_requests_conversation_id_fkey 
 ALTER TABLE conversation_messages ADD CONSTRAINT conversation_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE;
 
 COMMIT;
+
+-- Migration: Add message_id to suggested_questions (per-message suggested questions)
+BEGIN;
+
+ALTER TABLE suggested_questions
+ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES conversation_messages(id) ON DELETE CASCADE;
+
+COMMIT;

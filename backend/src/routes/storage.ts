@@ -2,6 +2,7 @@ import Router from "@koa/router";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { config } from "../config.js";
+import { findStoredName } from "../repositories/conversations.js";
 
 export const storageRouter = new Router();
 
@@ -76,7 +77,7 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     return;
   }
 
-  // Try exact match first, then fallback to NFC/NFD-aware directory scan
+  // Try exact match first, then NFC/NFD scan, then DB lookup by original_name
   try {
     await fs.access(filePath);
   } catch {
@@ -84,9 +85,22 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     if (actualName) {
       filePath = path.join(dir, actualName);
     } else {
-      ctx.status = 404;
-      ctx.body = { error: "File not found" };
-      return;
+      // File not found by name on disk — look up stored_name from DB
+      const storedName = await findStoredName(conversationId, safeName);
+      if (storedName) {
+        filePath = path.join(dir, storedName);
+        try {
+          await fs.access(filePath);
+        } catch {
+          ctx.status = 404;
+          ctx.body = { error: "File not found" };
+          return;
+        }
+      } else {
+        ctx.status = 404;
+        ctx.body = { error: "File not found" };
+        return;
+      }
     }
   }
 

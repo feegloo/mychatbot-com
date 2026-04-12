@@ -82,15 +82,16 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
-      await replaceSuggestedQuestions(conversationId, suggestedQuestions);
+      let messageId: string | undefined;
       if (welcomeMessage) {
-        await insertConversationMessage({
+        messageId = await insertConversationMessage({
           conversationId,
           role: "assistant",
           content: welcomeMessage,
           citations: { _uploadedFileNames: uploadedFileNames },
         });
       }
+      await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId);
       await updateConversationStatus(conversationId, "ready");
     })
     .catch(async (error) => {

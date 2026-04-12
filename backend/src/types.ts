@@ -25,6 +25,7 @@ export type UploadedFileRecord = {
 export type SuggestedQuestionRecord = {
   id: string;
   conversation_id: string;
+  message_id: string | null;
   question: string;
   sort_order: number;
 };

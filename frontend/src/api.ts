@@ -69,6 +69,7 @@ export type ChatMessage = {
   content: string;
   citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>;
   uploadedFileNames?: string[];
+  suggestedQuestions?: string[];
 };
 
 export type ConversationStatus = {

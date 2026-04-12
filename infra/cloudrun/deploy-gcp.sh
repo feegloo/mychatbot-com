@@ -37,7 +37,6 @@ source infra/cloudrun/.env.gcp
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 [[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
 [[ -z "$OPENAI_API_KEY" ]] && error "Set OPENAI_API_KEY env var"
-[[ -z "$CHROMA_API_KEY" ]] && error "Set CHROMA_API_KEY env var"
 
 # ── Step 1: Install prerequisites ────────────────────────────────────────────
 info "Step 1/8: Checking prerequisites..."

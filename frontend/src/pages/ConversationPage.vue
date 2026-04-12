@@ -35,7 +35,7 @@
             :isFirstMessage="index === 0 && msg.role === 'assistant'"
             :canUpload="canUpload"
             :files="uploadFilesForMessage(index)"
-            :suggestedQuestions="isLastUploadMessage(index) ? status.suggestedQuestions : undefined"
+            :suggestedQuestions="suggestedQuestionsForMessage(index)"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
           />
@@ -119,6 +119,18 @@ function isLastUploadMessage(index: number): boolean {
     if (isUploadMessage(i)) return false;
   }
   return true;
+}
+
+function suggestedQuestionsForMessage(index: number): string[] | undefined {
+  if (!isUploadMessage(index)) return undefined;
+  const msg = messages.value[index];
+  // Use per-message suggested questions if available
+  if (msg.suggestedQuestions?.length) return msg.suggestedQuestions;
+  // Legacy fallback: show all questions on last upload message only
+  if (isLastUploadMessage(index) && status.value.suggestedQuestions.length) {
+    return status.value.suggestedQuestions;
+  }
+  return undefined;
 }
 
 function uploadFilesForMessage(index: number): ConversationStatus["files"] | undefined {
