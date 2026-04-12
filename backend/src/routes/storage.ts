@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { config } from "../config.js";
 import { findStoredName } from "../repositories/conversations.js";
+import { readFromGcs } from "../storage/gcs-storage.js";
 
 export const storageRouter = new Router();
 
@@ -78,12 +79,15 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
   }
 
   // Try exact match first, then NFC/NFD scan, then DB lookup by original_name
+  let fileBuffer: Buffer | null = null;
   try {
     await fs.access(filePath);
+    fileBuffer = await fs.readFile(filePath);
   } catch {
     const actualName = await findFileInDir(dir, safeName);
     if (actualName) {
       filePath = path.join(dir, actualName);
+      fileBuffer = await fs.readFile(filePath);
     } else {
       // File not found by name on disk — look up stored_name from DB
       const storedName = await findStoredName(conversationId, safeName);
@@ -91,12 +95,25 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
         filePath = path.join(dir, storedName);
         try {
           await fs.access(filePath);
+          fileBuffer = await fs.readFile(filePath);
         } catch {
-          ctx.status = 404;
-          ctx.body = { error: "File not found" };
-          return;
+          // Not on disk — try GCS
         }
-      } else {
+      }
+
+      // If still not found and GCS is configured, try reading from GCS
+      if (!fileBuffer && config.storageProvider === "gcs" && config.gcsBucket) {
+        const gcsKey = storedName
+          ? `${conversationId}/${storedName}`
+          : `${conversationId}/${safeName}`;
+        try {
+          fileBuffer = await readFromGcs(gcsKey);
+        } catch {
+          // Not in GCS either
+        }
+      }
+
+      if (!fileBuffer) {
         ctx.status = 404;
         ctx.body = { error: "File not found" };
         return;
@@ -121,5 +138,5 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     ctx.set("Accept-Ranges", "bytes");
   }
   ctx.set("Cache-Control", "public, max-age=86400");
-  ctx.body = await fs.readFile(filePath);
+  ctx.body = fileBuffer;
 });

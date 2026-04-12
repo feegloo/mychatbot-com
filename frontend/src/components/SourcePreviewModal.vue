@@ -72,10 +72,10 @@ const isMobile = computed(() =>
 
 const pdfUrl = computed(() => {
   const base = getStorageUrl(props.conversationId, props.citation.fileName);
-  if (props.citation.page) {
-    return `${base}#page=${props.citation.page}`;
-  }
-  return base;
+  const fragment = props.citation.page
+    ? `#page=${props.citation.page}&navpanes=0`
+    : "#navpanes=0";
+  return `${base}${fragment}`;
 });
 
 function openPdfInNewTab() {

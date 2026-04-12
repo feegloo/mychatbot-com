@@ -31,20 +31,8 @@
           <span v-if="submitted[qi] && selections[qi]?.has(oi) && !q.correct.includes(oi)" class="quiz-cross">✗</span>
         </label>
       </div>
-      <div class="quiz-actions">
-        <button
-          v-if="!submitted[qi]"
-          class="quiz-submit-btn"
-          :disabled="!selections[qi]?.size"
-          @click="submitAnswer(qi)"
-        >
-          Check
-        </button>
-        <div v-if="submitted[qi]" class="quiz-explanation">
-          <span v-if="isCorrect(qi)" class="quiz-result correct">✓ Correct!</span>
-          <span v-else class="quiz-result wrong">✗ Incorrect</span>
-          <span v-if="q.explanation" class="quiz-explanation-text">{{ q.explanation }}</span>
-        </div>
+      <div v-if="submitted[qi] && q.explanation" class="quiz-explanation">
+        <span class="quiz-explanation-text">{{ q.explanation }}</span>
       </div>
     </div>
 
@@ -75,16 +63,17 @@ const selections = reactive<Record<number, Set<number>>>({});
 const submitted = reactive<Record<number, boolean>>({});
 
 function toggleOption(qi: number, oi: number) {
+  if (submitted[qi]) return;
   if (!selections[qi]) selections[qi] = new Set();
   if (selections[qi].has(oi)) {
     selections[qi].delete(oi);
   } else {
     selections[qi].add(oi);
   }
-}
-
-function submitAnswer(qi: number) {
-  submitted[qi] = true;
+  // Auto-submit once at least one option is selected
+  if (selections[qi].size) {
+    submitted[qi] = true;
+  }
 }
 
 function isCorrect(qi: number): boolean {
@@ -210,46 +199,9 @@ const correctCount = computed(() =>
   font-weight: 700;
 }
 
-.quiz-actions {
-  margin-top: 10px;
-}
-
-.quiz-submit-btn {
-  background: #7c3aed;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.quiz-submit-btn:hover {
-  background: #6d28d9;
-}
-
-.quiz-submit-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .quiz-explanation {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  margin-top: 10px;
   font-size: 13px;
-}
-
-.quiz-result.correct {
-  color: #22c55e;
-  font-weight: 600;
-}
-
-.quiz-result.wrong {
-  color: #ef4444;
-  font-weight: 600;
 }
 
 .quiz-explanation-text {

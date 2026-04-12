@@ -19,6 +19,8 @@ DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 16)}"
 DB_USER="mychatbot"
 DB_NAME="mychatbot"
 
+GCS_BUCKET="${GCS_BUCKET:-mychatbot-storage-${PROJECT_ID}}"
+
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
@@ -136,17 +138,27 @@ gcloud sql instances patch "$DB_INSTANCE_NAME" \
 
 info "  Firewall updated"
 
-# ── Step 5: Build Docker image ───────────────────────────────────────────────
-info "Step 5/8: Building Docker image..."
+# ── Step 5: Create GCS bucket for file storage ──────────────────────────────
+info "Step 5/9: Creating GCS bucket for file storage..."
+gcloud services enable storage.googleapis.com
+if ! gsutil ls -b "gs://${GCS_BUCKET}" &>/dev/null; then
+  gsutil mb -l "$REGION" "gs://${GCS_BUCKET}"
+  info "  Created bucket: ${GCS_BUCKET}"
+else
+  warn "  Bucket ${GCS_BUCKET} already exists, skipping."
+fi
+
+# ── Step 6: Build Docker image ───────────────────────────────────────────────
+info "Step 6/9: Building Docker image..."
 gcloud auth configure-docker --quiet
 docker build -t "${IMAGE}:latest" .
 
-# ── Step 6: Push to GCR ─────────────────────────────────────────────────────
-info "Step 6/8: Pushing image to Container Registry..."
+# ── Step 7: Push to GCR ─────────────────────────────────────────────────────
+info "Step 7/9: Pushing image to Container Registry..."
 docker push "${IMAGE}:latest"
 
-# ── Step 7: Deploy to Cloud Run ──────────────────────────────────────────────
-info "Step 7/8: Deploying to Cloud Run..."
+# ── Step 8: Deploy to Cloud Run ──────────────────────────────────────────────
+info "Step 8/9: Deploying to Cloud Run..."
 
 DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PUBLIC_IP}:5432/${DB_NAME}"
 
@@ -168,14 +180,15 @@ NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\
 CHROMA_MODE=local,\
 OPENAI_API_KEY=${OPENAI_API_KEY},\
-STORAGE_PROVIDER=disk,\
+STORAGE_PROVIDER=gcs,
+GCS_BUCKET=${GCS_BUCKET},
 FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
 PYTHON_PROJECT_ROOT=/app/python,\
 PYTHON_SERVER_URL=http://localhost:8321"
 
-# ── Step 8: Get URL ─────────────────────────────────────────────────────────
-info "Step 8/8: Getting service URL..."
+# ── Step 9: Get URL ─────────────────────────────────────────────────────────
+info "Step 9/9: Getting service URL..."
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
 
 echo ""
