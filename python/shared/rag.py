@@ -40,7 +40,7 @@ Rules:
 - "correct" is an array of 0-based indices of correct answers (can be multiple)
 - Include a brief explanation for each correct answer
 - Questions should test understanding, not just recall
-- Use [source:N] citations in questions/explanations where relevant
+- Do NOT put [source:N] citations inside the quiz JSON (not in questions, options, or explanations)
 - The quiz JSON must be valid JSON on a single line after [quiz:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.

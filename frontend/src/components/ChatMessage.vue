@@ -243,7 +243,7 @@ const contentParts = computed<ContentPart[]>(() => {
 
     // Parse quiz JSON — strip [source:N] citations that break JSON validity
     const jsonStr = content.slice(jsonStart, jsonEnd)
-      .replace(/\[source:\s*(\d+)\]/g, '$1');
+      .replace(/\[source:\s*\d+\]/g, '');
     try {
       const quizData = JSON.parse(jsonStr) as QuizData;
       if (quizData.title && Array.isArray(quizData.questions)) {

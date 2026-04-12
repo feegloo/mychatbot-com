@@ -185,6 +185,14 @@ const correctCount = computed(() =>
   flex-shrink: 0;
 }
 
+.quiz-option.correct input[type="checkbox"] {
+  accent-color: #22c55e;
+}
+
+.quiz-option.wrong input[type="checkbox"] {
+  accent-color: #ef4444;
+}
+
 .quiz-option-text {
   flex: 1;
 }
