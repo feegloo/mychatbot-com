@@ -679,12 +679,13 @@ function openFilePreview(file: FileInfo) {
 .action-btn {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
   border-radius: 999px;
-  padding: 6px 14px;
-  margin: 4px 6px 4px 0;
+  padding: 6px 12px;
+  margin: 4px 6px 0 0;
   font-size: 12px;
   cursor: pointer;
   transition: 0.15s;
