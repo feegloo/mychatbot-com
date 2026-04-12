@@ -2,11 +2,15 @@ import { describe, it, expect } from "vitest";
 import { cleanFileName, linkify } from "../../src/utils/text";
 
 describe("cleanFileName", () => {
-  it("strips UUID prefix from filename", () => {
+  it("strips UUID prefix from filename (legacy format)", () => {
     expect(cleanFileName("550e8400-e29b-41d4-a716-446655440000_report.pdf")).toBe("report.pdf");
   });
 
-  it("returns name unchanged if no UUID prefix", () => {
+  it("strips short-ID suffix from filename (new format)", () => {
+    expect(cleanFileName("report_Abc123XYZdef4567.pdf")).toBe("report.pdf");
+  });
+
+  it("returns name unchanged if no UUID prefix or short-ID suffix", () => {
     expect(cleanFileName("report.pdf")).toBe("report.pdf");
   });
 
@@ -14,7 +18,7 @@ describe("cleanFileName", () => {
     expect(cleanFileName("")).toBe("");
   });
 
-  it("only strips the first UUID prefix", () => {
+  it("only strips the first UUID prefix (legacy)", () => {
     expect(cleanFileName("550e8400-e29b-41d4-a716-446655440000_550e8400-e29b-41d4-a716-446655440001_file.txt"))
       .toBe("550e8400-e29b-41d4-a716-446655440001_file.txt");
   });

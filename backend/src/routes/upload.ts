@@ -4,7 +4,7 @@ import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import { generateShortId } from "../utils/id.js";
 import { createStorageProvider } from "../storage/index.js";
-import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken } from "../repositories/conversations.js";
+import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken, insertConversationMessage } from "../repositories/conversations.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
 import { deriveToken } from "../security.js";
@@ -45,6 +45,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   });
 
   const absolutePaths: string[] = [];
+  const uploadedFileNames: string[] = [];
 
   for (const file of files) {
     const originalName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
@@ -66,6 +67,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
       storage_key: saved.storageKey
     });
 
+    uploadedFileNames.push(originalName);
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath);
     }
@@ -79,7 +81,16 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   })
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
+      const welcomeMessage = result.parsedJson?.welcome_message || "";
       await replaceSuggestedQuestions(conversationId, suggestedQuestions);
+      if (welcomeMessage) {
+        await insertConversationMessage({
+          conversationId,
+          role: "assistant",
+          content: welcomeMessage,
+          citations: { _uploadedFileNames: uploadedFileNames },
+        });
+      }
       await updateConversationStatus(conversationId, "ready");
     })
     .catch(async (error) => {

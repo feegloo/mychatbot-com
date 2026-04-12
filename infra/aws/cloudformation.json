@@ -13,11 +13,6 @@
       "NoEcho": true,
       "Description": "OpenAI API key"
     },
-    "ChromaApiKey": {
-      "Type": "String",
-      "NoEcho": true,
-      "Description": "ChromaDB Cloud API key"
-    },
     "ImageUri": {
       "Type": "String",
       "Description": "ECR image URI (e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/mychatbot:latest)"
@@ -139,10 +134,7 @@
                     "Fn::Sub": "postgres://mychatbot:${DatabasePassword}@${PostgresDB.Endpoint.Address}:${PostgresDB.Endpoint.Port}/mychatbot"
                   }
                 },
-                { "Name": "CHROMA_MODE", "Value": "cloud" },
-                { "Name": "CHROMA_API_KEY", "Value": { "Ref": "ChromaApiKey" } },
-                { "Name": "CHROMA_TENANT", "Value": "696cf798-1423-4a5f-bb61-c055be3b6318" },
-                { "Name": "CHROMA_DATABASE", "Value": "chatbotqa" },
+                { "Name": "CHROMA_MODE", "Value": "local" },
                 { "Name": "OPENAI_API_KEY", "Value": { "Ref": "OpenAiApiKey" } },
                 { "Name": "STORAGE_PROVIDER", "Value": "disk" },
                 { "Name": "FRONTEND_DIST_PATH", "Value": "/app/frontend/dist" },

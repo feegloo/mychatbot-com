@@ -68,6 +68,7 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>;
+  uploadedFileNames?: string[];
 };
 
 export type ConversationStatus = {

@@ -17,9 +17,10 @@ ECR_REPO="mychatbot"
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 16)}"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-CHROMA_API_KEY="${CHROMA_API_KEY:-}"
-CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
-CHROMA_DATABASE="chatbotqa"
+# Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
+# CHROMA_API_KEY="${CHROMA_API_KEY:-}"
+# CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
+# CHROMA_DATABASE="chatbotqa"
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'

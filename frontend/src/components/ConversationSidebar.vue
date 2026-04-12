@@ -1,12 +1,5 @@
 <template>
   <aside class="card sidebar-card">
-    <div class="files-row">
-      <button v-if="canUpload" class="add-btn" @click="moreFilesInput?.click()">+ Upload files</button>
-      <span v-for="file in status.files" :key="file.id" style="color: #ddd6fe; padding: 6px 12px; font-size: 0.85rem">
-        {{ cleanFileName(file.originalName) }}
-      </span>
-    </div>
-
     <input ref="moreFilesInput" type="file" multiple @change="onMoreFilesChange" style="display:none" />
     <div v-if="moreFiles.length || uploadError" style="margin-bottom: 12px">
       <p v-if="uploadError" style="margin: 0 0 8px 0; font-size: 13px; color: #fbbf24">{{ uploadError }}</p>
@@ -46,8 +39,8 @@
       </div>
     </div>
 
-    <div style="padding-top: 2px">
-      <h3 style="margin: 0 0 2px 0; font-size: 0.95rem">Suggested questions</h3>
+    <div v-if="!hasWelcomeMessage" style="padding-top: 2px">
+      <h3 style="margin: 0 0 2px 0; font-size: 0.95rem">Suggested prompts</h3>
       <div>
         <button
           v-for="q in status.suggestedQuestions"
@@ -74,13 +67,13 @@ import {
   approveUploadAccess,
   saveConversationToken
 } from "../api";
-import { cleanFileName } from "../utils/text";
 
 const props = defineProps<{
   status: ConversationStatus;
   conversationId: string;
   canUpload: boolean;
   loaded: boolean;
+  hasWelcomeMessage: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -151,5 +144,9 @@ async function approveRequest(requestId: string) {
   emit("reload");
 }
 
-defineExpose({ pollAccessRequest });
+defineExpose({ pollAccessRequest, triggerUpload });
+
+function triggerUpload() {
+  moreFilesInput.value?.click();
+}
 </script>

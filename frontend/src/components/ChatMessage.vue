@@ -1,11 +1,73 @@
 <template>
-  <div class="message" :class="msg.role">
+  <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
-    <div v-else-if="msg.role === 'assistant'" ref="contentEl" class="markdown-content" @click="onContentClick" v-html="renderedContent"></div>
+    <template v-else-if="msg.role === 'assistant'">
+      <div v-for="(part, pi) in contentParts" :key="pi">
+        <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
+        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" />
+      </div>
+    </template>
     <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
+
+    <!-- File preview thumbnails for welcome message -->
+    <div v-if="isWelcome && files?.length" class="welcome-file-previews">
+      <div
+        v-for="file in files"
+        :key="file.id"
+        class="file-preview-card"
+        @click="openFilePreview(file)"
+      >
+        <div v-if="isImageFile(file)" class="file-preview-thumb">
+          <img :src="getFileUrl(file)" :alt="file.originalName" loading="lazy" />
+        </div>
+        <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
+          <object
+            :data="getFileUrl(file) + '#page=1&view=FitH'"
+            type="application/pdf"
+            class="pdf-mini-object"
+          >
+            <div class="pdf-fallback-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+          </object>
+        </div>
+        <div v-else class="file-preview-thumb text-thumb">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <span class="file-preview-name">{{ file.originalName }}</span>
+      </div>
+    </div>
+
+    <!-- Inline suggested questions for welcome message -->
+    <div v-if="isWelcome && suggestedQuestions?.length" class="welcome-suggested-questions">
+      <button
+        v-for="q in suggestedQuestions"
+        :key="q"
+        class="question-pill"
+        @click="$emit('select-question', q)"
+      >
+        {{ q }}
+      </button>
+    </div>
+
+    <!-- Upload files button (first message only) -->
+    <div v-if="isFirstMessage && canUpload" class="welcome-upload-row">
+      <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
+      <button class="upload-inline-btn" @click="uploadInput?.click()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload files
+      </button>
+      <template v-if="selectedUploadFiles.length">
+        <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-pill">{{ file.name }}</span>
+        <button class="upload-inline-btn upload-go-btn" :disabled="uploadingFiles" @click="doUploadFiles">
+          {{ uploadingFiles ? 'Uploading…' : 'Upload' }}
+        </button>
+      </template>
+      <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
+    </div>
 
     <!-- Inline image thumbnails from citations -->
     <div v-if="imageCitations.length" class="citation-images">
@@ -44,10 +106,12 @@ import { computed, ref, watch, nextTick, onBeforeUnmount } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { createTooltip, destroyTooltip } from "floating-vue";
-import type { ChatMessage } from "../api";
+import type { ChatMessage, ConversationStatus } from "../api";
 import { getStorageUrl } from "../api";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
+import QuizBlock from "./QuizBlock.vue";
+import type { QuizData } from "./QuizBlock.vue";
 
 marked.setOptions({
   breaks: true,
@@ -89,16 +153,98 @@ const props = defineProps<{
   msg: ChatMessage;
   asking: boolean;
   conversationId: string;
+  isWelcome?: boolean;
+  isFirstMessage?: boolean;
+  canUpload?: boolean;
+  files?: ConversationStatus["files"];
+  suggestedQuestions?: string[];
 }>();
 
+const emit = defineEmits<{
+  'select-question': [question: string];
+  'upload-files': [files: File[]];
+}>();
+
+// Upload files state (for first message inline upload)
+const uploadInput = ref<HTMLInputElement | null>(null);
+const selectedUploadFiles = ref<File[]>([]);
+const uploadingFiles = ref(false);
+const uploadError = ref("");
+
+function onUploadFilesChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  selectedUploadFiles.value = Array.from(target.files || []);
+  uploadError.value = "";
+}
+
+function doUploadFiles() {
+  if (!selectedUploadFiles.value.length) return;
+  emit('upload-files', selectedUploadFiles.value);
+}
+
+function resetUploadState(error?: string) {
+  selectedUploadFiles.value = [];
+  uploadingFiles.value = false;
+  uploadError.value = error || "";
+  if (uploadInput.value) uploadInput.value.value = "";
+}
+
+function setUploading(val: boolean) {
+  uploadingFiles.value = val;
+}
+
+defineExpose({ resetUploadState, setUploading });
+
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
+
+type ContentPart = { type: 'text'; html: string } | { type: 'quiz'; quiz: QuizData };
+
+const contentParts = computed<ContentPart[]>(() => {
+  const content = props.msg.content;
+  const parts: ContentPart[] = [];
+  const quizRegex = /\[quiz:(\{[\s\S]*?\})\]/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = quizRegex.exec(content)) !== null) {
+    // Text before quiz
+    const textBefore = content.slice(lastIndex, match.index);
+    if (textBefore.trim()) {
+      parts.push({ type: 'text', html: renderMarkdown(textBefore) });
+    }
+    // Parse quiz JSON
+    try {
+      const quizData = JSON.parse(match[1]) as QuizData;
+      if (quizData.title && Array.isArray(quizData.questions)) {
+        parts.push({ type: 'quiz', quiz: quizData });
+      }
+    } catch {
+      // If JSON parsing fails, render as text
+      parts.push({ type: 'text', html: renderMarkdown(match[0]) });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text after last quiz block (or all text if no quiz)
+  const remaining = content.slice(lastIndex);
+  if (remaining.trim()) {
+    parts.push({ type: 'text', html: renderMarkdown(remaining) });
+  }
+
+  // If no parts at all, add empty text
+  if (!parts.length) {
+    parts.push({ type: 'text', html: renderMarkdown(content) });
+  }
+
+  return parts;
+});
 
 // Source preview modal state
 const previewOpen = ref(false);
 const previewCitation = ref<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>();
 
 // Tooltip management for inline source buttons
-const contentEl = ref<HTMLElement>();
+const contentEls = ref<HTMLElement[]>([]);
 const tooltipElements: HTMLElement[] = [];
 const MAX_TOOLTIP_LENGTH = 600;
 
@@ -109,19 +255,21 @@ function truncateText(text: string, maxLen: number): string {
 
 function setupTooltips() {
   cleanupTooltips();
-  if (!contentEl.value) return;
-  const buttons = contentEl.value.querySelectorAll<HTMLElement>('.inline-source-btn');
-  buttons.forEach((btn) => {
-    const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1;
-    const citation = props.msg.citations?.[idx];
-    if (!citation?.text) return;
-    createTooltip(btn, {
-      content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
-      delay: { show: 1000, hide: 0 },
-      themes: ['tooltip'],
-    }, false);
-    tooltipElements.push(btn);
-  });
+  if (!contentEls.value?.length) return;
+  for (const el of contentEls.value) {
+    const buttons = el.querySelectorAll<HTMLElement>('.inline-source-btn');
+    buttons.forEach((btn) => {
+      const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1;
+      const citation = props.msg.citations?.[idx];
+      if (!citation?.text) return;
+      createTooltip(btn, {
+        content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
+        delay: { show: 1000, hide: 0 },
+        themes: ['tooltip'],
+      }, false);
+      tooltipElements.push(btn);
+    });
+  }
 }
 
 function cleanupTooltips() {
@@ -131,7 +279,7 @@ function cleanupTooltips() {
   tooltipElements.length = 0;
 }
 
-watch(renderedContent, () => {
+watch(contentParts, () => {
   nextTick(setupTooltips);
 }, { immediate: true });
 
@@ -173,6 +321,40 @@ function openImage(img: ImageCitationInfo) {
   modalSrc.value = img.url;
   modalAlt.value = img.section || "Image";
   modalOpen.value = true;
+}
+
+// Welcome message file preview helpers
+type FileInfo = ConversationStatus["files"][number];
+
+function isImageFile(file: FileInfo) {
+  return file.mimeType.startsWith("image/");
+}
+
+function isPdfFile(file: FileInfo) {
+  return file.mimeType === "application/pdf";
+}
+
+function getFileUrl(file: FileInfo) {
+  return getStorageUrl(props.conversationId, file.originalName);
+}
+
+function openFilePreview(file: FileInfo) {
+  if (isImageFile(file)) {
+    modalSrc.value = getFileUrl(file);
+    modalAlt.value = file.originalName;
+    modalOpen.value = true;
+  } else if (isPdfFile(file)) {
+    previewCitation.value = {
+      fileName: file.originalName,
+      chunkId: "",
+      text: "",
+      page: 1,
+    };
+    previewOpen.value = true;
+  } else {
+    // For text files, open in a new tab
+    window.open(getFileUrl(file), "_blank");
+  }
 }
 </script>
 
@@ -265,5 +447,169 @@ function openImage(img: ImageCitationInfo) {
   max-width: 100%;
   max-height: 300px;
   object-fit: contain;
+}
+
+/* Welcome message file previews */
+.welcome-file-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.file-preview-card {
+  cursor: pointer;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.file-preview-card:hover {
+  border-color: #a78bfa;
+  background: rgba(167, 139, 250, 0.08);
+  transform: scale(1.03);
+}
+
+.file-preview-thumb {
+  width: 120px;
+  height: 90px;
+  overflow: hidden;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-preview-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-preview-thumb.pdf-thumb {
+  position: relative;
+}
+
+.pdf-mini-object {
+  width: 120px;
+  height: 90px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pdf-fallback-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #64748b;
+}
+
+.file-preview-thumb.text-thumb {
+  color: #64748b;
+}
+
+.file-preview-name {
+  display: block;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Welcome suggested questions (inline) */
+.welcome-suggested-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 2px;
+}
+
+.welcome-suggested-questions .question-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 6px 12px;
+  margin: 0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.welcome-suggested-questions .question-pill:hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.25);
+  color: #ddd6fe;
+}
+
+/* Upload files row inside first message */
+.welcome-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 2px;
+}
+
+.upload-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+  font-family: inherit;
+}
+
+.upload-inline-btn:hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.25);
+  color: #ddd6fe;
+}
+
+.upload-inline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-go-btn {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #c4b5fd;
+}
+
+.upload-file-pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #cbd5e1;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-error {
+  font-size: 12px;
+  color: #fbbf24;
 }
 </style>

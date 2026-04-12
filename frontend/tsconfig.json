@@ -12,7 +12,8 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "types": ["node"]
+    "types": ["node"],
+    "noEmit": true
   },
   "include": ["src/**/*.ts", "src/**/*.vue"]
 }

@@ -11,11 +11,43 @@ from langchain_openai import ChatOpenAI
 from .config import get_settings
 from .vector_store import query_chunks
 
+import re
+
 logger = logging.getLogger(__name__)
 
 # Module-level cache for LLM instance
 _llm_instance = None
 _llm_provider_key = None
+
+# Patterns that trigger quiz mode
+_QUIZ_PATTERNS = re.compile(
+    r'\b(quiz|kwiz|test|egzamin)\b',
+    re.IGNORECASE,
+)
+
+QUIZ_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are a quiz generator. Based on the retrieved context, create an interactive quiz.
+
+Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
+
+[quiz:{{"title":"Quiz title","questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[0],"explanation":"Why this is correct"}}]}}]
+
+Rules:
+- Generate 3-5 multiple choice questions based on the content
+- Each question has 3-4 options
+- "correct" is an array of 0-based indices of correct answers (can be multiple)
+- Include a brief explanation for each correct answer
+- Questions should test understanding, not just recall
+- Use [source:N] citations in questions/explanations where relevant
+- The quiz JSON must be valid JSON on a single line after [quiz:
+- Write the quiz in the same language as the retrieved context
+- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic"""),
+    ("human", """Question:
+    {question}
+
+    Retrieved context:
+    {context}"""),
+])
 
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages([
@@ -90,7 +122,7 @@ def get_llm() -> Any:
         _llm_instance = ChatOpenAI(
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
-            temperature=0,
+            temperature=1,
             model_kwargs={"reasoning_effort": settings.openai_reasoning_effort},
         )
     
@@ -114,6 +146,10 @@ def _build_citations(rows: list[dict]) -> list[dict]:
     return citations
 
 
+def _is_quiz_request(question: str) -> bool:
+    return bool(_QUIZ_PATTERNS.search(question))
+
+
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
     # Determine max_distance based on question word count
@@ -129,7 +165,14 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     context = build_context(rows)
 
     llm = get_llm()
-    chain = ANSWER_PROMPT | llm
+
+    # Choose prompt based on whether this is a quiz request
+    is_quiz = _is_quiz_request(question)
+    prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
+    if is_quiz:
+        logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
+
+    chain = prompt | llm
     logger.info(f"🔗 Invoking LLM chain...")
     ai_message = chain.invoke({
         "question": question,
@@ -163,7 +206,14 @@ def stream_answer_events(collection_name: str, conversation_id: str, question: s
     context = build_context(rows)
 
     llm = get_llm()
-    chain = ANSWER_PROMPT | llm | StrOutputParser()
+
+    # Choose prompt based on whether this is a quiz request
+    is_quiz = _is_quiz_request(question)
+    prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
+    if is_quiz:
+        logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT for streaming")
+
+    chain = prompt | llm | StrOutputParser()
     logger.info(f"🔗 Starting stream...")
 
     # Stream real tokens from the LLM

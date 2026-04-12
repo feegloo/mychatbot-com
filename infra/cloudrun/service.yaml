@@ -29,14 +29,9 @@ spec:
               value: "8080"
             - name: DATABASE_URL
               value: "REPLACE_WITH_CLOUD_SQL_URL"
+            # Chroma runs in-process (local PersistentClient) for lowest latency
             - name: CHROMA_MODE
-              value: cloud
-            - name: CHROMA_API_KEY
-              value: "REPLACE_WITH_CHROMA_API_KEY"
-            - name: CHROMA_TENANT
-              value: "696cf798-1423-4a5f-bb61-c055be3b6318"
-            - name: CHROMA_DATABASE
-              value: chatbotqa
+              value: local
             - name: OPENAI_API_KEY
               value: "REPLACE_WITH_OPENAI_KEY"
             - name: STORAGE_PROVIDER

@@ -7,6 +7,7 @@ from pathlib import Path
 from .extractors import extract_many
 from .chunkers import Chunk, split_into_chunks
 from .suggested_questions import suggest_questions_from_chunks
+from .describe import describe_documents
 from .lang_detect import detect_language
 from .vector_store import upsert_chunks
 
@@ -63,8 +64,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         logger.info(f"🖼️  Adding {len(img_chunks)} image chunks")
         all_chunks.extend(img_chunks)
 
-    # Run vector upsert and question generation in parallel (both are IO-bound API calls)
-    logger.info(f"📦 Upserting {len(all_chunks)} chunks + generating questions in parallel...")
+    # Run vector upsert and description in parallel first (both are IO-bound API calls)
+    logger.info(f"📦 Upserting {len(all_chunks)} chunks + generating description in parallel...")
     chunk_texts = [chunk.text for chunk in all_chunks]
     with ThreadPoolExecutor(max_workers=2) as pool:
         upsert_future = pool.submit(
@@ -73,16 +74,26 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             conversation_id=conversation_id,
             chunks=all_chunks,
         )
-        suggest_future = pool.submit(
-            suggest_questions_from_chunks,
-            chunk_texts,
+        describe_future = pool.submit(
+            describe_documents,
+            extracted,
+            images,
             language=detected_language,
         )
         upsert_result = upsert_future.result()
-        suggested_questions = suggest_future.result()
+        welcome_message = describe_future.result()
+
+    # Now generate suggested questions with the description for contextual prompts
+    logger.info(f"💡 Generating suggested prompts (with description context)...")
+    suggested_questions = suggest_questions_from_chunks(
+        chunk_texts,
+        language=detected_language,
+        description=welcome_message or "",
+    )
 
     logger.info(f"✅ Indexing complete")
     logger.info(f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions (lang={detected_language})")
+    logger.info(f"👋 Welcome message: {welcome_message[:100]}..." if welcome_message else "👋 No welcome message generated")
 
     return {
         "conversation_id": conversation_id,
@@ -90,6 +101,7 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         "file_count": len(file_paths),
         "chunk_count": len(all_chunks),
         "suggested_questions": suggested_questions,
+        "welcome_message": welcome_message,
         "detected_language": detected_language,
         **upsert_result,
     }

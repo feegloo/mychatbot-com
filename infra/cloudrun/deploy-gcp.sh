@@ -20,9 +20,10 @@ DB_USER="mychatbot"
 DB_NAME="mychatbot"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-CHROMA_API_KEY="${CHROMA_API_KEY:-}"
-CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
-CHROMA_DATABASE="chatbotqa"
+# Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
+# CHROMA_API_KEY="${CHROMA_API_KEY:-}"
+# CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
+# CHROMA_DATABASE="chatbotqa"
 
 # ── Colors ───────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -166,10 +167,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\
-CHROMA_MODE=cloud,\
-CHROMA_API_KEY=${CHROMA_API_KEY},\
-CHROMA_TENANT=${CHROMA_TENANT},\
-CHROMA_DATABASE=${CHROMA_DATABASE},\
+CHROMA_MODE=local,\
 OPENAI_API_KEY=${OPENAI_API_KEY},\
 STORAGE_PROVIDER=disk,\
 FRONTEND_DIST_PATH=/app/frontend/dist,\

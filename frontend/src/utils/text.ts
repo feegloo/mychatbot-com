@@ -1,7 +1,11 @@
-/** Remove UUID prefix from filename (e.g., "uuid_filename.ext" -> "filename.ext") */
+/** Remove storage ID suffix from filename (e.g., "filename_abc123XYZ.ext" -> "filename.ext") */
 export function cleanFileName(name: string): string {
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i;
-  return name.replace(uuidPattern, "");
+  // Strip legacy UUID prefix: "uuid_filename.ext"
+  const uuidPrefix = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i;
+  const cleaned = name.replace(uuidPrefix, "");
+  // Strip new short-ID suffix: "filename_<16-char-base62>.ext"
+  const shortIdSuffix = /_[0-9A-Za-z]{16}(\.[^.]+)$/;
+  return cleaned.replace(shortIdSuffix, "$1");
 }
 
 /** Convert URLs, bare domains and email addresses to clickable HTML links */

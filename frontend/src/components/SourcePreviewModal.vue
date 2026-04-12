@@ -4,12 +4,7 @@
       <div class="source-modal-content">
         <button class="source-modal-close" @click="$emit('close')">&times;</button>
 
-        <div class="source-modal-header">
-          <span class="source-modal-filename">{{ displayFileName }}</span>
-          <span v-if="citation.page" class="source-modal-page">Page {{ citation.page }}</span>
-        </div>
-
-        <!-- PDF preview (desktop: inline iframe, mobile: open in new tab) -->
+        <!-- PDF preview (desktop: inline iframe, mobile: inline object) -->
         <div v-if="isPdf && !isMobile" class="source-modal-pdf">
           <iframe
             :src="pdfUrl"
@@ -18,10 +13,19 @@
         </div>
 
         <div v-if="isPdf && isMobile" class="source-modal-mobile-pdf">
-          <p class="source-modal-mobile-hint">PDF preview is not supported inline on mobile devices.</p>
-          <button class="source-modal-open-btn" @click="openPdfInNewTab">
-            Open PDF{{ citation.page ? ` (page ${citation.page})` : '' }}
-          </button>
+          <object
+            :data="pdfUrl"
+            type="application/pdf"
+            class="source-modal-mobile-object"
+          >
+            <iframe :src="pdfUrl" class="source-modal-mobile-object"></iframe>
+          </object>
+        </div>
+
+        <!-- Source text quote at bottom on blue background (PDF only) -->
+        <div v-if="isPdf && citation.text" class="source-modal-source-strip">
+          <div class="source-modal-source-label">Source text</div>
+          <div class="source-modal-source-text" v-html="linkify(citation.text)" />
         </div>
 
         <!-- Source text quote (non-PDF only) -->
@@ -94,7 +98,8 @@ function openPdfInNewTab() {
 .source-modal-content {
   position: relative;
   width: min(900px, 92vw);
-  max-height: 100vh;
+  height: calc(100vh - 20px);
+  margin: 10px 0;
   background: #1e293b;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -106,48 +111,26 @@ function openPdfInNewTab() {
 
 .source-modal-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
+  top: 10px;
+  left: 10px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
-  background: #334155;
+  background: rgba(0, 0, 0, 0.5);
   color: #e2e8f0;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  z-index: 2;
   transition: background 0.15s;
 }
 
 .source-modal-close:hover {
-  background: #475569;
-}
-
-.source-modal-header {
-  padding: 16px 48px 12px 16px;
-  border-bottom: 1px solid #334155;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.source-modal-filename {
-  font-weight: 600;
-  color: #c4b5fd;
-  font-size: 15px;
-}
-
-.source-modal-page {
-  font-size: 13px;
-  color: #94a3b8;
-  background: #334155;
-  padding: 2px 8px;
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .source-modal-pdf {
@@ -157,9 +140,31 @@ function openPdfInNewTab() {
 
 .source-modal-iframe {
   width: 100%;
-  height: 80vh;
+  height: 100%;
   border: none;
   background: #fff;
+}
+
+.source-modal-source-strip {
+  padding: 10px 16px;
+  background: #3b5bdb;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.source-modal-source-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+}
+
+.source-modal-source-text {
+  font-size: 13px;
+  color: #fff;
+  white-space: pre-wrap;
+  line-height: 1.4;
 }
 
 .source-modal-quote {
@@ -185,34 +190,25 @@ function openPdfInNewTab() {
   line-height: 1.5;
 }
 
+/* Mobile: full-height inline PDF */
 .source-modal-mobile-pdf {
-  padding: 32px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
-.source-modal-mobile-hint {
-  color: #94a3b8;
-  font-size: 14px;
-  text-align: center;
-  margin: 0;
+.source-modal-mobile-object {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
 }
 
-.source-modal-open-btn {
-  display: inline-block;
-  padding: 10px 24px;
-  background: #6366f1;
-  color: #fff;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.15s;
-}
-
-.source-modal-open-btn:hover {
-  background: #4f46e5;
+@media (max-width: 768px) {
+  .source-modal-content {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    border-radius: 0;
+  }
 }
 </style>

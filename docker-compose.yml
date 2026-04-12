@@ -14,12 +14,14 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   chroma:
-    image: chromadb/chroma:0.5.23
+    image: chromadb/chroma:1.0.7
     container_name: mychatbot-chroma
     ports:
       - "8000:8000"
     volumes:
       - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
 
 volumes:
   postgres_data:

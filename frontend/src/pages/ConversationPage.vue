@@ -1,23 +1,25 @@
 <template>
   <div class="page">
     <ConversationHeader
+      ref="headerRef"
       :status="status"
       :conversationId="conversationId"
       :conversationTitle="conversationTitle"
       :canUpload="canUpload"
       @renamed="status.displayName = $event"
+      @reload="onReload"
     />
 
     <p v-if="status.errorMessage" style="color:#f87171; margin-bottom:16px">
       {{ status.errorMessage }}
     </p>
 
-    <div class="grid grid-2">
+    <div class="grid" style="grid-template-columns: 1fr;">
       <section class="chat-panel">
 
         <div v-if="loaded && status.status !== 'ready'" class="indexing-bar">
           <div class="indexing-spinner"></div>
-          Indexing files in progress…
+          Processing uploaded files …
         </div>
 
         <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
@@ -25,9 +27,17 @@
           <ChatMessageItem
             v-for="(msg, index) in messages"
             :key="msg.id || index"
+            :ref="(el: any) => { if (index === 0) firstMessageRef = el; }"
             :msg="msg"
             :asking="asking"
             :conversationId="conversationId"
+            :isWelcome="isUploadMessage(index)"
+            :isFirstMessage="index === 0 && msg.role === 'assistant'"
+            :canUpload="canUpload"
+            :files="uploadFilesForMessage(index)"
+            :suggestedQuestions="isLastUploadMessage(index) ? status.suggestedQuestions : undefined"
+            @select-question="question = $event; submitQuestion()"
+            @upload-files="handleUploadFiles"
           />
         </div>
 
@@ -50,16 +60,6 @@
           </button>
         </div>
       </section>
-
-      <ConversationSidebar
-        ref="sidebarRef"
-        :status="status"
-        :conversationId="conversationId"
-        :canUpload="canUpload"
-        :loaded="loaded"
-        @reload="onReload"
-        @select-question="question = $event; submitQuestion()"
-      />
     </div>
   </div>
 </template>
@@ -69,13 +69,13 @@ import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import {
   askQuestion,
   getConversation,
+  uploadMoreFiles,
   type ConversationStatus,
   type ChatMessage,
 } from "../api";
 import { cleanFileName } from "../utils/text";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
-import ConversationSidebar from "../components/ConversationSidebar.vue";
 
 const props = defineProps<{ conversationId: string }>();
 
@@ -84,7 +84,8 @@ const question = ref("");
 const asking = ref(false);
 const questionInput = ref<HTMLTextAreaElement | null>(null);
 const chatContainer = ref<HTMLDivElement | null>(null);
-const sidebarRef = ref<InstanceType<typeof ConversationSidebar> | null>(null);
+const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
+const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);
 
 const status = ref<ConversationStatus>({
@@ -101,6 +102,43 @@ const messages = ref<ChatMessage[]>([]);
 
 
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
+
+function isUploadMessage(index: number): boolean {
+  const msg = messages.value[index];
+  if (msg?.role !== "assistant") return false;
+  // Has explicit uploadedFileNames from backend
+  if (msg.uploadedFileNames?.length) return true;
+  // Legacy: first message is a welcome message if it's from the assistant with no preceding user message
+  return index === 0;
+}
+
+function isLastUploadMessage(index: number): boolean {
+  if (!isUploadMessage(index)) return false;
+  // Check that no later message is also an upload message
+  for (let i = index + 1; i < messages.value.length; i++) {
+    if (isUploadMessage(i)) return false;
+  }
+  return true;
+}
+
+function uploadFilesForMessage(index: number): ConversationStatus["files"] | undefined {
+  const msg = messages.value[index];
+  if (!isUploadMessage(index)) return undefined;
+  // If message has explicit file names, match them against status.files
+  if (msg.uploadedFileNames?.length) {
+    const nameSet = new Set(msg.uploadedFileNames);
+    return status.value.files.filter(f => nameSet.has(f.originalName));
+  }
+  // Legacy: first welcome message without uploadedFileNames gets all files
+  // that aren't claimed by later upload messages
+  const claimedNames = new Set<string>();
+  for (const m of messages.value) {
+    if (m !== msg && m.uploadedFileNames?.length) {
+      m.uploadedFileNames.forEach(n => claimedNames.add(n));
+    }
+  }
+  return status.value.files.filter(f => !claimedNames.has(f.originalName));
+}
 
 const conversationTitle = computed(() => {
   if (status.value.displayName) return status.value.displayName;
@@ -127,6 +165,24 @@ async function loadConversation() {
 async function onReload() {
   await loadConversation();
   window.dispatchEvent(new CustomEvent('conversation-updated'));
+}
+
+async function handleUploadFiles(files: File[]) {
+  const msgRef = firstMessageRef.value;
+  if (!msgRef) return;
+  msgRef.setUploading(true);
+  try {
+    await uploadMoreFiles(conversationId, files);
+    msgRef.resetUploadState();
+    await onReload();
+  } catch (err: any) {
+    if (err.response?.status === 409) {
+      const names = (err.response.data?.duplicates || []).join(", ");
+      msgRef.resetUploadState(names ? `File ${names} already uploaded` : "File already uploaded");
+    } else {
+      msgRef.resetUploadState("Upload failed");
+    }
+  }
 }
 
 function scrollToBottom() {
@@ -195,7 +251,6 @@ onMounted(async () => {
 
   intervalHandle = window.setInterval(async () => {
     await loadConversation();
-    sidebarRef.value?.pollAccessRequest();
   }, 1000);
 });
 

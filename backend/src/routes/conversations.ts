@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
@@ -35,12 +35,18 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
       mimeType: file.mime_type,
       sizeBytes: Number(file.size_bytes)
     })),
-    messages: data.messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      content: message.content,
-      citations: message.citations_json || []
-    })),
+    messages: data.messages.map((message) => {
+      const raw = message.citations_json;
+      const uploadedFileNames = raw && !Array.isArray(raw) ? raw._uploadedFileNames : undefined;
+      const citations = Array.isArray(raw) ? raw : [];
+      return {
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        citations,
+        ...(uploadedFileNames ? { uploadedFileNames } : {}),
+      };
+    }),
     suggestedQuestions: data.suggestedQuestions.map((row) => row.question),
     accessRequests: data.accessRequests.map((row) => ({
       id: row.id,
@@ -80,6 +86,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
   const storage = createStorageProvider();
   const namespace = data.conversation.storage_namespace;
   const absolutePaths: string[] = [];
+  const uploadedFileNames: string[] = [];
 
   const existingNames = new Set(data.files.map((f) => f.original_name));
   const duplicates: string[] = [];
@@ -111,6 +118,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
       storage_key: saved.storageKey
     });
 
+    uploadedFileNames.push(originalName);
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath);
     }
@@ -133,7 +141,16 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
   })
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
+      const welcomeMessage = result.parsedJson?.welcome_message || "";
       await appendSuggestedQuestions(conversationId, suggestedQuestions);
+      if (welcomeMessage) {
+        await insertConversationMessage({
+          conversationId,
+          role: "assistant",
+          content: welcomeMessage,
+          citations: { _uploadedFileNames: uploadedFileNames },
+        });
+      }
       await updateConversationStatus(conversationId, "ready");
     })
     .catch(async (error) => {
