@@ -51,7 +51,7 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne)
-- Ostatnie 2 to kreatywne/kontekstowe prompty w formie: "<temat z dokumentu> — <akcja>"
+- Ostatnie 2 to kreatywne/kontekstowe prompty w formie: "<temat z dokumentu> - <akcja>"
   Przykładowe akcje: "stwórz diagram", "napisz wiersz", "napisz podobny", "stwórz quiz", "napisz podsumowanie", "stwórz tabelę porównawczą", "napisz email", "wyjaśnij jak dla dziecka"
   Wybierz akcje które najlepiej pasują do treści dokumentu.
 - Każdy prompt powinien być zwięzły (max 10 słów)
@@ -69,7 +69,7 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable)
-- Last 2 are creative/contextual prompts in the form: "<topic from document> — <action>"
+- Last 2 are creative/contextual prompts in the form: "<topic from document> - <action>"
   Example actions: "create diagram", "write poem", "write similar", "create quiz", "write summary", "create comparison table", "write email", "explain like I'm 5"
   Pick actions that best fit the document's content.
 - Each prompt should be concise (max 10 words)

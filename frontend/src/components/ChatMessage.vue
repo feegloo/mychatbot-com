@@ -58,7 +58,7 @@
       <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
       <button class="upload-inline-btn" @click="uploadInput?.click()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload files
+        Upload more files
       </button>
       <template v-if="selectedUploadFiles.length">
         <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-pill">{{ file.name }}</span>
@@ -202,27 +202,67 @@ type ContentPart = { type: 'text'; html: string } | { type: 'quiz'; quiz: QuizDa
 const contentParts = computed<ContentPart[]>(() => {
   const content = props.msg.content;
   const parts: ContentPart[] = [];
-  const quizRegex = /\[quiz:(\{[\s\S]*?\})\]/g;
+  const marker = '[quiz:';
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
+  let searchFrom = 0;
 
-  while ((match = quizRegex.exec(content)) !== null) {
+  while (searchFrom < content.length) {
+    const start = content.indexOf(marker, searchFrom);
+    if (start === -1) break;
+
+    const jsonStart = start + marker.length;
+    // Find matching closing brace by counting braces
+    let depth = 0;
+    let jsonEnd = -1;
+    for (let i = jsonStart; i < content.length; i++) {
+      if (content[i] === '{') depth++;
+      else if (content[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          // Expect ] after the closing brace (allow optional whitespace)
+          let j = i + 1;
+          while (j < content.length && /\s/.test(content[j])) j++;
+          if (j < content.length && content[j] === ']') {
+            jsonEnd = j; // points to ']'
+          }
+          break;
+        }
+      }
+    }
+
+    if (jsonEnd === -1) {
+      searchFrom = start + marker.length;
+      continue;
+    }
+
     // Text before quiz
-    const textBefore = content.slice(lastIndex, match.index);
+    const textBefore = content.slice(lastIndex, start);
     if (textBefore.trim()) {
       parts.push({ type: 'text', html: renderMarkdown(textBefore) });
     }
-    // Parse quiz JSON
+
+    // Parse quiz JSON — strip [source:N] citations that break JSON validity
+    const jsonStr = content.slice(jsonStart, jsonEnd)
+      .replace(/\[source:\s*(\d+)\]/g, '$1');
     try {
-      const quizData = JSON.parse(match[1]) as QuizData;
+      const quizData = JSON.parse(jsonStr) as QuizData;
       if (quizData.title && Array.isArray(quizData.questions)) {
+        // Normalize correct field to always be an array
+        for (const q of quizData.questions) {
+          if (!Array.isArray(q.correct)) {
+            q.correct = [q.correct as unknown as number];
+          }
+        }
         parts.push({ type: 'quiz', quiz: quizData });
+      } else {
+        parts.push({ type: 'text', html: renderMarkdown(content.slice(start, jsonEnd + 1)) });
       }
     } catch {
-      // If JSON parsing fails, render as text
-      parts.push({ type: 'text', html: renderMarkdown(match[0]) });
+      parts.push({ type: 'text', html: renderMarkdown(content.slice(start, jsonEnd + 1)) });
     }
-    lastIndex = match.index + match[0].length;
+
+    lastIndex = jsonEnd + 1;
+    searchFrom = lastIndex;
   }
 
   // Remaining text after last quiz block (or all text if no quiz)
@@ -566,21 +606,20 @@ function openFilePreview(file: FileInfo) {
 .upload-inline-btn {
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #94a3b8;
-  border-radius: 999px;
-  padding: 6px 14px;
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  color: #c4b5fd;
+  border-radius: 10px;
+  padding: 4px 14px;
   font-size: 12px;
   cursor: pointer;
-  transition: 0.15s;
+  transition: background 0.15s;
   font-family: inherit;
+  height: 26px;
 }
 
 .upload-inline-btn:hover {
-  background: rgba(167, 139, 250, 0.1);
-  border-color: rgba(167, 139, 250, 0.25);
-  color: #ddd6fe;
+  background: rgba(167, 139, 250, 0.25);
 }
 
 .upload-inline-btn:disabled {

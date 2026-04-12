@@ -127,6 +127,8 @@ function suggestedQuestionsForMessage(index: number): string[] | undefined {
   // Use per-message suggested questions if available
   if (msg.suggestedQuestions?.length) return msg.suggestedQuestions;
   // Legacy fallback: show all questions on last upload message only
+  // Skip during processing to avoid flashing old questions on the wrong message
+  if (status.value.status === 'processing') return undefined;
   if (isLastUploadMessage(index) && status.value.suggestedQuestions.length) {
     return status.value.suggestedQuestions;
   }

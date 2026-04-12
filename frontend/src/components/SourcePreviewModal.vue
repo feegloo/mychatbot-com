@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
-      <div class="source-modal-content">
+      <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
         <button class="source-modal-close" @click="$emit('close')">&times;</button>
 
         <!-- PDF preview (desktop: inline iframe, mobile: inline object) -->
@@ -168,9 +168,9 @@ function openPdfInNewTab() {
 }
 
 .source-modal-quote {
-  padding: 12px 16px 16px;
-  border-top: 1px solid #334155;
-  max-height: 200px;
+  padding: 16px 20px 20px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -203,12 +203,25 @@ function openPdfInNewTab() {
   background: #fff;
 }
 
+.source-modal-content--text {
+  height: auto;
+  max-height: 50vh;
+}
+
 @media (max-width: 768px) {
   .source-modal-content {
     width: 100vw;
     height: 100vh;
     margin: 0;
     border-radius: 0;
+  }
+
+  .source-modal-content--text {
+    height: auto;
+    max-height: 60vh;
+    width: 92vw;
+    margin: auto;
+    border-radius: 12px;
   }
 }
 </style>

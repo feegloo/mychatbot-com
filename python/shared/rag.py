@@ -28,6 +28,8 @@ _QUIZ_PATTERNS = re.compile(
 QUIZ_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """You are a quiz generator. Based on the retrieved context, create an interactive quiz.
 
+If the retrieved context is empty or does not contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
+
 Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
 
 [quiz:{{"title":"Quiz title","questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[0],"explanation":"Why this is correct"}}]}}]
@@ -41,6 +43,7 @@ Rules:
 - Use [source:N] citations in questions/explanations where relevant
 - The quiz JSON must be valid JSON on a single line after [quiz:
 - Write the quiz in the same language as the retrieved context
+- Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic"""),
     ("human", """Question:
     {question}
@@ -67,7 +70,8 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages([
     e) try to use information from multiple chunks if relevant
     f) IMPORTANT – citation format: After every sentence or claim that uses information from the retrieved context, you MUST insert an inline citation using EXACTLY this format: [source:N] where N is the source number. Examples of CORRECT citation format: [source:1], [source:2], [source:1][source:3]. If a sentence uses multiple sources, place multiple [source:N] markers, e.g. [source:1][source:2]. NEVER use bare brackets like [1], [2], [1][2][3][4], [1,2,3,4] — always include the "source:" prefix. ALWAYS write the word "source" in English, even if the rest of the answer is in another language. Do NOT translate "source" (e.g. do not write [źródło:1], [quelle:1], [fuente:1], etc.). Always cite your sources.
 
-    Return a concise but useful answer with inline source citations using [source:N] format."""),
+    Return a concise but useful answer with inline source citations using [source:N] format.
+    Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
     ("human", """Question:
     {question}
 

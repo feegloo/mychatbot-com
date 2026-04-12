@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from shared.rag import answer_with_citations, stream_answer_events
 from shared.indexing import index_documents
+from shared.vector_store import collection_count
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -42,6 +43,12 @@ class IndexRequest(BaseModel):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/collection-count/{collection_name}")
+async def get_collection_count(collection_name: str):
+    count = collection_count(collection_name)
+    return {"collection_name": collection_name, "count": count}
 
 
 @app.post("/index")

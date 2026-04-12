@@ -86,6 +86,16 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     return all_vectors
 
 
+def collection_count(collection_name: str) -> int:
+    """Return the number of documents in a collection (0 if it doesn't exist)."""
+    client = get_client()
+    try:
+        collection = client.get_or_create_collection(name=collection_name)
+        return collection.count()
+    except Exception:
+        return 0
+
+
 def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk]) -> dict:
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
@@ -127,6 +137,11 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
 def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4, max_distance: float = 1.3) -> list[dict]:
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
+
+    # Check if collection has any data
+    if collection.count() == 0:
+        logger.warning(f"⚠️ Collection {collection_name} is empty — Chroma data may have been lost (ephemeral storage)")
+        return []
 
     query_vector = embed_texts([question])[0]
     result = collection.query(
