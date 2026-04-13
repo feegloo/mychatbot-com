@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
 );
 
 CREATE TABLE IF NOT EXISTS conversation_messages (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
 CREATE TABLE IF NOT EXISTS suggested_questions (
   id UUID PRIMARY KEY,
   conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  message_id UUID REFERENCES conversation_messages(id) ON DELETE CASCADE,
+  message_id TEXT REFERENCES conversation_messages(id) ON DELETE CASCADE,
   question TEXT NOT NULL,
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

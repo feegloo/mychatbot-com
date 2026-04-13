@@ -1,6 +1,16 @@
 <template>
   <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
+    <button
+      v-if="msg.role === 'assistant' && msg.id && msg.content"
+      class="share-msg-btn"
+      :title="shareCopied ? 'Copied!' : 'Share this answer'"
+      @click="shareMessage"
+    >
+      <svg v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      {{ shareCopied ? 'Copied!' : 'Share' }}
+    </button>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
@@ -206,6 +216,16 @@ function resetUploadState(error?: string) {
   uploadingFiles.value = false;
   uploadError.value = error || "";
   if (uploadInput.value) uploadInput.value.value = "";
+}
+
+// Share message
+const shareCopied = ref(false);
+function shareMessage() {
+  if (!props.msg.id) return;
+  const url = `${window.location.origin}/m/${props.msg.id}`;
+  navigator.clipboard.writeText(url);
+  shareCopied.value = true;
+  setTimeout(() => { shareCopied.value = false; }, 2000);
 }
 
 function setUploading(val: boolean) {
@@ -440,6 +460,36 @@ function openFilePreview(file: FileInfo) {
 </script>
 
 <style scoped>
+/* Share button */
+.share-msg-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  opacity: 0;
+}
+
+.message:hover .share-msg-btn {
+  opacity: 1;
+}
+
+.share-msg-btn:hover {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #c4b5fd;
+}
+
 /* Inline source buttons */
 :deep(.inline-source-btn) {
   display: inline-flex;

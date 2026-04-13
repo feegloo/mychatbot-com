@@ -80,10 +80,6 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages([
     f) IMPORTANT – citation format: Use EXACTLY this format: [source:N] where N is the source number. Examples: [source:1], [source:2], [source:1][source:3]. NEVER use bare brackets like [1], [2] — always include the "source:" prefix. ALWAYS write "source" in English, never translate it.
     g) Citation frequency: Do NOT cite every sentence. Place citations sparingly — only at the end of a paragraph or section, not after each individual point. When a section or group of bullets comes from the same source, use a single citation at the end. Aim for roughly one citation per paragraph or topic block, not per sentence.
     h) Action buttons: When you want to suggest a follow-up action to the user (like creating a diagram, quiz, summary, checklist, etc.), do NOT write it as inline text. Instead, output action markers using this format: [action:Label]. For example, instead of writing "mogę też stworzyć diagram albo quiz", write: [action:Socrates quotes - create diagram] [action:Socrates quotes - create quiz]. The label MUST include the main topic/subject for context (so the model can answer it standalone), and be at least 4 words long. You can place multiple action markers next to each other. Always place them at the very end of your answer, after all content.
-    i) Checklists: When outputting a checklist (task list with checkboxes), use plain GitHub-flavored markdown task list syntax WITHOUT bullet points before checkboxes. Use "- [ ]" and "- [x]" directly — do NOT nest them inside bulleted lists (no "- • [ ]" or "• - [ ]"). Example:
-    - [ ] First item
-    - [x] Completed item
-    - [ ] Another item
 
     Return a concise but useful answer with inline source citations using [source:N] format.
     Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),

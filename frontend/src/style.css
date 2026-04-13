@@ -339,6 +339,7 @@ a:hover { color: #a5b4fc; }
 .message {
   border-radius: 14px;
   padding: 14px 16px;
+  position: relative;
 }
 
 .message.user {
@@ -401,6 +402,11 @@ a:hover { color: #a5b4fc; }
 
 .markdown-content li {
   margin: 2px 0;
+}
+
+.markdown-content li:has(.checklist-box) {
+  list-style: none;
+  margin-left: -20px;
 }
 
 .markdown-content li input[type="checkbox"] {

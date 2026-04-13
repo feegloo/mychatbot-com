@@ -1,4 +1,5 @@
 import { query } from "../db.js";
+import { generateShortId } from "../utils/id.js";
 import type {
   ConversationRecord,
   UploadedFileRecord,
@@ -196,18 +197,30 @@ export async function insertConversationMessage(params: {
   content: string;
   citations?: unknown;
 }): Promise<string> {
-  const result = await query<{ id: string }>(
+  const id = generateShortId();
+  await query(
     `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4::jsonb)
-     RETURNING id`,
+     VALUES ($1, $2, $3, $4, $5::jsonb)`,
     [
+      id,
       params.conversationId,
       params.role,
       params.content,
       JSON.stringify(params.citations ?? null)
     ]
   );
-  return result.rows[0].id;
+  return id;
+}
+
+export async function getMessageById(messageId: string) {
+  const msgResult = await query<ConversationMessageRecord & { display_name: string | null }>(
+    `SELECT m.id, m.conversation_id, m.role, m.content, m.citations_json, c.display_name
+     FROM conversation_messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE m.id = $1`,
+    [messageId]
+  );
+  return msgResult.rows[0] || null;
 }
 
 export async function getConversationSummaries(conversationIds: string[]) {

@@ -175,3 +175,17 @@ export async function renameConversation(conversationId: string, displayName: st
   );
   return response.data as { displayName: string };
 }
+
+export type SharedMessage = {
+  id: string;
+  conversationId: string;
+  displayName: string | null;
+  role: "assistant";
+  content: string;
+  citations: ChatMessage["citations"];
+};
+
+export async function getSharedMessage(messageId: string) {
+  const response = await api.get(`/messages/${messageId}`);
+  return response.data as SharedMessage;
+}

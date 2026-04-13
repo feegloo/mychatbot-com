@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
@@ -359,4 +359,30 @@ conversationsRouter.post("/conversations/batch", async (ctx) => {
   );
 
   ctx.body = { conversations: results };
+});
+
+conversationsRouter.get("/messages/:messageId", async (ctx) => {
+  const messageId = ctx.params.messageId;
+  if (!/^[0-9A-Za-z]{16}$/.test(messageId)) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid message ID" };
+    return;
+  }
+
+  const msg = await getMessageById(messageId);
+  if (!msg || msg.role !== "assistant") {
+    ctx.status = 404;
+    ctx.body = { error: "Message not found" };
+    return;
+  }
+
+  const citations = Array.isArray(msg.citations_json) ? msg.citations_json : [];
+  ctx.body = {
+    id: msg.id,
+    conversationId: msg.conversation_id,
+    displayName: msg.display_name || null,
+    role: msg.role,
+    content: msg.content,
+    citations,
+  };
 });
