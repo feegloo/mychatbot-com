@@ -284,7 +284,8 @@ def _handle_recognize(
         labels = web_detection.get("best_guess_labels", [])
 
         if identified_name:
-            parts.append(f"**{identified_name}** (confidence: {confidence}, category: {category})")
+            search_url = "https://babepedia.com/babe/" + identified_name.replace(" ", "_")
+            parts.append(f"**[{identified_name}]({search_url})** (confidence: {confidence}, category: {category})")
             if reasoning:
                 parts.append(f"- {reasoning}")
         elif labels:
