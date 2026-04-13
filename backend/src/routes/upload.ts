@@ -46,6 +46,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
 
   const absolutePaths: string[] = [];
   const uploadedFileNames: string[] = [];
+  const storedToOriginal: Record<string, string> = {};
 
   for (const file of files) {
     const originalName = Buffer.from(file.originalname, "latin1").toString("utf8").normalize("NFC");
@@ -68,6 +69,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     });
 
     uploadedFileNames.push(originalName);
+    storedToOriginal[storedName] = originalName;
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath);
     }
@@ -95,7 +97,8 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
       // Store file metadata per file
       for (const [fileName, metadata] of Object.entries(fileMetadata)) {
         try {
-          await updateFileMetadata(conversationId, fileName, metadata);
+          const origName = storedToOriginal[fileName] || fileName;
+          await updateFileMetadata(conversationId, origName, metadata);
         } catch (err: any) {
           console.error(`[metadata update error for ${fileName}]:`, err.message);
         }

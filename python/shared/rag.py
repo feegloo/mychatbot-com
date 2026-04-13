@@ -192,23 +192,29 @@ def _handle_exif(
         if not meta or meta.get("file_type") not in ("image",):
             continue
         parts.append(f"**{filename}**\n")
+        # Build camera string from make/model
+        camera_parts = [meta.get("camera_make", ""), meta.get("camera_model", "")]
+        camera = " ".join(p for p in camera_parts if p).strip() or None
         # Core EXIF fields
-        exif = meta.get("exif", {})
         fields = [
-            ("Camera", meta.get("camera")),
+            ("Camera", camera),
             ("Date taken", meta.get("date_taken")),
-            ("Dimensions", f"{meta.get('width')}x{meta.get('height')}" if meta.get("width") else None),
+            ("Dimensions", f"{meta.get('image_width')}x{meta.get('image_height')}" if meta.get("image_width") else None),
             ("File size", meta.get("file_size_bytes")),
+            ("ISO", meta.get("iso")),
+            ("Exposure", meta.get("exposure_time")),
+            ("F-number", meta.get("f_number")),
+            ("Focal length", meta.get("focal_length")),
+            ("Lens", meta.get("lens_model")),
+            ("Software", meta.get("software")),
             ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
         ]
+        has_exif = False
         for label, value in fields:
             if value:
+                has_exif = True
                 parts.append(f"- **{label}**: {value}")
-        # Remaining EXIF tags
-        if exif:
-            for tag, value in sorted(exif.items()):
-                parts.append(f"- {tag}: {value}")
-        if not exif and not any(v for _, v in fields):
+        if not has_exif:
             parts.append("- No EXIF metadata found in this image.")
 
     if not parts:

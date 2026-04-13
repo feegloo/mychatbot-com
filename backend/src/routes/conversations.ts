@@ -93,6 +93,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
   const namespace = data.conversation.storage_namespace;
   const absolutePaths: string[] = [];
   const uploadedFileNames: string[] = [];
+  const storedToOriginal: Record<string, string> = {};
 
   const existingNames = new Set(data.files.map((f) => f.original_name));
   const duplicates: string[] = [];
@@ -125,6 +126,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     });
 
     uploadedFileNames.push(originalName);
+    storedToOriginal[storedName] = originalName;
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath);
     }
@@ -161,7 +163,8 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
       // Store file metadata per file
       for (const [fileName, metadata] of Object.entries(fileMetadata)) {
         try {
-          await updateFileMetadata(conversationId, fileName, metadata);
+          const origName = storedToOriginal[fileName] || fileName;
+          await updateFileMetadata(conversationId, origName, metadata);
         } catch (err: any) {
           console.error(`[metadata update error for ${fileName}]:`, err.message);
         }

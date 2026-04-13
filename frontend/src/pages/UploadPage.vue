@@ -24,7 +24,7 @@
           </svg>
         </div>
         <p><strong>Drag and drop here</strong></p>
-        <p class="dropzone-hint">PDF, images, DOCX, CSV, other text files</p>
+        <p class="dropzone-hint">PDF, images, .doc, other text files</p>
         <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
       </div>
 

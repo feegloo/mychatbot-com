@@ -12,8 +12,8 @@ __pycache__/
 .pytest_cache/
 .venv/
 .ipynb_checkpoints/
-storage/
-data/
+/storage/
+/data/
 gcloud-credentials.json
 playwright-report/
 test-results/
