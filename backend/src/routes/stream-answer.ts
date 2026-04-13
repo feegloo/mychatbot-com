@@ -2,7 +2,7 @@ import Router from "@koa/router";
 import { config } from "../config.js";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
-import { buildChatHistory, getWelcomeMessage } from "../utils/chat-history.js";
+import { buildChatHistory, getWelcomeMessages } from "../utils/chat-history.js";
 
 export const streamAnswerRouter = new Router();
 
@@ -35,7 +35,7 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
 
   // Build chat history from the last Q&A exchange (last user + assistant messages)
   const chatHistory = buildChatHistory(data.messages);
-  const welcomeMessage = getWelcomeMessage(data.messages);
+  const welcomeMessages = getWelcomeMessages(data.messages);
 
   ctx.req.setTimeout(60_000);
 
@@ -60,7 +60,7 @@ streamAnswerRouter.get("/stream-answer", async (ctx) => {
         collection_name: data.conversation.vector_collection_name,
         question,
         chat_history: chatHistory,
-        welcome_message: welcomeMessage,
+        welcome_messages: welcomeMessages,
       }),
     });
 

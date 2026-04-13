@@ -28,16 +28,11 @@ export function buildChatHistory(messages: ConversationMessageRecord[]): { role:
 }
 
 /**
- * Find the last welcome/upload message (assistant message with _uploadedFileNames in citations).
- * This contains the file/image description generated during indexing.
+ * Find ALL welcome/upload messages (assistant messages with _uploadedFileNames in citations).
+ * Returns them in chronological order (oldest first) so the prompt sees uploads in time order.
  */
-export function getWelcomeMessage(messages: ConversationMessageRecord[]): string | null {
-  // Walk backwards to find the last assistant message with _uploadedFileNames
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === "assistant" && msg.citations_json?._uploadedFileNames) {
-      return msg.content;
-    }
-  }
-  return null;
+export function getWelcomeMessages(messages: ConversationMessageRecord[]): string[] {
+  return messages
+    .filter(msg => msg.role === "assistant" && msg.citations_json?._uploadedFileNames)
+    .map(msg => msg.content);
 }

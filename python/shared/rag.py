@@ -45,8 +45,8 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic"""),
-    ("human", """File/upload description:
-    {welcome_message}
+    ("human", """Uploaded file descriptions (in chronological order):
+    {welcome_messages}
 
     Chat history (last exchange):
     {chat_history}
@@ -62,10 +62,10 @@ Rules:
 ANSWER_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """You are a helpful RAG assistant.
 
-    Answer the user's question using the retrieved context below, the file/upload description, and (when relevant) the chat history.
-    The file/upload description contains a summary of the uploaded files and images - always treat it as primary context.
+    Answer the user's question using the retrieved context below, the uploaded file descriptions, and (when relevant) the chat history.
+    The uploaded file descriptions contain summaries of ALL files uploaded to this conversation (in chronological order) - always treat them as primary context.
     The chat history may contain previous answers that are directly relevant to the current question - use them as additional context for follow-ups and creative or synthesis tasks.
-    If neither the retrieved context, file description, nor the chat history contain enough information to answer, say that you could not find enough evidence in the uploaded files.
+    If neither the retrieved context, file descriptions, nor the chat history contain enough information to answer, say that you could not find enough evidence in the uploaded files.
     Use the chat history to understand follow-up questions and resolve references (e.g. "it", "that", "more details").
 
     Additional guidelines:
@@ -83,8 +83,8 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages([
 
     Return a concise but useful answer with inline source citations using [source:N] format.
     Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
-    ("human", """File/upload description:
-    {welcome_message}
+    ("human", """Uploaded file descriptions (in chronological order):
+    {welcome_messages}
 
     Chat history (last exchange):
     {chat_history}
@@ -171,6 +171,18 @@ def _is_quiz_request(question: str) -> bool:
     return bool(_QUIZ_PATTERNS.search(question))
 
 
+def _format_welcome_messages(welcome_messages: list[str] | None) -> str:
+    """Format all welcome/upload messages into a numbered list for the prompt."""
+    if not welcome_messages:
+        return "(no file descriptions available)"
+    if len(welcome_messages) == 1:
+        return welcome_messages[0]
+    parts = []
+    for i, msg in enumerate(welcome_messages, 1):
+        parts.append(f"[Upload {i}]\n{msg}")
+    return "\n\n".join(parts)
+
+
 def _format_chat_history(chat_history: list[dict] | None) -> str:
     """Format the last Q&A exchange into a string for the prompt."""
     if not chat_history:
@@ -186,7 +198,7 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
     return "\n".join(parts)
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_message: str | None = None) -> dict:
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
     # Determine max_distance based on question word count
     word_count = len([w for w in question.strip().split() if w])
@@ -209,7 +221,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
 
     history_str = _format_chat_history(chat_history)
-    welcome_str = welcome_message or "(no file description available)"
+    welcome_str = _format_welcome_messages(welcome_messages)
 
     chain = prompt | llm
     logger.info(f"🔗 Invoking LLM chain...")
@@ -217,7 +229,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         "question": question,
         "context": context,
         "chat_history": history_str,
-        "welcome_message": welcome_str,
+        "welcome_messages": welcome_str,
     })
     answer = ai_message.content
 
@@ -239,7 +251,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     }
 
 
-def stream_answer_events(collection_name: str, conversation_id: str, question: str, chat_history: list[dict] | None = None, welcome_message: str | None = None):
+def stream_answer_events(collection_name: str, conversation_id: str, question: str, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None):
     logger.info(f"❓ Streaming answer for question: {question[:100]}...")
     
     rows = query_chunks(collection_name, conversation_id, question, top_k=4)
@@ -258,10 +270,10 @@ def stream_answer_events(collection_name: str, conversation_id: str, question: s
     logger.info(f"🔗 Starting stream...")
 
     history_str = _format_chat_history(chat_history)
-    welcome_str = welcome_message or "(no file description available)"
+    welcome_str = _format_welcome_messages(welcome_messages)
 
     # Stream real tokens from the LLM
-    for token in chain.stream({"question": question, "context": context, "chat_history": history_str, "welcome_message": welcome_str}):
+    for token in chain.stream({"question": question, "context": context, "chat_history": history_str, "welcome_messages": welcome_str}):
         if token:
             yield f"event: token\ndata: {json.dumps({'token': token})}"
 

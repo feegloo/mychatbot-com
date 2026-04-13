@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { answerQuestion } from "../python/answering.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
-import { buildChatHistory, getWelcomeMessage } from "../utils/chat-history.js";
+import { buildChatHistory, getWelcomeMessages } from "../utils/chat-history.js";
 
 const askSchema = z.object({
   conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
@@ -45,14 +45,14 @@ askRouter.post("/ask", async (ctx) => {
   await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name);
 
   const chatHistory = buildChatHistory(data.messages);
-  const welcomeMessage = getWelcomeMessage(data.messages);
+  const welcomeMessages = getWelcomeMessages(data.messages);
 
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,
     question,
     chatHistory,
-    welcomeMessage
+    welcomeMessages
   });
 
   const payload = result.parsedJson || {
