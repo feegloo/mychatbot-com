@@ -26,3 +26,18 @@ export function buildChatHistory(messages: ConversationMessageRecord[]): { role:
 
   return history;
 }
+
+/**
+ * Find the last welcome/upload message (assistant message with _uploadedFileNames in citations).
+ * This contains the file/image description generated during indexing.
+ */
+export function getWelcomeMessage(messages: ConversationMessageRecord[]): string | null {
+  // Walk backwards to find the last assistant message with _uploadedFileNames
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === "assistant" && msg.citations_json?._uploadedFileNames) {
+      return msg.content;
+    }
+  }
+  return null;
+}

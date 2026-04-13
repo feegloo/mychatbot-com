@@ -5,6 +5,7 @@ export async function answerQuestion(options: {
   collectionName: string;
   question: string;
   chatHistory?: { role: string; content: string }[];
+  welcomeMessage?: string | null;
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -14,6 +15,7 @@ export async function answerQuestion(options: {
       collection_name: options.collectionName,
       question: options.question,
       chat_history: options.chatHistory || null,
+      welcome_message: options.welcomeMessage || null,
     }),
   });
 

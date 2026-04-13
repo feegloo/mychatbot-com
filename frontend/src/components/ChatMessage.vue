@@ -151,11 +151,16 @@ function renderMarkdown(content: string): string {
         `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
       ).join('')
   );
-  // Replace [action:Label] markers with clickable action buttons
-  return withSources.replace(
+  // Replace [action:Label] markers with clickable action buttons wrapped in a block container
+  const withActions = withSources.replace(
     /\[action:\s*([^\]]+)\]/g,
     (_, label) =>
       `<button class="action-btn" data-action="${label.trim()}">${label.trim()}</button>`
+  );
+  // Wrap consecutive action buttons in a block-level container so they start on a new line
+  return withActions.replace(
+    /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
+    '<div class="action-btns-row">$1</div>'
   );
 }
 
@@ -674,6 +679,12 @@ function openFilePreview(file: FileInfo) {
 .upload-error {
   font-size: 12px;
   color: #fbbf24;
+}
+
+:deep(.action-btns-row) {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8px;
 }
 
 :deep(.action-btn) {
