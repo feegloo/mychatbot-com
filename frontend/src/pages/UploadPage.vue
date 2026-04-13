@@ -22,7 +22,7 @@
           </svg>
         </div>
         <p><strong>Drag and drop</strong> your files here</p>
-        <p class="dropzone-hint">PDF, DOCX, CSV, other text files</p>
+        <p class="dropzone-hint">PDF, images, DOCX, CSV, other text files</p>
         <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
         <button class="button secondary" @click="openFilePicker">Choose files</button>
       </div>
