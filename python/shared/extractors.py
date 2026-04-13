@@ -88,7 +88,7 @@ def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
 
     response = client.chat.completions.create(
         model=settings.openai_chat_model,
-        max_tokens=300,
+        max_completion_tokens=300,
         reasoning_effort=settings.openai_reasoning_effort,
         messages=[
             {

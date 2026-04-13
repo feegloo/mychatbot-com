@@ -172,7 +172,7 @@ class TestExtractPdfImages:
 class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
-    def test_max_tokens_is_150(self, mock_openai_cls, mock_settings):
+    def test_max_completion_tokens_is_150(self, mock_openai_cls, mock_settings):
         mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-5.4-mini")
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
@@ -183,7 +183,7 @@ class TestPromptQuality:
         _describe_image(b"fake")
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        assert call_kwargs["max_tokens"] == 150, "max_tokens should be 150 for shorter descriptions"
+        assert call_kwargs["max_completion_tokens"] == 150, "max_completion_tokens should be 150 for shorter descriptions"
 
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")

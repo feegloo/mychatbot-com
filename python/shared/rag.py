@@ -26,9 +26,9 @@ _QUIZ_PATTERNS = re.compile(
 )
 
 QUIZ_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a quiz generator. Based on the retrieved context, create an interactive quiz.
+    ("system", """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
 
-If the retrieved context is empty or does not contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
+If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
 Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
 
@@ -59,9 +59,10 @@ Rules:
 ANSWER_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """You are a helpful RAG assistant.
 
-    Answer the user's question using only the retrieved context below.
-    If the answer is not present, say that you could not find enough evidence in the uploaded files.
-    If provided, use the chat history to understand follow-up questions and resolve references (e.g. "it", "that", "more details").
+    Answer the user's question using the retrieved context below and, when relevant, the chat history.
+    The chat history may contain important context such as file descriptions, image summaries, or previous answers that are directly relevant to the current question - use them as part of your available knowledge.
+    If neither the retrieved context nor the chat history contain enough information to answer, say that you could not find enough evidence in the uploaded files.
+    Use the chat history to understand follow-up questions, resolve references (e.g. "it", "that", "more details"), and as additional context for creative or synthesis tasks.
 
     Additional guidelines:
     a) try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question)
@@ -136,7 +137,7 @@ def get_llm() -> Any:
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
             temperature=1,
-            model_kwargs={"reasoning_effort": settings.openai_reasoning_effort},
+            reasoning_effort=settings.openai_reasoning_effort,
         )
     
     _llm_provider_key = cache_key

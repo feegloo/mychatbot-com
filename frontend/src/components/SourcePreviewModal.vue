@@ -1,8 +1,13 @@
 <template>
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
+      <!-- Mobile close bar above content -->
+      <div v-if="isMobile" class="source-modal-close-bar" @click="$emit('close')">
+        <button class="source-modal-close-bar-x">&times;</button>
+      </div>
+
       <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
-        <button class="source-modal-close" @click="$emit('close')">&times;</button>
+        <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">&times;</button>
 
         <!-- PDF preview (desktop: inline iframe, mobile: inline object) -->
         <div v-if="isPdf && !isMobile" class="source-modal-pdf">
@@ -24,7 +29,7 @@
 
         <!-- Source text quote at bottom on blue background (PDF only) -->
         <div v-if="isPdf && citation.text" class="source-modal-source-strip">
-          <div class="source-modal-source-label">Source text</div>
+          <div class="source-modal-source-label">Source text<span v-if="citation.page">: Page {{ citation.page }}</span></div>
           <div class="source-modal-source-text" v-html="linkify(citation.text)" />
         </div>
 
@@ -95,6 +100,35 @@ function openPdfInNewTab() {
   cursor: pointer;
 }
 
+.source-modal-close-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.source-modal-close-bar-x {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #e2e8f0;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .source-modal-content {
   position: relative;
   width: min(900px, 92vw);
@@ -112,7 +146,7 @@ function openPdfInNewTab() {
 .source-modal-close {
   position: absolute;
   top: 10px;
-  left: 10px;
+  right: 10px;
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -146,25 +180,24 @@ function openPdfInNewTab() {
 }
 
 .source-modal-source-strip {
-  padding: 10px 16px;
+  padding: 12px 16px 14px;
   background: #3b5bdb;
-  max-height: 120px;
+  max-height: 140px;
   overflow-y: auto;
 }
 
 .source-modal-source-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 5px;
 }
 
 .source-modal-source-text {
-  font-size: 13px;
+  font-size: 12px;
   color: #fff;
   white-space: pre-wrap;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .source-modal-quote {
@@ -209,9 +242,17 @@ function openPdfInNewTab() {
 }
 
 @media (max-width: 768px) {
+  .source-modal-overlay {
+    flex-direction: column;
+  }
+
+  .source-modal-close--desktop {
+    display: none;
+  }
+
   .source-modal-content {
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - 44px);
     margin: 0;
     border-radius: 0;
   }
@@ -222,6 +263,10 @@ function openPdfInNewTab() {
     width: 92vw;
     margin: auto;
     border-radius: 12px;
+  }
+
+  .source-modal-source-strip {
+    max-height: 160px;
   }
 }
 </style>
