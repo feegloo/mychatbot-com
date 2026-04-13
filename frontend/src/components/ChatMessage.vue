@@ -135,15 +135,16 @@ function normalizeCitations(text: string): string {
 function renderMarkdown(content: string): string {
   const normalized = normalizeCitations(content);
   const rawHtml = marked.parse(normalized, { async: false }) as string;
-  const sanitized = DOMPurify.sanitize(rawHtml);
-  // Replace disabled checkboxes from task lists with interactive custom checkboxes
-  const withChecklists = sanitized
-    .replace(/<input\s+type="checkbox"\s+checked=""\s+disabled=""\s*\/?>/gi,
+  // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
+  // Use flexible regex to handle any attribute order from marked
+  const withChecklists = rawHtml
+    .replace(/<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*checked=""[^>]*\/?>/gi,
       '<span class="checklist-box checked" role="checkbox" tabindex="0"></span>')
-    .replace(/<input\s+type="checkbox"\s+disabled=""\s*\/?>/gi,
+    .replace(/<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*\/?>/gi,
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
+  const sanitized = DOMPurify.sanitize(withChecklists);
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  const withSources = withChecklists.replace(
+  const withSources = sanitized.replace(
     /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
@@ -344,10 +345,15 @@ watch(contentParts, () => {
 onBeforeUnmount(cleanupTooltips);
 
 function onContentClick(e: MouseEvent) {
-  // Handle checklist checkbox clicks
+  // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
   const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
   if (checkBox) {
     checkBox.classList.toggle("checked");
+    return;
+  }
+  const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
+  if (li && li.querySelector(".checklist-box")) {
+    li.querySelector(".checklist-box")!.classList.toggle("checked");
     return;
   }
 
