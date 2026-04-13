@@ -59,7 +59,7 @@
         class="question-pill"
         @click="$emit('select-question', q)"
       >
-        {{ ensureEmoji(q) }}
+        {{ q }}
       </button>
     </div>
 
@@ -197,38 +197,7 @@ const selectedUploadFiles = ref<File[]>([]);
 const uploadingFiles = ref(false);
 const uploadError = ref("");
 
-// Emoji mapping for suggested prompts (fallback when LLM doesn't include emoji)
-const EMOJI_PATTERNS: [RegExp, string][] = [
-  [/exif|metadata/i, "📷"],
-  [/recognize|rozpoznaj/i, "🔍"],
-  [/checklist|checklista/i, "✅"],
-  [/quiz/i, "🧠"],
-  [/diagram/i, "📊"],
-  [/table|tabela|tabelę/i, "📋"],
-  [/poem|wiersz/i, "🎭"],
-  [/summary|podsumowanie/i, "📝"],
-  [/email/i, "📧"],
-  [/explain.*5|dziecka|eli5/i, "👶"],
-  [/write|napisz|stwórz|create/i, "✏️"],
-];
 
-// Check if string already ends with an emoji (basic check for common emoji ranges)
-function endsWithEmoji(text: string): boolean {
-  const trimmed = text.trimEnd();
-  if (!trimmed) return false;
-  // Match trailing emoji (including compound emoji with ZWJ, skin tones, etc.)
-  return /\p{Emoji_Presentation}$/u.test(trimmed);
-}
-
-function ensureEmoji(text: string): string {
-  if (endsWithEmoji(text)) return text;
-  const lower = text.toLowerCase();
-  for (const [pattern, emoji] of EMOJI_PATTERNS) {
-    if (pattern.test(lower)) return `${text} ${emoji}`;
-  }
-  // Default emoji for questions
-  return `${text} ❓`;
-}
 
 function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;

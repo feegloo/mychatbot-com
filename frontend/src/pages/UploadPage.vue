@@ -2,17 +2,19 @@
   <div class="page upload-page">
     <div class="upload-hero">
       <h1 class="upload-title">chatrag.app</h1>
-      <p class="upload-subtitle">Upload your files.<br/>Get answers with an AI chatbot using semantic search and RAG.</p>
+      <p class="upload-subtitle">Get answers with an AI chatbot using semantic search and RAG.</p>
     </div>
 
     <div class="upload-section">
-      <h3 class="upload-heading">Upload files</h3>
+      <h3 class="upload-heading">Upload your files</h3>
       <div
         class="dropzone upload-dropzone"
         :class="{ dragover }"
         @dragover.prevent="dragover = true"
         @dragleave.prevent="dragover = false"
         @drop.prevent="onDrop"
+        @click="openFilePicker"
+        style="cursor: pointer"
       >
         <div class="dropzone-icon">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -21,10 +23,9 @@
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
         </div>
-        <p><strong>Drag and drop</strong> your files here</p>
+        <p><strong>Drag and drop here</strong></p>
         <p class="dropzone-hint">PDF, images, DOCX, CSV, other text files</p>
         <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
-        <button class="button secondary" @click="openFilePicker">Choose files</button>
       </div>
 
       <div class="upload-status-area">

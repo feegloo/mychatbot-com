@@ -166,6 +166,60 @@ def _build_citations(rows: list[dict]) -> list[dict]:
         citations.append(citation)
     return citations
 
+# Patterns that trigger EXIF metadata display
+_EXIF_PATTERNS = re.compile(
+    r'(show exif|exif metadata|pokaż metadane exif|pokaż exif|metadane exif)',
+    re.IGNORECASE,
+)
+
+
+def _is_exif_request(question: str) -> bool:
+    return bool(_EXIF_PATTERNS.search(question))
+
+
+def _handle_exif(
+    file_metadata: dict[str, dict] | None,
+) -> dict | None:
+    """Handle 'show EXIF metadata' by formatting stored metadata.
+
+    Returns {"answer": ..., "citations": []} or None if no metadata available.
+    """
+    if not file_metadata:
+        return None
+
+    parts = []
+    for filename, meta in file_metadata.items():
+        if not meta or meta.get("file_type") not in ("image",):
+            continue
+        parts.append(f"**{filename}**\n")
+        # Core EXIF fields
+        exif = meta.get("exif", {})
+        fields = [
+            ("Camera", meta.get("camera")),
+            ("Date taken", meta.get("date_taken")),
+            ("Dimensions", f"{meta.get('width')}x{meta.get('height')}" if meta.get("width") else None),
+            ("File size", meta.get("file_size_bytes")),
+            ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
+        ]
+        for label, value in fields:
+            if value:
+                parts.append(f"- **{label}**: {value}")
+        # Remaining EXIF tags
+        if exif:
+            for tag, value in sorted(exif.items()):
+                parts.append(f"- {tag}: {value}")
+        if not exif and not any(v for _, v in fields):
+            parts.append("- No EXIF metadata found in this image.")
+
+    if not parts:
+        return None
+
+    return {
+        "answer": "\n".join(parts),
+        "citations": [],
+    }
+
+
 # Patterns that trigger recognition mode (Vision API)
 _RECOGNIZE_PATTERNS = re.compile(
     r'\b(recognize|rozpoznaj|identify|identyfikuj)\b.*\b(name|person|osob|face|twarz|imi)',
@@ -278,6 +332,12 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
 
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
+
+    # Check for "show EXIF metadata" intent — return stored metadata directly
+    if _is_exif_request(question) and file_metadata:
+        result = _handle_exif(file_metadata)
+        if result:
+            return result
 
     # Check for "recognize name" intent — triggers Vision API
     if _is_recognize_request(question) and image_file_paths:

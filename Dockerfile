@@ -29,7 +29,7 @@ WORKDIR /app
 # -- Python dependencies --
 COPY python/requirements.txt /app/python/requirements.txt
 RUN python3 -m venv /app/python/.venv && \
-    /app/python/.venv/bin/pip install --no-cache-dir -r /app/python/requirements.txt
+    /app/python/.venv/bin/pip install --no-cache-dir --retries 1 --timeout 120 -r /app/python/requirements.txt
 COPY python/ /app/python/
 
 # -- Backend production deps --

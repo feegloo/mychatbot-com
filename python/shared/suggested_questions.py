@@ -53,12 +53,12 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
 
 Zasady:
-- Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne)
-- Ostatnie 2 to kreatywne/kontekstowe prompty w formie: "<temat z dokumentu> - <akcja>"
+- Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
+- Ostatnie 2 to kreatywne/kontekstowe prompty-akcje w formie: "<temat z dokumentu> - <akcja>"
   Przykładowe akcje: "stwórz diagram", "napisz wiersz", "napisz podobny", "stwórz quiz", "napisz podsumowanie", "stwórz tabelę porównawczą", "napisz email", "wyjaśnij jak dla dziecka"
   Wybierz akcje które najlepiej pasują do treści dokumentu.
-- Każdy prompt MUSI kończyć się odpowiednim emoji (np. ❓ dla pytań, 📊 dla diagramu, ✏️ dla pisania, 🧠 dla quizu, 📝 dla podsumowania, 📋 dla listy, ✅ dla checklisty, 🎭 dla wiersza, 📧 dla emaila, 👶 dla wyjaśnienia)
-- Każdy prompt powinien być zwięzły (max 10 słów + emoji)
+  Każdy prompt-akcja MUSI kończyć się odpowiednim emoji (📊 dla diagramu, ✏️ dla pisania, 🧠 dla quizu, 📝 dla podsumowania, 📋 dla listy, ✅ dla checklisty, 🎭 dla wiersza, 📧 dla emaila, 👶 dla wyjaśnienia)
+- Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 
 Opis dokumentu: {description}"""),
@@ -72,12 +72,12 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
 
 Rules:
-- First 3 are natural questions about the document content (short, specific, clickable)
-- Last 2 are creative/contextual prompts in the form: "<topic from document> - <action>"
+- First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
+- Last 2 are creative/contextual action-prompts in the form: "<topic from document> - <action>"
   Example actions: "create diagram", "write poem", "write similar", "create quiz", "write summary", "create comparison table", "write email", "explain like I'm 5"
   Pick actions that best fit the document's content.
-- Each prompt MUST end with a relevant emoji (e.g. ❓ for questions, 📊 for diagram, ✏️ for writing, 🧠 for quiz, 📝 for summary, 📋 for checklist, ✅ for checklist, 🎭 for poem, 📧 for email, 👶 for ELI5)
-- Each prompt should be concise (max 10 words + emoji)
+  Each action-prompt MUST end with a relevant emoji (📊 for diagram, ✏️ for writing, 🧠 for quiz, 📝 for summary, 📋 for checklist, ✅ for checklist, 🎭 for poem, 📧 for email, 👶 for ELI5)
+- Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 
 Document description: {description}"""),
@@ -119,33 +119,44 @@ def _append_contextual_prompts(
     language: str | None,
     welcome_message: str = "",
 ) -> list[str]:
-    """Append file-type-specific contextual prompts (EXIF, recognize, etc.).
+    """Build final list: 3 normal questions + up to 2 action prompts = max 5.
     
-    'recognize name' is only added when the welcome message indicates
-    a person is visible in the image.
+    Contextual action prompts (EXIF, recognize, file metadata) take priority
+    over LLM-generated action prompts. 'recognize name' is only added when
+    the welcome message indicates a person is visible in the image.
     """
-    if not file_names or not file_types:
-        return questions
+    # Split LLM output: first 3 are questions, rest are actions
+    normal_questions = questions[:3]
+    llm_actions = questions[3:5]
 
-    has_person = bool(_PERSON_PATTERN.search(welcome_message))
+    # Build contextual action prompts (higher priority than LLM actions)
+    contextual: list[str] = []
+    if file_names and file_types:
+        has_person = bool(_PERSON_PATTERN.search(welcome_message))
 
-    for name in file_names:
-        ftype = file_types.get(name, "document")
-        short_name = name if len(name) <= 30 else name[:27] + "..."
+        for name in file_names:
+            if len(contextual) >= 2:
+                break
+            ftype = file_types.get(name, "document")
+            short_name = name if len(name) <= 30 else name[:27] + "..."
 
-        if ftype == "image":
-            if language == "pl":
-                questions.append(f"{short_name} - pokaż metadane EXIF 📷")
-                if has_person:
-                    questions.append(f"{short_name} - rozpoznaj osobę 🔍")
-            else:
-                questions.append(f"{short_name} - show EXIF metadata 📷")
-                if has_person:
-                    questions.append(f"{short_name} - recognize name 🔍")
-        elif ftype == "pdf":
-            if language == "pl":
-                questions.append(f"{short_name} - pokaż metadane pliku 📄")
-            else:
-                questions.append(f"{short_name} - show file metadata 📄")
+            if ftype == "image":
+                if language == "pl":
+                    contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
+                    if has_person and len(contextual) < 2:
+                        contextual.append(f"{short_name} - rozpoznaj osobę 🔍")
+                else:
+                    contextual.append(f"{short_name} - show EXIF metadata 📷")
+                    if has_person and len(contextual) < 2:
+                        contextual.append(f"{short_name} - recognize name 🔍")
+            elif ftype == "pdf":
+                if language == "pl":
+                    contextual.append(f"{short_name} - pokaż metadane pliku 📄")
+                else:
+                    contextual.append(f"{short_name} - show file metadata 📄")
 
-    return questions
+    # Fill remaining action slots with LLM-generated actions
+    remaining_slots = 2 - len(contextual)
+    actions = llm_actions[:remaining_slots] + contextual
+
+    return normal_questions + actions
