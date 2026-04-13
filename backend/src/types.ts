@@ -20,6 +20,7 @@ export type UploadedFileRecord = {
   mime_type: string;
   size_bytes: number;
   storage_key: string;
+  metadata_json?: any;
 };
 
 export type SuggestedQuestionRecord = {

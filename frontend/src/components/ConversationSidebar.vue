@@ -47,7 +47,7 @@
           style="border:none; cursor:pointer; font-size: 12px; padding: 6px 10px; margin: 4px 0"
           @click="$emit('select-question', q)"
         >
-          {{ q }}
+          {{ ensureEmoji(q) }}
         </button>
         <div v-if="status.status === 'processing'" style="display: flex; justify-content: center; margin: 8px 0 0 0"><div class="typing-dots"><span></span><span></span><span></span></div></div>
       </div>
@@ -86,6 +86,36 @@ const moreFilesInput = ref<HTMLInputElement | null>(null);
 const requestingAccess = ref(false);
 const displayName = ref("");
 const pendingRequestId = ref(localStorage.getItem(`pending-access-request:${props.conversationId}`) || "");
+
+// Emoji mapping for suggested prompts (fallback when LLM doesn't include emoji)
+const EMOJI_PATTERNS: [RegExp, string][] = [
+  [/exif|metadata/i, "📷"],
+  [/recognize|rozpoznaj/i, "🔍"],
+  [/checklist|checklista/i, "✅"],
+  [/quiz/i, "🧠"],
+  [/diagram/i, "📊"],
+  [/table|tabela|tabelę/i, "📋"],
+  [/poem|wiersz/i, "🎭"],
+  [/summary|podsumowanie/i, "📝"],
+  [/email/i, "📧"],
+  [/explain.*5|dziecka|eli5/i, "👶"],
+  [/write|napisz|stwórz|create/i, "✏️"],
+];
+
+function endsWithEmoji(text: string): boolean {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return false;
+  return /\p{Emoji_Presentation}$/u.test(trimmed);
+}
+
+function ensureEmoji(text: string): string {
+  if (endsWithEmoji(text)) return text;
+  const lower = text.toLowerCase();
+  for (const [pattern, emoji] of EMOJI_PATTERNS) {
+    if (pattern.test(lower)) return `${text} ${emoji}`;
+  }
+  return `${text} ❓`;
+}
 
 function onMoreFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;

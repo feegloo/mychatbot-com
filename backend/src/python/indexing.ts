@@ -1,6 +1,29 @@
 import { config } from "../config.js";
 import { runPythonScript } from "./run-python.js";
 
+export async function enrichMetadata(options: {
+  filePaths: string[];
+  exifMetadata?: Record<string, any>;
+  welcomeMessage?: string;
+}): Promise<Record<string, any>> {
+  const response = await fetch(`${config.pythonServerUrl}/enrich-metadata`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      file_paths: options.filePaths,
+      exif_metadata: options.exifMetadata || null,
+      welcome_message: options.welcomeMessage || "",
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Enrich-metadata error (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
+
 export async function indexConversation(options: {
   conversationId: string;
   collectionName: string;

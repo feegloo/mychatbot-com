@@ -89,7 +89,7 @@ export type ConversationStatus = {
   displayName: string | null;
   status: "processing" | "ready" | "failed";
   role: "owner" | "editor" | "viewer";
-  files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number }>;
+  files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata?: any }>;
   messages: ChatMessage[];
   suggestedQuestions: string[];
   accessRequests: Array<{ id: string; displayName: string; status: "pending" | "approved" | "rejected" }>;
@@ -135,13 +135,6 @@ export async function askQuestion(conversationId: string, question: string) {
 function getBaseUrl() {
   // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/api$/, "");
-}
-
-export function getStreamUrl(conversationId: string, question: string) {
-  const url = new URL(`${getBaseUrl()}/api/stream-answer`);
-  url.searchParams.set("conversationId", conversationId);
-  url.searchParams.set("question", question);
-  return url.toString();
 }
 
 export function getStorageUrl(conversationId: string, fileName: string) {

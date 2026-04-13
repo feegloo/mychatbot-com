@@ -21,14 +21,4 @@ describe("API URL builders", () => {
       expect(url).toContain("my%20file%20(1).pdf");
     });
   });
-
-  describe("getStreamUrl", () => {
-    it("builds correct stream URL with query params", async () => {
-      const { getStreamUrl } = await import("../../src/api");
-      const url = getStreamUrl("abc123", "What is this?");
-      expect(url).toContain("/api/stream-answer");
-      expect(url).toContain("conversationId=abc123");
-      expect(url).toContain("question=What+is+this");
-    });
-  });
 });

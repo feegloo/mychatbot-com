@@ -32,6 +32,9 @@ def suggest_questions_from_chunks(
     chunks: list[str],
     language: str = None,
     description: str = "",
+    file_names: list[str] = None,
+    file_types: dict[str, str] = None,
+    welcome_message: str = "",
 ) -> list[str]:
     sample_chunks = _sample_chunks(chunks)
     sample = "\n\n".join(sample_chunks)[:10000]
@@ -54,7 +57,8 @@ Zasady:
 - Ostatnie 2 to kreatywne/kontekstowe prompty w formie: "<temat z dokumentu> - <akcja>"
   Przykładowe akcje: "stwórz diagram", "napisz wiersz", "napisz podobny", "stwórz quiz", "napisz podsumowanie", "stwórz tabelę porównawczą", "napisz email", "wyjaśnij jak dla dziecka"
   Wybierz akcje które najlepiej pasują do treści dokumentu.
-- Każdy prompt powinien być zwięzły (max 10 słów)
+- Każdy prompt MUSI kończyć się odpowiednim emoji (np. ❓ dla pytań, 📊 dla diagramu, ✏️ dla pisania, 🧠 dla quizu, 📝 dla podsumowania, 📋 dla listy, ✅ dla checklisty, 🎭 dla wiersza, 📧 dla emaila, 👶 dla wyjaśnienia)
+- Każdy prompt powinien być zwięzły (max 10 słów + emoji)
 - NIE numeruj, NIE dodawaj wyjaśnień
 
 Opis dokumentu: {description}"""),
@@ -72,7 +76,8 @@ Rules:
 - Last 2 are creative/contextual prompts in the form: "<topic from document> - <action>"
   Example actions: "create diagram", "write poem", "write similar", "create quiz", "write summary", "create comparison table", "write email", "explain like I'm 5"
   Pick actions that best fit the document's content.
-- Each prompt should be concise (max 10 words)
+- Each prompt MUST end with a relevant emoji (e.g. ❓ for questions, 📊 for diagram, ✏️ for writing, 🧠 for quiz, 📝 for summary, 📋 for checklist, ✅ for checklist, 🎭 for poem, 📧 for email, 👶 for ELI5)
+- Each prompt should be concise (max 10 words + emoji)
 - Do NOT number, do NOT add explanations
 
 Document description: {description}"""),
@@ -88,10 +93,59 @@ Document description: {description}"""),
         parsed = json.loads(response.strip())
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
-            return questions[:5]
+            return _append_contextual_prompts(questions[:5], file_names, file_types, language, welcome_message)
     except (json.JSONDecodeError, AttributeError):
         logger.warning(f"Failed to parse JSON from suggested questions response, falling back to line parsing")
 
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
-    return questions[:5]
+    return _append_contextual_prompts(questions[:5], file_names, file_types, language, welcome_message)
+
+
+import re
+
+_PERSON_PATTERN = re.compile(
+    r'\b(person|people|man|woman|portrait|face|selfie|human|'
+    r'osoba|osoby|mężczyzna|kobieta|twarz|portret|człowiek|ludzie|'
+    r'depicts? a|shows? a|presents? a|przedstawia)\b',
+    re.IGNORECASE,
+)
+
+
+def _append_contextual_prompts(
+    questions: list[str],
+    file_names: list[str] | None,
+    file_types: dict[str, str] | None,
+    language: str | None,
+    welcome_message: str = "",
+) -> list[str]:
+    """Append file-type-specific contextual prompts (EXIF, recognize, etc.).
+    
+    'recognize name' is only added when the welcome message indicates
+    a person is visible in the image.
+    """
+    if not file_names or not file_types:
+        return questions
+
+    has_person = bool(_PERSON_PATTERN.search(welcome_message))
+
+    for name in file_names:
+        ftype = file_types.get(name, "document")
+        short_name = name if len(name) <= 30 else name[:27] + "..."
+
+        if ftype == "image":
+            if language == "pl":
+                questions.append(f"{short_name} - pokaż metadane EXIF 📷")
+                if has_person:
+                    questions.append(f"{short_name} - rozpoznaj osobę 🔍")
+            else:
+                questions.append(f"{short_name} - show EXIF metadata 📷")
+                if has_person:
+                    questions.append(f"{short_name} - recognize name 🔍")
+        elif ftype == "pdf":
+            if language == "pl":
+                questions.append(f"{short_name} - pokaż metadane pliku 📄")
+            else:
+                questions.append(f"{short_name} - show file metadata 📄")
+
+    return questions

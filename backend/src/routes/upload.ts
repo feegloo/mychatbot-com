@@ -4,7 +4,7 @@ import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import { generateShortId } from "../utils/id.js";
 import { createStorageProvider } from "../storage/index.js";
-import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken, insertConversationMessage } from "../repositories/conversations.js";
+import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken, insertConversationMessage, updateFileMetadata } from "../repositories/conversations.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
 import { deriveToken } from "../security.js";
@@ -82,6 +82,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
+      const fileMetadata = result.parsedJson?.file_metadata || {};
       let messageId: string | undefined;
       if (welcomeMessage) {
         messageId = await insertConversationMessage({
@@ -90,6 +91,14 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
           content: welcomeMessage,
           citations: { _uploadedFileNames: uploadedFileNames },
         });
+      }
+      // Store file metadata per file
+      for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+        try {
+          await updateFileMetadata(conversationId, fileName, metadata);
+        } catch (err: any) {
+          console.error(`[metadata update error for ${fileName}]:`, err.message);
+        }
       }
       await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId);
       await updateConversationStatus(conversationId, "ready");

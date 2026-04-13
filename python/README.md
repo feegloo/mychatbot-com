@@ -13,7 +13,6 @@ Papermill parameterizes notebooks using a `parameters` cell and then executes th
 ## Option B - normal scripts
 - `index_documents.py`
 - `answer_question.py`
-- `stream_answer.py`
 
 Use this in production. The shared logic is inside `shared/`.
 

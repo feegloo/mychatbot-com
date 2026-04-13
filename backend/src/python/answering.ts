@@ -6,6 +6,8 @@ export async function answerQuestion(options: {
   question: string;
   chatHistory?: { role: string; content: string }[];
   welcomeMessages?: string[];
+  imageFilePaths?: string[];
+  fileMetadata?: Record<string, any>;
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -16,6 +18,8 @@ export async function answerQuestion(options: {
       question: options.question,
       chat_history: options.chatHistory || null,
       welcome_messages: options.welcomeMessages || [],
+      image_file_paths: options.imageFilePaths || null,
+      file_metadata: options.fileMetadata || null,
     }),
   });
 

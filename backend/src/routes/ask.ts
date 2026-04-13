@@ -1,9 +1,11 @@
 import Router from "@koa/router";
+import path from "node:path";
 import { z } from "zod";
 import { getConversation, insertConversationMessage } from "../repositories/conversations.js";
 import { answerQuestion } from "../python/answering.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
 import { buildChatHistory, getWelcomeMessages } from "../utils/chat-history.js";
+import { config } from "../config.js";
 
 const askSchema = z.object({
   conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
@@ -47,12 +49,24 @@ askRouter.post("/ask", async (ctx) => {
   const chatHistory = buildChatHistory(data.messages);
   const welcomeMessages = getWelcomeMessages(data.messages);
 
+  // Resolve image file paths and metadata for Vision API (used on "recognize name")
+  const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"]);
+  const imageFilePaths = data.files
+    .filter(f => IMAGE_EXTS.has(path.extname(f.original_name).toLowerCase()))
+    .map(f => path.join(config.storageRoot, f.storage_key));
+  const fileMetadata: Record<string, any> = {};
+  for (const f of data.files) {
+    if (f.metadata_json) fileMetadata[f.original_name] = f.metadata_json;
+  }
+
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,
     question,
     chatHistory,
-    welcomeMessages
+    welcomeMessages,
+    imageFilePaths: imageFilePaths.length ? imageFilePaths : undefined,
+    fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
   });
 
   const payload = result.parsedJson || {

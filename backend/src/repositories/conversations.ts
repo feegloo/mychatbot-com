@@ -53,7 +53,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   );
 
   const filesResult = await query<UploadedFileRecord>(
-    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key
+    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
      FROM uploaded_files
      WHERE conversation_id = $1
      ORDER BY created_at ASC`,
@@ -108,6 +108,15 @@ export async function insertUploadedFile(file: UploadedFileRecord) {
     `INSERT INTO uploaded_files (id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [file.id, file.conversation_id, file.original_name, file.stored_name, file.mime_type, file.size_bytes, file.storage_key]
+  );
+}
+
+export async function updateFileMetadata(conversationId: string, originalName: string, metadata: unknown) {
+  await query(
+    `UPDATE uploaded_files
+     SET metadata_json = $3::jsonb
+     WHERE conversation_id = $1 AND original_name = $2`,
+    [conversationId, originalName, JSON.stringify(metadata)]
   );
 }
 

@@ -10,6 +10,7 @@ from .suggested_questions import suggest_questions_from_chunks
 from .describe import describe_documents
 from .lang_detect import detect_language
 from .vector_store import upsert_chunks
+from .metadata import extract_metadata_many
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,11 @@ def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
 
 def index_documents(conversation_id: str, collection_name: str, file_paths: list[str]) -> dict:
     logger.info(f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}")
+
+    # Extract file metadata (EXIF, PDF info, etc.)
+    logger.info(f"📋 Extracting file metadata...")
+    file_metadata = extract_metadata_many(file_paths)
+
     extracted, images = extract_many(file_paths)
     logger.info(f"✅ Extracted {len(extracted)} document(s), {len(images)} image(s)")
 
@@ -79,16 +85,33 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             extracted,
             images,
             language=detected_language,
+            file_metadata=file_metadata,
         )
         upsert_result = upsert_future.result()
         welcome_message = describe_future.result()
 
     # Now generate suggested questions with the description for contextual prompts
     logger.info(f"💡 Generating suggested prompts (with description context)...")
+
+    # Determine file types for contextual prompts
+    file_types = {}
+    for fp in file_paths:
+        p = Path(fp)
+        suffix = p.suffix.lower()
+        if suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"}:
+            file_types[p.name] = "image"
+        elif suffix == ".pdf":
+            file_types[p.name] = "pdf"
+        else:
+            file_types[p.name] = "document"
+
     suggested_questions = suggest_questions_from_chunks(
         chunk_texts,
         language=detected_language,
         description=welcome_message or "",
+        file_names=[Path(fp).name for fp in file_paths],
+        file_types=file_types,
+        welcome_message=welcome_message or "",
     )
 
     logger.info(f"✅ Indexing complete")
@@ -103,5 +126,6 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         "suggested_questions": suggested_questions,
         "welcome_message": welcome_message,
         "detected_language": detected_language,
+        "file_metadata": file_metadata,
         **upsert_result,
     }

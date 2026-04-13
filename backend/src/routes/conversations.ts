@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
@@ -33,7 +33,8 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
       id: file.id,
       originalName: file.original_name,
       mimeType: file.mime_type,
-      sizeBytes: Number(file.size_bytes)
+      sizeBytes: Number(file.size_bytes),
+      metadata: file.metadata_json || null,
     })),
     messages: data.messages.map((message) => {
       const raw = message.citations_json;
@@ -147,6 +148,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
+      const fileMetadata = result.parsedJson?.file_metadata || {};
       let messageId: string | undefined;
       if (welcomeMessage) {
         messageId = await insertConversationMessage({
@@ -155,6 +157,14 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
           content: welcomeMessage,
           citations: { _uploadedFileNames: uploadedFileNames },
         });
+      }
+      // Store file metadata per file
+      for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+        try {
+          await updateFileMetadata(conversationId, fileName, metadata);
+        } catch (err: any) {
+          console.error(`[metadata update error for ${fileName}]:`, err.message);
+        }
       }
       await appendSuggestedQuestions(conversationId, suggestedQuestions, messageId);
       await updateConversationStatus(conversationId, "ready");

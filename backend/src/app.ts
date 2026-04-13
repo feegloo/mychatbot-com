@@ -8,7 +8,6 @@ import send from "koa-send";
 import { uploadRouter } from "./routes/upload.js";
 import { conversationsRouter } from "./routes/conversations.js";
 import { askRouter } from "./routes/ask.js";
-import { streamAnswerRouter } from "./routes/stream-answer.js";
 import { healthRouter } from "./routes/health.js";
 import { storageRouter } from "./routes/storage.js";
 import { config } from "./config.js";
@@ -22,7 +21,6 @@ export function createApp() {
   const apiRouter = uploadRouter
     .use(conversationsRouter.routes())
     .use(askRouter.routes())
-    .use(streamAnswerRouter.routes())
     .use(healthRouter.routes())
     .use(storageRouter.routes());
 

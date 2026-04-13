@@ -9,18 +9,17 @@ import json
 import logging
 import asyncio
 from pathlib import Path
-from typing import AsyncGenerator
 
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from shared.rag import answer_with_citations, stream_answer_events
+from shared.rag import answer_with_citations
 from shared.indexing import index_documents
 from shared.vector_store import collection_count
+from shared.metadata import enrich_metadata_web
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -34,12 +33,20 @@ class AnswerRequest(BaseModel):
     question: str
     chat_history: list[dict] | None = None
     welcome_messages: list[str] | None = None
+    image_file_paths: list[str] | None = None
+    file_metadata: dict[str, dict] | None = None
 
 
 class IndexRequest(BaseModel):
     conversation_id: str
     collection_name: str
     file_paths: list[str]
+
+
+class EnrichMetadataRequest(BaseModel):
+    file_paths: list[str]
+    exif_metadata: dict[str, dict] | None = None
+    welcome_message: str = ""
 
 
 @app.get("/health")
@@ -78,6 +85,8 @@ async def answer(req: AnswerRequest):
             question=req.question,
             chat_history=req.chat_history,
             welcome_messages=req.welcome_messages,
+            image_file_paths=req.image_file_paths,
+            file_metadata=req.file_metadata,
         )
         return result
     except Exception as e:
@@ -85,37 +94,24 @@ async def answer(req: AnswerRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/stream-answer")
-async def stream_answer(req: AnswerRequest):
-    async def generate() -> AsyncGenerator[str, None]:
-        queue: asyncio.Queue[str | None] = asyncio.Queue()
-
-        def _produce():
-            try:
-                for event in stream_answer_events(
-                    collection_name=req.collection_name,
-                    conversation_id=req.conversation_id,
-                    question=req.question,
-                    chat_history=req.chat_history,
-                    welcome_messages=req.welcome_messages,
-                ):
-                    queue.put_nowait(event + "\n")
-            except Exception as e:
-                logger.exception("Error streaming answer")
-                queue.put_nowait(f"event: error\ndata: {json.dumps({'error': str(e)})}\n")
-            finally:
-                queue.put_nowait(None)  # sentinel
-
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, _produce)
-
-        while True:
-            item = await queue.get()
-            if item is None:
-                break
-            yield item
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
+@app.post("/enrich-metadata")
+async def enrich_metadata(req: EnrichMetadataRequest):
+    """Run async web detection (Google Vision) for image files.
+    
+    Fire-and-forget: caller doesn't need to wait for this.
+    Returns enriched metadata dict {filename: {web_detection, identified_name, ...}}.
+    """
+    try:
+        result = await asyncio.to_thread(
+            enrich_metadata_web,
+            req.file_paths,
+            exif_metadata=req.exif_metadata,
+            welcome_message=req.welcome_message,
+        )
+        return result
+    except Exception as e:
+        logger.warning(f"Metadata enrichment failed (non-fatal): {e}")
+        return {}
 
 
 if __name__ == "__main__":

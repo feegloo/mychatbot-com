@@ -16,11 +16,13 @@ def describe_documents(
     extracted: list[dict],
     images: list[dict],
     language: str | None = None,
+    file_metadata: dict[str, dict] | None = None,
 ) -> str:
     """Generate a 1-3 sentence FAST description of what was uploaded.
 
     Uses the beginning of extracted text (no embeddings/RAG) so the response
-    is as quick as possible.
+    is as quick as possible.  When file_metadata contains EXIF data for images,
+    it is included so the welcome message can mention camera, date, location etc.
     """
     # Build a concise snippet from the beginning of each document
     snippets: list[str] = []
@@ -36,6 +38,34 @@ def describe_documents(
         page = img.get("page", "?")
         if desc:
             snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
+
+    # Append EXIF metadata for image files
+    if file_metadata:
+        for fname, meta in file_metadata.items():
+            if meta.get("file_type") != "image":
+                continue
+            exif_lines = []
+            for key, label in [
+                ("camera_make", "Camera"),
+                ("camera_model", "Model"),
+                ("date_taken", "Date taken"),
+                ("gps_latitude", "GPS lat"),
+                ("gps_longitude", "GPS lon"),
+                ("image_width", "Width"),
+                ("image_height", "Height"),
+                ("iso", "ISO"),
+                ("f_number", "f/"),
+                ("exposure_time", "Exposure"),
+                ("focal_length", "Focal length"),
+                ("lens_model", "Lens"),
+                ("artist", "Artist"),
+                ("copyright", "Copyright"),
+                ("software", "Software"),
+            ]:
+                if key in meta:
+                    exif_lines.append(f"  {label}: {meta[key]}")
+            if exif_lines:
+                snippets.append(f"[EXIF metadata for {fname}]\n" + "\n".join(exif_lines))
 
     if not snippets:
         return ""
@@ -53,6 +83,8 @@ def describe_documents(
         prompt = ChatPromptTemplate.from_messages([
             ("system", """Wygeneruj BARDZO krótki opis (1-3 zdania) tego, co użytkownik właśnie przesłał.
 Bądź konkretny – wymień kluczowe fakty (np. kwoty, daty, nazwiska, tematy) znalezione w treści.
+Jeśli przesłano zdjęcie i dostępne są metadane EXIF, wymień najciekawsze z nich (np. aparat, data, lokalizacja GPS).
+Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym wprost (np. "zdjęcie przedstawia osobę", "na zdjęciu widać mężczyznę/kobietę").
 NIE pytaj użytkownika o nic. NIE używaj oznaczników źródłowych jak [1] ani [source:1].
 Odpowiadaj po polsku. Opis powinien brzmieć naturalnie, jakbyś opisywał komuś co to za dokument."""),
             ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}"),
@@ -61,6 +93,8 @@ Odpowiadaj po polsku. Opis powinien brzmieć naturalnie, jakbyś opisywał komu�
         prompt = ChatPromptTemplate.from_messages([
             ("system", """Generate a VERY short description (1-3 sentences) of what the user just uploaded.
 Be specific – mention key facts (e.g. amounts, dates, names, topics) found in the content.
+If an image was uploaded with EXIF metadata, mention the most interesting details (e.g. camera, date taken, GPS location).
+If the image shows a person or people, state this explicitly (e.g. "the photo shows a person", "the image depicts a man/woman").
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Reply in the same language as the content. The description should sound natural, as if you are briefly telling someone what this document is about."""),
             ("human", "Uploaded files: {file_list}\n\nContent:\n{content}"),

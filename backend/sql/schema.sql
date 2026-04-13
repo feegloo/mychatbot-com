@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
   mime_type TEXT NOT NULL,
   size_bytes BIGINT NOT NULL,
   storage_key TEXT NOT NULL,
+  metadata_json JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

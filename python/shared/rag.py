@@ -166,8 +166,86 @@ def _build_citations(rows: list[dict]) -> list[dict]:
         citations.append(citation)
     return citations
 
+# Patterns that trigger recognition mode (Vision API)
+_RECOGNIZE_PATTERNS = re.compile(
+    r'\b(recognize|rozpoznaj|identify|identyfikuj)\b.*\b(name|person|osob|face|twarz|imi)',
+    re.IGNORECASE,
+)
 
-def _is_quiz_request(question: str) -> bool:
+# Simpler pattern: the suggested prompt format itself
+_RECOGNIZE_PROMPT_PATTERN = re.compile(
+    r'(recognize name|rozpoznaj osob)',
+    re.IGNORECASE,
+)
+
+
+def _is_recognize_request(question: str) -> bool:
+    return bool(_RECOGNIZE_PATTERNS.search(question) or _RECOGNIZE_PROMPT_PATTERN.search(question))
+
+
+def _handle_recognize(
+    question: str,
+    image_file_paths: list[str] | None,
+    file_metadata: dict[str, dict] | None,
+    welcome_messages: list[str] | None,
+) -> dict | None:
+    """Handle 'recognize name' by calling Vision API + LLM identification.
+    
+    Returns {"answer": ..., "citations": []} or None if not applicable.
+    """
+    if not image_file_paths:
+        return None
+
+    from .metadata import enrich_metadata_web
+
+    welcome_str = _format_welcome_messages(welcome_messages)
+
+    logger.info(f"🔍 Recognition mode: calling Vision API for {len(image_file_paths)} image(s)")
+    enrichment = enrich_metadata_web(
+        file_paths=image_file_paths,
+        exif_metadata=file_metadata,
+        welcome_message=welcome_str,
+    )
+
+    if not enrichment:
+        # Vision API returned nothing — fall back to normal RAG
+        logger.info("🔍 Vision API returned no results, falling back to normal RAG")
+        return None
+
+    # Build a human-readable answer from the identification results
+    parts = []
+    for filename, data in enrichment.items():
+        identified_name = data.get("identified_name")
+        identification = data.get("identification", {})
+        confidence = identification.get("confidence", "unknown")
+        category = identification.get("category", "unknown")
+        reasoning = identification.get("reasoning", "")
+        web_detection = data.get("web_detection", {})
+        labels = web_detection.get("best_guess_labels", [])
+
+        if identified_name:
+            parts.append(f"**{identified_name}** (confidence: {confidence}, category: {category})")
+            if reasoning:
+                parts.append(f"- {reasoning}")
+        elif labels:
+            parts.append(f"Could not identify a specific name, but the image matches: {', '.join(labels)}")
+        else:
+            parts.append("Could not identify the person from the available sources.")
+
+        # Add web entities as supporting evidence
+        entities = web_detection.get("web_entities", [])
+        if entities:
+            top = [e["description"] for e in entities[:5] if e.get("description")]
+            if top:
+                parts.append(f"- Related web entities: {', '.join(top)}")
+
+    return {
+        "answer": "\n".join(parts),
+        "citations": [],
+    }
+
+
+
     return bool(_QUIZ_PATTERNS.search(question))
 
 
@@ -198,8 +276,15 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
     return "\n".join(parts)
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None) -> dict:
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None) -> dict:
     logger.info(f"❓ Answering question: {question[:100]}...")
+
+    # Check for "recognize name" intent — triggers Vision API
+    if _is_recognize_request(question) and image_file_paths:
+        result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
+        if result:
+            return result
+
     # Determine max_distance based on question word count
     word_count = len([w for w in question.strip().split() if w])
     max_distance = 1.1  # default for 3+ words
@@ -249,33 +334,3 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         "answer": answer,
         "citations": _build_citations(rows),
     }
-
-
-def stream_answer_events(collection_name: str, conversation_id: str, question: str, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None):
-    logger.info(f"❓ Streaming answer for question: {question[:100]}...")
-    
-    rows = query_chunks(collection_name, conversation_id, question, top_k=4)
-    logger.info(f"📚 Retrieved {len(rows)} context chunks")
-    context = build_context(rows)
-
-    llm = get_llm()
-
-    # Choose prompt based on whether this is a quiz request
-    is_quiz = _is_quiz_request(question)
-    prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
-    if is_quiz:
-        logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT for streaming")
-
-    chain = prompt | llm | StrOutputParser()
-    logger.info(f"🔗 Starting stream...")
-
-    history_str = _format_chat_history(chat_history)
-    welcome_str = _format_welcome_messages(welcome_messages)
-
-    # Stream real tokens from the LLM
-    for token in chain.stream({"question": question, "context": context, "chat_history": history_str, "welcome_messages": welcome_str}):
-        if token:
-            yield f"event: token\ndata: {json.dumps({'token': token})}"
-
-    # Send citations after streaming is done
-    yield f"event: citations\ndata: {json.dumps({'citations': _build_citations(rows)})}"
