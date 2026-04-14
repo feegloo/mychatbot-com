@@ -1,5 +1,9 @@
 <template>
-  <div class="app-layout">
+  <!-- Embed mode: no sidebar, no nav, no toggle -->
+  <router-view v-if="isEmbed" :key="$route.fullPath" />
+
+  <!-- Normal mode -->
+  <div v-else class="app-layout">
     <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
     <ConversationNav :class="{ open: sidebarOpen }" @navigate="sidebarOpen = false" />
     <main class="app-main">
@@ -12,12 +16,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useRoute } from "vue-router";
 import ConversationNav from "./components/ConversationNav.vue";
 
 const sidebarOpen = ref(false);
 const route = useRoute();
+const isEmbed = computed(() => route.meta.embed === true);
 
 watch(() => route.path, () => { sidebarOpen.value = false; });
 </script>

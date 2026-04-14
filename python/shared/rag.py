@@ -166,6 +166,18 @@ def _build_citations(rows: list[dict]) -> list[dict]:
         citations.append(citation)
     return citations
 
+
+def _strip_orphan_source_tags(answer: str, citation_count: int) -> str:
+    """Remove [source:N] tags that reference non-existent citations."""
+    def _replace(m: re.Match) -> str:
+        nums = m.group(1)
+        valid = [n.strip() for n in nums.split(",") if int(n.strip()) <= citation_count]
+        if not valid:
+            return ""
+        return "[source:" + ",".join(valid) + "]"
+    return re.sub(r'\[source:\s*(\d+(?:,\s*\d+)*)\]', _replace, answer)
+
+
 # Patterns that trigger EXIF metadata display
 _EXIF_PATTERNS = re.compile(
     r'(show exif|exif metadata|pokaż metadane exif|pokaż exif|metadane exif)',
@@ -307,7 +319,7 @@ def _handle_recognize(
     }
 
 
-
+def _is_quiz_request(question: str) -> bool:
     return bool(_QUIZ_PATTERNS.search(question))
 
 
@@ -398,7 +410,10 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
     logger.info(f"✅ Generated answer: {answer[:100]}...")
 
+    citations = _build_citations(rows)
+    answer = _strip_orphan_source_tags(answer, len(citations))
+
     return {
         "answer": answer,
-        "citations": _build_citations(rows),
+        "citations": citations,
     }

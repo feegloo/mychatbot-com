@@ -99,6 +99,7 @@ const status = ref<ConversationStatus>({
   accessRequests: []
 });
 const messages = ref<ChatMessage[]>([]);
+const hasLocalError = ref(false);
 
 
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
@@ -170,13 +171,14 @@ watch(conversationTitle, (title) => {
 async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
-  if (!asking.value) {
+  if (!asking.value && !hasLocalError.value) {
     messages.value = response.messages || [];
   }
   loaded.value = true;
 }
 
 async function onReload() {
+  hasLocalError.value = false;
   await loadConversation();
   window.dispatchEvent(new CustomEvent('conversation-updated'));
 }
@@ -214,6 +216,7 @@ async function ask() {
   }
 
   asking.value = true;
+  hasLocalError.value = false;
   const currentQuestion = question.value;
   question.value = "";
   messages.value.push({ role: "user", content: currentQuestion });
@@ -222,11 +225,22 @@ async function ask() {
   // Use the reactive proxy so Vue detects content updates immediately
   const reactiveMsg = messages.value[messages.value.length - 1];
 
+  const TIMEOUT_MS = 120_000; // 2 minutes max for an answer
   try {
-    const response = await askQuestion(conversationId, currentQuestion);
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
+    );
+    const response = await Promise.race([
+      askQuestion(conversationId, currentQuestion),
+      timeout,
+    ]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
     await loadConversation();
+  } catch (err: any) {
+    const detail = err?.response?.data?.error || err?.message || "Unknown error";
+    reactiveMsg.content = `⚠️ Error: ${detail}`;
+    hasLocalError.value = true;
   } finally {
     asking.value = false;
   }

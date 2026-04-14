@@ -26,6 +26,13 @@ export class GcsStorageProvider implements StorageProvider {
     await blob.save(file.buffer, {
       contentType: file.mimeType,
       resumable: false,
+      metadata: {
+        metadata: {
+          created_at: new Date().toISOString(),
+          size: String(file.buffer.length),
+          original_name: file.originalName,
+        },
+      },
     });
 
     // Also write to local disk so Python indexing can read it immediately

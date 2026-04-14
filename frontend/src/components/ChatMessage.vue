@@ -17,7 +17,7 @@
     <template v-else-if="msg.role === 'assistant'">
       <div v-for="(part, pi) in contentParts" :key="pi">
         <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
-        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" />
+        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" />
       </div>
     </template>
     <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
@@ -238,7 +238,7 @@ defineExpose({ resetUploadState, setUploading });
 
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
-type ContentPart = { type: 'text'; html: string } | { type: 'quiz'; quiz: QuizData };
+type ContentPart = { type: 'text'; html: string } | { type: 'quiz'; quiz: QuizData; quizIndex: number };
 
 const contentParts = computed<ContentPart[]>(() => {
   const content = props.msg.content;
@@ -246,6 +246,7 @@ const contentParts = computed<ContentPart[]>(() => {
   const marker = '[quiz:';
   let lastIndex = 0;
   let searchFrom = 0;
+  let quizCounter = 0;
 
   while (searchFrom < content.length) {
     const start = content.indexOf(marker, searchFrom);
@@ -294,7 +295,7 @@ const contentParts = computed<ContentPart[]>(() => {
             q.correct = [q.correct as unknown as number];
           }
         }
-        parts.push({ type: 'quiz', quiz: quizData });
+        parts.push({ type: 'quiz', quiz: quizData, quizIndex: quizCounter++ });
       } else {
         parts.push({ type: 'text', html: renderMarkdown(content.slice(start, jsonEnd + 1)) });
       }
@@ -361,21 +362,55 @@ function cleanupTooltips() {
 }
 
 watch(contentParts, () => {
-  nextTick(setupTooltips);
+  nextTick(() => {
+    setupTooltips();
+    restoreChecklistState();
+  });
 }, { immediate: true });
 
 onBeforeUnmount(cleanupTooltips);
+
+function saveChecklistState() {
+  if (!props.msg.id) return;
+  const states: boolean[] = [];
+  for (const el of contentEls.value ?? []) {
+    el.querySelectorAll('.checklist-box').forEach((box) => {
+      states.push(box.classList.contains('checked'));
+    });
+  }
+  if (states.length) {
+    localStorage.setItem(`checklist:${props.msg.id}`, JSON.stringify(states));
+  }
+}
+
+function restoreChecklistState() {
+  if (!props.msg.id) return;
+  try {
+    const raw = localStorage.getItem(`checklist:${props.msg.id}`);
+    if (!raw) return;
+    const states: boolean[] = JSON.parse(raw);
+    let idx = 0;
+    for (const el of contentEls.value ?? []) {
+      el.querySelectorAll('.checklist-box').forEach((box) => {
+        if (idx < states.length && states[idx]) box.classList.add('checked');
+        idx++;
+      });
+    }
+  } catch { /* ignore corrupt data */ }
+}
 
 function onContentClick(e: MouseEvent) {
   // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
   const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
   if (checkBox) {
     checkBox.classList.toggle("checked");
+    saveChecklistState();
     return;
   }
   const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
   if (li && li.querySelector(".checklist-box")) {
     li.querySelector(".checklist-box")!.classList.toggle("checked");
+    saveChecklistState();
     return;
   }
 

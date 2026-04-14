@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from "vue";
+import { reactive, computed, onMounted } from "vue";
 
 export interface QuizQuestion {
   q: string;
@@ -57,10 +57,40 @@ export interface QuizData {
   questions: QuizQuestion[];
 }
 
-const props = defineProps<{ quiz: QuizData }>();
+const props = defineProps<{ quiz: QuizData; messageId?: string; quizIndex?: number }>();
 
 const selections = reactive<Record<number, Set<number>>>({});
 const submitted = reactive<Record<number, boolean>>({});
+
+function storageKey(): string | null {
+  return props.messageId ? `quiz:${props.messageId}:${props.quizIndex ?? 0}` : null;
+}
+
+function saveState() {
+  const key = storageKey();
+  if (!key) return;
+  const data: Record<number, number[]> = {};
+  for (const [qi, opts] of Object.entries(selections)) {
+    data[Number(qi)] = [...opts];
+  }
+  localStorage.setItem(key, JSON.stringify({ selections: data, submitted: { ...submitted } }));
+}
+
+function loadState() {
+  const key = storageKey();
+  if (!key) return;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const state = JSON.parse(raw) as { selections: Record<number, number[]>; submitted: Record<number, boolean> };
+    for (const [qi, opts] of Object.entries(state.selections ?? {})) {
+      selections[Number(qi)] = new Set(opts);
+    }
+    Object.assign(submitted, state.submitted ?? {});
+  } catch { /* ignore corrupt data */ }
+}
+
+onMounted(loadState);
 
 function toggleOption(qi: number, oi: number) {
   if (submitted[qi]) return;
@@ -74,6 +104,7 @@ function toggleOption(qi: number, oi: number) {
   if (selections[qi].size) {
     submitted[qi] = true;
   }
+  saveState();
 }
 
 function isCorrect(qi: number): boolean {

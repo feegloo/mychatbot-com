@@ -10,6 +10,7 @@ import { conversationsRouter } from "./routes/conversations.js";
 import { askRouter } from "./routes/ask.js";
 import { healthRouter } from "./routes/health.js";
 import { storageRouter } from "./routes/storage.js";
+import { debugRouter } from "./routes/debug.js";
 import { config } from "./config.js";
 
 export function createApp() {
@@ -22,7 +23,8 @@ export function createApp() {
     .use(conversationsRouter.routes())
     .use(askRouter.routes())
     .use(healthRouter.routes())
-    .use(storageRouter.routes());
+    .use(storageRouter.routes())
+    .use(debugRouter.routes());
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/api")) {
