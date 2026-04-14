@@ -20,7 +20,7 @@
         <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" />
       </div>
     </template>
-    <span v-else style="white-space: pre-wrap">{{ msg.content }}</span>
+    <span v-else class="user-text">{{ msg.content }}</span>
 
     <!-- File preview thumbnails for welcome message -->
     <div v-if="isWelcome && files?.length" class="welcome-file-previews">
@@ -497,6 +497,12 @@ function openFilePreview(file: FileInfo) {
 </script>
 
 <style scoped>
+.user-text {
+  display: block;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
 /* Share button */
 .share-msg-btn {
   position: absolute;
