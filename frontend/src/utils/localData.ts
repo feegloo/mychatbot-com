@@ -23,4 +23,3 @@ export function setData(key: string, value: unknown) {
   all[key] = value;
   writeAll(all);
 }
-}
