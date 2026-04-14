@@ -6,31 +6,39 @@
     <div v-else-if="error" class="error">{{ error }}</div>
 
     <template v-else>
-      <div class="view-toggle">
-        <button :class="{ active: view === 'formatted' }" @click="view = 'formatted'">Formatted</button>
-        <button :class="{ active: view === 'json' }" @click="view = 'json'">JSON</button>
+      <div class="controls">
+        <div class="table-tabs">
+          <button
+            v-for="table in tableNames"
+            :key="table"
+            :class="{ active: activeTable === table }"
+            @click="activeTable = table"
+          >
+            {{ table }} <span class="count">({{ data[table].length }})</span>
+          </button>
+        </div>
+        <div class="view-toggle">
+          <button :class="{ active: view === 'formatted' }" @click="view = 'formatted'">Formatted</button>
+          <button :class="{ active: view === 'json' }" @click="view = 'json'">JSON</button>
+        </div>
       </div>
 
-      <template v-if="view === 'json'">
-        <div v-for="table in tableNames" :key="table" class="table-section">
-          <h2>{{ table }} ({{ data[table].length }})</h2>
-          <pre class="json-block">{{ JSON.stringify(data[table], null, 2) }}</pre>
-        </div>
-      </template>
+      <div class="table-section">
+        <template v-if="view === 'json'">
+          <pre class="json-block">{{ JSON.stringify(data[activeTable], null, 2) }}</pre>
+        </template>
 
-      <template v-else>
-        <div v-for="table in tableNames" :key="table" class="table-section">
-          <h2>{{ table }} ({{ data[table].length }})</h2>
-          <div class="table-wrapper" v-if="data[table].length">
+        <template v-else>
+          <div class="table-wrapper" v-if="data[activeTable].length">
             <table>
               <thead>
                 <tr>
-                  <th v-for="col in columns(table)" :key="col">{{ col }}</th>
+                  <th v-for="col in columns(activeTable)" :key="col">{{ col }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in data[table]" :key="i">
-                  <td v-for="col in columns(table)" :key="col">
+                <tr v-for="(row, i) in data[activeTable]" :key="i">
+                  <td v-for="col in columns(activeTable)" :key="col">
                     <span class="cell" :title="String(row[col] ?? '')">{{ formatCell(row[col]) }}</span>
                   </td>
                 </tr>
@@ -38,8 +46,8 @@
             </table>
           </div>
           <p v-else class="empty">No rows</p>
-        </div>
-      </template>
+        </template>
+      </div>
     </template>
   </div>
 </template>
@@ -53,6 +61,7 @@ type Tables = Awaited<ReturnType<typeof getDebugTables>>;
 const loading = ref(true);
 const error = ref("");
 const view = ref<"formatted" | "json">("formatted");
+const activeTable = ref<keyof Tables>("conversations");
 const data = ref<Tables>({
   conversations: [],
   conversation_messages: [],
@@ -98,15 +107,45 @@ h1 {
   margin-bottom: 16px;
   font-size: 1.5rem;
 }
-h2 {
-  margin: 24px 0 8px;
-  font-size: 1.1rem;
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.table-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.table-tabs button {
+  padding: 8px 16px;
+  border: 1px solid #334155;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background: #1e293b;
   color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+.table-tabs button:hover {
+  background: #273449;
+}
+.table-tabs button.active {
+  background: #334155;
+  color: #f1f5f9;
+  border-bottom-color: #818cf8;
+}
+.table-tabs .count {
+  opacity: 0.6;
+  font-size: 0.8em;
 }
 .view-toggle {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
 }
 .view-toggle button {
   padding: 6px 16px;

@@ -44,14 +44,13 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
 ## Potential Pitfalls
 - Ensure Python and Node environments are set up before running scripts.
 - Chroma and PostgreSQL must be running for full functionality (see docker-compose.yml).
-- For cloud deploy, see [infra/aws/README.md](infra/aws/README.md) and [infra/cloudrun/README.md](infra/cloudrun/README.md).
+- For cloud deploy, see [infra/cloudrun/README.md](infra/cloudrun/README.md).
 
 ---
 
 ## Documentation Links
 - [ARCHITECTURE.md](ARCHITECTURE.md): Full system architecture
 - [python/README.md](python/README.md): Python engine usage
-- [infra/aws/README.md](infra/aws/README.md): AWS deployment
 - [infra/cloudrun/README.md](infra/cloudrun/README.md): GCP deployment
 
 ---
@@ -59,7 +58,7 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
 ## Example Prompts
 - "How do I run the backend tests?"
 - "Where is the Python indexing logic?"
-- "How do I deploy to AWS?"
+- "How do I deploy to GCP?"
 
 ---
 

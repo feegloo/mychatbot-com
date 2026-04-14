@@ -14,7 +14,7 @@ REGION="europe-west1"
 SERVICE_NAME="mychatbot"
 IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
-DB_INSTANCE_NAME="mychatbot-db"
+DB_INSTANCE_NAME="chatrag-db"
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 16)}"
 DB_USER="mychatbot"
 DB_NAME="mychatbot"
@@ -95,9 +95,11 @@ info "  Private Service Connection ready"
 # ── Step 3: Create Cloud SQL PostgreSQL instance ─────────────────────────────
 info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
 if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
+  # Cheapest option: --tier=db-f1-micro (shared core, 0.6 GiB, ~$8/mo, no SLA)
   gcloud sql instances create "$DB_INSTANCE_NAME" \
     --database-version=POSTGRES_16 \
-    --tier=db-perf-optimized-N-2 \
+    --edition=ENTERPRISE \
+    --tier=db-custom-2-3840 \
     --region="$REGION" \
     --root-password="$DB_PASSWORD" \
     --storage-size=10GB \
@@ -105,6 +107,13 @@ if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &
     --assign-ip \
     --network=default
   info "  Created instance: $DB_INSTANCE_NAME"
+
+  # Enable automatic daily backups at 03:00 UTC, keep last 2
+  gcloud sql instances patch "$DB_INSTANCE_NAME" \
+    --backup-start-time="03:00" \
+    --retained-backups-count=2 \
+    --quiet
+  info "  Enabled automatic backups"
 else
   warn "  Instance $DB_INSTANCE_NAME already exists, skipping."
 fi

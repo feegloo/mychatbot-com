@@ -24,7 +24,7 @@ Python performs:
 
 The user later visits a shareable URL like:
 
-- `https://mychatbot.com/c/<conversationId>`
+- `https://chatrag.app/c/<conversationId>`
 
 and asks questions. The backend calls Python again to retrieve relevant chunks and generate a contextual answer with citations.
 
@@ -170,24 +170,14 @@ Recommended simple route:
 - file storage on local persistent volume for MVP, later **Cloud Storage**
 - optional Chroma on VM / container / private service
 
-Cloud Run supports mapping a custom domain to a service after verifying the domain. citeturn966466search2turn966466search14
-
-### AWS
-Recommended simple route:
-- backend on ECS/Fargate or App Runner
-- PostgreSQL on RDS
-- files on EBS for MVP, later S3
-- Route 53 / registrar DNS points the domain to your load balancer or AWS service
-
-Route 53 can route traffic to AWS resources, including load balancers, and alias records can point the root domain to an ELB target. citeturn966466search11turn966466search15
+Cloud Run supports mapping a custom domain to a service after verifying the domain.
 
 ## Domain example: mychatbot.com
 
 If you buy the domain on GoDaddy:
 1. deploy the app first and get its target hostname / service endpoint
 2. add DNS records in GoDaddy that point to the deployed app
-3. for GCP Cloud Run, verify the domain and add the mapping records Google gives you. citeturn966466search2turn966466search18
-4. for AWS, point DNS to the service / load balancer, often using Route 53 alias records if you manage DNS in AWS. citeturn966466search11turn966466search15
+3. for GCP Cloud Run, verify the domain and add the mapping records Google gives you.
 
 ## Root URL behavior
 
@@ -199,8 +189,16 @@ That URL is shareable and reopens the same uploaded knowledge base.
 
 ## Notes on notebook execution
 
-Papermill supports parameterizing notebooks using a cell tagged `parameters`, then executing them with injected values. citeturn966466search0turn966466search4
+Papermill supports parameterizing notebooks using a cell tagged `parameters`, then executing them with injected values.
 
 ## Notes on Chroma
 
-Chroma collections are the main storage unit, and querying collections is the retrieval step used by the RAG flow. citeturn966466search1turn966466search13turn966466search17
+Chroma collections are the main storage unit, and querying collections is the retrieval step used by the RAG flow.
+
+# misc
+
+get latest error logs from production:
+
+```
+gcloud logging read   'severity>="ERROR"'   --project=chatbotqa-app   --limit=50   --freshness=1h   --format='value(timestamp, severity, textPayload)'
+```

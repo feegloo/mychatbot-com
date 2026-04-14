@@ -324,10 +324,12 @@ a:hover { color: #a5b4fc; }
   transition: 0.15s;
 }
 
-.question-pill:hover {
-  background: rgba(167, 139, 250, 0.1);
-  border-color: rgba(167, 139, 250, 0.25);
-  color: #ddd6fe;
+@media (hover: hover) {
+  .question-pill:hover {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.25);
+    color: #ddd6fe;
+  }
 }
 
 .chat-log {
