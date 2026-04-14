@@ -42,7 +42,7 @@ The script will:
 ```bash
 # 1. Create domain mapping in Cloud Run
 gcloud run domain-mappings create \
-  --service=mychatbot \
+  --service=chatrag \
   --region=europe-west1 \
   --domain=chatrag.app
 
@@ -76,9 +76,9 @@ Cloud Run supports mapping a custom domain after domain verification. cite
 
 1. Buy domain, for example on GoDaddy.
 2. Deploy backend to Cloud Run.
-3. In Google Cloud, verify `mychatbot.com`.
+3. In Google Cloud, verify `chatrag.app`.
 4. Add the DNS records Google gives you at your registrar.
-5. Point `mychatbot.com` to the frontend entry and `api.mychatbot.com` if you choose separate backend hostnames.
+5. Point `chatrag.app` to the frontend entry and `api.chatrag.app` if you choose separate backend hostnames.
 
 ## Notes
 - Cloud Run is simple for demos and shareable links.

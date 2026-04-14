@@ -85,7 +85,7 @@ gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID \
 gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
   --project=$GCP_PROJECT_ID \
   --role=roles/iam.workloadIdentityUser \
-  --principal=principalSet://iam.googleapis.com/projects/$GCP_PROJECT_ID/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/YOUR_GITHUB_USERNAME/mychatbot-com
+  --principal=principalSet://iam.googleapis.com/projects/$GCP_PROJECT_ID/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/YOUR_GITHUB_USERNAME/chatrag-com
 ```
 
 Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username.
@@ -186,7 +186,7 @@ Copy the full base64 string — this is the value you will paste as `GCP_SA_KEY`
 
 1. Open your repository on GitHub.
 2. Go to **Settings → Secrets and variables → Actions**
-   ([direct link](https://github.com/feegloo/mychatbot-com/settings/secrets/actions))
+   ([direct link](https://github.com/feegloo/chatrag-com/settings/secrets/actions))
 3. Click **New repository secret** for each secret below:
 
 | Secret name | Value |
@@ -198,7 +198,7 @@ Copy the full base64 string — this is the value you will paste as `GCP_SA_KEY`
 
 ### Step D: Verify
 
-Push a commit to `main`. The **Deploy to GCP Cloud Run** workflow should appear in the [Actions tab](https://github.com/feegloo/mychatbot-com/actions) and complete successfully.
+Push a commit to `main`. The **Deploy to GCP Cloud Run** workflow should appear in the [Actions tab](https://github.com/feegloo/chatrag-com/actions) and complete successfully.
 
 > ⚠️ **Security note:** Service account keys are long-lived credentials. Store them only in GitHub Secrets, never commit them to source control. Rotate or delete the key if it is ever exposed. For production workloads, prefer the Workload Identity Federation approach (Steps 1–6 above).
 >

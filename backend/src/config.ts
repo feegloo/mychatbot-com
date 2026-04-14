@@ -10,7 +10,7 @@ function resolvePath(value: string) {
 export const config = {
   port: Number(process.env.PORT || 3000),
   publicBaseUrl: process.env.PUBLIC_BASE_URL || "http://localhost:3000",
-  databaseUrl: process.env.DATABASE_URL || "postgres://mychatbot:mychatbot@localhost:5432/mychatbot",
+  databaseUrl: process.env.DATABASE_URL || "postgres://chatrag:chatrag@localhost:5432/chatrag",
   storageProvider: process.env.STORAGE_PROVIDER || "disk",
   storageRoot: resolvePath(process.env.STORAGE_ROOT || "../storage"),
   pythonBin: process.env.PYTHON_BIN || "python3",

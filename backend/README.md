@@ -1,21 +1,21 @@
 apply migration.sql
 
 ```
-docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot < backend/sql/migration.sql
+docker exec -i chatrag-postgres psql -U chatrag -d chatrag < backend/sql/migration.sql
 ```
 
 recreate db:
 
 ```
-docker exec mychatbot-postgres dropdb -U mychatbot mychatbot && \
-docker exec mychatbot-postgres createdb -U mychatbot mychatbot && \
-docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot < backend/sql/schema.sql
+docker exec chatrag-postgres dropdb -U chatrag chatrag && \
+docker exec chatrag-postgres createdb -U chatrag chatrag && \
+docker exec -i chatrag-postgres psql -U chatrag -d chatrag < backend/sql/schema.sql
 ```
 
 reset chroma:
 
 ```
 docker compose down chroma
-docker volume rm mychatbot-com_chroma_data
+docker volume rm chatrag-com_chroma_data
 docker compose up -d chroma
 ```

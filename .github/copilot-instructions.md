@@ -1,7 +1,7 @@
-# Copilot Workspace Instructions for MyChatbot Hybrid RAG App
+# Copilot Workspace Instructions for ChatRAG Hybrid RAG App
 
 ## Purpose
-These instructions guide AI agents (like GitHub Copilot) to be productive and consistent in the MyChatbot Hybrid RAG App workspace. They summarize architecture, conventions, and key workflows, and link to detailed docs where needed.
+These instructions guide AI agents (like GitHub Copilot) to be productive and consistent in the ChatRAG Hybrid RAG App workspace. They summarize architecture, conventions, and key workflows, and link to detailed docs where needed.
 
 ---
 

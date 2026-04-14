@@ -1,6 +1,6 @@
 # Whole Solution Architecture
 
-This document describes the full hybrid architecture of **MyChatbot**.
+This document describes the full hybrid architecture of **ChatRAG**.
 
 ## Overview
 
@@ -185,7 +185,7 @@ embedding
 ## Deployment shape
 
 ```text
-mychatbot.com
+chatrag.app
    │
    ▼
 Frontend
@@ -201,10 +201,10 @@ Backend API
 ## Root URL behavior
 
 ```text
-https://mychatbot.com/
+https://chatrag.app/
     -> blank upload page
 
-https://mychatbot.com/c/<conversationId>
+https://chatrag.app/c/<conversationId>
     -> shareable conversation page
 ```
 

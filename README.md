@@ -1,4 +1,4 @@
-# MyChatbot Hybrid RAG App
+# ChatRAG Hybrid RAG App
 
 A production-oriented hybrid RAG application with:
 
@@ -125,15 +125,15 @@ Run the SQL in:
 - `backend/sql/schema.sql`
 
 ```
-cat /Users/{your_user_name}/Downloads/mychatbot-hybrid-app/backend/sql/schema.sql \
-  | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot
+cat /Users/{your_user_name}/Downloads/chatrag-hybrid-app/backend/sql/schema.sql \
+  | docker exec -i chatrag-postgres psql -U chatrag -d chatrag
 ```
 
 replace {your_user_name} with your user account name (like 'olek'):
 
 ```
-cat /Users/olek/Downloads/mychatbot-hybrid-app/backend/sql/schema.sql \
-  | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot
+cat /Users/olek/Downloads/chatrag-hybrid-app/backend/sql/schema.sql \
+  | docker exec -i chatrag-postgres psql -U chatrag -d chatrag
 ```
 
 ### 5. Start services
@@ -172,7 +172,7 @@ Recommended simple route:
 
 Cloud Run supports mapping a custom domain to a service after verifying the domain.
 
-## Domain example: mychatbot.com
+## Domain example: chatrag.app
 
 If you buy the domain on GoDaddy:
 1. deploy the app first and get its target hostname / service endpoint
@@ -181,9 +181,9 @@ If you buy the domain on GoDaddy:
 
 ## Root URL behavior
 
-- `https://mychatbot.com/` shows a blank upload page
+- `https://chatrag.app/` shows a blank upload page
 - once files are uploaded, the app redirects the user to:
-  - `https://mychatbot.com/c/<conversationId>`
+  - `https://chatrag.app/c/<conversationId>`
 
 That URL is shareable and reopens the same uploaded knowledge base.
 
@@ -200,5 +200,9 @@ Chroma collections are the main storage unit, and querying collections is the re
 get latest error logs from production:
 
 ```
-gcloud logging read   'severity>="ERROR"'   --project=chatbotqa-app   --limit=50   --freshness=1h   --format='value(timestamp, severity, textPayload)'
+# App errors (Cloud Run)
+gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'
+
+# PostgreSQL logs (Cloud SQL)
+gcloud logging read 'resource.type="cloudsql_database" AND resource.labels.database_id="chatbotqa-app:chatrag-db-instance" AND log_name="projects/chatbotqa-app/logs/cloudsql.googleapis.com%2Fpostgres.log"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'
 ```

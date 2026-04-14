@@ -8,7 +8,7 @@ This folder contains both approaches:
 
 Use this when you want notebook-first development and easy experimentation.
 
-Papermill parameterizes notebooks using a `parameters` cell and then executes them with injected values. citeturn966466search0turn966466search4
+Papermill parameterizes notebooks using a `parameters` cell and then executes them with injected values.
 
 ## Option B - normal scripts
 - `index_documents.py`
@@ -21,4 +21,4 @@ The code supports:
 - local persistent Chroma
 - HTTP Chroma mode
 
-Chroma collections are created per conversation. Querying the collection with a `where` filter scoped to the conversation is the retrieval step. citeturn966466search1turn966466search13turn966466search17
+Chroma collections are created per conversation. Querying the collection with a `where` filter scoped to the conversation is the retrieval step.

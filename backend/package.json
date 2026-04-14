@@ -1,5 +1,5 @@
 {
-  "name": "mychatbot-backend",
+  "name": "chatrag-backend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "docker:init": "cat sql/schema.sql | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot && cat sql/migration.sql | docker exec -i mychatbot-postgres psql -U mychatbot -d mychatbot"
+    "docker:init": "cat sql/schema.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag && cat sql/migration.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

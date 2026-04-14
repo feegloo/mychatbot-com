@@ -1,7 +1,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: mychatbot
+  name: chatrag
   annotations:
     run.googleapis.com/ingress: all
 spec:
@@ -15,7 +15,7 @@ spec:
       containerConcurrency: 80
       timeoutSeconds: 300
       containers:
-        - image: gcr.io/PROJECT_ID/mychatbot:latest
+        - image: gcr.io/PROJECT_ID/chatrag:latest
           ports:
             - containerPort: 8080
           resources:

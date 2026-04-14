@@ -1,10 +1,10 @@
 -- WARNING: This drops ALL data and recreates the database from scratch.
--- Usage: docker exec -i mychatbot-postgres psql -U mychatbot -d postgres -f /dev/stdin < backend/sql/recreate.sql
+-- Usage: docker exec -i chatrag-postgres psql -U chatrag -d postgres -f /dev/stdin < backend/sql/recreate.sql
 
-DROP DATABASE IF EXISTS mychatbot;
-CREATE DATABASE mychatbot OWNER mychatbot;
+DROP DATABASE IF EXISTS chatrag;
+CREATE DATABASE chatrag OWNER chatrag;
 
-\connect mychatbot
+\connect chatrag
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 

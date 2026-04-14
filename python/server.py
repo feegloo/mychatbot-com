@@ -24,7 +24,7 @@ from shared.metadata import enrich_metadata_web
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="MyChatbot RAG Server")
+app = FastAPI(title="ChatRAG Server")
 
 
 class AnswerRequest(BaseModel):

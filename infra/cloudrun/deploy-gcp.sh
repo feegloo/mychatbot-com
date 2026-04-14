@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# deploy-gcp.sh — Deploy MyChatbot to Google Cloud Run (macOS)
+# deploy-gcp.sh — Deploy ChatRAG to Google Cloud Run (macOS)
 #
 # Usage:
 #   chmod +x infra/cloudrun/deploy-gcp.sh
@@ -11,15 +11,15 @@ set -euo pipefail
 # ── Configuration (edit these) ───────────────────────────────────────────────
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="europe-west1"
-SERVICE_NAME="mychatbot"
+SERVICE_NAME="chatrag"
 IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
-DB_INSTANCE_NAME="chatrag-db"
+DB_INSTANCE_NAME="chatrag-db-instance"
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 16)}"
-DB_USER="mychatbot"
-DB_NAME="mychatbot"
+DB_USER="chatrag"
+DB_NAME="chatrag"
 
-GCS_BUCKET="${GCS_BUCKET:-mychatbot-storage-${PROJECT_ID}}"
+GCS_BUCKET="${GCS_BUCKET:-chatrag-storage-${PROJECT_ID}}"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)

@@ -7,8 +7,8 @@ on:
 
 env:
   REGION: europe-west1
-  SERVICE_NAME: mychatbot
-  IMAGE_NAME: mychatbot
+  SERVICE_NAME: chatrag
+  IMAGE_NAME: chatrag
 
 jobs:
   deploy:

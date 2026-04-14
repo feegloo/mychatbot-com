@@ -1,11 +1,11 @@
 services:
   postgres:
     image: postgres:16
-    container_name: mychatbot-postgres
+    container_name: chatrag-postgres
     environment:
-      POSTGRES_USER: mychatbot
-      POSTGRES_PASSWORD: mychatbot
-      POSTGRES_DB: mychatbot
+      POSTGRES_USER: chatrag
+      POSTGRES_PASSWORD: chatrag
+      POSTGRES_DB: chatrag
     ports:
       - "5432:5432"
     volumes:
@@ -13,7 +13,7 @@ services:
 
   chroma:
     image: chromadb/chroma:1.0.7
-    container_name: mychatbot-chroma
+    container_name: chatrag-chroma
     ports:
       - "8000:8000"
     volumes:
