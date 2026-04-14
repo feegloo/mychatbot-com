@@ -20,7 +20,7 @@
         <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" />
       </div>
     </template>
-    <p v-else style="white-space: pre-wrap">{{ msg.content }}</p>
+    <span v-else style="white-space: pre-wrap">{{ msg.content }}</span>
 
     <!-- File preview thumbnails for welcome message -->
     <div v-if="isWelcome && files?.length" class="welcome-file-previews">
