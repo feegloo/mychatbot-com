@@ -498,7 +498,6 @@ function openFilePreview(file: FileInfo) {
 
 <style scoped>
 .user-text {
-  display: block;
   white-space: pre-wrap;
   margin: 0;
 }

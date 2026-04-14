@@ -357,6 +357,7 @@ a:hover { color: #a5b4fc; }
 }
 
 .message strong {
+  display: block;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
