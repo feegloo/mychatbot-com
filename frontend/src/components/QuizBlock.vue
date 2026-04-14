@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, onMounted } from "vue";
+import { getData, setData } from "../utils/localData";
 
 export interface QuizQuestion {
   q: string;
@@ -73,16 +74,15 @@ function saveState() {
   for (const [qi, opts] of Object.entries(selections)) {
     data[Number(qi)] = [...opts];
   }
-  localStorage.setItem(key, JSON.stringify({ selections: data, submitted: { ...submitted } }));
+  setData(key, { selections: data, submitted: { ...submitted } });
 }
 
 function loadState() {
   const key = storageKey();
   if (!key) return;
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-    const state = JSON.parse(raw) as { selections: Record<number, number[]>; submitted: Record<number, boolean> };
+    const state = getData<{ selections: Record<number, number[]>; submitted: Record<number, boolean> }>(key);
+    if (!state) return;
     for (const [qi, opts] of Object.entries(state.selections ?? {})) {
       selections[Number(qi)] = new Set(opts);
     }

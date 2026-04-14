@@ -120,6 +120,7 @@ import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
 import QuizBlock from "./QuizBlock.vue";
 import type { QuizData } from "./QuizBlock.vue";
+import { getData, setData } from "../utils/localData";
 
 marked.setOptions({
   breaks: true,
@@ -379,16 +380,15 @@ function saveChecklistState() {
     });
   }
   if (states.length) {
-    localStorage.setItem(`checklist:${props.msg.id}`, JSON.stringify(states));
+    setData(`checklist:${props.msg.id}`, states);
   }
 }
 
 function restoreChecklistState() {
   if (!props.msg.id) return;
   try {
-    const raw = localStorage.getItem(`checklist:${props.msg.id}`);
-    if (!raw) return;
-    const states: boolean[] = JSON.parse(raw);
+    const states = getData<boolean[]>(`checklist:${props.msg.id}`);
+    if (!states) return;
     let idx = 0;
     for (const el of contentEls.value ?? []) {
       el.querySelectorAll('.checklist-box').forEach((box) => {
