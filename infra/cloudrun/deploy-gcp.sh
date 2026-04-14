@@ -103,7 +103,7 @@ if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &
     --tier=db-f1-micro \
     --region="$REGION" \
     --root-password="$DB_PASSWORD" \
-    --storage-size=5GB \
+    --storage-size=10GB \
     --storage-auto-increase \
     --assign-ip \
     --network=default
