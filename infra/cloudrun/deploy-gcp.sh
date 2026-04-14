@@ -96,13 +96,14 @@ info "  Private Service Connection ready"
 info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
 if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
   # Cheapest option: --tier=db-f1-micro (shared core, 0.6 GiB, ~$8/mo, no SLA)
+  # db-custom-2-3840
   gcloud sql instances create "$DB_INSTANCE_NAME" \
     --database-version=POSTGRES_16 \
     --edition=ENTERPRISE \
-    --tier=db-custom-2-3840 \
+    --tier=db-f1-micro \
     --region="$REGION" \
     --root-password="$DB_PASSWORD" \
-    --storage-size=10GB \
+    --storage-size=5GB \
     --storage-auto-increase \
     --assign-ip \
     --network=default
@@ -111,7 +112,7 @@ if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &
   # Enable automatic daily backups at 03:00 UTC, keep last 2
   gcloud sql instances patch "$DB_INSTANCE_NAME" \
     --backup-start-time="03:00" \
-    --retained-backups-count=2 \
+    --retained-backups-count=1 \
     --quiet
   info "  Enabled automatic backups"
 else

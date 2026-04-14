@@ -2,7 +2,17 @@
   <div class="debug-page">
     <h1>Database Debug</h1>
 
-    <div v-if="loading" class="loading">Loading…</div>
+    <div v-if="!authenticated" class="login-box">
+      <h2>Login required</h2>
+      <form @submit.prevent="doLogin">
+        <input v-model="username" type="text" placeholder="Username" autocomplete="username" />
+        <input v-model="password" type="password" placeholder="Password" autocomplete="current-password" />
+        <button type="submit" :disabled="loginLoading">{{ loginLoading ? 'Logging in…' : 'Login' }}</button>
+      </form>
+      <p v-if="loginError" class="error">{{ loginError }}</p>
+    </div>
+
+    <div v-else-if="loading" class="loading">Loading…</div>
     <div v-else-if="error" class="error">{{ error }}</div>
 
     <template v-else>
@@ -53,10 +63,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
+import { ref, computed } from "vue";
 import { getDebugTables } from "../api";
 
 type Tables = Awaited<ReturnType<typeof getDebugTables>>;
+
+const authenticated = ref(false);
+const username = ref("");
+const password = ref("");
+const loginLoading = ref(false);
+const loginError = ref("");
 
 const loading = ref(true);
 const error = ref("");
@@ -84,15 +100,23 @@ function formatCell(value: unknown): string {
   return s.length > 120 ? s.slice(0, 120) + "…" : s;
 }
 
-onMounted(async () => {
+async function doLogin() {
+  loginLoading.value = true;
+  loginError.value = "";
   try {
-    data.value = await getDebugTables();
-  } catch (e: any) {
-    error.value = e?.message || "Failed to load";
-  } finally {
+    data.value = await getDebugTables(username.value, password.value);
+    authenticated.value = true;
     loading.value = false;
+  } catch (e: any) {
+    if (e?.response?.status === 401) {
+      loginError.value = "Invalid credentials";
+    } else {
+      loginError.value = e?.message || "Failed to load";
+    }
+  } finally {
+    loginLoading.value = false;
   }
-});
+}
 </script>
 
 <style scoped>
@@ -142,6 +166,45 @@ h1 {
 .table-tabs .count {
   opacity: 0.6;
   font-size: 0.8em;
+}
+.login-box {
+  max-width: 320px;
+  margin: 80px auto;
+  padding: 24px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+}
+.login-box h2 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: #94a3b8;
+}
+.login-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.login-box input {
+  padding: 8px 12px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+.login-box button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #818cf8;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.login-box button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .view-toggle {
   display: flex;

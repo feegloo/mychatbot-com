@@ -183,8 +183,10 @@ export async function getSharedMessage(messageId: string) {
   return response.data as SharedMessage;
 }
 
-export async function getDebugTables() {
-  const response = await api.get("/debug/tables");
+export async function getDebugTables(username: string, password: string) {
+  const response = await api.get("/debug/tables", {
+    auth: { username, password },
+  });
   return response.data as {
     conversations: Record<string, unknown>[];
     conversation_messages: Record<string, unknown>[];
