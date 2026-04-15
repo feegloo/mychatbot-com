@@ -18,12 +18,12 @@
             'selected': selections[qi]?.has(oi),
             'correct': submitted[qi] && q.correct.includes(oi),
             'wrong': submitted[qi] && selections[qi]?.has(oi) && !q.correct.includes(oi),
+            'submitted': submitted[qi],
           }"
         >
           <input
             type="checkbox"
             :checked="selections[qi]?.has(oi)"
-            :disabled="submitted[qi]"
             class="quiz-checkbox"
             @change="toggleOption(qi, oi)"
           />
@@ -93,16 +93,22 @@ function loadState() {
 onMounted(loadState);
 
 function toggleOption(qi: number, oi: number) {
-  if (submitted[qi]) return;
   if (!selections[qi]) selections[qi] = new Set();
   if (selections[qi].has(oi)) {
     selections[qi].delete(oi);
   } else {
+    // If already submitted, reset first (clear previous selection)
+    if (submitted[qi]) {
+      selections[qi].clear();
+      submitted[qi] = false;
+    }
     selections[qi].add(oi);
   }
-  // Auto-submit once at least one option is selected
+  // Auto-submit once at least one option is selected, reset if none
   if (selections[qi].size) {
     submitted[qi] = true;
+  } else {
+    submitted[qi] = false;
   }
   saveState();
 }
@@ -203,12 +209,18 @@ const correctCount = computed(() =>
   background: rgba(34, 197, 94, 0.12);
   border-color: rgba(34, 197, 94, 0.4);
   color: #86efac;
+  cursor: pointer;
 }
 
 .quiz-option.wrong {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
+  cursor: pointer;
+}
+
+.quiz-option.submitted:not(.correct):not(.wrong) {
+  cursor: pointer;
 }
 
 .quiz-option input[type="checkbox"].quiz-checkbox {

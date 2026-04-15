@@ -155,6 +155,7 @@ async function submit() {
   color: #7c3aed;
   margin-bottom: 8px;
   opacity: 0.7;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .upload-dropzone p {

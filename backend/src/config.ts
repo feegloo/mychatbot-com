@@ -27,6 +27,7 @@ export const config = {
   openAiChatModel: process.env.OPENAI_CHAT_MODEL || "gpt-5.4-mini",
   openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
   pythonServerUrl: process.env.PYTHON_SERVER_URL || "http://localhost:8321",  gcsBucket: process.env.GCS_BUCKET || "",
-  // add this
-  logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs")
+  logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs"),
+  debugUser: process.env.DEBUG_USER || "admin",
+  debugPass: process.env.DEBUG_PASS || "admin",
 };

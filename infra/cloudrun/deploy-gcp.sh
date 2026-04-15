@@ -8,6 +8,15 @@
 #
 set -euo pipefail
 
+# ── Load .env.gcp if present ─────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env.gcp"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 # ── Configuration (edit these) ───────────────────────────────────────────────
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="europe-west1"
@@ -195,7 +204,9 @@ GCS_BUCKET=${GCS_BUCKET},
 FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
 PYTHON_PROJECT_ROOT=/app/python,\
-PYTHON_SERVER_URL=http://localhost:8321"
+PYTHON_SERVER_URL=http://localhost:8321,\
+DEBUG_USER=${DEBUG_USER:-admin},\
+DEBUG_PASS=${DEBUG_PASS:-admin}"
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
 info "Step 9/9: Getting service URL..."

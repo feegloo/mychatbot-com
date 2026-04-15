@@ -3,14 +3,48 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
+import { generateShortId } from "../utils/id.js";
 import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
 import { deriveToken } from "../security.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 export const conversationsRouter = new Router();
+
+// POST /conversations — create an empty conversation (no files required)
+conversationsRouter.post("/conversations", async (ctx) => {
+  const conversationId = generateShortId();
+  const salt = uuidv4();
+  const ownerPassword = deriveToken(conversationId, salt);
+  const namespace = conversationId;
+  const collectionName = `conversation_${conversationId}`;
+
+  await insertConversation({
+    id: conversationId,
+    salt,
+    display_name: null,
+    status: "ready",
+    storage_namespace: namespace,
+    vector_collection_name: collectionName,
+    indexing_mode: config.pythonIndexingMode,
+    error_message: null,
+  });
+
+  await insertAccessToken({
+    token: ownerPassword,
+    conversation_id: conversationId,
+    role: "owner",
+  });
+
+  ctx.body = {
+    conversationId,
+    status: "ready",
+    url: `/c/${conversationId}`,
+    ownerPassword,
+  };
+});
 
 conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
   const conversationId = ctx.params.conversationId;

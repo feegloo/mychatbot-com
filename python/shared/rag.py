@@ -207,25 +207,37 @@ def _handle_exif(
         # Build camera string from make/model
         camera_parts = [meta.get("camera_make", ""), meta.get("camera_model", "")]
         camera = " ".join(p for p in camera_parts if p).strip() or None
+        # File size in MB
+        raw_size = meta.get("file_size_bytes")
+        file_size_mb = f"{raw_size / (1024 * 1024):.2f} MB" if raw_size else None
+        # Dimensions with labels
+        dims = None
+        if meta.get("image_width") and meta.get("image_height"):
+            dims = f"{meta.get('image_width')} (width) x {meta.get('image_height')} (height)"
         # Core EXIF fields
         fields = [
             ("Camera", camera),
             ("Date taken", meta.get("date_taken")),
-            ("Dimensions", f"{meta.get('image_width')}x{meta.get('image_height')}" if meta.get("image_width") else None),
-            ("File size", meta.get("file_size_bytes")),
+            ("Dimensions", dims),
+            ("File size", file_size_mb),
+            ("Format", meta.get("image_format")),
+            ("Color mode", meta.get("image_mode")),
             ("ISO", meta.get("iso")),
             ("Exposure", meta.get("exposure_time")),
             ("F-number", meta.get("f_number")),
             ("Focal length", meta.get("focal_length")),
             ("Lens", meta.get("lens_model")),
             ("Software", meta.get("software")),
+            ("Copyright", meta.get("copyright")),
+            ("Artist", meta.get("artist")),
+            ("Description", meta.get("description")),
             ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
         ]
         has_exif = False
         for label, value in fields:
             if value:
                 has_exif = True
-                parts.append(f"- **{label}**: {value}")
+                parts.append(f"- **{label}** {value}")
         if not has_exif:
             parts.append("- No EXIF metadata found in this image.")
 

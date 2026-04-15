@@ -1,9 +1,7 @@
 import Router from "@koa/router";
 import { timingSafeEqual } from "node:crypto";
 import { query } from "../db.js";
-
-const DEBUG_USER = "admin";
-const DEBUG_PASS = "admin";
+import { config } from "../config.js";
 
 function safeEq(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -18,15 +16,15 @@ debugRouter.get("/debug/tables", async (ctx) => {
   const auth = ctx.headers.authorization;
   if (!auth || !auth.startsWith("Basic ")) {
     ctx.status = 401;
-    ctx.set("WWW-Authenticate", 'Basic realm="Debug"');
     ctx.body = { error: "Authentication required" };
     return;
   }
   const decoded = Buffer.from(auth.slice(6), "base64").toString();
-  const [user, pass] = decoded.split(":");
-  if (!safeEq(user || "", DEBUG_USER) || !safeEq(pass || "", DEBUG_PASS)) {
+  const idx = decoded.indexOf(":");
+  const user = idx < 0 ? decoded : decoded.slice(0, idx);
+  const pass = idx < 0 ? "" : decoded.slice(idx + 1);
+  if (!safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
     ctx.status = 401;
-    ctx.set("WWW-Authenticate", 'Basic realm="Debug"');
     ctx.body = { error: "Invalid credentials" };
     return;
   }

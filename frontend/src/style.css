@@ -148,6 +148,19 @@ a:hover { color: #a5b4fc; }
   margin: 24px 0;
 }
 
+.conv-nav-contact {
+  margin-top: auto;
+  color: #64748b;
+  font-size: 13px;
+  text-decoration: none;
+  padding: 8px 4px;
+  transition: color 0.15s;
+}
+
+.conv-nav-contact:hover {
+  color: #e2e8f0;
+}
+
 .page {
   max-width: 1200px;
   margin: 0 auto;
@@ -211,8 +224,21 @@ a:hover { color: #a5b4fc; }
   padding: 36px;
   text-align: center;
   background: rgba(167, 139, 250, 0.04);
-  transition: 0.2s ease;
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
   color: #94a3b8;
+  cursor: pointer;
+}
+
+.dropzone:hover {
+  border-color: rgba(167, 139, 250, 0.6);
+  background: rgba(167, 139, 250, 0.08);
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.12);
+  transform: scale(1.005);
+}
+
+.dropzone:hover .dropzone-icon {
+  opacity: 1;
+  transform: translateY(-1px);
 }
 
 .dropzone p { margin: 6px 0; }

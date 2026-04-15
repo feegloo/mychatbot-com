@@ -22,6 +22,8 @@
         No conversations yet
       </p>
     </div>
+
+    <a href="mailto:hello@chatrag.app" class="conv-nav-contact">Contact</a>
   </nav>
 </template>
 
