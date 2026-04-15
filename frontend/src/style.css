@@ -840,6 +840,27 @@ textarea.big-input {
   }
 }
 
+.conv-title-input-wrap {
+  display: inline-grid;
+  align-items: center;
+  max-width: 100%;
+}
+
+.conv-title-input-wrap::after,
+.conv-title-input,
+.conv-title-measure {
+  grid-area: 1 / 1;
+}
+
+.conv-title-measure {
+  visibility: hidden;
+  white-space: pre;
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  font-family: inherit;
+}
+
 .conv-title-input {
   font-size: 1.05rem;
   font-weight: 600;
@@ -851,6 +872,7 @@ textarea.big-input {
   color: #f1f5f9;
   outline: none;
   width: 100%;
+  min-width: 60px;
   font-family: inherit;
 }
 

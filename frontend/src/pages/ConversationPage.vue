@@ -36,6 +36,8 @@
             :canUpload="canUpload"
             :files="uploadFilesForMessage(index)"
             :suggestedQuestions="suggestedQuestionsForMessage(index)"
+            :conversationName="conversationTitle"
+            :fileName="primaryFileName"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
           />
@@ -160,6 +162,11 @@ const conversationTitle = computed(() => {
   if (status.value.files.length) {
     return status.value.files.map(f => cleanFileName(f.originalName)).join(", ");
   }
+  return "";
+});
+
+const primaryFileName = computed(() => {
+  if (status.value.files.length) return status.value.files[0].originalName;
   return "";
 });
 

@@ -2,6 +2,15 @@
   <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
     <AppButton
+      v-if="hasRichContent"
+      class="share-msg-btn pdf-msg-btn"
+      title="Download PDF"
+      @click="downloadMessagePdf"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      PDF
+    </AppButton>
+    <AppButton
       v-if="msg.role === 'assistant' && msg.id && msg.content"
       class="share-msg-btn"
       :title="shareCopied ? 'Copied!' : 'Share this answer'"
@@ -14,46 +23,76 @@
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
+
+    <!-- Welcome message with file preview: 2-column layout -->
+    <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
+      <div class="welcome-left-col">
+        <div ref="messageContentEl" class="message-content-wrap">
+          <div v-for="(part, pi) in contentParts" :key="pi">
+            <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
+            <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
+            <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+          </div>
+        </div>
+
+        <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
+          <AppButton v-for="q in suggestedQuestions" :key="q" class="question-pill" @click="$emit('select-question', q)">
+            {{ q }}
+          </AppButton>
+        </div>
+
+        <div v-if="isFirstMessage && canUpload" class="welcome-upload-row">
+          <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
+          <AppButton class="upload-inline-btn" @click="uploadInput?.click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload more files
+          </AppButton>
+          <template v-if="selectedUploadFiles.length">
+            <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
+            <span v-if="uploadingFiles" class="upload-file-status">Uploading…</span>
+          </template>
+          <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
+        </div>
+      </div>
+
+      <div class="welcome-right-col" @click="openFilePreview(files![0])">
+        <div v-if="isImageFile(files![0])" class="welcome-preview-large">
+          <img :src="getFileUrl(files![0])" :alt="files![0].originalName" loading="lazy" />
+        </div>
+        <div v-else-if="isPdfFile(files![0])" class="welcome-preview-large pdf-preview-large">
+          <object
+            :data="getFileUrl(files![0]) + '#page=1&view=FitH'"
+            type="application/pdf"
+            class="pdf-large-object"
+          >
+            <div class="pdf-fallback-icon-large">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span class="pdf-fallback-label">{{ files![0].originalName }}</span>
+            </div>
+          </object>
+        </div>
+        <div v-else class="welcome-preview-large text-preview-large">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span class="text-fallback-label">{{ files![0].originalName }}</span>
+        </div>
+        <span class="welcome-preview-name">{{ files![0].originalName }}</span>
+      </div>
+    </div>
+
+    <!-- Regular assistant content -->
     <template v-else-if="msg.role === 'assistant'">
+      <div ref="messageContentEl" class="message-content-wrap">
       <div v-for="(part, pi) in contentParts" :key="pi">
         <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
-        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" />
+        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
         <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+      </div>
       </div>
     </template>
     <span v-else class="user-text">{{ msg.content }}</span>
 
-    <!-- File preview thumbnails for welcome message -->
-    <div v-if="isWelcome && files?.length" class="welcome-file-previews">
-      <div
-        v-for="file in files"
-        :key="file.id"
-        class="file-preview-card"
-        @click="openFilePreview(file)"
-      >
-        <div v-if="isImageFile(file)" class="file-preview-thumb">
-          <img :src="getFileUrl(file)" :alt="file.originalName" loading="lazy" />
-        </div>
-        <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
-          <object
-            :data="getFileUrl(file) + '#page=1&view=FitH'"
-            type="application/pdf"
-            class="pdf-mini-object"
-          >
-            <div class="pdf-fallback-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-          </object>
-        </div>
-        <div v-else class="file-preview-thumb text-thumb">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        </div>
-        <span class="file-preview-name">{{ file.originalName }}</span>
-      </div>
-    </div>
-
-    <!-- Inline suggested questions for welcome message -->
-    <div v-if="isWelcome && suggestedQuestions?.length" class="welcome-suggested-questions">
+    <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
+    <div v-if="isWelcome && !welcomeHasFiles && suggestedQuestions?.length" class="welcome-suggested-questions">
       <AppButton
         v-for="q in suggestedQuestions"
         :key="q"
@@ -64,8 +103,8 @@
       </AppButton>
     </div>
 
-    <!-- Upload files button (first message only) -->
-    <div v-if="isFirstMessage && canUpload" class="welcome-upload-row">
+    <!-- Upload files button (first message only, non-2-col fallback) -->
+    <div v-if="isFirstMessage && canUpload && !welcomeHasFiles" class="welcome-upload-row">
       <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
       <AppButton class="upload-inline-btn" @click="uploadInput?.click()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -124,6 +163,7 @@ import QuizBlock from "./QuizBlock.vue";
 import MermaidBlock from "./MermaidBlock.vue";
 import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
+import { printContentAsPdf } from "../utils/printPdf";
 
 marked.setOptions({
   breaks: true,
@@ -188,6 +228,8 @@ const props = defineProps<{
   canUpload?: boolean;
   files?: ConversationStatus["files"];
   suggestedQuestions?: string[];
+  conversationName?: string;
+  fileName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -200,6 +242,8 @@ const uploadInput = ref<HTMLInputElement | null>(null);
 const selectedUploadFiles = ref<File[]>([]);
 const uploadingFiles = ref(false);
 const uploadError = ref("");
+
+const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0);
 
 
 
@@ -241,6 +285,31 @@ function setUploading(val: boolean) {
 defineExpose({ resetUploadState, setUploading });
 
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
+
+const messageContentEl = ref<HTMLElement | null>(null);
+
+/** Detect if this message has rich/custom rendered content worth downloading as PDF */
+const hasRichContent = computed(() => {
+  if (props.msg.role !== "assistant" || !props.msg.content) return false;
+  const parts = contentParts.value;
+  // Has quiz or mermaid blocks
+  if (parts.some((p) => p.type === "quiz" || p.type === "mermaid")) return true;
+  // Has tables or checklists in rendered HTML
+  for (const p of parts) {
+    if (p.type === "text") {
+      if (/<table[\s>]/i.test(p.html)) return true;
+      if (/checklist-box/i.test(p.html)) return true;
+    }
+  }
+  return false;
+});
+
+function downloadMessagePdf() {
+  if (!messageContentEl.value) return;
+  const html = messageContentEl.value.innerHTML;
+  const title = props.conversationName || "chatrag";
+  printContentAsPdf(html, title);
+}
 
 type ContentPart =
   | { type: 'text'; html: string }
@@ -602,6 +671,10 @@ function openFilePreview(file: FileInfo) {
   opacity: 1;
 }
 
+.pdf-msg-btn {
+  right: 80px;
+}
+
 /* Inline source buttons */
 :deep(.inline-source-btn) {
   display: inline-flex;
@@ -698,82 +771,108 @@ function openFilePreview(file: FileInfo) {
   object-fit: contain;
 }
 
-/* Welcome message file previews */
-.welcome-file-previews {
+/* Welcome 2-column layout */
+.welcome-two-col {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px 0 4px;
+  gap: 20px;
+  min-height: 160px;
 }
 
-.file-preview-card {
+.welcome-left-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-right-col {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
   cursor: pointer;
-  border-radius: 10px;
-  overflow: hidden;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
-  transition: border-color 0.15s, transform 0.15s, background 0.15s;
-  width: 120px;
-  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 @media (hover: hover) {
-  .file-preview-card:hover {
+  .welcome-right-col:hover {
     border-color: #a78bfa;
     background: rgba(167, 139, 250, 0.08);
-    transform: scale(1.03);
   }
 }
 
-.file-preview-thumb {
-  width: 120px;
-  height: 90px;
+.welcome-preview-large {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
+  border-radius: 8px;
   background: #0f172a;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.file-preview-thumb img {
-  display: block;
+.welcome-preview-large img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 8px;
 }
 
-.file-preview-thumb.pdf-thumb {
+.welcome-preview-large.pdf-preview-large {
   position: relative;
 }
 
-.pdf-mini-object {
-  width: 120px;
-  height: 90px;
+.pdf-large-object {
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   overflow: hidden;
+  border-radius: 8px;
 }
 
-.pdf-fallback-icon {
+.pdf-fallback-icon-large {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   width: 100%;
   height: 100%;
   color: #64748b;
 }
 
-.file-preview-thumb.text-thumb {
+.pdf-fallback-label,
+.text-fallback-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.welcome-preview-large.text-preview-large {
+  flex-direction: column;
+  gap: 8px;
   color: #64748b;
 }
 
-.file-preview-name {
+.welcome-preview-name {
   display: block;
-  padding: 6px 8px;
+  padding-top: 8px;
   font-size: 11px;
   color: #94a3b8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 180px;
+  text-align: center;
 }
 
 /* Welcome suggested questions (inline) */

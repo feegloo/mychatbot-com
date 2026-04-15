@@ -9,15 +9,17 @@
         :style="canUpload ? 'cursor: pointer' : ''"
         @click="canUpload && startRename()"
       >{{ conversationTitle }}</h1>
-      <input
-        v-if="editingName"
-        ref="nameInput"
-        class="conv-title-input"
-        v-model="editNameValue"
-        @keydown.enter="saveRename"
-        @keydown.escape="editingName = false"
-        @blur="saveRename"
-      />
+      <div v-if="editingName" class="conv-title-input-wrap">
+        <span ref="nameMeasure" class="conv-title-measure">{{ editNameValue || ' ' }}</span>
+        <input
+          ref="nameInput"
+          class="conv-title-input"
+          v-model="editNameValue"
+          @keydown.enter="saveRename"
+          @keydown.escape="editingName = false"
+          @blur="saveRename"
+        />
+      </div>
       </div>
       <div class="header-badges" style="display: flex; gap: 8px">
         <div v-if="status.role === 'editor'" class="status-badge">role: {{ status.role }}</div>
@@ -53,6 +55,7 @@ const emit = defineEmits<{
 const editingName = ref(false);
 const editNameValue = ref("");
 const nameInput = ref<HTMLInputElement | null>(null);
+const nameMeasure = ref<HTMLSpanElement | null>(null);
 const copied = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const selectedFiles = ref<File[]>([]);

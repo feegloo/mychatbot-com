@@ -9,44 +9,20 @@
       <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
         <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">&times;</button>
 
-        <!-- "Open PDF" button on mobile when viewing single-page pdfjs render -->
+        <!-- "Open PDF" button on mobile -->
         <button
-          v-if="isPdf && isMobile && usePdfJs"
+          v-if="isPdf && isMobile"
           class="source-modal-open-pdf"
           @click="openFullPdf"
         >Open PDF</button>
 
-        <!-- PDF preview (desktop: inline iframe) -->
-        <div v-if="isPdf && !isMobile" class="source-modal-pdf">
-          <iframe
-            :src="pdfUrl"
-            class="source-modal-iframe"
-          ></iframe>
-        </div>
-
-        <!-- Mobile: pdfjs single-page render for page > 1 -->
-        <MobilePdfViewer
-          v-if="isPdf && isMobile && usePdfJs"
+        <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
+        <PdfPageViewer
+          v-if="isPdf"
           :url="pdfBaseUrl"
           :page="citation.page ?? 1"
+          :highlightText="citation.text"
         />
-
-        <!-- Mobile: old object/iframe for page 1 or no page -->
-        <div v-if="isPdf && isMobile && !usePdfJs" class="source-modal-mobile-pdf">
-          <object
-            :data="pdfBaseUrl + '#navpanes=0'"
-            type="application/pdf"
-            class="source-modal-mobile-object"
-          >
-            <iframe :src="pdfBaseUrl + '#navpanes=0'" class="source-modal-mobile-object"></iframe>
-          </object>
-        </div>
-
-        <!-- Source text quote at bottom on blue background (PDF only) -->
-        <div v-if="isPdf && citation.text" class="source-modal-source-strip">
-          <div class="source-modal-source-label">Source text<span v-if="citation.page">: Page {{ citation.page }}</span></div>
-          <div class="source-modal-source-text" v-html="linkify(citation.text)" />
-        </div>
 
         <!-- Source text quote (non-PDF only) -->
         <div v-if="!isPdf" class="source-modal-quote">
@@ -62,7 +38,7 @@
 import { computed } from "vue";
 import { getStorageUrl } from "../api";
 import { cleanFileName, linkify } from "../utils/text";
-import MobilePdfViewer from "./MobilePdfViewer.vue";
+import PdfPageViewer from "./PdfPageViewer.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -95,23 +71,8 @@ const pdfBaseUrl = computed(() =>
   getStorageUrl(props.conversationId, props.citation.fileName)
 );
 
-const usePdfJs = computed(() =>
-  isMobile.value && !!props.citation.page && props.citation.page > 1
-);
-
-const pdfUrl = computed(() => {
-  const fragment = props.citation.page
-    ? `#page=${props.citation.page}&navpanes=0`
-    : "#navpanes=0";
-  return `${pdfBaseUrl.value}${fragment}`;
-});
-
 function openFullPdf() {
   window.open(pdfBaseUrl.value, "_blank", "noopener");
-}
-
-function openPdfInNewTab() {
-  window.open(pdfUrl.value, "_blank", "noopener");
 }
 </script>
 
@@ -204,13 +165,6 @@ function openPdfInNewTab() {
   min-height: 0;
 }
 
-.source-modal-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
-
 .source-modal-open-pdf {
   position: absolute;
   top: 10px;
@@ -223,40 +177,6 @@ function openPdfInNewTab() {
   color: #e2e8f0;
   font-size: 13px;
   cursor: pointer;
-}
-
-.source-modal-source-strip {
-  padding: 10px 16px 11px;
-  background: #4a6fa5;
-  max-height: 112px;
-  overflow-y: auto;
-}
-
-/* Mobile: full-height inline PDF (old approach for page 1) */
-.source-modal-mobile-pdf {
-  flex: 1;
-  min-height: 0;
-}
-
-.source-modal-mobile-object {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
-
-.source-modal-source-label {
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 5px;
-}
-
-.source-modal-source-text {
-  font-size: 12px;
-  color: #fff;
-  white-space: pre-wrap;
-  line-height: 1.45;
 }
 
 .source-modal-quote {
@@ -309,10 +229,6 @@ function openPdfInNewTab() {
     width: 92vw;
     margin: auto;
     border-radius: 12px;
-  }
-
-  .source-modal-source-strip {
-    max-height: 128px;
   }
 }
 </style>

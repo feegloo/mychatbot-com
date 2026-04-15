@@ -5,6 +5,12 @@
         <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
       </svg>
       <span class="quiz-title">{{ quiz.title }}</span>
+      <button class="quiz-download-btn" title="Download PDF" @click="downloadPdf">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        PDF
+      </button>
     </div>
 
     <div v-for="(q, qi) in quiz.questions" :key="qi" class="quiz-question">
@@ -28,7 +34,7 @@
             @change="toggleOption(qi, oi)"
           />
           <span class="quiz-checkbox-custom"></span>
-          <span class="quiz-option-text">{{ opt }}</span>
+          <span class="quiz-option-text"><span class="quiz-variant-label">{{ variantLetter(oi) }}.</span> {{ opt }}</span>
         </label>
       </div>
       <div v-if="submitted[qi] && q.explanation" class="quiz-explanation">
@@ -45,6 +51,7 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted } from "vue";
 import { getData, setData } from "../utils/localData";
+import jsPDF from "jspdf";
 
 export interface QuizQuestion {
   q: string;
@@ -58,7 +65,17 @@ export interface QuizData {
   questions: QuizQuestion[];
 }
 
-const props = defineProps<{ quiz: QuizData; messageId?: string; quizIndex?: number }>();
+const props = defineProps<{
+  quiz: QuizData;
+  messageId?: string;
+  quizIndex?: number;
+  conversationName?: string;
+  fileName?: string;
+}>();
+
+function variantLetter(index: number): string {
+  return String.fromCharCode(65 + index); // A, B, C, D, ...
+}
 
 const selections = reactive<Record<number, Set<number>>>({});
 const submitted = reactive<Record<number, boolean>>({});
@@ -127,6 +144,98 @@ const allSubmitted = computed(() =>
 const correctCount = computed(() =>
   props.quiz.questions.filter((_, i) => isCorrect(i)).length
 );
+
+function downloadPdf() {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginLeft = 20;
+  const marginRight = 20;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  let y = 20;
+
+  const checkNewPage = (needed: number) => {
+    if (y + needed > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+  };
+
+  // Title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(0, 0, 0);
+  doc.text(props.quiz.title, marginLeft, y);
+  y += 12;
+
+  // Thin separator
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.line(marginLeft, y, pageWidth - marginRight, y);
+  y += 8;
+
+  // Name line
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text("Name: ___________________________________    Date: _______________", marginLeft, y);
+  y += 12;
+
+  // Questions
+  for (let qi = 0; qi < props.quiz.questions.length; qi++) {
+    const q = props.quiz.questions[qi];
+
+    // Estimate space needed for question header + at least one option
+    checkNewPage(30);
+
+    // Question text
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    const questionText = `${qi + 1}. ${q.q}`;
+    const questionLines = doc.splitTextToSize(questionText, contentWidth);
+    doc.text(questionLines, marginLeft, y);
+    y += questionLines.length * 5.5 + 3;
+
+    // Options
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    for (let oi = 0; oi < q.options.length; oi++) {
+      const letter = variantLetter(oi);
+      const optText = `${letter}. ${q.options[oi]}`;
+      const optLines = doc.splitTextToSize(optText, contentWidth - 12);
+
+      checkNewPage(optLines.length * 5 + 4);
+
+      // Empty checkbox
+      const boxX = marginLeft + 2;
+      const boxY = y - 3.2;
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.4);
+      doc.rect(boxX, boxY, 3.5, 3.5);
+
+      // Option text
+      doc.text(optLines, marginLeft + 9, y);
+      y += optLines.length * 5 + 2;
+    }
+
+    y += 5; // Space between questions
+  }
+
+  // Build filename
+  const nameParts: string[] = ["quiz"];
+  if (props.fileName) {
+    nameParts.push(props.fileName.replace(/\.[^.]+$/, ""));
+  }
+  if (props.conversationName) {
+    nameParts.push(props.conversationName);
+  }
+  const safeName = nameParts
+    .join("-")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 100);
+
+  doc.save(`${safeName}.pdf`);
+}
 </script>
 
 <style scoped>
@@ -150,6 +259,35 @@ const correctCount = computed(() =>
 
 .quiz-title {
   flex: 1;
+}
+
+.quiz-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #c4b5fd;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .quiz-download-btn:hover {
+    background: rgba(124, 58, 237, 0.18);
+    border-color: rgba(124, 58, 237, 0.4);
+  }
+}
+
+.quiz-variant-label {
+  font-weight: 600;
+  margin-right: 2px;
+  color: #a78bfa;
 }
 
 .quiz-question {
