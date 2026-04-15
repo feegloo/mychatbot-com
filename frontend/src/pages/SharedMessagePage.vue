@@ -52,6 +52,7 @@ watch(() => props.messageId, load);
   max-width: 800px;
   justify-content: flex-start;
   gap: 16px;
+  overflow-y: auto;
 }
 
 .shared-header {

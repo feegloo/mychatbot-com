@@ -127,10 +127,6 @@ export function printContentAsPdf(html: string, title: string) {
     });
   });
 
-  // Wait for content to render, then trigger print
-  printWindow.onload = () => printWindow.print();
-  // Fallback if onload already fired
-  setTimeout(() => printWindow.print(), 500);
 }
 
 function escapeHtml(str: string): string {

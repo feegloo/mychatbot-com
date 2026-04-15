@@ -705,6 +705,7 @@ function openFilePreview(file: FileInfo) {
 
 .pdf-msg-btn {
   right: 80px;
+  padding-right: 5px;
 }
 
 /* Inline source buttons */
@@ -918,6 +919,7 @@ function openFilePreview(file: FileInfo) {
 .welcome-preview-large {
   flex: 1;
   min-height: 0;
+  max-height: 360px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: 8px;
@@ -986,8 +988,8 @@ function openFilePreview(file: FileInfo) {
   text-align: center;
 }
 
-/* Responsive: mobile = small thumbs, desktop = large right preview */
-@media (max-width: 768px) {
+/* Responsive: mobile/tablet = small thumbs, wide desktop = large right preview */
+@media (max-width: 1024px) {
   .welcome-two-col {
     display: block;
   }
@@ -999,7 +1001,7 @@ function openFilePreview(file: FileInfo) {
   }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .welcome-file-previews-mobile {
     display: none;
   }
