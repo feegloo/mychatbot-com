@@ -56,6 +56,7 @@
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </div>
               </object>
+              <div class="pdf-click-overlay"></div>
             </div>
             <div v-else class="file-preview-thumb text-thumb">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -101,6 +102,7 @@
               <span class="pdf-fallback-label">{{ files![0].originalName }}</span>
             </div>
           </object>
+          <div class="pdf-click-overlay"></div>
         </div>
         <div v-else class="welcome-preview-large text-preview-large">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -269,7 +271,7 @@ function renderMarkdown(content: string): string {
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai';
   const bareDomain = new RegExp(
-    `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"']*)?`,
+    `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"'\u201C\u201D\u2018\u2019\u00AB\u00BB.,;:!?)\\]]*)?`,
     'gi'
   );
   let insideA = 0;
@@ -989,6 +991,17 @@ function openFilePreview(file: FileInfo) {
 
 .welcome-preview-large.pdf-preview-large {
   position: relative;
+}
+
+.pdf-thumb {
+  position: relative;
+}
+
+.pdf-click-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: pointer;
 }
 
 .pdf-large-object {
