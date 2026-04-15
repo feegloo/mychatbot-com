@@ -64,6 +64,11 @@ ENV STORAGE_ROOT=/app/storage
 ENV LOGS_ROOT=/app/logs
 ENV CHROMA_PERSIST_DIR=/app/data/chroma
 
+# Gemma 4 (local Ollama) — disabled by default, enable with USE_GEMMA=true
+ENV USE_GEMMA=false
+ENV GEMMA_MODEL=gemma4:e2b
+ENV GEMMA_BASE_URL=http://localhost:11434
+
 EXPOSE 8080
 
 WORKDIR /app/backend

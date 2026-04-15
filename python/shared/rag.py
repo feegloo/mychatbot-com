@@ -111,11 +111,31 @@ def build_context(rows: list[dict]) -> str:
 def get_llm() -> Any:
     """Get LLM instance based on configured provider (cached).
     
-    Raises ValueError if required API key is missing.
+    When USE_GEMMA=true, uses local Ollama Gemma 4 model.
+    Otherwise falls back to OpenAI / Anthropic cloud models.
+    Raises ValueError if required API key is missing or Ollama is unreachable.
     """
     global _llm_instance, _llm_provider_key
     settings = get_settings()
     
+    # Gemma overrides all other provider settings when enabled
+    if settings.use_gemma:
+        cache_key = f"gemma:{settings.gemma_model}:{settings.gemma_base_url}"
+        if _llm_instance is not None and _llm_provider_key == cache_key:
+            return _llm_instance
+        
+        from langchain_ollama import ChatOllama
+        logger.info(f"🤖 Using local Gemma model via Ollama: {settings.gemma_model} at {settings.gemma_base_url}")
+        _llm_instance = ChatOllama(
+            model=settings.gemma_model,
+            base_url=settings.gemma_base_url,
+            temperature=1.0,
+            top_p=0.95,
+            top_k=64,
+        )
+        _llm_provider_key = cache_key
+        return _llm_instance
+
     # Cache key: provider + model so we reuse the same instance within a process
     cache_key = f"{settings.llm_provider}:{settings.anthropic_chat_model if settings.llm_provider == 'anthropic' else settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
@@ -410,15 +430,23 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
     })
     answer = ai_message.content
 
+    # Log the full question and model response for observability (visible in GCP Cloud Logging)
+    model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    logger.info(f"📝 [Q&A LOG] conversation={conversation_id} model={model_name}")
+    logger.info(f"📝 [Q&A LOG] question={question}")
+    logger.info(f"📝 [Q&A LOG] answer={answer[:500]}")
+
     # Log prompt cache metrics if available
     usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get("usage", {})
     if usage:
         cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
         prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
         if cached:
             logger.info(f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached*100//prompt_tokens}%)")
         else:
             logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
+        logger.info(f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}")
 
     logger.info(f"✅ Generated answer: {answer[:100]}...")
 

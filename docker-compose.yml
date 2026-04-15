@@ -21,6 +21,22 @@ services:
     environment:
       - ANONYMIZED_TELEMETRY=false
 
+  # Ollama — local LLM server for Gemma 4
+  # Auto-pulls the model on first start (set OLLAMA_MODEL to change, default: gemma4:e2b)
+  # To use a different model: OLLAMA_MODEL=gemma4:26b docker compose up -d
+  ollama:
+    image: ollama/ollama:latest
+    container_name: chatrag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./infra/ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma4:e2b}
+    entrypoint: ["/ollama-entrypoint.sh"]
+
 volumes:
   postgres_data:
   chroma_data:
+  ollama_data:

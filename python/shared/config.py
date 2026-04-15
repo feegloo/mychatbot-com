@@ -20,6 +20,10 @@ class Settings:
     chroma_api_key: str
     chroma_tenant: str
     chroma_database: str
+    # Gemma 4 (local Ollama) settings
+    use_gemma: bool
+    gemma_model: str
+    gemma_base_url: str
 
 
 def get_settings() -> Settings:
@@ -49,4 +53,8 @@ def get_settings() -> Settings:
         chroma_api_key=os.getenv("CHROMA_API_KEY", ""),
         chroma_tenant=os.getenv("CHROMA_TENANT", ""),
         chroma_database=os.getenv("CHROMA_DATABASE", ""),
+        # Gemma 4 via local Ollama — set USE_GEMMA=true to enable
+        use_gemma=os.getenv("USE_GEMMA", "false").lower() in ("true", "1", "yes"),
+        gemma_model=os.getenv("GEMMA_MODEL", "gemma4"),
+        gemma_base_url=os.getenv("GEMMA_BASE_URL", "http://localhost:11434"),
     )

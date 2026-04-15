@@ -7,6 +7,7 @@ langchain==0.3.23
 langchain-community==0.3.21
 langchain-openai==0.3.12
 langchain-anthropic==0.3.22
+langchain-ollama>=0.3.0
 langchain-text-splitters==0.3.8
 nbclient==0.10.2
 nbformat==5.10.4

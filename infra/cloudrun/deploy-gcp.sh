@@ -205,6 +205,9 @@ FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
 PYTHON_PROJECT_ROOT=/app/python,\
 PYTHON_SERVER_URL=http://localhost:8321,\
+USE_GEMMA=${USE_GEMMA:-false},\
+GEMMA_MODEL=${GEMMA_MODEL:-gemma4},\
+GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-admin},\
 DEBUG_PASS=${DEBUG_PASS:-admin}"
 

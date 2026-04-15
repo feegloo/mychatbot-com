@@ -37,6 +37,7 @@
 
         <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
           <AppButton v-for="q in suggestedQuestions" :key="q" class="question-pill" @click="$emit('select-question', q)">
+            <svg class="pill-bubble-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             {{ q }}
           </AppButton>
         </div>
@@ -99,6 +100,7 @@
         class="question-pill"
         @click="$emit('select-question', q)"
       >
+        <svg class="pill-bubble-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         {{ q }}
       </AppButton>
     </div>
@@ -896,6 +898,11 @@ function openFilePreview(file: FileInfo) {
   font-size: 12px;
   cursor: pointer;
   transition: 0.15s;
+}
+
+.question-pill .pill-bubble-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
 }
 
 @media (hover: hover) {

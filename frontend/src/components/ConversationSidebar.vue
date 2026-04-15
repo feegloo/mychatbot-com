@@ -44,9 +44,10 @@
           v-for="q in status.suggestedQuestions"
           :key="q"
           class="question-pill"
-          style="border:none; cursor:pointer; font-size: 12px; padding: 6px 10px; margin: 4px 0"
+          style="border:none; cursor:pointer; font-size: 12px; padding: 6px 10px; margin: 4px 0; display: inline-flex; align-items: center; gap: 6px"
           @click="$emit('select-question', q)"
         >
+          <svg class="pill-bubble-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           {{ q }}
         </button>
         <div v-if="status.status === 'processing'" style="display: flex; justify-content: center; margin: 8px 0 0 0"><div class="typing-dots"><span></span><span></span><span></span></div></div>
