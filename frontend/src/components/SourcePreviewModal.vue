@@ -123,8 +123,8 @@ function openFullPdf() {
   height: calc(100vh - 20px);
   margin: 10px 0;
   background: #1e293b;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-radius: 0;
+  box-shadow: none;
   cursor: default;
   display: flex;
   flex-direction: column;

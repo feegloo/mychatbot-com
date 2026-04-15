@@ -24,7 +24,7 @@
       <span></span><span></span><span></span>
     </div>
 
-    <!-- Welcome message with file preview: 2-column layout -->
+    <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
     <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
       <div class="welcome-left-col">
         <div ref="messageContentEl" class="message-content-wrap">
@@ -32,6 +32,35 @@
             <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
             <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
             <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+          </div>
+        </div>
+
+        <!-- Mobile-only: small file thumbnails (old layout) -->
+        <div class="welcome-file-previews-mobile">
+          <div
+            v-for="file in files"
+            :key="file.id"
+            class="file-preview-card"
+            @click="openFilePreview(file)"
+          >
+            <div v-if="isImageFile(file)" class="file-preview-thumb">
+              <img :src="getFileUrl(file)" :alt="file.originalName" loading="lazy" />
+            </div>
+            <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
+              <object
+                :data="getFileUrl(file) + '#page=1&view=FitH'"
+                type="application/pdf"
+                class="pdf-mini-object"
+              >
+                <div class="pdf-fallback-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+              </object>
+            </div>
+            <div v-else class="file-preview-thumb text-thumb">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <span class="file-preview-name">{{ file.originalName }}</span>
           </div>
         </div>
 
@@ -56,6 +85,7 @@
         </div>
       </div>
 
+      <!-- Desktop-only: large preview in right column -->
       <div class="welcome-right-col" @click="openFilePreview(files![0])">
         <div v-if="isImageFile(files![0])" class="welcome-preview-large">
           <img :src="getFileUrl(files![0])" :alt="files![0].originalName" loading="lazy" />
@@ -773,7 +803,7 @@ function openFilePreview(file: FileInfo) {
   object-fit: contain;
 }
 
-/* Welcome 2-column layout */
+/* Welcome 2-column layout (desktop only) */
 .welcome-two-col {
   display: flex;
   gap: 20px;
@@ -785,6 +815,85 @@ function openFilePreview(file: FileInfo) {
   min-width: 0;
 }
 
+/* Mobile: small file thumbnails (old layout) */
+.welcome-file-previews-mobile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.file-preview-card {
+  cursor: pointer;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .file-preview-card:hover {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+    transform: scale(1.03);
+  }
+}
+
+.file-preview-thumb {
+  width: 120px;
+  height: 90px;
+  overflow: hidden;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-preview-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-preview-thumb.pdf-thumb {
+  position: relative;
+}
+
+.pdf-mini-object {
+  width: 120px;
+  height: 90px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pdf-fallback-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #64748b;
+}
+
+.file-preview-thumb.text-thumb {
+  color: #64748b;
+}
+
+.file-preview-name {
+  display: block;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Desktop: large right-column preview */
 .welcome-right-col {
   flex-shrink: 0;
   align-self: stretch;
@@ -875,6 +984,25 @@ function openFilePreview(file: FileInfo) {
   text-overflow: ellipsis;
   max-width: 180px;
   text-align: center;
+}
+
+/* Responsive: mobile = small thumbs, desktop = large right preview */
+@media (max-width: 768px) {
+  .welcome-two-col {
+    display: block;
+  }
+  .welcome-right-col {
+    display: none;
+  }
+  .welcome-file-previews-mobile {
+    display: flex;
+  }
+}
+
+@media (min-width: 769px) {
+  .welcome-file-previews-mobile {
+    display: none;
+  }
 }
 
 /* Welcome suggested questions (inline) */

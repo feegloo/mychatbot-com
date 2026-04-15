@@ -133,19 +133,10 @@ cp python/.env.example python/.env
 
 ### 4. Run database schema
 
-Run the SQL in:
-- `backend/sql/schema.sql`
+Run the SQL schema from the project root:
 
-```
-cat /Users/{your_user_name}/Downloads/chatrag-hybrid-app/backend/sql/schema.sql \
-  | docker exec -i chatrag-postgres psql -U chatrag -d chatrag
-```
-
-replace {your_user_name} with your user account name (like 'olek'):
-
-```
-cat /Users/olek/Downloads/chatrag-hybrid-app/backend/sql/schema.sql \
-  | docker exec -i chatrag-postgres psql -U chatrag -d chatrag
+```bash
+docker exec -i chatrag-postgres psql -U chatrag -d chatrag < backend/sql/schema.sql
 ```
 
 ### 5. Start services
