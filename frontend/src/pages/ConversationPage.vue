@@ -8,7 +8,15 @@
       :canUpload="canUpload"
       @renamed="status.displayName = $event"
       @reload="onReload"
-    />
+    >
+      <template #language-toggle>
+        <LanguageToggle
+          :messages="messages"
+          @translated="onTranslated"
+          @restored="onRestored"
+        />
+      </template>
+    </ConversationHeader>
 
     <p v-if="status.errorMessage" style="color:#f87171; margin-bottom:16px">
       {{ status.errorMessage }}
@@ -78,6 +86,7 @@ import {
 import { cleanFileName } from "../utils/text";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
+import LanguageToggle from "../components/LanguageToggle.vue";
 
 const props = defineProps<{ conversationId: string }>();
 
@@ -89,6 +98,31 @@ const chatContainer = ref<HTMLDivElement | null>(null);
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);
+
+// Translation state
+const originalMessages = ref<Map<number, string>>(new Map());
+
+function onTranslated(translations: Map<number, string>) {
+  // Save originals before replacing
+  translations.forEach((_, i) => {
+    if (!originalMessages.value.has(i)) {
+      originalMessages.value.set(i, messages.value[i].content);
+    }
+  });
+  // Apply translations
+  translations.forEach((text, i) => {
+    messages.value[i].content = text;
+  });
+}
+
+function onRestored() {
+  originalMessages.value.forEach((text, i) => {
+    if (messages.value[i]) {
+      messages.value[i].content = text;
+    }
+  });
+  originalMessages.value.clear();
+}
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -178,7 +212,11 @@ async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
   if (!asking.value && !hasLocalError.value) {
-    messages.value = response.messages || [];
+    // Don't overwrite translated messages during polling — only update if message count changed
+    if (originalMessages.value.size === 0 || (response.messages || []).length !== messages.value.length) {
+      messages.value = response.messages || [];
+      originalMessages.value.clear();
+    }
   }
   loaded.value = true;
 }

@@ -219,7 +219,12 @@ function normalizeCitations(text: string): string {
 }
 
 function renderMarkdown(content: string): string {
-  const normalized = normalizeCitations(content);
+  let normalized = normalizeCitations(content);
+  // Ensure bold-only lines (like filenames) between list items get paragraph separation
+  normalized = normalized.replace(
+    /^([ \t]*[\*\-\+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[\*\-\+] )/gm,
+    '$1\n\n$2\n\n$3'
+  );
   const rawHtml = marked.parse(normalized, { async: false }) as string;
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
   // Use flexible regex to handle any attribute order from marked
@@ -245,9 +250,35 @@ function renderMarkdown(content: string): string {
       `<button class="action-btn" data-action="${label.trim()}">${label.trim()}</button>`
   );
   // Wrap consecutive action buttons in a block-level container so they start on a new line
-  return withActions.replace(
+  const withActionsWrapped = withActions.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>'
+  );
+  // Add target="_blank" to all <a> tags that don't already have it
+  const withTargetBlank = withActionsWrapped.replace(
+    /<a (?![^>]*target=)/gi,
+    '<a target="_blank" rel="noopener noreferrer" '
+  );
+  // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
+  const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai';
+  const bareDomain = new RegExp(
+    `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"']*)?`,
+    'gi'
+  );
+  let insideA = 0;
+  return withTargetBlank.replace(
+    /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
+    (m, openA: string, closeA: string, _otherTag: string, text: string) => {
+      if (openA) { insideA++; return m; }
+      if (closeA) { insideA = Math.max(0, insideA - 1); return m; }
+      if (text && insideA === 0) {
+        return text.replace(bareDomain, (url: string, domain: string, path: string) => {
+          const href = `https://${domain}${path || ''}`;
+          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">${url}</a>`;
+        });
+      }
+      return m;
+    }
   );
 }
 
@@ -901,12 +932,13 @@ function openFilePreview(file: FileInfo) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px;
+  padding: 0;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
 }
 
 @media (hover: hover) {
@@ -922,7 +954,7 @@ function openFilePreview(file: FileInfo) {
   max-height: 360px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 0;
   background: #0f172a;
   display: flex;
   align-items: center;
@@ -933,7 +965,7 @@ function openFilePreview(file: FileInfo) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .welcome-preview-large.pdf-preview-large {
@@ -945,7 +977,7 @@ function openFilePreview(file: FileInfo) {
   height: 100%;
   pointer-events: none;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .pdf-fallback-icon-large {
@@ -978,7 +1010,7 @@ function openFilePreview(file: FileInfo) {
 
 .welcome-preview-name {
   display: block;
-  padding-top: 8px;
+  padding: 8px 8px 6px;
   font-size: 11px;
   color: #94a3b8;
   white-space: nowrap;

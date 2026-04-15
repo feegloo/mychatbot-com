@@ -23,7 +23,7 @@
       </p>
     </div>
 
-    <a href="mailto:hello@chatrag.app" class="conv-nav-contact">Contact</a>
+    <a href="mailto:olek.figiel@gmail.com" class="conv-nav-contact">Contact</a>
   </nav>
 </template>
 

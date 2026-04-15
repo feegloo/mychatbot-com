@@ -29,12 +29,14 @@ def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
         # We store just the filename; the backend route resolves the rest
         image_name = abs_path.name
 
+        page = img["page"]
+        section = f"Image (page {page})" if page is not None else "Image"
         chunks.append(Chunk(
             chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
             file_name=img["file_name"],
             text=img["description"],
-            section=f"Image (page {img['page']})",
-            page=img["page"],
+            section=section,
+            page=page,
             metadata={
                 "is_image": True,
                 "image_name": image_name,

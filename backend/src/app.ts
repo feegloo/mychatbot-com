@@ -11,6 +11,7 @@ import { askRouter } from "./routes/ask.js";
 import { healthRouter } from "./routes/health.js";
 import { storageRouter } from "./routes/storage.js";
 import { debugRouter } from "./routes/debug.js";
+import { translateRouter } from "./routes/translate.js";
 import { config } from "./config.js";
 
 export function createApp() {
@@ -24,7 +25,8 @@ export function createApp() {
     .use(askRouter.routes())
     .use(healthRouter.routes())
     .use(storageRouter.routes())
-    .use(debugRouter.routes());
+    .use(debugRouter.routes())
+    .use(translateRouter.routes());
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/api")) {

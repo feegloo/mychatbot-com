@@ -26,6 +26,7 @@
       </div>
     </div>
     <div class="header-actions" style="display:flex; gap:8px; align-items: center; flex-wrap: wrap;">
+      <slot name="language-toggle"></slot>
       <button class="add-btn" @click="copyUrl">
         <template v-if="copied">Copied!</template>
         <template v-else>

@@ -199,3 +199,15 @@ export async function getDebugTables(username: string, password: string) {
     uploaded_files: Record<string, unknown>[];
   };
 }
+
+export async function translateTexts(texts: string[], targetLang: string, sourceLang?: string) {
+  const body: { texts: string[]; targetLang: string; sourceLang?: string } = { texts, targetLang };
+  if (sourceLang) body.sourceLang = sourceLang;
+  const response = await api.post("/translate", body);
+  return response.data as { translations: string[] };
+}
+
+export async function detectLanguage(text: string) {
+  const response = await api.post("/detect-language", { text });
+  return response.data as { language: string; confidence: number };
+}
