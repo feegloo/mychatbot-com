@@ -9,7 +9,8 @@ import { config } from "../config.js";
 
 const askSchema = z.object({
   conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
-  question: z.string().min(3)
+  question: z.string().min(3),
+  userId: z.number().int().min(0).optional()
 });
 
 export const askRouter = new Router();
@@ -22,7 +23,7 @@ askRouter.post("/ask", async (ctx) => {
     return;
   }
 
-  const { conversationId, question } = parsed.data;
+  const { conversationId, question, userId } = parsed.data;
   const data = await getConversation(conversationId);
 
   if (!data.conversation) {
@@ -40,7 +41,8 @@ askRouter.post("/ask", async (ctx) => {
   await insertConversationMessage({
     conversationId,
     role: "user",
-    content: question
+    content: question,
+    userId: userId || 0
   });
 
   // Ensure vector collection has data (re-index if Chroma was lost on container restart)

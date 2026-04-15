@@ -3,18 +3,16 @@
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <!-- Mobile close bar above content -->
       <div v-if="isMobile" class="source-modal-close-bar" @click="$emit('close')">
+        <button
+          v-if="isPdf"
+          class="source-modal-open-pdf"
+          @click.stop="openFullPdf"
+        >Open PDF</button>
         <button class="source-modal-close-bar-x">&times;</button>
       </div>
 
       <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
         <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">&times;</button>
-
-        <!-- "Open PDF" button on mobile -->
-        <button
-          v-if="isPdf && isMobile"
-          class="source-modal-open-pdf"
-          @click="openFullPdf"
-        >Open PDF</button>
 
         <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
         <PdfPageViewer
@@ -96,7 +94,7 @@ function openFullPdf() {
   height: 44px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 0 12px;
   z-index: 10;
   cursor: pointer;
@@ -166,10 +164,6 @@ function openFullPdf() {
 }
 
 .source-modal-open-pdf {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 3;
   padding: 6px 14px;
   border: none;
   border-radius: 8px;

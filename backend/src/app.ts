@@ -31,7 +31,16 @@ export function createApp() {
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/api")) {
       ctx.path = ctx.path.replace(/^\/api/, "") || "/";
-      return apiRouter.routes()(ctx as any, next);
+      try {
+        await apiRouter.routes()(ctx as any, next);
+      } catch (err: any) {
+        const status = err.status || err.statusCode || 500;
+        const message = err.message || "Unknown error";
+        console.error(`[API ${ctx.method} ${ctx.url}] ${status}: ${message}`);
+        ctx.status = status;
+        ctx.body = { msg: `[${status}] ${message}` };
+      }
+      return;
     }
     return next();
   });

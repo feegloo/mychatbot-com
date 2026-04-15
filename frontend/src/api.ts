@@ -82,6 +82,8 @@ export type ChatMessage = {
   citations?: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>;
   uploadedFileNames?: string[];
   suggestedQuestions?: string[];
+  userId?: number;
+  threadReplyCount?: number;
 };
 
 export type ConversationStatus = {
@@ -89,6 +91,7 @@ export type ConversationStatus = {
   displayName: string | null;
   status: "processing" | "ready" | "failed";
   role: "owner" | "editor" | "viewer";
+  parentMessageId: string | null;
   files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata?: any }>;
   messages: ChatMessage[];
   suggestedQuestions: string[];
@@ -129,8 +132,8 @@ export async function getConversation(conversationId: string) {
   return response.data as ConversationStatus;
 }
 
-export async function askQuestion(conversationId: string, question: string) {
-  const response = await api.post("/ask", { conversationId, question });
+export async function askQuestion(conversationId: string, question: string, userId?: number) {
+  const response = await api.post("/ask", { conversationId, question, ...(userId ? { userId } : {}) });
   return response.data as {
     answer: string;
     citations: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
@@ -210,4 +213,26 @@ export async function translateTexts(texts: string[], targetLang: string, source
 export async function detectLanguage(text: string) {
   const response = await api.post("/detect-language", { text });
   return response.data as { language: string; confidence: number };
+}
+
+export async function resolveFingerprint(fingerprint: string) {
+  const response = await api.post("/fingerprint", { fingerprint });
+  return response.data as { userId: number };
+}
+
+export type ThreadSummary = {
+  conversationId: string;
+  displayName: string | null;
+  messageCount: number;
+  lastUserId: number;
+};
+
+export async function getMessageThreads(messageId: string) {
+  const response = await api.get(`/messages/${messageId}/threads`);
+  return response.data as { threads: ThreadSummary[] };
+}
+
+export async function createThread(messageId: string, question: string, userId: number) {
+  const response = await api.post(`/messages/${messageId}/threads`, { question, userId });
+  return response.data as { conversationId: string; ownerPassword: string; url: string };
 }

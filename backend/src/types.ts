@@ -10,6 +10,7 @@ export type ConversationRecord = {
   vector_collection_name: string;
   indexing_mode: string;
   error_message: string | null;
+  parent_message_id: string | null;
 };
 
 export type UploadedFileRecord = {
@@ -51,4 +52,10 @@ export type ConversationMessageRecord = {
   role: "user" | "assistant";
   content: string;
   citations_json: any;
+  user_id: number;
+};
+
+export type UserFingerprintRecord = {
+  fingerprint: string;
+  user_id: number;
 };

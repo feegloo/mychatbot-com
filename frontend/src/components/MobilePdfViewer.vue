@@ -45,7 +45,7 @@ async function loadPdf() {
     const containerWidth = containerRef.value?.clientWidth || 300;
     const unscaledVp = page.getViewport({ scale: 1 });
     const baseScale = containerWidth / unscaledVp.width;
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const viewport = page.getViewport({ scale: baseScale * dpr });
 
     canvas.width = viewport.width;

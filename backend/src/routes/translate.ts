@@ -30,13 +30,19 @@ translateRouter.post("/translate", async (ctx) => {
     return;
   }
 
-  const options: { from?: string; to: string } = { to: targetLang };
-  if (sourceLang) options.from = sourceLang;
+  try {
+    const options: { from?: string; to: string } = { to: targetLang };
+    if (sourceLang) options.from = sourceLang;
 
-  const [translations] = await translate.translate(texts, options);
-  const result = Array.isArray(translations) ? translations : [translations];
+    const [translations] = await translate.translate(texts, options);
+    const result = Array.isArray(translations) ? translations : [translations];
 
-  ctx.body = { translations: result };
+    ctx.body = { translations: result };
+  } catch (err: any) {
+    console.error("Translation API error:", err.message);
+    ctx.status = 502;
+    ctx.body = { error: "Translation service unavailable" };
+  }
 });
 
 /**
@@ -53,10 +59,16 @@ translateRouter.post("/detect-language", async (ctx) => {
     return;
   }
 
-  // Use first 500 chars for detection (enough for reliable results)
-  const sample = text.slice(0, 500);
-  const [detection] = await translate.detect(sample);
-  const det = Array.isArray(detection) ? detection[0] : detection;
+  try {
+    // Use first 500 chars for detection (enough for reliable results)
+    const sample = text.slice(0, 500);
+    const [detection] = await translate.detect(sample);
+    const det = Array.isArray(detection) ? detection[0] : detection;
 
-  ctx.body = { language: det.language, confidence: det.confidence };
+    ctx.body = { language: det.language, confidence: det.confidence };
+  } catch (err: any) {
+    console.error("Language detection API error:", err.message);
+    ctx.status = 502;
+    ctx.body = { error: "Language detection service unavailable" };
+  }
 });

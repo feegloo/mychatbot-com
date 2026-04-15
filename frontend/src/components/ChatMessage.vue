@@ -1,6 +1,6 @@
 <template>
   <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
-    <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
+    <strong>{{ senderLabel }}</strong>
     <AppButton
       v-if="hasRichContent"
       class="share-msg-btn pdf-msg-btn"
@@ -162,6 +162,12 @@
       </div>
     </div>
 
+    <!-- Thread reply indicator (Slack-style) -->
+    <div v-if="msg.threadReplyCount" class="thread-indicator" @click="$emit('view-threads', msg.id!)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="thread-count">{{ msg.threadReplyCount }} {{ msg.threadReplyCount === 1 ? 'reply' : 'replies' }}</span>
+    </div>
+
 
 
     <ImageModal
@@ -188,6 +194,7 @@ import DOMPurify from "dompurify";
 import { createTooltip, destroyTooltip } from "floating-vue";
 import type { ChatMessage, ConversationStatus } from "../api";
 import { getStorageUrl } from "../api";
+import { getUserId } from "../utils/fingerprint";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
 import AppButton from "./AppButton.vue";
@@ -293,23 +300,25 @@ const props = defineProps<{
   suggestedQuestions?: string[];
   conversationName?: string;
   fileName?: string;
+  isThread?: boolean;
 }>();
 
 const emit = defineEmits<{
   'select-question': [question: string];
   'upload-files': [files: File[]];
+  'view-threads': [messageId: string];
 }>();
 
-// Upload files state (for first message inline upload)
-const uploadInput = ref<HTMLInputElement | null>(null);
-const selectedUploadFiles = ref<File[]>([]);
-const uploadingFiles = ref(false);
-const uploadError = ref("");
-
-const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0);
-
-
-
+const senderLabel = computed(() => {
+  if (props.msg.role === "assistant") return "Assistant";
+  // In thread conversations, show "userN" for other users
+  if (props.isThread && props.msg.userId) {
+    const myId = getUserId();
+    if (myId !== null && props.msg.userId === myId) return "You";
+    return `user${props.msg.userId}`;
+  }
+  return "You";
+});
 function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
   selectedUploadFiles.value = Array.from(target.files || []);
@@ -1169,5 +1178,31 @@ function openFilePreview(file: FileInfo) {
   background: rgba(167, 139, 250, 0.1);
   border-color: rgba(167, 139, 250, 0.25);
   color: #ddd6fe;
+}
+
+/* Thread reply indicator */
+.thread-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(167, 139, 250, 0.08);
+  border: 1px solid rgba(167, 139, 250, 0.15);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.thread-indicator:hover {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.thread-indicator .thread-count {
+  color: #a78bfa;
 }
 </style>

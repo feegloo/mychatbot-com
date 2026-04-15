@@ -7,13 +7,14 @@ import type {
   AccessRequestRecord,
   AccessTokenRecord,
   ConversationRole,
-  ConversationMessageRecord
+  ConversationMessageRecord,
+  UserFingerprintRecord
 } from "../types.js";
 
 export async function insertConversation(record: ConversationRecord) {
   await query(
-    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       record.id,
       record.salt,
@@ -21,7 +22,8 @@ export async function insertConversation(record: ConversationRecord) {
       record.storage_namespace,
       record.vector_collection_name,
       record.indexing_mode,
-      record.error_message
+      record.error_message,
+      record.parent_message_id || null
     ]
   );
 }
@@ -46,7 +48,7 @@ export async function updateConversationDisplayName(id: string, displayName: str
 
 export async function getConversation(id: string, role: ConversationRole = "viewer") {
   const conversationResult = await query<ConversationRecord>(
-    `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message
+    `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id
      FROM conversations
      WHERE id = $1`,
     [id]
@@ -69,7 +71,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   );
 
   const messagesResult = await query<ConversationMessageRecord>(
-    `SELECT id, conversation_id, role, content, citations_json
+    `SELECT id, conversation_id, role, content, citations_json, user_id
      FROM conversation_messages
      WHERE conversation_id = $1
      ORDER BY created_at ASC`,
@@ -205,17 +207,19 @@ export async function insertConversationMessage(params: {
   role: "user" | "assistant";
   content: string;
   citations?: unknown;
+  userId?: number;
 }): Promise<string> {
   const id = generateShortId();
   await query(
-    `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json)
-     VALUES ($1, $2, $3, $4, $5::jsonb)`,
+    `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json, user_id)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
     [
       id,
       params.conversationId,
       params.role,
       params.content,
-      JSON.stringify(params.citations ?? null)
+      JSON.stringify(params.citations ?? null),
+      params.userId ?? 0
     ]
   );
   return id;
@@ -263,4 +267,89 @@ export async function getConversationSummaries(conversationIds: string[]) {
     ...row,
     fileNames: filesByConversation.get(row.id) || []
   }));
+}
+
+/**
+ * Resolve a browser fingerprint to a userId.
+ * If fingerprint doesn't exist yet, create a new user with auto-incremented userId.
+ */
+export async function resolveUserByFingerprint(fingerprint: string): Promise<number> {
+  // Try to find existing
+  const existing = await query<UserFingerprintRecord>(
+    `SELECT user_id FROM user_fingerprints WHERE fingerprint = $1`,
+    [fingerprint]
+  );
+  if (existing.rows[0]) {
+    return existing.rows[0].user_id;
+  }
+  // Insert new (SERIAL auto-increments user_id)
+  const inserted = await query<UserFingerprintRecord>(
+    `INSERT INTO user_fingerprints (fingerprint)
+     VALUES ($1)
+     ON CONFLICT (fingerprint) DO NOTHING
+     RETURNING user_id`,
+    [fingerprint]
+  );
+  if (inserted.rows[0]) {
+    return inserted.rows[0].user_id;
+  }
+  // Race condition: another request inserted first, re-fetch
+  const refetch = await query<UserFingerprintRecord>(
+    `SELECT user_id FROM user_fingerprints WHERE fingerprint = $1`,
+    [fingerprint]
+  );
+  return refetch.rows[0].user_id;
+}
+
+/**
+ * Get all thread conversations (children) for a given parent message.
+ */
+export async function getThreadsForMessage(messageId: string) {
+  const result = await query<ConversationRecord & { message_count: number; last_user_id: number }>(
+    `SELECT c.id, c.display_name, c.status, c.parent_message_id, c.created_at,
+            COUNT(m.id)::int as message_count,
+            COALESCE(MAX(m.user_id), 0) as last_user_id
+     FROM conversations c
+     LEFT JOIN conversation_messages m ON m.conversation_id = c.id
+     WHERE c.parent_message_id = $1
+     GROUP BY c.id
+     ORDER BY c.created_at ASC`,
+    [messageId]
+  );
+  return result.rows;
+}
+
+/**
+ * Count total thread replies for a given parent message.
+ */
+export async function getThreadReplyCount(messageId: string): Promise<number> {
+  const result = await query<{ count: string }>(
+    `SELECT COUNT(*)::text as count
+     FROM conversation_messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.parent_message_id = $1`,
+    [messageId]
+  );
+  return parseInt(result.rows[0]?.count || "0", 10);
+}
+
+/**
+ * Get thread reply counts for multiple parent message IDs at once.
+ */
+export async function getThreadReplyCountsForMessages(messageIds: string[]): Promise<Map<string, number>> {
+  if (!messageIds.length) return new Map();
+  const placeholders = messageIds.map((_, i) => `$${i + 1}`).join(", ");
+  const result = await query<{ parent_message_id: string; count: string }>(
+    `SELECT c.parent_message_id, COUNT(m.id)::text as count
+     FROM conversations c
+     JOIN conversation_messages m ON m.conversation_id = c.id
+     WHERE c.parent_message_id IN (${placeholders})
+     GROUP BY c.parent_message_id`,
+    messageIds
+  );
+  const map = new Map<string, number>();
+  for (const row of result.rows) {
+    map.set(row.parent_message_id, parseInt(row.count, 10));
+  }
+  return map;
 }

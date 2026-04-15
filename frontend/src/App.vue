@@ -16,13 +16,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import ConversationNav from "./components/ConversationNav.vue";
+import { getBrowserFingerprint, getUserId, setUserId } from "./utils/fingerprint";
+import { resolveFingerprint } from "./api";
 
 const sidebarOpen = ref(false);
 const route = useRoute();
 const isEmbed = computed(() => route.meta.embed === true);
 
 watch(() => route.path, () => { sidebarOpen.value = false; });
+
+// Initialize fingerprint and resolve userId on app start
+onMounted(async () => {
+  try {
+    if (getUserId() !== null) return; // already resolved
+    const fingerprint = await getBrowserFingerprint();
+    const { userId } = await resolveFingerprint(fingerprint);
+    setUserId(userId);
+  } catch (err) {
+    console.error("[fingerprint init]", err);
+  }
+});
 </script>

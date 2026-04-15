@@ -75,7 +75,8 @@ let pdfDoc: PDFDocumentProxy | null = null;
 let highlightDone = false;
 
 // Render a window of pages around the current one for smooth scrolling
-const BUFFER = 1;
+const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const BUFFER = isMobileDevice ? 0 : 1;
 const renderedPages = computed(() => {
   const pages: number[] = [];
   const start = Math.max(1, currentPage.value - BUFFER);
@@ -103,7 +104,11 @@ async function loadPdf() {
     loading.value = false;
 
     await nextTick();
-    await renderVisiblePages();
+    try {
+      await renderVisiblePages();
+    } catch (renderErr) {
+      console.warn("PDF render failed (pages still navigable):", renderErr);
+    }
   } catch (err) {
     console.error("PDF load failed:", err);
     error.value = "Could not load PDF";
@@ -134,7 +139,8 @@ async function renderPage(pageNum: number) {
   const unscaledVp = page.getViewport({ scale: 1 });
   const baseScale = (containerWidth - 24) / unscaledVp.width; // 12px padding each side
   const effectiveScale = baseScale * scale.value;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
   const viewport = page.getViewport({ scale: effectiveScale * dpr });
   const displayViewport = page.getViewport({ scale: effectiveScale });
 
@@ -174,7 +180,11 @@ async function renderPage(pageNum: number) {
 
 async function renderVisiblePages() {
   for (const pg of renderedPages.value) {
-    await renderPage(pg);
+    try {
+      await renderPage(pg);
+    } catch (err) {
+      console.warn(`PDF page ${pg} render failed:`, err);
+    }
   }
 }
 

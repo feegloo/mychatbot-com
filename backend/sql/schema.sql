@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   vector_collection_name TEXT NOT NULL,
   indexing_mode TEXT NOT NULL,
   error_message TEXT,
+  parent_message_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,6 +32,13 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
   citations_json JSONB,
+  user_id INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_fingerprints (
+  fingerprint TEXT PRIMARY KEY,
+  user_id SERIAL NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -74,3 +82,6 @@ CREATE INDEX IF NOT EXISTS idx_access_requests_conversation_id
 
 CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation_id
   ON conversation_messages(conversation_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_user_fingerprints_fingerprint
+  ON user_fingerprints(fingerprint);

@@ -17,10 +17,12 @@ import { translateTexts, detectLanguage } from "../api";
 
 const props = defineProps<{
   messages: Array<{ role: string; content: string }>;
+  suggestedQuestions?: string[];
 }>();
 
 const emit = defineEmits<{
   translated: [translations: Map<number, string>];
+  'questions-translated': [translations: string[]];
   restored: [];
 }>();
 
@@ -29,6 +31,7 @@ const browserLang = ref(navigator.language.split("-")[0]);
 const isTranslated = ref(false);
 const translating = ref(false);
 const translationCache = ref<Map<string, string>>(new Map());
+const detectionAttempted = ref(false);
 
 const LANG_FLAGS: Record<string, string> = {
   en: "🇬🇧", pl: "🇵🇱", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹",
@@ -58,11 +61,12 @@ const currentFlag = computed(() => {
   return LANG_FLAGS[lang] || "🌐";
 });
 
-// Detect language from first assistant message
+// Detect language from first assistant message (once only)
 watch(() => props.messages, async (msgs) => {
-  if (detectedLang.value) return;
+  if (detectedLang.value || detectionAttempted.value) return;
   const firstAssistant = msgs.find(m => m.role === "assistant" && m.content.length > 20);
   if (!firstAssistant) return;
+  detectionAttempted.value = true;
   try {
     const result = await detectLanguage(firstAssistant.content);
     detectedLang.value = result.language;
@@ -108,6 +112,34 @@ async function toggle() {
         translations.set(item.index, result.translations[j]);
         translationCache.value.set(item.content, result.translations[j]);
       });
+    }
+
+    // Translate suggested questions
+    const questions = props.suggestedQuestions || [];
+    if (questions.length) {
+      const qToTranslate: { index: number; text: string }[] = [];
+      const qTranslated: string[] = [];
+      questions.forEach((q, i) => {
+        const cached = translationCache.value.get(q);
+        if (cached) {
+          qTranslated[i] = cached;
+        } else {
+          qToTranslate.push({ index: i, text: q });
+        }
+      });
+      for (let batch = 0; batch < qToTranslate.length; batch += 20) {
+        const chunk = qToTranslate.slice(batch, batch + 20);
+        const result = await translateTexts(
+          chunk.map(c => c.text),
+          browserLang.value,
+          detectedLang.value
+        );
+        chunk.forEach((item, j) => {
+          qTranslated[item.index] = result.translations[j];
+          translationCache.value.set(item.text, result.translations[j]);
+        });
+      }
+      emit("questions-translated", qTranslated);
     }
 
     isTranslated.value = true;

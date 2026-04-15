@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata, resolveUserByFingerprint, getThreadsForMessage, getThreadReplyCountsForMessages } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { generateShortId } from "../utils/id.js";
 import { config } from "../config.js";
@@ -30,6 +30,7 @@ conversationsRouter.post("/conversations", async (ctx) => {
     vector_collection_name: collectionName,
     indexing_mode: config.pythonIndexingMode,
     error_message: null,
+    parent_message_id: null,
   });
 
   await insertAccessToken({
@@ -58,11 +59,18 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
     return;
   }
 
+  // Gather thread reply counts for all assistant messages
+  const assistantMessageIds = data.messages
+    .filter((m) => m.role === "assistant" && m.id)
+    .map((m) => m.id);
+  const threadCounts = await getThreadReplyCountsForMessages(assistantMessageIds);
+
   ctx.body = {
     conversationId: data.conversation.id,
     displayName: data.conversation.display_name || null,
     status: data.conversation.status,
     role,
+    parentMessageId: data.conversation.parent_message_id || null,
     files: data.files.map((file) => ({
       id: file.id,
       originalName: file.original_name,
@@ -78,13 +86,16 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
       const msgQuestions = data.suggestedQuestions
         .filter((q) => q.message_id === message.id)
         .map((q) => q.question);
+      const threadReplyCount = threadCounts.get(message.id) || 0;
       return {
         id: message.id,
         role: message.role,
         content: message.content,
         citations,
+        userId: message.user_id,
         ...(uploadedFileNames ? { uploadedFileNames } : {}),
         ...(msgQuestions.length ? { suggestedQuestions: msgQuestions } : {}),
+        ...(threadReplyCount > 0 ? { threadReplyCount } : {}),
       };
     }),
     suggestedQuestions: data.suggestedQuestions.map((row) => row.question),
@@ -431,5 +442,116 @@ conversationsRouter.get("/messages/:messageId", async (ctx) => {
     role: msg.role,
     content: msg.content,
     citations,
+  };
+});
+
+// POST /fingerprint — resolve browser fingerprint to userId
+const fingerprintSchema = z.object({
+  fingerprint: z.string().min(8).max(128)
+});
+
+conversationsRouter.post("/fingerprint", async (ctx) => {
+  const parsed = fingerprintSchema.safeParse(ctx.request.body);
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid fingerprint" };
+    return;
+  }
+  const userId = await resolveUserByFingerprint(parsed.data.fingerprint);
+  ctx.body = { userId };
+});
+
+// GET /messages/:messageId/threads — get all thread conversations for a shared message
+conversationsRouter.get("/messages/:messageId/threads", async (ctx) => {
+  const messageId = ctx.params.messageId;
+  if (!/^[0-9A-Za-z]{16}$/.test(messageId)) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid message ID" };
+    return;
+  }
+
+  const threads = await getThreadsForMessage(messageId);
+  ctx.body = {
+    threads: threads.map((t) => ({
+      conversationId: t.id,
+      displayName: t.display_name,
+      messageCount: (t as any).message_count || 0,
+      lastUserId: (t as any).last_user_id || 0,
+    })),
+  };
+});
+
+// POST /messages/:messageId/threads — create a new thread conversation from a shared message
+const createThreadSchema = z.object({
+  question: z.string().min(1),
+  userId: z.number().int().min(1)
+});
+
+conversationsRouter.post("/messages/:messageId/threads", async (ctx) => {
+  const messageId = ctx.params.messageId;
+  if (!/^[0-9A-Za-z]{16}$/.test(messageId)) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid message ID" };
+    return;
+  }
+
+  const parsed = createThreadSchema.safeParse(ctx.request.body);
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid request" };
+    return;
+  }
+
+  // Verify parent message exists
+  const parentMsg = await getMessageById(messageId);
+  if (!parentMsg) {
+    ctx.status = 404;
+    ctx.body = { error: "Parent message not found" };
+    return;
+  }
+
+  // Get the parent conversation to copy its vector collection for RAG
+  const parentConv = await getConversation(parentMsg.conversation_id);
+  if (!parentConv.conversation) {
+    ctx.status = 404;
+    ctx.body = { error: "Parent conversation not found" };
+    return;
+  }
+
+  // Create thread conversation
+  const threadId = generateShortId();
+  const salt = uuidv4();
+  const ownerPassword = deriveToken(threadId, salt);
+
+  await insertConversation({
+    id: threadId,
+    salt,
+    display_name: null,
+    status: "ready",
+    storage_namespace: parentConv.conversation.storage_namespace,
+    vector_collection_name: parentConv.conversation.vector_collection_name,
+    indexing_mode: parentConv.conversation.indexing_mode,
+    error_message: null,
+    parent_message_id: messageId,
+  });
+
+  await insertAccessToken({
+    token: ownerPassword,
+    conversation_id: threadId,
+    role: "owner",
+  });
+
+  // Insert user's first message in the thread
+  await insertConversationMessage({
+    conversationId: threadId,
+    role: "user",
+    content: parsed.data.question,
+    userId: parsed.data.userId,
+  });
+
+  ctx.body = {
+    conversationId: threadId,
+    ownerPassword,
+    url: `/c/${threadId}`,
   };
 });

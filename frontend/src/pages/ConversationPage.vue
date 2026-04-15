@@ -12,7 +12,9 @@
       <template #language-toggle>
         <LanguageToggle
           :messages="messages"
+          :suggestedQuestions="allSuggestedQuestions"
           @translated="onTranslated"
+          @questions-translated="onQuestionsTranslated"
           @restored="onRestored"
         />
       </template>
@@ -46,8 +48,10 @@
             :suggestedQuestions="suggestedQuestionsForMessage(index)"
             :conversationName="conversationTitle"
             :fileName="primaryFileName"
+            :isThread="isThread"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
+            @view-threads="viewThreads"
           />
         </div>
 
@@ -84,6 +88,8 @@ import {
   type ChatMessage,
 } from "../api";
 import { cleanFileName } from "../utils/text";
+import { getUserId } from "../utils/fingerprint";
+import { useRouter } from "vue-router";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
 import LanguageToggle from "../components/LanguageToggle.vue";
@@ -98,9 +104,26 @@ const chatContainer = ref<HTMLDivElement | null>(null);
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);
+const routerInstance = useRouter();
+
+const isThread = computed(() => !!status.value.parentMessageId);
 
 // Translation state
 const originalMessages = ref<Map<number, string>>(new Map());
+const originalSuggestedQuestions = ref<Map<string, string>>(new Map()); // translated → original
+
+// Collect all suggested questions for translation (status-level + per-message)
+const allSuggestedQuestions = computed(() => {
+  const qs = [...status.value.suggestedQuestions];
+  for (const msg of messages.value) {
+    if (msg.suggestedQuestions?.length) {
+      for (const q of msg.suggestedQuestions) {
+        if (!qs.includes(q)) qs.push(q);
+      }
+    }
+  }
+  return qs;
+});
 
 function onTranslated(translations: Map<number, string>) {
   // Save originals before replacing
@@ -115,6 +138,26 @@ function onTranslated(translations: Map<number, string>) {
   });
 }
 
+function onQuestionsTranslated(translated: string[]) {
+  const all = allSuggestedQuestions.value;
+  // Build original→translated and translated→original maps
+  const fwdMap = new Map<string, string>();
+  all.forEach((q, i) => {
+    if (translated[i] && translated[i] !== q) {
+      fwdMap.set(q, translated[i]);
+      originalSuggestedQuestions.value.set(translated[i], q);
+    }
+  });
+  // Apply to status-level
+  status.value.suggestedQuestions = status.value.suggestedQuestions.map(q => fwdMap.get(q) || q);
+  // Apply to per-message
+  for (const msg of messages.value) {
+    if (msg.suggestedQuestions?.length) {
+      msg.suggestedQuestions = msg.suggestedQuestions.map(q => fwdMap.get(q) || q);
+    }
+  }
+}
+
 function onRestored() {
   originalMessages.value.forEach((text, i) => {
     if (messages.value[i]) {
@@ -122,6 +165,17 @@ function onRestored() {
     }
   });
   originalMessages.value.clear();
+  // Restore suggested questions
+  if (originalSuggestedQuestions.value.size) {
+    const revMap = originalSuggestedQuestions.value; // translated → original
+    status.value.suggestedQuestions = status.value.suggestedQuestions.map(q => revMap.get(q) || q);
+    for (const msg of messages.value) {
+      if (msg.suggestedQuestions?.length) {
+        msg.suggestedQuestions = msg.suggestedQuestions.map(q => revMap.get(q) || q);
+      }
+    }
+    originalSuggestedQuestions.value.clear();
+  }
 }
 
 const status = ref<ConversationStatus>({
@@ -129,6 +183,7 @@ const status = ref<ConversationStatus>({
   displayName: null,
   status: "processing",
   role: "viewer",
+  parentMessageId: null,
   files: [],
   messages: [],
   suggestedQuestions: [],
@@ -245,6 +300,11 @@ async function handleUploadFiles(files: File[]) {
   }
 }
 
+function viewThreads(messageId: string) {
+  // Navigate to the shared message page to see all threads
+  routerInstance.push(`/m/${messageId}`);
+}
+
 function scrollToBottom() {
   if (chatContainer.value) {
     const scrollHeight = chatContainer.value.scrollHeight;
@@ -275,7 +335,7 @@ async function ask() {
       setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
     );
     const response = await Promise.race([
-      askQuestion(conversationId, currentQuestion),
+      askQuestion(conversationId, currentQuestion, getUserId() || undefined),
       timeout,
     ]);
     reactiveMsg.content = response.answer;
