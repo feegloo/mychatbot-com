@@ -9,7 +9,14 @@
       <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
         <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">&times;</button>
 
-        <!-- PDF preview (desktop: inline iframe, mobile: inline object) -->
+        <!-- "Open PDF" button on mobile when viewing single-page pdfjs render -->
+        <button
+          v-if="isPdf && isMobile && usePdfJs"
+          class="source-modal-open-pdf"
+          @click="openFullPdf"
+        >Open PDF</button>
+
+        <!-- PDF preview (desktop: inline iframe) -->
         <div v-if="isPdf && !isMobile" class="source-modal-pdf">
           <iframe
             :src="pdfUrl"
@@ -17,13 +24,21 @@
           ></iframe>
         </div>
 
-        <div v-if="isPdf && isMobile" class="source-modal-mobile-pdf">
+        <!-- Mobile: pdfjs single-page render for page > 1 -->
+        <MobilePdfViewer
+          v-if="isPdf && isMobile && usePdfJs"
+          :url="pdfBaseUrl"
+          :page="citation.page ?? 1"
+        />
+
+        <!-- Mobile: old object/iframe for page 1 or no page -->
+        <div v-if="isPdf && isMobile && !usePdfJs" class="source-modal-mobile-pdf">
           <object
-            :data="pdfUrl"
+            :data="pdfBaseUrl + '#navpanes=0'"
             type="application/pdf"
             class="source-modal-mobile-object"
           >
-            <iframe :src="pdfUrl" class="source-modal-mobile-object"></iframe>
+            <iframe :src="pdfBaseUrl + '#navpanes=0'" class="source-modal-mobile-object"></iframe>
           </object>
         </div>
 
@@ -47,6 +62,7 @@
 import { computed } from "vue";
 import { getStorageUrl } from "../api";
 import { cleanFileName, linkify } from "../utils/text";
+import MobilePdfViewer from "./MobilePdfViewer.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -75,13 +91,24 @@ const isMobile = computed(() =>
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 );
 
+const pdfBaseUrl = computed(() =>
+  getStorageUrl(props.conversationId, props.citation.fileName)
+);
+
+const usePdfJs = computed(() =>
+  isMobile.value && !!props.citation.page && props.citation.page > 1
+);
+
 const pdfUrl = computed(() => {
-  const base = getStorageUrl(props.conversationId, props.citation.fileName);
   const fragment = props.citation.page
     ? `#page=${props.citation.page}&navpanes=0`
     : "#navpanes=0";
-  return `${base}${fragment}`;
+  return `${pdfBaseUrl.value}${fragment}`;
 });
+
+function openFullPdf() {
+  window.open(pdfBaseUrl.value, "_blank", "noopener");
+}
 
 function openPdfInNewTab() {
   window.open(pdfUrl.value, "_blank", "noopener");
@@ -184,11 +211,38 @@ function openPdfInNewTab() {
   background: #fff;
 }
 
+.source-modal-open-pdf {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #e2e8f0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .source-modal-source-strip {
-  padding: 12px 16px 14px;
-  background: #3b5bdb;
-  max-height: 140px;
+  padding: 10px 16px 11px;
+  background: #4a6fa5;
+  max-height: 112px;
   overflow-y: auto;
+}
+
+/* Mobile: full-height inline PDF (old approach for page 1) */
+.source-modal-mobile-pdf {
+  flex: 1;
+  min-height: 0;
+}
+
+.source-modal-mobile-object {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
 }
 
 .source-modal-source-label {
@@ -228,19 +282,6 @@ function openPdfInNewTab() {
   line-height: 1.5;
 }
 
-/* Mobile: full-height inline PDF */
-.source-modal-mobile-pdf {
-  flex: 1;
-  min-height: 0;
-}
-
-.source-modal-mobile-object {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
-
 .source-modal-content--text {
   height: auto;
   max-height: 50vh;
@@ -271,7 +312,7 @@ function openPdfInNewTab() {
   }
 
   .source-modal-source-strip {
-    max-height: 160px;
+    max-height: 128px;
   }
 }
 </style>
