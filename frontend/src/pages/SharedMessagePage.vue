@@ -82,8 +82,10 @@ watch(() => props.messageId, load);
   transition: color 0.15s;
 }
 
-.shared-open-link:hover {
-  color: #c4b5fd;
+@media (hover: hover) {
+  .shared-open-link:hover {
+    color: #c4b5fd;
+  }
 }
 
 .shared-message-container {

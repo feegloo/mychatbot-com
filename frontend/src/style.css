@@ -8,6 +8,12 @@
 
 * { box-sizing: border-box; }
 
+/* Fix mobile double-tap: disable double-tap-to-zoom on interactive elements */
+button, [role="button"], a, .dropzone, input, textarea, select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 html, body, #app {
   height: 100%;
   overflow: hidden;
@@ -29,7 +35,9 @@ body {
 }
 
 a { color: #c4b5fd; text-decoration: none; }
-a:hover { color: #a5b4fc; }
+@media (hover: hover) {
+  a:hover { color: #a5b4fc; }
+}
 
 /* ── App layout with sidebar ── */
 
@@ -77,7 +85,12 @@ a:hover { color: #a5b4fc; }
   transition: 0.15s;
 }
 
-.conv-nav-new:hover {
+@media (hover: hover) {
+  .conv-nav-new:hover {
+    background: #334155;
+  }
+}
+.conv-nav-new:active {
   background: #334155;
 }
 
@@ -104,7 +117,12 @@ a:hover { color: #a5b4fc; }
   overflow: hidden;
 }
 
-.conv-nav-item:hover {
+@media (hover: hover) {
+  .conv-nav-item:hover {
+    background: #1e293b;
+  }
+}
+.conv-nav-item:active {
   background: #1e293b;
 }
 
@@ -157,8 +175,10 @@ a:hover { color: #a5b4fc; }
   transition: color 0.15s;
 }
 
-.conv-nav-contact:hover {
-  color: #e2e8f0;
+@media (hover: hover) {
+  .conv-nav-contact:hover {
+    color: #e2e8f0;
+  }
 }
 
 .page {
@@ -229,16 +249,22 @@ a:hover { color: #a5b4fc; }
   cursor: pointer;
 }
 
-.dropzone:hover {
+@media (hover: hover) {
+  .dropzone:hover {
+    border-color: rgba(167, 139, 250, 0.6);
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.12);
+    transform: scale(1.005);
+  }
+
+  .dropzone:hover .dropzone-icon {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+.dropzone:active {
   border-color: rgba(167, 139, 250, 0.6);
   background: rgba(167, 139, 250, 0.08);
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.12);
-  transform: scale(1.005);
-}
-
-.dropzone:hover .dropzone-icon {
-  opacity: 1;
-  transform: translateY(-1px);
 }
 
 .dropzone p { margin: 6px 0; }
@@ -261,7 +287,12 @@ a:hover { color: #a5b4fc; }
   transition: 0.15s;
 }
 
-.button:hover:not(:disabled) {
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: #c4b5fd;
+  }
+}
+.button:active:not(:disabled) {
   background: #c4b5fd;
 }
 
@@ -271,7 +302,12 @@ a:hover { color: #a5b4fc; }
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.button.secondary:hover:not(:disabled) {
+@media (hover: hover) {
+  .button.secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+.button.secondary:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
 
@@ -318,7 +354,12 @@ a:hover { color: #a5b4fc; }
   padding: 4px;
 }
 
-.add-btn:hover {
+@media (hover: hover) {
+  .add-btn:hover {
+    background: rgba(167, 139, 250, 0.25);
+  }
+}
+.add-btn:active {
   background: rgba(167, 139, 250, 0.25);
 }
 
@@ -462,8 +503,10 @@ a:hover { color: #a5b4fc; }
   flex-shrink: 0;
 }
 
-.checklist-box:hover {
-  border-color: rgba(255, 255, 255, 0.5);
+@media (hover: hover) {
+  .checklist-box:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+  }
 }
 
 li:has(.checklist-box) {
@@ -534,11 +577,27 @@ li:has(.checklist-box) {
   z-index: 2;
 }
 
-.code-block-wrapper:hover .code-copy-btn {
-  opacity: 1;
+/* On touch devices, always show the copy button since hover reveal won't work */
+@media (hover: none) {
+  .code-copy-btn {
+    opacity: 1;
+  }
 }
 
-.code-copy-btn:hover {
+@media (hover: hover) {
+  .code-block-wrapper:hover .code-copy-btn {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) {
+  .code-copy-btn:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: rgba(167, 139, 250, 0.3);
+    color: #c4b5fd;
+  }
+}
+.code-copy-btn:active {
   background: rgba(167, 139, 250, 0.12);
   border-color: rgba(167, 139, 250, 0.3);
   color: #c4b5fd;
@@ -650,7 +709,8 @@ textarea.big-input {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   padding: 6px;
-  margin-top: 10px;
+  margin-top: 18px;
+  flex-shrink: 0;
 }
 
 .chat-input-bar:focus-within {
@@ -693,7 +753,12 @@ textarea.big-input {
   transition: 0.15s;
 }
 
-.live-toggle:hover {
+@media (hover: hover) {
+  .live-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+.live-toggle:active {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -718,7 +783,12 @@ textarea.big-input {
   transition: 0.15s;
 }
 
-.send-btn:hover:not(:disabled) {
+@media (hover: hover) {
+  .send-btn:hover:not(:disabled) {
+    background: #c4b5fd;
+  }
+}
+.send-btn:active:not(:disabled) {
   background: #c4b5fd;
 }
 
@@ -764,8 +834,10 @@ textarea.big-input {
   transition: 0.15s;
 }
 
-.conv-title:hover {
-  color: #c4b5fd;
+@media (hover: hover) {
+  .conv-title:hover {
+    color: #c4b5fd;
+  }
 }
 
 .conv-title-input {

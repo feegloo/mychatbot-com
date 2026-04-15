@@ -344,7 +344,9 @@ onUnmounted(() => {
   border-radius: 4px;
   transition: color 0.2s;
 }
-.embed-header-link:hover { color: #e2e8f0; }
+@media (hover: hover) {
+  .embed-header-link:hover { color: #e2e8f0; }
+}
 
 /* ── Chat log ── */
 .embed-chat-log {
@@ -398,7 +400,10 @@ onUnmounted(() => {
   transition: background 0.2s;
   flex-shrink: 0;
 }
-.embed-send-btn:hover:not(:disabled) { background: #6d28d9; }
+@media (hover: hover) {
+  .embed-send-btn:hover:not(:disabled) { background: #6d28d9; }
+}
+.embed-send-btn:active:not(:disabled) { background: #6d28d9; }
 .embed-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Footer ── */
@@ -413,5 +418,7 @@ onUnmounted(() => {
   color: #7c3aed;
   text-decoration: none;
 }
-.embed-footer a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .embed-footer a:hover { text-decoration: underline; }
+}
 </style>

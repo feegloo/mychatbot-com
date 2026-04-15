@@ -1,7 +1,7 @@
 <template>
   <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ msg.role === 'user' ? 'You' : 'Assistant' }}</strong>
-    <button
+    <AppButton
       v-if="msg.role === 'assistant' && msg.id && msg.content"
       class="share-msg-btn"
       :title="shareCopied ? 'Copied!' : 'Share this answer'"
@@ -10,7 +10,7 @@
       <svg v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
       <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       {{ shareCopied ? 'Copied!' : 'Share' }}
-    </button>
+    </AppButton>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
@@ -54,23 +54,23 @@
 
     <!-- Inline suggested questions for welcome message -->
     <div v-if="isWelcome && suggestedQuestions?.length" class="welcome-suggested-questions">
-      <button
+      <AppButton
         v-for="q in suggestedQuestions"
         :key="q"
         class="question-pill"
         @click="$emit('select-question', q)"
       >
         {{ q }}
-      </button>
+      </AppButton>
     </div>
 
     <!-- Upload files button (first message only) -->
     <div v-if="isFirstMessage && canUpload" class="welcome-upload-row">
       <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
-      <button class="upload-inline-btn" @click="uploadInput?.click()">
+      <AppButton class="upload-inline-btn" @click="uploadInput?.click()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload more files
-      </button>
+      </AppButton>
       <template v-if="selectedUploadFiles.length">
         <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
         <span v-if="uploadingFiles" class="upload-file-status">Uploading…</span>
@@ -119,6 +119,7 @@ import type { ChatMessage, ConversationStatus } from "../api";
 import { getStorageUrl } from "../api";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
+import AppButton from "./AppButton.vue";
 import QuizBlock from "./QuizBlock.vue";
 import MermaidBlock from "./MermaidBlock.vue";
 import type { QuizData } from "./QuizBlock.vue";
@@ -574,14 +575,31 @@ function openFilePreview(file: FileInfo) {
   opacity: 0;
 }
 
-.message:hover .share-msg-btn {
-  opacity: 1;
+/* On touch devices, always show the share button */
+@media (hover: none) {
+  .share-msg-btn {
+    opacity: 1;
+  }
 }
 
-.share-msg-btn:hover {
+@media (hover: hover) {
+  .message:hover .share-msg-btn {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) {
+  .share-msg-btn:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: rgba(167, 139, 250, 0.3);
+    color: #c4b5fd;
+  }
+}
+.share-msg-btn:active {
   background: rgba(167, 139, 250, 0.12);
   border-color: rgba(167, 139, 250, 0.3);
   color: #c4b5fd;
+  opacity: 1;
 }
 
 /* Inline source buttons */
@@ -604,9 +622,11 @@ function openFilePreview(file: FileInfo) {
   font-family: inherit;
 }
 
-:deep(.inline-source-btn:hover) {
-  background: #7c3aed55;
-  border-color: #a78bfa;
+@media (hover: hover) {
+  :deep(.inline-source-btn:hover) {
+    background: #7c3aed55;
+    border-color: #a78bfa;
+  }
 }
 
 :deep(.inline-source-icon) {
@@ -630,9 +650,11 @@ function openFilePreview(file: FileInfo) {
   max-width: 140px;
 }
 
-.citation-image-thumb:hover {
-  border-color: #c4b5fd;
-  transform: scale(1.03);
+@media (hover: hover) {
+  .citation-image-thumb:hover {
+    border-color: #c4b5fd;
+    transform: scale(1.03);
+  }
 }
 
 .citation-image-thumb img {
@@ -663,8 +685,10 @@ function openFilePreview(file: FileInfo) {
   transition: border-color 0.15s;
 }
 
-.citation-active-image:hover {
-  border-color: #c4b5fd;
+@media (hover: hover) {
+  .citation-active-image:hover {
+    border-color: #c4b5fd;
+  }
 }
 
 .citation-active-image img {
@@ -693,10 +717,12 @@ function openFilePreview(file: FileInfo) {
   flex-shrink: 0;
 }
 
-.file-preview-card:hover {
-  border-color: #a78bfa;
-  background: rgba(167, 139, 250, 0.08);
-  transform: scale(1.03);
+@media (hover: hover) {
+  .file-preview-card:hover {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.08);
+    transform: scale(1.03);
+  }
 }
 
 .file-preview-thumb {
@@ -773,7 +799,14 @@ function openFilePreview(file: FileInfo) {
   transition: 0.15s;
 }
 
-.welcome-suggested-questions .question-pill:hover {
+@media (hover: hover) {
+  .welcome-suggested-questions .question-pill:hover {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.25);
+    color: #ddd6fe;
+  }
+}
+.welcome-suggested-questions .question-pill:active {
   background: rgba(167, 139, 250, 0.1);
   border-color: rgba(167, 139, 250, 0.25);
   color: #ddd6fe;
@@ -803,7 +836,12 @@ function openFilePreview(file: FileInfo) {
   height: 26px;
 }
 
-.upload-inline-btn:hover {
+@media (hover: hover) {
+  .upload-inline-btn:hover {
+    background: rgba(167, 139, 250, 0.25);
+  }
+}
+.upload-inline-btn:active {
   background: rgba(167, 139, 250, 0.25);
 }
 
@@ -852,7 +890,14 @@ function openFilePreview(file: FileInfo) {
   transition: 0.15s;
 }
 
-:deep(.action-btn:hover) {
+@media (hover: hover) {
+  :deep(.action-btn:hover) {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.25);
+    color: #ddd6fe;
+  }
+}
+:deep(.action-btn:active) {
   background: rgba(167, 139, 250, 0.1);
   border-color: rgba(167, 139, 250, 0.25);
   color: #ddd6fe;

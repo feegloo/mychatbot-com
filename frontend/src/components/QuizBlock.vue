@@ -194,7 +194,13 @@ const correctCount = computed(() =>
   position: relative;
 }
 
-.quiz-option:hover:not(.correct):not(.wrong) {
+@media (hover: hover) {
+  .quiz-option:hover:not(.correct):not(.wrong) {
+    background: rgba(15, 23, 42, 0.65);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+.quiz-option:active:not(.correct):not(.wrong) {
   background: rgba(15, 23, 42, 0.65);
   border-color: rgba(255, 255, 255, 0.12);
 }

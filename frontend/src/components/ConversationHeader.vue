@@ -3,14 +3,14 @@
     <div style="flex: 1; min-width: 0; max-width: 60%;">
         <div style="height: 30px;">
       <h1
-        v-if="!editingName"
+        v-if="!editingName && conversationTitle"
         class="conv-title"
         :title="canUpload ? 'Click to rename' : ''"
         :style="canUpload ? 'cursor: pointer' : ''"
         @click="canUpload && startRename()"
       >{{ conversationTitle }}</h1>
       <input
-        v-else
+        v-if="editingName"
         ref="nameInput"
         class="conv-title-input"
         v-model="editNameValue"

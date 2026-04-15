@@ -22,7 +22,7 @@
           Processing uploaded files …
         </div>
 
-        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px">
+        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px; padding-bottom: 12px">
           <div style="flex: 1"></div>
           <ChatMessageItem
             v-for="(msg, index) in messages"
@@ -160,12 +160,11 @@ const conversationTitle = computed(() => {
   if (status.value.files.length) {
     return status.value.files.map(f => cleanFileName(f.originalName)).join(", ");
   }
-  if (!loaded.value) return "";
-  return `Conversation ${conversationId.slice(0, 8)}…`;
+  return "";
 });
 
 watch(conversationTitle, (title) => {
-  document.title = `${title} | chatrag.app`;
+  document.title = title ? `${title} | chatrag.app` : 'chatrag.app';
 }, { immediate: true });
 
 async function loadConversation() {

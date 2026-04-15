@@ -129,7 +129,14 @@ watch(() => props.code, () => {
   white-space: nowrap;
 }
 
-.mermaid-tool-btn:hover {
+@media (hover: hover) {
+  .mermaid-tool-btn:hover {
+    background: rgba(167, 139, 250, 0.12);
+    border-color: rgba(167, 139, 250, 0.3);
+    color: #c4b5fd;
+  }
+}
+.mermaid-tool-btn:active {
   background: rgba(167, 139, 250, 0.12);
   border-color: rgba(167, 139, 250, 0.3);
   color: #c4b5fd;

@@ -60,7 +60,12 @@ defineEmits<{
   transition: background 0.15s;
 }
 
-.image-modal-close:hover {
+@media (hover: hover) {
+  .image-modal-close:hover {
+    background: #334155;
+  }
+}
+.image-modal-close:active {
   background: #334155;
 }
 

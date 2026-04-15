@@ -28,7 +28,7 @@
     </div>
 
     <!-- Upload section (fades out after upload starts processing) -->
-    <Transition name="fade-upload">
+    <Transition :name="skipUploadTransition ? '' : 'fade-upload'">
       <div v-if="showUpload" class="upload-section">
         <div
           class="dropzone upload-dropzone"
@@ -111,6 +111,7 @@ const uploading = ref(false);
 const uploadError = ref("");
 const inputRef = ref<HTMLInputElement | null>(null);
 const showUpload = ref(true);
+const skipUploadTransition = ref(false);
 
 // Chat state
 const question = ref("");
@@ -197,7 +198,8 @@ async function submitQuestion() {
 
   try {
     const convId = await ensureConversation();
-    // Fade out upload once conversation started
+    // Immediately hide upload (no fade) when asking without files
+    skipUploadTransition.value = true;
     showUpload.value = false;
 
     const TIMEOUT_MS = 120_000;
@@ -321,6 +323,7 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 700px;
   flex-shrink: 0;
+  margin-top: 25px;
 }
 
 /* Fade transition for upload section */

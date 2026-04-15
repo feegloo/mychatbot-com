@@ -163,7 +163,12 @@ function openPdfInNewTab() {
   transition: background 0.15s;
 }
 
-.source-modal-close:hover {
+@media (hover: hover) {
+  .source-modal-close:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+.source-modal-close:active {
   background: rgba(0, 0, 0, 0.7);
 }
 

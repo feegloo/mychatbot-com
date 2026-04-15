@@ -155,7 +155,12 @@ h1 {
   font-size: 0.85rem;
   transition: all 0.15s;
 }
-.table-tabs button:hover {
+@media (hover: hover) {
+  .table-tabs button:hover {
+    background: #273449;
+  }
+}
+.table-tabs button:active {
   background: #273449;
 }
 .table-tabs button.active {
