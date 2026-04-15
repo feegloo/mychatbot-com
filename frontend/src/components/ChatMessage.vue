@@ -319,6 +319,16 @@ const senderLabel = computed(() => {
   }
   return "You";
 });
+
+// Upload files state (for first message inline upload)
+const uploadInput = ref<HTMLInputElement | null>(null);
+const selectedUploadFiles = ref<File[]>([]);
+const uploadingFiles = ref(false);
+const uploadError = ref("");
+
+const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0);
+
+
 function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
   selectedUploadFiles.value = Array.from(target.files || []);

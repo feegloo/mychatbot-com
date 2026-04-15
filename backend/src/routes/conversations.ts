@@ -483,7 +483,6 @@ conversationsRouter.get("/messages/:messageId/threads", async (ctx) => {
 
 // POST /messages/:messageId/threads — create a new thread conversation from a shared message
 const createThreadSchema = z.object({
-  question: z.string().min(1),
   userId: z.number().int().min(1)
 });
 
@@ -539,14 +538,6 @@ conversationsRouter.post("/messages/:messageId/threads", async (ctx) => {
     token: ownerPassword,
     conversation_id: threadId,
     role: "owner",
-  });
-
-  // Insert user's first message in the thread
-  await insertConversationMessage({
-    conversationId: threadId,
-    role: "user",
-    content: parsed.data.question,
-    userId: parsed.data.userId,
   });
 
   ctx.body = {

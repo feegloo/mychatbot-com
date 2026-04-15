@@ -100,12 +100,13 @@ async function startThread() {
     return;
   }
   creatingThread.value = true;
+  const pendingQuestion = replyText.value.trim();
   try {
-    const result = await createThread(props.messageId, replyText.value.trim(), userId);
+    const result = await createThread(props.messageId, userId);
     // Save the owner token so user can continue chatting
     saveConversationToken(result.conversationId, result.ownerPassword);
-    // Navigate to the new thread conversation
-    router.push(`/c/${result.conversationId}`);
+    // Navigate to the new thread conversation with the pending question
+    router.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } });
   } catch (err: any) {
     error.value = err?.response?.data?.error || "Failed to create thread";
   } finally {

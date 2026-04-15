@@ -381,6 +381,18 @@ onMounted(async () => {
   await nextTick();
   setTimeout(() => scrollToBottom(), 100);
 
+  // Auto-submit pending question from thread creation
+  const pending = window.history.state?.pendingQuestion as string | undefined;
+  if (pending) {
+    question.value = pending;
+    // Clear it from history state to prevent re-submit on refresh
+    const cleanState = { ...window.history.state };
+    delete cleanState.pendingQuestion;
+    window.history.replaceState(cleanState, '');
+    await nextTick();
+    submitQuestion();
+  }
+
   intervalHandle = window.setInterval(async () => {
     await loadConversation();
   }, 1000);

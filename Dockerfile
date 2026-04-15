@@ -5,6 +5,7 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN echo "=== vue-tsc type-check ===" && npx vue-tsc --noEmit 2>&1 || echo "=== vue-tsc had errors (non-fatal) ==="
 RUN echo "=== vite build ===" && npx vite build 2>&1 && echo "=== frontend build OK ===" || (echo "=== FRONTEND BUILD FAILED ===" && exit 1)
 RUN ls -la /app/frontend/dist/ || (echo "=== ERROR: dist/ not found after build ===" && exit 1)

@@ -232,7 +232,7 @@ export async function getMessageThreads(messageId: string) {
   return response.data as { threads: ThreadSummary[] };
 }
 
-export async function createThread(messageId: string, question: string, userId: number) {
-  const response = await api.post(`/messages/${messageId}/threads`, { question, userId });
+export async function createThread(messageId: string, userId: number) {
+  const response = await api.post(`/messages/${messageId}/threads`, { userId });
   return response.data as { conversationId: string; ownerPassword: string; url: string };
 }
