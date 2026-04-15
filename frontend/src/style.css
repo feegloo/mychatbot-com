@@ -412,6 +412,7 @@ a:hover { color: #a5b4fc; }
 }
 
 .markdown-content strong {
+  display: inline;
   font-size: inherit;
   text-transform: none;
   letter-spacing: normal;
@@ -501,6 +502,46 @@ li:has(.checklist-box) {
   padding: 12px;
   margin: 8px 0;
   overflow-x: auto;
+}
+
+.code-block-wrapper {
+  position: relative;
+  margin: 8px 0;
+}
+
+.code-block-wrapper pre {
+  margin: 0;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  opacity: 0;
+  z-index: 2;
+}
+
+.code-block-wrapper:hover .code-copy-btn {
+  opacity: 1;
+}
+
+.code-copy-btn:hover {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #c4b5fd;
 }
 
 .markdown-content pre code {

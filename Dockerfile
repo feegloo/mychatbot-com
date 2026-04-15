@@ -5,7 +5,9 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
 ENV NODE_ENV=production
-RUN npm run build || echo "Frontend build completed with warnings"
+RUN echo "=== vue-tsc type-check ===" && npx vue-tsc --noEmit 2>&1 || echo "=== vue-tsc had errors (non-fatal) ==="
+RUN echo "=== vite build ===" && npx vite build 2>&1 && echo "=== frontend build OK ===" || (echo "=== FRONTEND BUILD FAILED ===" && exit 1)
+RUN ls -la /app/frontend/dist/ || (echo "=== ERROR: dist/ not found after build ===" && exit 1)
 
 # ── Stage 2: Build backend ───────────────────────────────────────────────────
 FROM node:22-alpine AS backend-build
@@ -14,7 +16,7 @@ COPY backend/package.json backend/package-lock.json* ./
 RUN npm ci
 COPY backend/ ./
 ENV NODE_ENV=production
-RUN npm run build || echo "Backend build completed with warnings"
+RUN npm run build
 
 # ── Stage 3: Production image ────────────────────────────────────────────────
 FROM node:22-slim

@@ -13,7 +13,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 export const uploadRouter = new Router();
 
 uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
-  const files = (ctx.files || []) as Express.Multer.File[];
+  const files = ctx.files as multer.File[] || [];
   if (!files.length) {
     ctx.status = 400;
     ctx.body = { error: "No files uploaded" };
@@ -30,6 +30,7 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
   await insertConversation({
     id: conversationId,
     salt: salt,
+    display_name: null,
     status: "processing",
     storage_namespace: namespace,
     vector_collection_name: collectionName,

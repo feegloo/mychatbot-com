@@ -29,7 +29,7 @@ export function createApp() {
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/api")) {
       ctx.path = ctx.path.replace(/^\/api/, "") || "/";
-      return apiRouter.routes()(ctx, next);
+      return apiRouter.routes()(ctx as any, next);
     }
     return next();
   });

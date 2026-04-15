@@ -101,7 +101,7 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
   const conversationId = ctx.params.conversationId;
   const token = String(ctx.headers["x-conversation-token"] || "");
   const role = await resolveConversationRole(conversationId, token);
-  const files = (ctx.files || []) as Express.Multer.File[];
+  const files = ctx.files as multer.File[] || [];
 
   if (!files.length) {
     ctx.status = 400;

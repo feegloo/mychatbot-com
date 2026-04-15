@@ -56,9 +56,15 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     return;
   }
 
-  // Allow image, document, and text file extensions for preview
+  // Allow image, document, and text file extensions for preview/download
   const ext = path.extname(fileName).toLowerCase();
-  const allowedExts = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt"]);
+  const allowedExts = new Set([
+    ".png", ".jpg", ".jpeg", ".gif", ".webp",
+    ".pdf", ".txt", ".csv",
+    ".doc", ".docx", ".xls", ".xlsx", ".pptx",
+    ".odt", ".ods", ".odp",
+    ".rtf", ".md",
+  ]);
   if (!allowedExts.has(ext)) {
     ctx.status = 403;
     ctx.body = { error: "File type not allowed" };
@@ -129,13 +135,27 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
     ".webp": "image/webp",
     ".pdf": "application/pdf",
     ".txt": "text/plain; charset=utf-8",
+    ".csv": "text/csv; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".odt": "application/vnd.oasis.opendocument.text",
+    ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+    ".odp": "application/vnd.oasis.opendocument.presentation",
+    ".rtf": "application/rtf",
   };
 
+  const inlineExts = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt", ".csv", ".md"]);
   ctx.set("Content-Type", mimeTypes[ext] || "application/octet-stream");
-  if (ext === ".pdf" || ext === ".txt") {
+  if (inlineExts.has(ext)) {
     ctx.set("Content-Disposition", `inline; filename="${encodeURIComponent(fileName)}"`);
     ctx.set("X-Content-Type-Options", "nosniff");
     ctx.set("Accept-Ranges", "bytes");
+  } else {
+    ctx.set("Content-Disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
   }
   ctx.set("Cache-Control", "public, max-age=86400");
   ctx.body = fileBuffer;

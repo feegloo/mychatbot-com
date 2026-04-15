@@ -18,6 +18,7 @@
       <div v-for="(part, pi) in contentParts" :key="pi">
         <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
         <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" />
+        <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
       </div>
     </template>
     <span v-else class="user-text">{{ msg.content }}</span>
@@ -119,6 +120,7 @@ import { getStorageUrl } from "../api";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
 import QuizBlock from "./QuizBlock.vue";
+import MermaidBlock from "./MermaidBlock.vue";
 import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
 
@@ -239,7 +241,28 @@ defineExpose({ resetUploadState, setUploading });
 
 const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
-type ContentPart = { type: 'text'; html: string } | { type: 'quiz'; quiz: QuizData; quizIndex: number };
+type ContentPart =
+  | { type: 'text'; html: string }
+  | { type: 'quiz'; quiz: QuizData; quizIndex: number }
+  | { type: 'mermaid'; code: string };
+
+// Mermaid diagram detection regex: ```mermaid ... ```
+const mermaidBlockRe = /```mermaid\s*\n([\s\S]*?)```/g;
+
+/** Split a text chunk into interleaved text and mermaid parts */
+function splitMermaid(text: string): ContentPart[] {
+  const result: ContentPart[] = [];
+  let lastIdx = 0;
+  for (const m of text.matchAll(mermaidBlockRe)) {
+    const before = text.slice(lastIdx, m.index);
+    if (before.trim()) result.push({ type: 'text', html: renderMarkdown(before) });
+    result.push({ type: 'mermaid', code: m[1].trim() });
+    lastIdx = m.index! + m[0].length;
+  }
+  const after = text.slice(lastIdx);
+  if (after.trim()) result.push({ type: 'text', html: renderMarkdown(after) });
+  return result;
+}
 
 const contentParts = computed<ContentPart[]>(() => {
   const content = props.msg.content;
@@ -278,10 +301,10 @@ const contentParts = computed<ContentPart[]>(() => {
       continue;
     }
 
-    // Text before quiz
+    // Text before quiz (may contain mermaid blocks)
     const textBefore = content.slice(lastIndex, start);
     if (textBefore.trim()) {
-      parts.push({ type: 'text', html: renderMarkdown(textBefore) });
+      parts.push(...splitMermaid(textBefore));
     }
 
     // Parse quiz JSON — strip [source:N] citations that break JSON validity
@@ -298,10 +321,10 @@ const contentParts = computed<ContentPart[]>(() => {
         }
         parts.push({ type: 'quiz', quiz: quizData, quizIndex: quizCounter++ });
       } else {
-        parts.push({ type: 'text', html: renderMarkdown(content.slice(start, jsonEnd + 1)) });
+        parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)));
       }
     } catch {
-      parts.push({ type: 'text', html: renderMarkdown(content.slice(start, jsonEnd + 1)) });
+      parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)));
     }
 
     lastIndex = jsonEnd + 1;
@@ -311,7 +334,7 @@ const contentParts = computed<ContentPart[]>(() => {
   // Remaining text after last quiz block (or all text if no quiz)
   const remaining = content.slice(lastIndex);
   if (remaining.trim()) {
-    parts.push({ type: 'text', html: renderMarkdown(remaining) });
+    parts.push(...splitMermaid(remaining));
   }
 
   // If no parts at all, add empty text
@@ -362,10 +385,39 @@ function cleanupTooltips() {
   tooltipElements.length = 0;
 }
 
+function injectCodeCopyButtons() {
+  if (!contentEls.value?.length) return;
+  for (const el of contentEls.value) {
+    const pres = el.querySelectorAll<HTMLPreElement>('pre');
+    pres.forEach((pre) => {
+      if (pre.querySelector('.code-copy-btn')) return;
+      // Wrap pre in a relative container
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block-wrapper';
+      pre.parentNode!.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+
+      const btn = document.createElement('button');
+      btn.className = 'code-copy-btn';
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`;
+      btn.addEventListener('click', () => {
+        const code = pre.querySelector('code');
+        navigator.clipboard.writeText(code?.textContent || pre.textContent || '');
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        setTimeout(() => {
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`;
+        }, 2000);
+      });
+      wrapper.appendChild(btn);
+    });
+  }
+}
+
 watch(contentParts, () => {
   nextTick(() => {
     setupTooltips();
     restoreChecklistState();
+    injectCodeCopyButtons();
   });
 }, { immediate: true });
 
