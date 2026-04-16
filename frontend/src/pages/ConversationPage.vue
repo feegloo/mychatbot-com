@@ -348,9 +348,23 @@ function viewThreads(messageId: string) {
 }
 
 function scrollToBottom(smooth = false) {
-  if (chatContainer.value) {
-    chatContainer.value.scrollTo({
-      top: chatContainer.value.scrollHeight,
+  if (!chatContainer.value) return;
+  const container = chatContainer.value;
+  // Find the last message element
+  const messageEls = container.querySelectorAll('.message');
+  const lastMsg = messageEls[messageEls.length - 1] as HTMLElement | undefined;
+  if (lastMsg) {
+    // Scroll so the top of the last message aligns with the top of the container.
+    // If the message is shorter than the viewport, scrolling to its top is enough.
+    const msgTop = lastMsg.offsetTop - container.offsetTop;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    container.scrollTo({
+      top: Math.min(msgTop, maxScroll),
+      behavior: smooth ? 'smooth' : 'instant',
+    });
+  } else {
+    container.scrollTo({
+      top: container.scrollHeight,
       behavior: smooth ? 'smooth' : 'instant',
     });
   }

@@ -11,7 +11,7 @@
       PDF
     </AppButton>
     <AppButton
-      v-if="msg.role === 'assistant' && msg.id && msg.content"
+      v-if="msg.role === 'assistant' && msg.content"
       class="share-msg-btn"
       :title="shareCopied ? 'Copied!' : 'Share this answer'"
       @click="shareMessage"
@@ -357,9 +357,12 @@ function resetUploadState(error?: string) {
 // Share message
 const shareCopied = ref(false);
 function shareMessage() {
-  if (!props.msg.id) return;
-  const url = `${window.location.origin}/m/${props.msg.id}`;
-  navigator.clipboard.writeText(url);
+  if (props.msg.id) {
+    const url = `${window.location.origin}/m/${props.msg.id}`;
+    navigator.clipboard.writeText(url);
+  } else {
+    navigator.clipboard.writeText(props.msg.content);
+  }
   shareCopied.value = true;
   setTimeout(() => { shareCopied.value = false; }, 2000);
 }
@@ -374,23 +377,13 @@ const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
 const messageContentEl = ref<HTMLElement | null>(null);
 
-/** Detect if this message has rich/custom rendered content worth downloading as PDF.
- *  Skip entirely if any content part already has its own built-in PDF button (e.g. QuizBlock). */
+/** Show PDF download button for all assistant messages with content,
+ *  except those with quiz blocks (they have their own PDF button). */
 const hasRichContent = computed(() => {
   if (props.msg.role !== "assistant" || !props.msg.content) return false;
   const parts = contentParts.value;
-  // If any part already has its own PDF button, never show the outer one
   if (parts.some((p) => p.type === "quiz")) return false;
-  // Has mermaid blocks
-  if (parts.some((p) => p.type === "mermaid")) return true;
-  // Has tables or checklists in rendered HTML
-  for (const p of parts) {
-    if (p.type === "text") {
-      if (/<table[\s>]/i.test(p.html)) return true;
-      if (/checklist-box/i.test(p.html)) return true;
-    }
-  }
-  return false;
+  return true;
 });
 
 function downloadMessagePdf() {
@@ -1010,7 +1003,7 @@ function openFilePreview(file: FileInfo) {
   position: absolute;
   inset: 0;
   z-index: 1;
-  margin-top: 59px;
+  top: 59px;
   cursor: pointer;
 }
 

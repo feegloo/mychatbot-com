@@ -422,7 +422,7 @@ watch(renderedPages, async () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #525659;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -435,7 +435,7 @@ watch(renderedPages, async () => {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 12px;
+  padding: 0;
 }
 
 .pdf-page-wrapper {

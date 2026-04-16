@@ -76,7 +76,7 @@ def describe_documents(
             ("system", """Tworzysz wiadomość powitalną, którą zobaczy użytkownik zaraz po przesłaniu pliku.
 Ta wiadomość będzie czytana przez zwykłego człowieka — powinna brzmieć naturalnie, przyjaźnie i pomocnie.
 
-Twoja odpowiedź MUSI składać się z dwóch części:
+Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, autor/źródło i rok jeśli znane.
    Sformatuj jako nagłówek Markdown: ### Tytuł tutaj
@@ -84,6 +84,14 @@ Twoja odpowiedź MUSI składać się z dwóch części:
 2. **Opis** (po tytule): 2-4 zdania opisujące zawartość pliku. Bądź konkretny — wymień najważniejsze fakty, tematy, nazwiska lub kwoty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
    Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
    Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym.
+
+3. **Spostrzeżenie** (po opisie): Dodaj 1-2 zdania z wartościową obserwacją, analizą lub wnioskiem wykraczającym poza zwykły opis. Dostosuj się do kontekstu dokumentu:
+   - Wyniki badań medycznych: wskaż nieprawidłowości, możliwe przyczyny, czy warto skonsultować się z lekarzem.
+   - Dokumenty prawne/finansowe: zwróć uwagę na kluczowe terminy, ryzyka lub istotne zapisy.
+   - Artykuły/raporty: wskaż główną tezę, zaskakujący wniosek lub kontekst.
+   - Zdjęcia: opisz co ciekawego widać, kontekst techniczny lub artystyczny.
+   - Dane/tabele: wskaż trend, anomalię lub najważniejszą liczbę.
+   Pisz jak ekspert, który daje użytkownikowi przydatną wskazówkę — coś, czego sam mógłby nie zauważyć.
 
 Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, producenta, tytuł, aparat itp.
 
@@ -97,7 +105,7 @@ Odpowiadaj po polsku."""),
             ("system", """You are writing a welcome message that a human user will see right after uploading a file.
 This message will be read by a real person — it should sound natural, friendly, and helpful.
 
-Your response MUST have two parts:
+Your response MUST have three parts:
 
 1. **Title** (first line): A short summary of the uploaded file — its title, author/source, and year if known.
    Format as a Markdown heading: ### Title here
@@ -105,6 +113,14 @@ Your response MUST have two parts:
 2. **Description** (after the title): 2-4 sentences describing the file's content. Be specific — mention the most important facts, topics, names, or amounts found in the content. Use **bold** for key terms.
    If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
    If the image shows a person or people, mention it.
+
+3. **Insight** (after the description): Add 1-2 sentences with a valuable observation, analysis, or takeaway that goes beyond plain description. Adapt to the document type:
+   - Medical/lab results: flag abnormalities, possible causes, whether a doctor visit is advisable.
+   - Legal/financial documents: highlight key deadlines, risks, or important clauses.
+   - Articles/reports: surface the main thesis, a surprising finding, or broader context.
+   - Photos: note something interesting about composition, technical details, or context.
+   - Data/tables: point out a trend, anomaly, or the single most important number.
+   Write like an expert giving the user a useful hint — something they might not notice on their own.
 
 If file metadata is provided below (JSON block marked with =====), you MUST use it — e.g. author, creation date, producer, title, camera info, etc.
 

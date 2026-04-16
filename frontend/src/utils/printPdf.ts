@@ -1,6 +1,10 @@
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
+
 /**
  * Opens a print-friendly window with the given HTML content,
  * styled for clean black-on-white PDF output via the browser's Save as PDF.
+ * Also triggers an automatic PDF file download.
  */
 export function printContentAsPdf(html: string, title: string) {
   const printWindow = window.open("", "_blank");
@@ -127,6 +131,66 @@ export function printContentAsPdf(html: string, title: string) {
     });
   });
 
+  // Also trigger automatic PDF file download
+  generateAndDownloadPdf(printWindow.document.body, title);
+}
+
+async function generateAndDownloadPdf(sourceEl: HTMLElement, title: string) {
+  try {
+    const canvas = await html2canvas(sourceEl, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+
+    const pdf = new jsPDF({
+      orientation: imgWidth > imgHeight ? "landscape" : "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+    const pdfImgWidth = imgWidth * ratio;
+    const totalPdfHeight = imgHeight * ratio;
+
+    // Handle multi-page: slice the canvas into page-sized chunks
+    let remainingHeight = imgHeight;
+    let sourceY = 0;
+    let isFirstPage = true;
+
+    while (remainingHeight > 0) {
+      if (!isFirstPage) pdf.addPage();
+      isFirstPage = false;
+
+      const sliceHeight = Math.min(remainingHeight, imgWidth * (pageHeight / pdfImgWidth));
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = imgWidth;
+      sliceCanvas.height = sliceHeight;
+      const ctx = sliceCanvas.getContext("2d")!;
+      ctx.drawImage(canvas, 0, sourceY, imgWidth, sliceHeight, 0, 0, imgWidth, sliceHeight);
+
+      const sliceData = sliceCanvas.toDataURL("image/png");
+      const slicePdfHeight = sliceHeight * ratio;
+      pdf.addImage(sliceData, "PNG", 0, 0, pdfImgWidth, slicePdfHeight);
+
+      sourceY += sliceHeight;
+      remainingHeight -= sliceHeight;
+    }
+
+    const safeName = title
+      .replace(/[^a-zA-Z0-9\u0080-\uFFFF _-]+/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 100);
+    pdf.save(`${safeName}.pdf`);
+  } catch (e) {
+    console.error("PDF download failed:", e);
+  }
 }
 
 function escapeHtml(str: string): string {

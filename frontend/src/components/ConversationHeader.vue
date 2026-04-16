@@ -1,7 +1,7 @@
 <template>
-  <div class="header" style="margin-bottom: 12px">
-    <div style="flex: 1; min-width: 0; max-width: 60%;">
-        <div style="height: 30px;">
+  <div class="header" style="margin-bottom: 12px; position: relative;">
+    <div style="position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
+        <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0;">
       <h1
         v-if="!editingName && conversationTitle"
         class="conv-title"
@@ -25,7 +25,7 @@
         <div v-if="status.role === 'editor'" class="status-badge">role: {{ status.role }}</div>
       </div>
     </div>
-    <div class="header-actions" style="display:flex; gap:8px; align-items: center; flex-wrap: wrap;">
+    <div class="header-actions" style="display:flex; gap:8px; align-items: center; flex-wrap: wrap; margin-left: auto; z-index: 1;">
       <slot name="language-toggle"></slot>
       <button class="add-btn" @click="copyUrl">
         <template v-if="copied">Copied!</template>
