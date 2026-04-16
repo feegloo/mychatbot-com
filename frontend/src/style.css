@@ -8,6 +8,8 @@
 
 * { box-sizing: border-box; }
 
+svg[aria-roledescription="error"] { display: none !important; }
+
 /* Fix mobile double-tap: disable double-tap-to-zoom on interactive elements */
 button, [role="button"], a, .dropzone, input, textarea, select {
   touch-action: manipulation;
