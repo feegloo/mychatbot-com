@@ -46,7 +46,7 @@ askRouter.post("/ask", async (ctx) => {
   });
 
   // Ensure vector collection has data (re-index if Chroma was lost on container restart)
-  await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name);
+  await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name, data.conversation.storage_namespace);
 
   const chatHistory = buildChatHistory(data.messages);
   const welcomeMessages = getWelcomeMessages(data.messages);

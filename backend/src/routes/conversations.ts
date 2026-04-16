@@ -65,12 +65,18 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
     .map((m) => m.id);
   const threadCounts = await getThreadReplyCountsForMessages(assistantMessageIds);
 
+  // For threads, storageNamespace differs from conversationId (points to parent's directory)
+  const storageNamespace = data.conversation.storage_namespace !== data.conversation.id
+    ? data.conversation.storage_namespace
+    : undefined;
+
   ctx.body = {
     conversationId: data.conversation.id,
     displayName: data.conversation.display_name || null,
     status: data.conversation.status,
     role,
     parentMessageId: data.conversation.parent_message_id || null,
+    ...(storageNamespace ? { storageNamespace } : {}),
     files: data.files.map((file) => ({
       id: file.id,
       originalName: file.original_name,

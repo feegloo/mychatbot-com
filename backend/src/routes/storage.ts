@@ -2,7 +2,7 @@ import Router from "@koa/router";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { config } from "../config.js";
-import { findStoredName } from "../repositories/conversations.js";
+import { findStoredName, getStorageNamespace } from "../repositories/conversations.js";
 import { readFromGcs } from "../storage/gcs-storage.js";
 
 export const storageRouter = new Router();
@@ -73,7 +73,9 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
 
   // Sanitize fileName to prevent path traversal
   const safeName = path.basename(fileName);
-  const dir = path.join(config.storageRoot, conversationId);
+  // Resolve storage namespace (for threads, files live under parent's directory)
+  const namespace = await getStorageNamespace(conversationId);
+  const dir = path.join(config.storageRoot, namespace);
   let filePath = path.join(dir, safeName);
 
   // Ensure resolved path is within storage root
@@ -96,7 +98,7 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
       fileBuffer = await fs.readFile(filePath);
     } else {
       // File not found by name on disk — look up stored_name from DB
-      const storedName = await findStoredName(conversationId, safeName);
+      const storedName = await findStoredName(namespace, safeName);
       if (storedName) {
         filePath = path.join(dir, storedName);
         try {
@@ -110,8 +112,8 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
       // If still not found and GCS is configured, try reading from GCS
       if (!fileBuffer && config.storageProvider === "gcs" && config.gcsBucket) {
         const gcsKey = storedName
-          ? `${conversationId}/${storedName}`
-          : `${conversationId}/${safeName}`;
+          ? `${namespace}/${storedName}`
+          : `${namespace}/${safeName}`;
         try {
           fileBuffer = await readFromGcs(gcsKey);
         } catch {

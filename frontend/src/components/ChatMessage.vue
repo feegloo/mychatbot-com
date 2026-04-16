@@ -181,7 +181,7 @@
       v-if="previewCitation"
       :visible="previewOpen"
       :citation="previewCitation"
-      :conversationId="conversationId"
+      :conversationId="effectiveStorageId"
       @close="previewOpen = false"
     />
   </div>
@@ -293,6 +293,7 @@ const props = defineProps<{
   msg: ChatMessage;
   asking: boolean;
   conversationId: string;
+  storageConversationId?: string;
   isWelcome?: boolean;
   isFirstMessage?: boolean;
   canUpload?: boolean;
@@ -302,6 +303,9 @@ const props = defineProps<{
   fileName?: string;
   isThread?: boolean;
 }>();
+
+// Use storageConversationId for file URLs (for threads, points to parent's storage)
+const effectiveStorageId = computed(() => props.storageConversationId || props.conversationId);
 
 const emit = defineEmits<{
   'select-question': [question: string];
@@ -370,12 +374,15 @@ const renderedContent = computed(() => renderMarkdown(props.msg.content));
 
 const messageContentEl = ref<HTMLElement | null>(null);
 
-/** Detect if this message has rich/custom rendered content worth downloading as PDF */
+/** Detect if this message has rich/custom rendered content worth downloading as PDF.
+ *  Skip entirely if any content part already has its own built-in PDF button (e.g. QuizBlock). */
 const hasRichContent = computed(() => {
   if (props.msg.role !== "assistant" || !props.msg.content) return false;
   const parts = contentParts.value;
-  // Has quiz or mermaid blocks
-  if (parts.some((p) => p.type === "quiz" || p.type === "mermaid")) return true;
+  // If any part already has its own PDF button, never show the outer one
+  if (parts.some((p) => p.type === "quiz")) return false;
+  // Has mermaid blocks
+  if (parts.some((p) => p.type === "mermaid")) return true;
   // Has tables or checklists in rendered HTML
   for (const p of parts) {
     if (p.type === "text") {
@@ -646,7 +653,7 @@ type ImageCitationInfo = { url: string; section?: string; imageName: string };
 
 function resolveImageCitation(citation: any): ImageCitationInfo {
   return {
-    url: getStorageUrl(props.conversationId, citation.imageName),
+    url: getStorageUrl(effectiveStorageId.value, citation.imageName),
     section: citation.section,
     imageName: citation.imageName,
   };
@@ -677,7 +684,7 @@ function isPdfFile(file: FileInfo) {
 }
 
 function getFileUrl(file: FileInfo) {
-  return getStorageUrl(props.conversationId, file.originalName);
+  return getStorageUrl(effectiveStorageId.value, file.originalName);
 }
 
 function openFilePreview(file: FileInfo) {

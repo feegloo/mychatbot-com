@@ -54,12 +54,19 @@ export async function getConversation(id: string, role: ConversationRole = "view
     [id]
   );
 
+  const conversation = conversationResult.rows[0] || null;
+
+  // For thread conversations, fetch files from the parent conversation (via storage_namespace)
+  const fileOwner = (conversation?.parent_message_id && conversation.storage_namespace !== id)
+    ? conversation.storage_namespace
+    : id;
+
   const filesResult = await query<UploadedFileRecord>(
     `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
      FROM uploaded_files
      WHERE conversation_id = $1
      ORDER BY created_at ASC`,
-    [id]
+    [fileOwner]
   );
 
   const questionsResult = await query<SuggestedQuestionRecord>(
@@ -78,6 +85,36 @@ export async function getConversation(id: string, role: ConversationRole = "view
     [id]
   );
 
+  // For threads, also fetch the parent's welcome message(s) to prepend
+  let parentWelcomeMessages: ConversationMessageRecord[] = [];
+  if (conversation?.parent_message_id && conversation.storage_namespace !== id) {
+    const parentConvId = conversation.storage_namespace;
+    const parentMsgsResult = await query<ConversationMessageRecord>(
+      `SELECT id, conversation_id, role, content, citations_json, user_id
+       FROM conversation_messages
+       WHERE conversation_id = $1 AND role = 'assistant'
+         AND citations_json::text LIKE '%_uploadedFileNames%'
+       ORDER BY created_at ASC`,
+      [parentConvId]
+    );
+    parentWelcomeMessages = parentMsgsResult.rows;
+  }
+
+  // For threads, also fetch parent's suggested questions for welcome messages
+  let parentSuggestedQuestions: SuggestedQuestionRecord[] = [];
+  if (parentWelcomeMessages.length) {
+    const parentMsgIds = parentWelcomeMessages.map(m => m.id);
+    const placeholders = parentMsgIds.map((_, i) => `$${i + 1}`).join(", ");
+    const parentQResult = await query<SuggestedQuestionRecord>(
+      `SELECT id, conversation_id, message_id, question, sort_order
+       FROM suggested_questions
+       WHERE message_id IN (${placeholders})
+       ORDER BY sort_order ASC, created_at ASC`,
+      parentMsgIds
+    );
+    parentSuggestedQuestions = parentQResult.rows;
+  }
+
   const accessRequestsResult = await query<AccessRequestRecord>(
     `SELECT id, conversation_id, display_name, status, editor_token
      FROM access_requests
@@ -87,22 +124,53 @@ export async function getConversation(id: string, role: ConversationRole = "view
   );
 
   return {
-    conversation: conversationResult.rows[0] || null,
+    conversation,
     files: filesResult.rows,
-    suggestedQuestions: questionsResult.rows,
-    messages: messagesResult.rows,
+    suggestedQuestions: [...parentSuggestedQuestions, ...questionsResult.rows],
+    messages: [...parentWelcomeMessages, ...messagesResult.rows],
     accessRequests: accessRequestsResult.rows
   };
 }
 
+/**
+ * Get the storage_namespace for a conversation.
+ * For threads, this points to the parent conversation's directory.
+ */
+export async function getStorageNamespace(conversationId: string): Promise<string> {
+  const result = await query<Pick<ConversationRecord, "storage_namespace">>(
+    `SELECT storage_namespace FROM conversations WHERE id = $1`,
+    [conversationId]
+  );
+  return result.rows[0]?.storage_namespace || conversationId;
+}
+
 export async function findStoredName(conversationId: string, originalName: string): Promise<string | null> {
+  // First try the given conversation
   const result = await query<UploadedFileRecord>(
     `SELECT stored_name FROM uploaded_files
      WHERE conversation_id = $1 AND original_name = $2
      LIMIT 1`,
     [conversationId, originalName]
   );
-  return result.rows[0]?.stored_name ?? null;
+  if (result.rows[0]?.stored_name) return result.rows[0].stored_name;
+
+  // For thread conversations, also check the parent conversation's files
+  const convResult = await query<ConversationRecord>(
+    `SELECT storage_namespace, parent_message_id FROM conversations WHERE id = $1`,
+    [conversationId]
+  );
+  const conv = convResult.rows[0];
+  if (conv?.parent_message_id && conv.storage_namespace !== conversationId) {
+    const parentResult = await query<UploadedFileRecord>(
+      `SELECT stored_name FROM uploaded_files
+       WHERE conversation_id = $1 AND original_name = $2
+       LIMIT 1`,
+      [conv.storage_namespace, originalName]
+    );
+    return parentResult.rows[0]?.stored_name ?? null;
+  }
+
+  return null;
 }
 
 export async function insertUploadedFile(file: UploadedFileRecord) {

@@ -10,7 +10,7 @@ import type { UploadedFileRecord } from "../types.js";
  * re-index from the files still on disk (or download from GCS first).
  * Returns true if reindexing was triggered, false if collection was already populated.
  */
-export async function ensureCollectionIndexed(conversationId: string, collectionName: string): Promise<boolean> {
+export async function ensureCollectionIndexed(conversationId: string, collectionName: string, storageNamespace?: string): Promise<boolean> {
   // Check collection count via Python server
   const countResp = await fetch(`${config.pythonServerUrl}/collection-count/${encodeURIComponent(collectionName)}`);
   if (!countResp.ok) return false;
@@ -21,7 +21,9 @@ export async function ensureCollectionIndexed(conversationId: string, collection
   // Collection is empty — gather files for re-indexing
   let files: string[] = [];
 
-  const storageDir = path.join(config.storageRoot, conversationId);
+  // Use storageNamespace (which may point to parent conversation's directory for threads)
+  const namespace = storageNamespace || conversationId;
+  const storageDir = path.join(config.storageRoot, namespace);
 
   // Check if files exist on local disk
   if (fs.existsSync(storageDir)) {
@@ -34,12 +36,12 @@ export async function ensureCollectionIndexed(conversationId: string, collection
   if (!files.length && config.storageProvider === "gcs" && config.gcsBucket) {
     const result = await query<UploadedFileRecord>(
       `SELECT storage_key FROM uploaded_files WHERE conversation_id = $1`,
-      [conversationId]
+      [namespace]
     );
     const storageKeys = result.rows.map(r => r.storage_key).filter(Boolean);
     if (storageKeys.length) {
       console.log(`[reindex] Downloading ${storageKeys.length} file(s) from GCS for ${collectionName}...`);
-      files = await downloadConversationFiles(conversationId, storageKeys);
+      files = await downloadConversationFiles(namespace, storageKeys);
     }
   }
 

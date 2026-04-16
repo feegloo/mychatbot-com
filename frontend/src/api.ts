@@ -92,6 +92,7 @@ export type ConversationStatus = {
   status: "processing" | "ready" | "failed";
   role: "owner" | "editor" | "viewer";
   parentMessageId: string | null;
+  storageNamespace?: string;
   files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata?: any }>;
   messages: ChatMessage[];
   suggestedQuestions: string[];

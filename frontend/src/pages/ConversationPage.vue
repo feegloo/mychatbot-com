@@ -41,6 +41,7 @@
             :msg="msg"
             :asking="asking"
             :conversationId="conversationId"
+            :storageConversationId="storageConversationId"
             :isWelcome="isUploadMessage(index)"
             :isFirstMessage="index === 0 && msg.role === 'assistant'"
             :canUpload="canUpload"
@@ -107,6 +108,9 @@ const loaded = ref(false);
 const routerInstance = useRouter();
 
 const isThread = computed(() => !!status.value.parentMessageId);
+
+// For threads, files live under the parent conversation's storage namespace
+const storageConversationId = computed(() => status.value.storageNamespace || conversationId);
 
 // Translation state
 const originalMessages = ref<Map<number, string>>(new Map());
