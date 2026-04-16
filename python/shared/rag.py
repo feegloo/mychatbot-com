@@ -278,7 +278,7 @@ _RECOGNIZE_PATTERNS = re.compile(
 
 # Simpler pattern: the suggested prompt format itself
 _RECOGNIZE_PROMPT_PATTERN = re.compile(
-    r'(recognize name|rozpoznaj osob)',
+    r'(recognize person name|rozpoznaj osob)',
     re.IGNORECASE,
 )
 
@@ -293,7 +293,7 @@ def _handle_recognize(
     file_metadata: dict[str, dict] | None,
     welcome_messages: list[str] | None,
 ) -> dict | None:
-    """Handle 'recognize name' by calling Vision API + LLM identification.
+    """Handle 'recognize person name' by calling Vision API + LLM identification.
     
     Returns {"answer": ..., "citations": []} or None if not applicable.
     """
@@ -391,7 +391,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         if result:
             return result
 
-    # Check for "recognize name" intent — triggers Vision API
+    # Check for "recognize person name" intent - triggers Vision API
     if _is_recognize_request(question) and image_file_paths:
         result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
         if result:

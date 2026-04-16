@@ -122,7 +122,7 @@ def _append_contextual_prompts(
     """Build final list: 3 normal questions + up to 2 action prompts = max 5.
     
     Contextual action prompts (EXIF, recognize, file metadata) take priority
-    over LLM-generated action prompts. 'recognize name' is only added when
+    over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.
     """
     # Split LLM output: first 3 are questions, rest are actions
@@ -148,7 +148,7 @@ def _append_contextual_prompts(
                 else:
                     contextual.append(f"{short_name} - show EXIF metadata 📷")
                     if has_person and len(contextual) < 2:
-                        contextual.append(f"{short_name} - recognize name 🔍")
+                        contextual.append(f"{short_name} - recognize person name 🔍")
             elif ftype == "pdf":
                 if language == "pl":
                     contextual.append(f"{short_name} - pokaż metadane pliku 📄")

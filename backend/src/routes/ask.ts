@@ -55,7 +55,7 @@ askRouter.post("/ask", async (ctx) => {
     ? data.parentWelcomeContents
     : getWelcomeMessages(data.messages);
 
-  // Resolve image file paths and metadata for Vision API (used on "recognize name")
+  // Resolve image file paths and metadata for Vision API (used on "recognize person name")
   const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"]);
   const imageFilePaths = data.files
     .filter(f => IMAGE_EXTS.has(path.extname(f.original_name).toLowerCase()))

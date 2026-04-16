@@ -249,7 +249,7 @@ def enrich_metadata_web(
 ) -> dict[str, dict]:
     """Run Google Vision reverse image search + LLM identification for image files.
     
-    Combines three sources for the final "recognize name" LLM call:
+    Combines three sources for the final "recognize person name" LLM call:
       1. EXIF metadata (already extracted, passed in)
       2. AI description / welcome message (already generated, passed in)
       3. Google Vision web detection (fetched here)

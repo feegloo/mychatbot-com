@@ -300,6 +300,19 @@ async function loadConversation() {
       }
     } else if (serverMessages.length !== messages.value.length) {
       messages.value = serverMessages;
+    } else {
+      // Sync per-message metadata that may arrive after initial message creation
+      // (e.g. suggestedQuestions generated after upload processing finishes)
+      for (let i = 0; i < serverMessages.length; i++) {
+        const srv = serverMessages[i];
+        const local = messages.value[i];
+        if (srv.suggestedQuestions?.length && !local.suggestedQuestions?.length) {
+          local.suggestedQuestions = srv.suggestedQuestions;
+        }
+        if (srv.uploadedFileNames?.length && !local.uploadedFileNames?.length) {
+          local.uploadedFileNames = srv.uploadedFileNames;
+        }
+      }
     }
   }
   loaded.value = true;
