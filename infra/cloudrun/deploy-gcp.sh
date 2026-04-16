@@ -71,7 +71,9 @@ fi
 
 # ── Step 2: Authenticate & set project ───────────────────────────────────────
 info "Step 2/8: Authenticating with GCP..."
-gcloud auth login --quiet 2>/dev/null || true
+if ! gcloud auth print-access-token &>/dev/null; then
+  gcloud auth login --quiet 2>/dev/null || true
+fi
 gcloud config set project "$PROJECT_ID"
 gcloud services enable \
   run.googleapis.com \

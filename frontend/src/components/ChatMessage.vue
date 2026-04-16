@@ -67,7 +67,6 @@
 
         <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
           <AppButton v-for="q in suggestedQuestions" :key="q" class="question-pill" @click="$emit('select-question', q)">
-            <svg class="pill-bubble-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             {{ q }}
           </AppButton>
         </div>
@@ -132,7 +131,6 @@
         class="question-pill"
         @click="$emit('select-question', q)"
       >
-        <svg class="pill-bubble-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         {{ q }}
       </AppButton>
     </div>
@@ -949,6 +947,7 @@ function openFilePreview(file: FileInfo) {
 /* Desktop: large right-column preview */
 .welcome-right-col {
   flex-shrink: 0;
+  margin-top: 10px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -956,16 +955,16 @@ function openFilePreview(file: FileInfo) {
   padding: 0;
   cursor: pointer;
   border-radius: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  /* background: rgba(255, 255, 255, 0.04); */
   transition: border-color 0.15s, background 0.15s;
   overflow: hidden;
 }
 
 @media (hover: hover) {
   .welcome-right-col:hover {
-    border-color: #a78bfa;
-    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid #a78bfa;
+    /* background: rgba(167, 139, 250, 0.08); */
   }
 }
 
@@ -1001,6 +1000,7 @@ function openFilePreview(file: FileInfo) {
   position: absolute;
   inset: 0;
   z-index: 1;
+  margin-top: 59px;
   cursor: pointer;
 }
 
@@ -1080,23 +1080,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 .welcome-suggested-questions .question-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  border-radius: 999px;
-  padding: 6px 12px;
-  margin: 0;
-  font-size: 12px;
-  cursor: pointer;
-  transition: 0.15s;
-}
-
-.question-pill .pill-bubble-icon {
-  flex-shrink: 0;
-  opacity: 0.6;
+  margin: 0 6px 8px 0;
 }
 
 @media (hover: hover) {

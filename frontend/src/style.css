@@ -377,17 +377,32 @@ a { color: #c4b5fd; text-decoration: none; }
 }
 
 .question-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
   border-radius: 999px;
   padding: 6px 12px;
-  margin: 4px 6px 0 0;
+  margin: 4px 6px 8px 0;
   font-size: 12px;
   cursor: pointer;
+  transition: 0.15s;
+}
+
+.question-pill::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 10px;
+  width: 12px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0 solid rgba(255, 255, 255, 0.08);
+  border-width: 0 0 1px 1px;
+  clip-path: polygon(0 0, 100% 0, 15% 100%);
+  pointer-events: none;
   transition: 0.15s;
 }
 
@@ -396,6 +411,9 @@ a { color: #c4b5fd; text-decoration: none; }
     background: rgba(167, 139, 250, 0.1);
     border-color: rgba(167, 139, 250, 0.25);
     color: #ddd6fe;
+  }
+  .question-pill:hover::after {
+    background: rgba(167, 139, 250, 0.1);
   }
 }
 
@@ -1027,7 +1045,7 @@ h1, h2, h3 {
   .question-pill {
     font-size: 11px;
     padding: 4px 8px;
-    margin: 2px 4px 0 0;
+    margin: 2px 4px 7px 0;
   }
 
   .chat-textarea {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -10,6 +11,10 @@ from .rag import get_llm
 from .lang_detect import detect_language
 
 logger = logging.getLogger(__name__)
+
+
+# Keys to always exclude from the metadata block shown to the model
+_META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification"}
 
 
 def describe_documents(
@@ -39,38 +44,25 @@ def describe_documents(
         if desc:
             snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
 
-    # Append EXIF metadata for image files
-    if file_metadata:
-        for fname, meta in file_metadata.items():
-            if meta.get("file_type") != "image":
-                continue
-            exif_lines = []
-            for key, label in [
-                ("camera_make", "Camera"),
-                ("camera_model", "Model"),
-                ("date_taken", "Date taken"),
-                ("gps_latitude", "GPS lat"),
-                ("gps_longitude", "GPS lon"),
-                ("image_width", "Width"),
-                ("image_height", "Height"),
-                ("iso", "ISO"),
-                ("f_number", "f/"),
-                ("exposure_time", "Exposure"),
-                ("focal_length", "Focal length"),
-                ("lens_model", "Lens"),
-                ("artist", "Artist"),
-                ("copyright", "Copyright"),
-                ("software", "Software"),
-            ]:
-                if key in meta:
-                    exif_lines.append(f"  {label}: {meta[key]}")
-            if exif_lines:
-                snippets.append(f"[EXIF metadata for {fname}]\n" + "\n".join(exif_lines))
-
     if not snippets:
         return ""
 
     combined = "\n\n---\n\n".join(snippets)[:6000]
+
+    # Build a metadata block from file_metadata (EXIF, PDF info, etc.)
+    # Only include files that have meaningful metadata beyond basic file stats.
+    metadata_block = ""
+    if file_metadata:
+        meta_parts: list[str] = []
+        for fname, meta in file_metadata.items():
+            try:
+                useful = {k: v for k, v in meta.items() if k not in _META_EXCLUDE_KEYS and v}
+                if useful:
+                    meta_parts.append(f"[{fname}]\n{json.dumps(useful, ensure_ascii=False, default=str)}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to format metadata for {fname}: {e}")
+        if meta_parts:
+            metadata_block = "\n\n".join(meta_parts)
 
     if language is None:
         language = detect_language(combined[:2000])
@@ -93,10 +85,12 @@ Twoja odpowiedź MUSI składać się z dwóch części:
    Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
    Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym.
 
+Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, producenta, tytuł, aparat itp.
+
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
 NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
 Odpowiadaj po polsku."""),
-            ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}"),
+            ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
         ])
     else:
         prompt = ChatPromptTemplate.from_messages([
@@ -112,13 +106,20 @@ Your response MUST have two parts:
    If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
    If the image shows a person or people, mention it.
 
+If file metadata is provided below (JSON block marked with =====), you MUST use it — e.g. author, creation date, producer, title, camera info, etc.
+
 Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Reply in the same language as the content."""),
-            ("human", "Uploaded files: {file_list}\n\nContent:\n{content}"),
+            ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
         ])
+
+    # Build the metadata section — only include if we have actual metadata
+    metadata_section = ""
+    if metadata_block:
+        metadata_section = f"\n\n=====\nFile metadata (from EXIF / PDF info):\n{metadata_block}\n====="
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke({"file_list": file_list, "content": combined})
+    result = chain.invoke({"file_list": file_list, "content": combined, "metadata_section": metadata_section})
     return result.strip()
