@@ -1222,4 +1222,14 @@ function openFilePreview(file: FileInfo) {
   margin: 0 0 8px;
   color: #f1f5f9;
 }
+
+/* Subtle fade-in for assistant answer content */
+@keyframes msg-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.message.assistant .message-content-wrap {
+  animation: msg-fade-in 0.3s ease-out;
+}
 </style>
