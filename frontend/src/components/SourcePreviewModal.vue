@@ -120,7 +120,7 @@ function openFullPdf() {
   width: min(900px, 92vw);
   height: calc(100vh - 20px);
   margin: 10px 0;
-  background: #152040;
+  background: transparent;
   border-radius: 0;
   box-shadow: none;
   cursor: default;

@@ -13,6 +13,7 @@
           :msg="{ id: message.id, role: message.role, content: message.content, citations: message.citations }"
           :asking="false"
           :conversationId="message.conversationId"
+          @select-question="replyText = $event; startThread()"
         />
       </div>
 

@@ -783,7 +783,7 @@ function openFilePreview(file: FileInfo) {
 
 @media (hover: hover) {
   :deep(.inline-source-btn:hover) {
-    background: #7c3aed55;
+    background: #7c3aed2a;
     border-color: #a78bfa;
   }
 }
@@ -1010,7 +1010,6 @@ function openFilePreview(file: FileInfo) {
 .pdf-large-object {
   width: 100%;
   height: 100%;
-  pointer-events: none;
   overflow: hidden;
   border-radius: 0;
 }

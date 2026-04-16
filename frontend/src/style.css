@@ -1080,9 +1080,9 @@ h1, h2, h3 {
 
 /* floating-vue tooltip overrides for dark theme */
 .v-popper--theme-tooltip .v-popper__inner {
-  background: #1e293b;
-  color: #cbd5e1;
-  border: 1px solid #334155;
+  background: #2e1065;
+  color: #ddd6fe;
+  border: 1px solid #6d28d9;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13px;
@@ -1090,13 +1090,13 @@ h1, h2, h3 {
   max-width: 400px;
   white-space: pre-wrap;
   word-break: break-word;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(91, 33, 182, 0.35);
 }
 
 .v-popper--theme-tooltip .v-popper__arrow-outer {
-  border-color: #334155;
+  border-color: #6d28d9;
 }
 
 .v-popper--theme-tooltip .v-popper__arrow-inner {
-  border-color: #1e293b;
+  border-color: #2e1065;
 }
