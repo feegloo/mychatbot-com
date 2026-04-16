@@ -38,7 +38,7 @@ askRouter.post("/ask", async (ctx) => {
     return;
   }
 
-  await insertConversationMessage({
+  const userMsgId = await insertConversationMessage({
     conversationId,
     role: "user",
     content: question,
@@ -80,12 +80,12 @@ askRouter.post("/ask", async (ctx) => {
     citations: []
   };
 
-  await insertConversationMessage({
+  const assistantMsgId = await insertConversationMessage({
     conversationId,
     role: "assistant",
     content: payload.answer || "",
     citations: payload.citations || []
   });
 
-  ctx.body = payload;
+  ctx.body = { ...payload, userMessageId: userMsgId, assistantMessageId: assistantMsgId };
 });

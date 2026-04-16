@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 # Module-level cache for LLM instance
 _llm_instance = None
 _llm_provider_key = None
+
+# Multiple seed values to introduce variation for repeated prompts (OpenAI only)
+_SEED_OPTIONS = [365, 742, 158]
 
 # Patterns that trigger quiz mode
 _QUIZ_PATTERNS = re.compile(
@@ -139,6 +143,9 @@ def get_llm() -> Any:
     # Cache key: provider + model so we reuse the same instance within a process
     cache_key = f"{settings.llm_provider}:{settings.anthropic_chat_model if settings.llm_provider == 'anthropic' else settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
+        if settings.llm_provider not in ("anthropic",):
+            seed = random.choice(_SEED_OPTIONS)
+            return _llm_instance.bind(seed=seed)
         return _llm_instance
     
     if settings.llm_provider == "anthropic":
@@ -168,6 +175,11 @@ def get_llm() -> Any:
         )
     
     _llm_provider_key = cache_key
+    # Bind a random seed to OpenAI calls to vary responses for repeated prompts
+    if settings.llm_provider not in ("anthropic",) and not settings.use_gemma:
+        seed = random.choice(_SEED_OPTIONS)
+        logger.info(f"🎲 Selected random seed: {seed}")
+        return _llm_instance.bind(seed=seed)
     return _llm_instance
 
 

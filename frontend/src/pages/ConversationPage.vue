@@ -32,7 +32,7 @@
           Processing uploaded files …
         </div>
 
-        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 8px; padding-bottom: 12px">
+        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;  padding-bottom: 12px">
           <div style="flex: 1"></div>
           <ChatMessageItem
             v-for="(msg, index) in messages"
@@ -398,6 +398,10 @@ async function ask() {
     ]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
+    if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId;
+    // Also assign user message id
+    const userMsg = messages.value[messages.value.length - 2];
+    if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId;
     await nextTick();
     scrollToBottom(true);
     await loadConversation();

@@ -1,25 +1,26 @@
 <template>
   <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ senderLabel }}</strong>
-    <AppButton
-      v-if="hasRichContent"
-      class="share-msg-btn pdf-msg-btn"
-      title="Download PDF"
-      @click="downloadMessagePdf"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      PDF
-    </AppButton>
-    <AppButton
-      v-if="msg.role === 'assistant' && msg.content"
-      class="share-msg-btn"
-      :title="shareCopied ? 'Copied!' : 'Share this answer'"
-      @click="shareMessage"
-    >
-      <svg v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      {{ shareCopied ? 'Copied!' : 'Share' }}
-    </AppButton>
+    <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
+      <AppButton
+        class="msg-action-btn"
+        :title="shareCopied ? 'Copied!' : 'Share this answer'"
+        @click="shareMessage"
+      >
+        <svg v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        {{ shareCopied ? 'Copied!' : 'Share' }}
+      </AppButton>
+      <AppButton
+        v-if="hasRichContent"
+        class="msg-action-btn"
+        title="Download PDF"
+        @click="downloadMessagePdf"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PDF
+      </AppButton>
+    </div>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
     </div>
@@ -361,7 +362,8 @@ function shareMessage() {
     const url = `${window.location.origin}/m/${props.msg.id}`;
     navigator.clipboard.writeText(url);
   } else {
-    navigator.clipboard.writeText(props.msg.content);
+    const url = `${window.location.origin}/c/${props.conversationId}`;
+    navigator.clipboard.writeText(url);
   }
   shareCopied.value = true;
   setTimeout(() => { shareCopied.value = false; }, 2000);
@@ -387,10 +389,8 @@ const hasRichContent = computed(() => {
 });
 
 function downloadMessagePdf() {
-  if (!messageContentEl.value) return;
-  const html = messageContentEl.value.innerHTML;
   const title = props.conversationName || "chatrag";
-  printContentAsPdf(html, title);
+  printContentAsPdf(props.msg.content, title);
 }
 
 type ContentPart =
@@ -709,11 +709,18 @@ function openFilePreview(file: FileInfo) {
   margin: 0;
 }
 
-/* Share button */
-.share-msg-btn {
+/* Message action buttons container */
+.msg-actions {
+  display: flex;
+  gap: 6px;
   position: absolute;
   top: 10px;
-  right: 10px;
+  right: 14px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.msg-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -726,39 +733,32 @@ function openFilePreview(file: FileInfo) {
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   font-family: inherit;
-  opacity: 0;
 }
 
-/* On touch devices, always show the share button */
+/* On touch devices, always show */
 @media (hover: none) {
-  .share-msg-btn {
+  .msg-actions {
     opacity: 1;
   }
 }
 
 @media (hover: hover) {
-  .message:hover .share-msg-btn {
+  .message:hover .msg-actions {
     opacity: 1;
   }
 }
 
 @media (hover: hover) {
-  .share-msg-btn:hover {
+  .msg-action-btn:hover {
     background: rgba(167, 139, 250, 0.12);
     border-color: rgba(167, 139, 250, 0.3);
     color: #c4b5fd;
   }
 }
-.share-msg-btn:active {
+.msg-action-btn:active {
   background: rgba(167, 139, 250, 0.12);
   border-color: rgba(167, 139, 250, 0.3);
   color: #c4b5fd;
-  opacity: 1;
-}
-
-.pdf-msg-btn {
-  right: 80px;
-  padding-right: 5px;
 }
 
 /* Inline source buttons */

@@ -212,6 +212,9 @@ async function submitQuestion() {
     ]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
+    if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId;
+    const userMsg = messages.value[messages.value.length - 2];
+    if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId;
     await nextTick();
     scrollToBottom(true);
   } catch (err: any) {

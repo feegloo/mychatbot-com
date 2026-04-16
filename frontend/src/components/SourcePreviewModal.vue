@@ -117,7 +117,7 @@ function openFullPdf() {
 
 .source-modal-content {
   position: relative;
-  width: min(900px, 92vw);
+  width: min(450px, 92vw);
   height: calc(100vh - 20px);
   margin: 10px 0;
   background: transparent;
@@ -199,6 +199,9 @@ function openFullPdf() {
 .source-modal-content--text {
   height: auto;
   max-height: 50vh;
+  background: #1e1033;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 12px;
 }
 
 @media (max-width: 768px) {

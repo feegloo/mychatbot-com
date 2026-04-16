@@ -139,6 +139,8 @@ export async function askQuestion(conversationId: string, question: string, user
   return response.data as {
     answer: string;
     citations: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
+    userMessageId?: string;
+    assistantMessageId?: string;
   };
 }
 

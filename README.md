@@ -238,3 +238,41 @@ gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=50 --fre
 # PostgreSQL logs (Cloud SQL)
 gcloud logging read 'resource.type="cloudsql_database" AND resource.labels.database_id="chatbotqa-app:chatrag-db-instance" AND log_name="projects/chatbotqa-app/logs/cloudsql.googleapis.com%2Fpostgres.log"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'
 ```
+
+# remote SQL
+
+install
+
+```
+gcloud components install cloud-sql-proxy
+```
+
+Option 1: Interactive psql session (simplest)
+
+```
+gcloud sql connect chatrag-db-instance --user=chatrag --database=chatrag --project=chatbotqa-app
+```
+
+Option 2: One-liner with query piped in
+
+```
+echo "SELECT * FROM conversation_messages ORDER BY created_at DESC LIMIT 20;" | \
+  gcloud sql connect chatrag-db-instance --user=chatrag --database=chatrag --project=chatbotqa-app
+```
+
+Option 3: Load credentials from .env.gcp automatically
+
+```
+source infra/cloudrun/.env.gcp && \
+  PGPASSWORD="$DB_PASSWORD" gcloud sql connect chatrag-db-instance \
+    --user=chatrag --database=chatrag --project="$GCP_PROJECT_ID"
+```
+
+Or for a non-interactive query:
+
+```
+source infra/cloudrun/.env.gcp && \
+  echo "SELECT * FROM conversation_messages ORDER BY created_at DESC LIMIT 20;" | \
+  PGPASSWORD="$DB_PASSWORD" gcloud sql connect chatrag-db-instance \
+    --user=chatrag --database=chatrag --project="$GCP_PROJECT_ID"
+```
