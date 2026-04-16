@@ -84,6 +84,7 @@ export type ChatMessage = {
   suggestedQuestions?: string[];
   userId?: number;
   threadReplyCount?: number;
+  isParentMessage?: boolean;
 };
 
 export type ConversationStatus = {

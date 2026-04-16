@@ -85,34 +85,30 @@ export async function getConversation(id: string, role: ConversationRole = "view
     [id]
   );
 
-  // For threads, also fetch the parent's welcome message(s) to prepend
-  let parentWelcomeMessages: ConversationMessageRecord[] = [];
+  // For threads, fetch the specific parent message (the one that was branched from)
+  let parentMessage: ConversationMessageRecord | null = null;
+  let parentWelcomeContents: string[] = [];
   if (conversation?.parent_message_id && conversation.storage_namespace !== id) {
-    const parentConvId = conversation.storage_namespace;
-    const parentMsgsResult = await query<ConversationMessageRecord>(
+    // Fetch the branched-from message to display as first message in thread
+    const parentMsgResult = await query<ConversationMessageRecord>(
       `SELECT id, conversation_id, role, content, citations_json, user_id
+       FROM conversation_messages
+       WHERE id = $1`,
+      [conversation.parent_message_id]
+    );
+    parentMessage = parentMsgResult.rows[0] || null;
+
+    // Also fetch parent's welcome message contents for RAG prompt context
+    const parentConvId = conversation.storage_namespace;
+    const parentWelcomeMsgsResult = await query<ConversationMessageRecord>(
+      `SELECT content
        FROM conversation_messages
        WHERE conversation_id = $1 AND role = 'assistant'
          AND citations_json::text LIKE '%_uploadedFileNames%'
        ORDER BY created_at ASC`,
       [parentConvId]
     );
-    parentWelcomeMessages = parentMsgsResult.rows;
-  }
-
-  // For threads, also fetch parent's suggested questions for welcome messages
-  let parentSuggestedQuestions: SuggestedQuestionRecord[] = [];
-  if (parentWelcomeMessages.length) {
-    const parentMsgIds = parentWelcomeMessages.map(m => m.id);
-    const placeholders = parentMsgIds.map((_, i) => `$${i + 1}`).join(", ");
-    const parentQResult = await query<SuggestedQuestionRecord>(
-      `SELECT id, conversation_id, message_id, question, sort_order
-       FROM suggested_questions
-       WHERE message_id IN (${placeholders})
-       ORDER BY sort_order ASC, created_at ASC`,
-      parentMsgIds
-    );
-    parentSuggestedQuestions = parentQResult.rows;
+    parentWelcomeContents = parentWelcomeMsgsResult.rows.map(m => m.content);
   }
 
   const accessRequestsResult = await query<AccessRequestRecord>(
@@ -126,8 +122,9 @@ export async function getConversation(id: string, role: ConversationRole = "view
   return {
     conversation,
     files: filesResult.rows,
-    suggestedQuestions: [...parentSuggestedQuestions, ...questionsResult.rows],
-    messages: [...parentWelcomeMessages, ...messagesResult.rows],
+    suggestedQuestions: questionsResult.rows,
+    messages: parentMessage ? [parentMessage, ...messagesResult.rows] : messagesResult.rows,
+    parentWelcomeContents,
     accessRequests: accessRequestsResult.rows
   };
 }

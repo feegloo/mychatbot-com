@@ -9,7 +9,7 @@ import { config } from "../config.js";
 
 const askSchema = z.object({
   conversationId: z.string().regex(/^[0-9A-Za-z]{16}$/),
-  question: z.string().min(3),
+  question: z.string().min(1),
   userId: z.number().int().min(0).optional()
 });
 
@@ -49,7 +49,11 @@ askRouter.post("/ask", async (ctx) => {
   await ensureCollectionIndexed(conversationId, data.conversation.vector_collection_name, data.conversation.storage_namespace);
 
   const chatHistory = buildChatHistory(data.messages);
-  const welcomeMessages = getWelcomeMessages(data.messages);
+  // For threads, use parent's welcome messages (file descriptions) as context;
+  // for normal conversations, extract from the conversation's own messages.
+  const welcomeMessages = data.parentWelcomeContents.length
+    ? data.parentWelcomeContents
+    : getWelcomeMessages(data.messages);
 
   // Resolve image file paths and metadata for Vision API (used on "recognize name")
   const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"]);

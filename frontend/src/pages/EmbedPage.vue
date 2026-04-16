@@ -160,9 +160,12 @@ async function loadConversation() {
   }
 }
 
-function scrollToBottom() {
+function scrollToBottom(smooth = false) {
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+    chatContainer.value.scrollTo({
+      top: chatContainer.value.scrollHeight,
+      behavior: smooth ? 'smooth' : 'instant',
+    });
   }
 }
 
@@ -186,6 +189,8 @@ async function ask() {
     const response = await Promise.race([askQuestion(conversationId, currentQuestion), timeout]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
+    await nextTick();
+    scrollToBottom(true);
     await loadConversation();
   } catch (err: any) {
     const detail = err?.response?.data?.error || err?.message || "Unknown error";

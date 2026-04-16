@@ -43,7 +43,7 @@
             :conversationId="conversationId"
             :storageConversationId="storageConversationId"
             :isWelcome="isUploadMessage(index)"
-            :isFirstMessage="index === 0 && msg.role === 'assistant'"
+            :isFirstMessage="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :canUpload="canUpload"
             :files="uploadFilesForMessage(index)"
             :suggestedQuestions="suggestedQuestionsForMessage(index)"
@@ -162,13 +162,25 @@ function onQuestionsTranslated(translated: string[]) {
   }
 }
 
-function onRestored() {
+function onRestored(newTranslations: Map<number, string>) {
+  // Restore originally translated messages
   originalMessages.value.forEach((text, i) => {
     if (messages.value[i]) {
       messages.value[i].content = text;
     }
   });
   originalMessages.value.clear();
+
+  // Apply translations for messages added during translated state
+  // (e.g., user asked in Polish while viewing Polish translation — translate to English on restore)
+  if (newTranslations.size) {
+    newTranslations.forEach((text, i) => {
+      if (messages.value[i]) {
+        messages.value[i].content = text;
+      }
+    });
+  }
+
   // Restore suggested questions
   if (originalSuggestedQuestions.value.size) {
     const revMap = originalSuggestedQuestions.value; // translated → original
@@ -202,6 +214,8 @@ const canUpload = computed(() => status.value.role === "owner" || status.value.r
 function isUploadMessage(index: number): boolean {
   const msg = messages.value[index];
   if (msg?.role !== "assistant") return false;
+  // Parent message in a thread (branched-from) shows as welcome with files
+  if (msg.isParentMessage) return true;
   // Has explicit uploadedFileNames from backend
   if (msg.uploadedFileNames?.length) return true;
   // Legacy: first message is a welcome message if it's from the assistant with no preceding user message
@@ -309,10 +323,12 @@ function viewThreads(messageId: string) {
   routerInstance.push(`/m/${messageId}`);
 }
 
-function scrollToBottom() {
+function scrollToBottom(smooth = false) {
   if (chatContainer.value) {
-    const scrollHeight = chatContainer.value.scrollHeight;
-    chatContainer.value.scrollTop = scrollHeight;
+    chatContainer.value.scrollTo({
+      top: chatContainer.value.scrollHeight,
+      behavior: smooth ? 'smooth' : 'instant',
+    });
   }
 }
 
@@ -344,6 +360,8 @@ async function ask() {
     ]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
+    await nextTick();
+    scrollToBottom(true);
     await loadConversation();
   } catch (err: any) {
     const detail = err?.response?.data?.error || err?.message || "Unknown error";

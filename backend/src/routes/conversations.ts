@@ -93,6 +93,9 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
         .filter((q) => q.message_id === message.id)
         .map((q) => q.question);
       const threadReplyCount = threadCounts.get(message.id) || 0;
+      // Mark the parent message (branched-from) in thread conversations
+      const isParentMessage = data.conversation!.parent_message_id === message.id
+        && message.conversation_id !== data.conversation!.id;
       return {
         id: message.id,
         role: message.role,
@@ -102,6 +105,7 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
         ...(uploadedFileNames ? { uploadedFileNames } : {}),
         ...(msgQuestions.length ? { suggestedQuestions: msgQuestions } : {}),
         ...(threadReplyCount > 0 ? { threadReplyCount } : {}),
+        ...(isParentMessage ? { isParentMessage: true } : {}),
       };
     }),
     suggestedQuestions: data.suggestedQuestions.map((row) => row.question),

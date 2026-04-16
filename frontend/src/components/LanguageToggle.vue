@@ -23,7 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   translated: [translations: Map<number, string>];
   'questions-translated': [translations: string[]];
-  restored: [];
+  restored: [newTranslations: Map<number, string>];
 }>();
 
 const detectedLang = ref("");
@@ -32,6 +32,7 @@ const isTranslated = ref(false);
 const translating = ref(false);
 const translationCache = ref<Map<string, string>>(new Map());
 const detectionAttempted = ref(false);
+const translatedUpToIndex = ref(-1); // tracks message count at time of last forward translation
 
 const LANG_FLAGS: Record<string, string> = {
   en: "🇬🇧", pl: "🇵🇱", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹",
@@ -61,7 +62,7 @@ const currentFlag = computed(() => {
   return LANG_FLAGS[lang] || "🌐";
 });
 
-// Detect language from first assistant message (once only)
+// Detect language from first assistant message (retries until successful)
 watch(() => props.messages, async (msgs) => {
   if (detectedLang.value || detectionAttempted.value) return;
   const firstAssistant = msgs.find(m => m.role === "assistant" && m.content.length > 20);
@@ -71,7 +72,7 @@ watch(() => props.messages, async (msgs) => {
     const result = await detectLanguage(firstAssistant.content);
     detectedLang.value = result.language;
   } catch {
-    // detection failed, hide toggle
+    detectionAttempted.value = false; // allow retry on next message change
   }
 }, { immediate: true, deep: true });
 
@@ -79,8 +80,50 @@ async function toggle() {
   if (translating.value) return;
 
   if (isTranslated.value) {
-    isTranslated.value = false;
-    emit("restored");
+    // Restoring to original/detected language
+    translating.value = true;
+    try {
+      // Translate messages added while in translated state (browserLang → detectedLang)
+      const newMsgTranslations = new Map<number, string>();
+      const toTranslateBack: { index: number; content: string }[] = [];
+
+      props.messages.forEach((msg, i) => {
+        if (i <= translatedUpToIndex.value) return; // part of original batch, parent restores these
+        if (!msg.content.trim()) return;
+        const cached = translationCache.value.get(msg.content);
+        if (cached) {
+          newMsgTranslations.set(i, cached);
+        } else {
+          toTranslateBack.push({ index: i, content: msg.content });
+        }
+      });
+
+      // Translate new messages from browserLang to detectedLang
+      for (let batch = 0; batch < toTranslateBack.length; batch += 20) {
+        const chunk = toTranslateBack.slice(batch, batch + 20);
+        const result = await translateTexts(
+          chunk.map(c => c.content),
+          detectedLang.value,
+          browserLang.value
+        );
+        chunk.forEach((item, j) => {
+          const translated = result.translations[j];
+          newMsgTranslations.set(item.index, translated);
+          // Cache both directions for future toggles
+          translationCache.value.set(item.content, translated);
+          translationCache.value.set(translated, item.content);
+        });
+      }
+
+      isTranslated.value = false;
+      emit("restored", newMsgTranslations);
+    } catch (err) {
+      console.error("Translation failed:", err);
+      isTranslated.value = false;
+      emit("restored", new Map());
+    } finally {
+      translating.value = false;
+    }
     return;
   }
 
@@ -142,6 +185,7 @@ async function toggle() {
       emit("questions-translated", qTranslated);
     }
 
+    translatedUpToIndex.value = props.messages.length - 1;
     isTranslated.value = true;
     emit("translated", translations);
   } catch (err) {

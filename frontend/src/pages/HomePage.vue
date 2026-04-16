@@ -6,27 +6,6 @@
       <p class="home-subtitle">Upload files. Get answers from AI chatbot with semantic search and RAG.</p>
     </div>
 
-    <!-- Chat messages (appears after first question) -->
-    <div
-      v-if="messages.length"
-      class="chat-log home-chat-log"
-      ref="chatContainer"
-    >
-      <div style="flex: 1"></div>
-      <ChatMessageItem
-        v-for="(msg, index) in messages"
-        :key="index"
-        :msg="msg"
-        :asking="asking"
-        :conversationId="conversationId || ''"
-        :isWelcome="false"
-        :isFirstMessage="false"
-        :canUpload="false"
-        :files="undefined"
-        :suggestedQuestions="undefined"
-      />
-    </div>
-
     <!-- Upload section (fades out after upload starts processing) -->
     <Transition :name="skipUploadTransition ? '' : 'fade-upload'">
       <div v-if="showUpload" class="upload-section">
@@ -62,6 +41,27 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Chat messages (appears after first question) -->
+    <div
+      v-if="messages.length"
+      class="chat-log home-chat-log"
+      ref="chatContainer"
+    >
+      <div style="flex: 1"></div>
+      <ChatMessageItem
+        v-for="(msg, index) in messages"
+        :key="index"
+        :msg="msg"
+        :asking="asking"
+        :conversationId="conversationId || ''"
+        :isWelcome="false"
+        :isFirstMessage="false"
+        :canUpload="false"
+        :files="undefined"
+        :suggestedQuestions="undefined"
+      />
+    </div>
 
     <!-- Chat input bar (always visible) -->
     <div class="chat-input-bar home-chat-input">
@@ -175,9 +175,12 @@ async function ensureConversation(): Promise<string> {
   return data.conversationId;
 }
 
-function scrollToBottom() {
+function scrollToBottom(smooth = false) {
   if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+    chatContainer.value.scrollTo({
+      top: chatContainer.value.scrollHeight,
+      behavior: smooth ? 'smooth' : 'instant',
+    });
   }
 }
 
@@ -198,9 +201,6 @@ async function submitQuestion() {
 
   try {
     const convId = await ensureConversation();
-    // Immediately hide upload (no fade) when asking without files
-    skipUploadTransition.value = true;
-    showUpload.value = false;
 
     const TIMEOUT_MS = 120_000;
     const timeout = new Promise<never>((_, reject) =>
@@ -212,9 +212,8 @@ async function submitQuestion() {
     ]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
-
-    // After first answer, navigate to conversation page for full experience
-    router.push(`/c/${convId}`);
+    await nextTick();
+    scrollToBottom(true);
   } catch (err: any) {
     const detail = err?.response?.data?.error || err?.message || "Unknown error";
     reactiveMsg.content = `⚠️ Error: ${detail}`;

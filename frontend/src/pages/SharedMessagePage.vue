@@ -24,7 +24,7 @@
         </div>
         <div v-for="thread in threads" :key="thread.conversationId" class="thread-bubble">
           <router-link :to="`/c/${thread.conversationId}`" class="thread-link">
-            <span class="thread-user">user{{ thread.lastUserId }}</span>
+            <span class="thread-user">{{ thread.lastUserId === getUserId() ? 'YOU' : `user${thread.lastUserId}` }}</span>
             <span class="thread-count">{{ thread.messageCount }} {{ thread.messageCount === 1 ? 'message' : 'messages' }}</span>
             <span class="thread-arrow">→</span>
           </router-link>

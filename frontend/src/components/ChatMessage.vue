@@ -611,17 +611,14 @@ function restoreChecklistState() {
 }
 
 function onContentClick(e: MouseEvent) {
-  // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
-  const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
-  if (checkBox) {
-    checkBox.classList.toggle("checked");
-    saveChecklistState();
-    return;
-  }
-  const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
-  if (li && li.querySelector(".checklist-box")) {
-    li.querySelector(".checklist-box")!.classList.toggle("checked");
-    saveChecklistState();
+  // Handle source citation clicks (higher priority than checklist)
+  const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
+  if (btn) {
+    const idx = parseInt(btn.dataset.sourceIdx || "0", 10) - 1; // 1-based to 0-based
+    if (props.msg.citations && props.msg.citations[idx]) {
+      previewCitation.value = props.msg.citations[idx] as any;
+      previewOpen.value = true;
+    }
     return;
   }
 
@@ -635,12 +632,18 @@ function onContentClick(e: MouseEvent) {
     return;
   }
 
-  const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
-  if (!btn) return;
-  const idx = parseInt(btn.dataset.sourceIdx || "0", 10) - 1; // 1-based to 0-based
-  if (props.msg.citations && props.msg.citations[idx]) {
-    previewCitation.value = props.msg.citations[idx] as any;
-    previewOpen.value = true;
+  // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
+  const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
+  if (checkBox) {
+    checkBox.classList.toggle("checked");
+    saveChecklistState();
+    return;
+  }
+  const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
+  if (li && li.querySelector(".checklist-box")) {
+    li.querySelector(".checklist-box")!.classList.toggle("checked");
+    saveChecklistState();
+    return;
   }
 }
 
