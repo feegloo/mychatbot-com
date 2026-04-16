@@ -23,7 +23,7 @@
       </p>
     </div>
 
-    <a href="mailto:olek.figiel@gmail.com" class="conv-nav-contact">Contact</a>
+    <button class="conv-nav-donate" @click="handleDonate">Donate $</button>
   </nav>
 </template>
 
@@ -34,6 +34,46 @@ import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
 
 defineEmits<{ navigate: [] }>();
+
+async function handleDonate() {
+  if (!window.PaymentRequest) {
+    alert("Apple Pay is not available on this device.");
+    return;
+  }
+
+  const methods: PaymentMethodData[] = [
+    {
+      supportedMethods: "https://apple.com/apple-pay",
+      data: {
+        version: 3,
+        merchantIdentifier: "merchant.app.chatrag",
+        merchantCapabilities: ["supports3DS"],
+        supportedNetworks: ["visa", "masterCard", "amex"],
+        countryCode: "US",
+      },
+    },
+  ];
+
+  const details: PaymentDetailsInit = {
+    total: {
+      label: "ChatRAG Donation",
+      amount: { currency: "USD", value: "1.00" },
+    },
+  };
+
+  try {
+    const request = new PaymentRequest(methods, details);
+    const canMake = await request.canMakePayment();
+    if (!canMake) {
+      alert("Apple Pay is not available on this device.");
+      return;
+    }
+    const response = await request.show();
+    await response.complete("success");
+  } catch {
+    // user cancelled
+  }
+}
 
 function convLabel(conv: ConversationSummary): string {
   if (conv.displayName) return conv.displayName;

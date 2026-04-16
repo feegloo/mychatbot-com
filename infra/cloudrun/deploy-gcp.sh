@@ -116,7 +116,7 @@ if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &
     --root-password="$DB_PASSWORD" \
     --storage-size=10GB \
     --storage-auto-increase \
-    --assign-ip \
+    --no-assign-ip \
     --network=default
   info "  Created instance: $DB_INSTANCE_NAME"
 
@@ -141,23 +141,15 @@ info "  Connection name: $DB_CONNECTION_NAME"
 # ── Step 4: Initialize database schema ───────────────────────────────────────
 info "Step 4/8: Getting Cloud SQL instance details..."
 
-# Get the public IP of the instance using jq to parse JSON
-DB_PUBLIC_IP=$(gcloud sql instances describe "$DB_INSTANCE_NAME" \
-  --format=json 2>/dev/null | jq -r '.ipAddresses[] | select(.type=="PRIMARY") | .ipAddress' | head -1)
+# Get the private IP of the instance (private IP only, no public IP)
+DB_PRIVATE_IP=$(gcloud sql instances describe "$DB_INSTANCE_NAME" \
+  --format=json 2>/dev/null | jq -r '.ipAddresses[] | select(.type=="PRIVATE") | .ipAddress' | head -1)
 
-if [[ -z "$DB_PUBLIC_IP" ]]; then
-  error "Could not get public IP. Ensure instance has public IP enabled with: gcloud sql instances patch $DB_INSTANCE_NAME --assign-ip"
+if [[ -z "$DB_PRIVATE_IP" ]]; then
+  error "Could not get private IP. Ensure instance has private IP enabled and VPC peering is configured."
 fi
 
-info "  Cloud SQL public IP: $DB_PUBLIC_IP"
-
-# Allow all IPs for now (needed for Cloud Run to connect)
-warn "  Setting firewall to allow 0.0.0.0/0..."
-gcloud sql instances patch "$DB_INSTANCE_NAME" \
-  --authorized-networks=0.0.0.0/0 \
-  --quiet || error "Could not update firewall rules"
-
-info "  Firewall updated"
+info "  Cloud SQL private IP: $DB_PRIVATE_IP"
 
 # ── Step 5: Create GCS bucket for file storage ──────────────────────────────
 info "Step 5/9: Creating GCS bucket for file storage..."
@@ -181,15 +173,18 @@ docker push "${IMAGE}:latest"
 # ── Step 8: Deploy to Cloud Run ──────────────────────────────────────────────
 info "Step 8/9: Deploying to Cloud Run..."
 
-DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PUBLIC_IP}:5432/${DB_NAME}"
+DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
-warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PUBLIC_IP}:5432/${DB_NAME}"
+warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
 gcloud run deploy "$SERVICE_NAME" \
   --image "${IMAGE}:latest" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
+  --network default \
+  --subnet default \
+  --vpc-egress private-ranges-only \
   --port 8080 \
   --memory 2Gi \
   --cpu 2 \

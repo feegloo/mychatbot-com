@@ -50,6 +50,9 @@ jobs:
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --platform managed \
             --allow-unauthenticated \
+            --network default \
+            --subnet default \
+            --vpc-egress private-ranges-only \
             --port 8080 \
             --memory 1Gi \
             --cpu 1 \
