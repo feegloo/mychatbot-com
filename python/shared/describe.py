@@ -18,7 +18,7 @@ def describe_documents(
     language: str | None = None,
     file_metadata: dict[str, dict] | None = None,
 ) -> str:
-    """Generate a 1-3 sentence FAST description of what was uploaded.
+    """Generate a welcome message with a ### Title and 2-4 sentence description.
 
     Uses the beginning of extracted text (no embeddings/RAG) so the response
     is as quick as possible.  When file_metadata contains EXIF data for images,
@@ -81,22 +81,40 @@ def describe_documents(
 
     if language == "pl":
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """Wygeneruj BARDZO krótki opis (1-3 zdania) tego, co użytkownik właśnie przesłał.
-Bądź konkretny – wymień kluczowe fakty (np. kwoty, daty, nazwiska, tematy) znalezione w treści.
-Jeśli przesłano zdjęcie i dostępne są metadane EXIF, wymień najciekawsze z nich (np. aparat, data, lokalizacja GPS).
-Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym wprost (np. "zdjęcie przedstawia osobę", "na zdjęciu widać mężczyznę/kobietę").
-NIE pytaj użytkownika o nic. NIE używaj oznaczników źródłowych jak [1] ani [source:1].
-Odpowiadaj po polsku. Opis powinien brzmieć naturalnie, jakbyś opisywał komuś co to za dokument."""),
+            ("system", """Tworzysz wiadomość powitalną, którą zobaczy użytkownik zaraz po przesłaniu pliku.
+Ta wiadomość będzie czytana przez zwykłego człowieka — powinna brzmieć naturalnie, przyjaźnie i pomocnie.
+
+Twoja odpowiedź MUSI składać się z dwóch części:
+
+1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, autor/źródło i rok jeśli znane.
+   Sformatuj jako nagłówek Markdown: ### Tytuł tutaj
+   
+2. **Opis** (po tytule): 2-4 zdania opisujące zawartość pliku. Bądź konkretny — wymień najważniejsze fakty, tematy, nazwiska lub kwoty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
+   Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
+   Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym.
+
+Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
+NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
+Odpowiadaj po polsku."""),
             ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}"),
         ])
     else:
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """Generate a VERY short description (1-3 sentences) of what the user just uploaded.
-Be specific – mention key facts (e.g. amounts, dates, names, topics) found in the content.
-If an image was uploaded with EXIF metadata, mention the most interesting details (e.g. camera, date taken, GPS location).
-If the image shows a person or people, state this explicitly (e.g. "the photo shows a person", "the image depicts a man/woman").
+            ("system", """You are writing a welcome message that a human user will see right after uploading a file.
+This message will be read by a real person — it should sound natural, friendly, and helpful.
+
+Your response MUST have two parts:
+
+1. **Title** (first line): A short summary of the uploaded file — its title, author/source, and year if known.
+   Format as a Markdown heading: ### Title here
+   
+2. **Description** (after the title): 2-4 sentences describing the file's content. Be specific — mention the most important facts, topics, names, or amounts found in the content. Use **bold** for key terms.
+   If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
+   If the image shows a person or people, mention it.
+
+Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
-Reply in the same language as the content. The description should sound natural, as if you are briefly telling someone what this document is about."""),
+Reply in the same language as the content."""),
             ("human", "Uploaded files: {file_list}\n\nContent:\n{content}"),
         ])
 

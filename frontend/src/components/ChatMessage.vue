@@ -1228,4 +1228,12 @@ function openFilePreview(file: FileInfo) {
 .thread-indicator .thread-count {
   color: #a78bfa;
 }
+
+/* Welcome message title (h3) — larger and more prominent */
+.welcome-message .markdown-content h3:first-child {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #f1f5f9;
+}
 </style>
