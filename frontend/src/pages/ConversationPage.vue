@@ -285,10 +285,21 @@ async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
   if (!asking.value && !hasLocalError.value) {
-    // Don't overwrite translated messages during polling — only update if message count changed
-    if (originalMessages.value.size === 0 || (response.messages || []).length !== messages.value.length) {
-      messages.value = response.messages || [];
-      originalMessages.value.clear();
+    const serverMessages = response.messages || [];
+    if (originalMessages.value.size > 0) {
+      // In translated mode: preserve translated content for existing messages
+      // Update originals with fresh server data
+      originalMessages.value.forEach((_, i) => {
+        if (serverMessages[i]) {
+          originalMessages.value.set(i, serverMessages[i].content);
+        }
+      });
+      // Append any new messages from server (not yet translated)
+      for (let i = messages.value.length; i < serverMessages.length; i++) {
+        messages.value.push(serverMessages[i]);
+      }
+    } else if (serverMessages.length !== messages.value.length) {
+      messages.value = serverMessages;
     }
   }
   loaded.value = true;
