@@ -12,6 +12,7 @@ import { healthRouter } from "./routes/health.js";
 import { storageRouter } from "./routes/storage.js";
 import { debugRouter } from "./routes/debug.js";
 import { translateRouter } from "./routes/translate.js";
+import { donateRouter } from "./routes/donate.js";
 import { config } from "./config.js";
 
 export function createApp() {
@@ -26,7 +27,8 @@ export function createApp() {
     .use(healthRouter.routes())
     .use(storageRouter.routes())
     .use(debugRouter.routes())
-    .use(translateRouter.routes());
+    .use(translateRouter.routes())
+    .use(donateRouter.routes());
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith("/api")) {
@@ -47,6 +49,25 @@ export function createApp() {
 
   if (config.frontendDistPath && fs.existsSync(config.frontendDistPath)) {
     app.use(serve(config.frontendDistPath));
+
+    // Serve .well-known files explicitly (extensionless files need content-type set)
+    app.use(async (ctx, next) => {
+      if (ctx.path.startsWith("/.well-known/")) {
+        const distRoot = path.resolve(config.frontendDistPath);
+        // Try exact path first, then without .txt extension
+        const candidates = [ctx.path, ctx.path.replace(/\.txt$/, "")];
+        for (const candidate of candidates) {
+          const resolved = path.resolve(path.join(distRoot, candidate));
+          if (!resolved.startsWith(distRoot)) continue;
+          if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+            ctx.type = "text/plain";
+            ctx.body = fs.createReadStream(resolved);
+            return;
+          }
+        }
+      }
+      return next();
+    });
 
     app.use(async (ctx) => {
       if (ctx.path.startsWith("/api")) return;

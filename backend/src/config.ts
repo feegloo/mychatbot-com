@@ -30,4 +30,6 @@ export const config = {
   logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs"),
   debugUser: process.env.DEBUG_USER || "admin",
   debugPass: process.env.DEBUG_PASS || "admin",
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
 };

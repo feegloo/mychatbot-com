@@ -31,6 +31,8 @@ DB_NAME="chatrag"
 GCS_BUCKET="${GCS_BUCKET:-chatrag-storage-${PROJECT_ID}}"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
+VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
 # CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
@@ -164,7 +166,9 @@ fi
 # ── Step 6: Build Docker image ───────────────────────────────────────────────
 info "Step 6/9: Building Docker image..."
 gcloud auth configure-docker --quiet
-docker build -t "${IMAGE}:latest" .
+docker build \
+  --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+  -t "${IMAGE}:latest" .
 
 # ── Step 7: Push to GCR ─────────────────────────────────────────────────────
 info "Step 7/9: Pushing image to Container Registry..."
@@ -206,7 +210,8 @@ USE_GEMMA=${USE_GEMMA:-false},\
 GEMMA_MODEL=${GEMMA_MODEL:-gemma4},\
 GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-admin},\
-DEBUG_PASS=${DEBUG_PASS:-admin}"
+DEBUG_PASS=${DEBUG_PASS:-admin},\
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}"
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
 info "Step 9/9: Getting service URL..."

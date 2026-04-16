@@ -23,56 +23,75 @@
       </p>
     </div>
 
-    <button class="conv-nav-donate" @click="handleDonate">Donate $</button>
+    <button v-if="showDonate" class="conv-nav-donate" @click="handleDonate">Donate $</button>
   </nav>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
+import { loadStripe, type Stripe, type PaymentRequest } from "@stripe/stripe-js";
 import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
+import axios from "axios";
+
+const api = axios.create({
+  // @ts-ignore
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
+});
 
 defineEmits<{ navigate: [] }>();
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+const showDonate = ref(false);
+
+let stripeInstance: Stripe | null = null;
+let paymentRequest: PaymentRequest | null = null;
+
+async function initStripe() {
+  if (!isIOS) return;
+  // @ts-ignore
+  const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+  if (!key) return;
+
+  stripeInstance = await loadStripe(key);
+  if (!stripeInstance) return;
+
+  paymentRequest = stripeInstance.paymentRequest({
+    country: "US",
+    currency: "usd",
+    total: { label: "ChatRAG Donation", amount: 100 },
+    requestPayerName: false,
+    requestPayerEmail: false,
+  });
+
+  const result = await paymentRequest.canMakePayment();
+  if (result?.applePay) {
+    showDonate.value = true;
+
+    paymentRequest.on("paymentmethod", async (ev) => {
+      try {
+        const { data } = await api.post("/donate");
+        const { error } = await stripeInstance!.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+        if (error) {
+          ev.complete("fail");
+        } else {
+          ev.complete("success");
+        }
+      } catch {
+        ev.complete("fail");
+      }
+    });
+  }
+}
+
 async function handleDonate() {
-  if (!window.PaymentRequest) {
-    alert("Apple Pay is not available on this device.");
-    return;
-  }
-
-  const methods: PaymentMethodData[] = [
-    {
-      supportedMethods: "https://apple.com/apple-pay",
-      data: {
-        version: 3,
-        merchantIdentifier: "merchant.app.chatrag",
-        merchantCapabilities: ["supports3DS"],
-        supportedNetworks: ["visa", "masterCard", "amex"],
-        countryCode: "US",
-      },
-    },
-  ];
-
-  const details: PaymentDetailsInit = {
-    total: {
-      label: "ChatRAG Donation",
-      amount: { currency: "USD", value: "1.00" },
-    },
-  };
-
-  try {
-    const request = new PaymentRequest(methods, details);
-    const canMake = await request.canMakePayment();
-    if (!canMake) {
-      alert("Apple Pay is not available on this device.");
-      return;
-    }
-    const response = await request.show();
-    await response.complete("success");
-  } catch {
-    // user cancelled
-  }
+  if (!paymentRequest) return;
+  paymentRequest.show();
 }
 
 function convLabel(conv: ConversationSummary): string {
@@ -138,6 +157,7 @@ watch(
 
 onMounted(() => {
   load();
+  initStripe();
   window.addEventListener('conversation-updated', load);
 });
 
