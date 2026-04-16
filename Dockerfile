@@ -1,9 +1,11 @@
+# check=skip=SecretsUsedInArgOrEnv
 # ── Stage 1: Build frontend ──────────────────────────────────────────────────
 FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
+# Stripe publishable key is a public client-side key, not a secret
 ARG VITE_STRIPE_PUBLISHABLE_KEY
 ENV VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
 ENV NODE_ENV=production
