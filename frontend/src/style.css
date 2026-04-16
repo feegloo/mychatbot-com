@@ -922,7 +922,7 @@ h1, h2, h3 {
 .sidebar-toggle {
   display: none;
   position: absolute;
-  top: 14px;
+  top: 16px;
   right: 12px;
   z-index: 20;
   background: none;
@@ -1010,6 +1010,10 @@ h1, h2, h3 {
   .conv-title {
     font-size: 0.9rem;
     margin: 0;
+  }
+
+  .conv-title-center {
+    justify-content: flex-start !important;
   }
 
   .grid-2 {
