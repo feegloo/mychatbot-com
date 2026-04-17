@@ -1,5 +1,5 @@
 <template>
-  <nav class="conv-nav">
+  <nav class="conv-nav" :class="{ collapsed: collapsed }">
     <router-link to="/" class="conv-nav-new button" @click="$emit('navigate')">
       + New chat
     </router-link>
@@ -24,6 +24,13 @@
     </div>
 
     <DonateWidget />
+
+    <button class="conv-nav-collapse-btn" @click="$emit('toggle-collapse')" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline v-if="!collapsed" points="15 18 9 12 15 6" />
+        <polyline v-else points="9 18 15 12 9 6" />
+      </svg>
+    </button>
   </nav>
 </template>
 
@@ -34,7 +41,8 @@ import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
 import DonateWidget from "./DonateWidget.vue";
 
-defineEmits<{ navigate: [] }>();
+defineProps<{ collapsed: boolean }>();
+defineEmits<{ navigate: [], 'toggle-collapse': [] }>();
 
 function convLabel(conv: ConversationSummary): string {
   if (conv.displayName) return conv.displayName;

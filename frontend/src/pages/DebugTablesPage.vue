@@ -28,8 +28,7 @@
           </button>
         </div>
         <div class="view-toggle">
-          <button :class="{ active: view === 'formatted' }" @click="view = 'formatted'">Formatted</button>
-          <button :class="{ active: view === 'json' }" @click="view = 'json'">JSON</button>
+          <button :class="{ active: view === 'json' }" @click="view = view === 'json' ? 'formatted' : 'json'">JSON</button>
         </div>
       </div>
 
@@ -49,7 +48,12 @@
               <tbody>
                 <tr v-for="(row, i) in data[activeTable]" :key="i">
                   <td v-for="col in columns(activeTable)" :key="col">
-                    <span class="cell" :title="String(row[col] ?? '')">{{ formatCell(row[col]) }}</span>
+                    <span
+                      class="cell"
+                      :class="{ expanded: isCellExpanded(i, col) }"
+                      :title="isCellExpanded(i, col) ? '' : String(row[col] ?? '')"
+                      @click="toggleCell(i, col, row[col])"
+                    >{{ isCellExpanded(i, col) ? expandedCellContent(row[col]) : formatCell(row[col]) }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -63,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { getDebugTables } from "../api";
 
 type Tables = Awaited<ReturnType<typeof getDebugTables>>;
@@ -85,12 +89,56 @@ const data = ref<Tables>({
   uploaded_files: [],
 });
 
+const expandedCells = ref<Set<string>>(new Set());
+
+watch(activeTable, () => {
+  expandedCells.value = new Set();
+});
+
 const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[]);
 
 function columns(table: keyof Tables) {
   const rows = data.value[table];
   if (!rows.length) return [];
   return Object.keys(rows[0]);
+}
+
+function cellKey(row: number, col: string) {
+  return `${row}:${col}`;
+}
+
+function isCellExpanded(row: number, col: string) {
+  return expandedCells.value.has(cellKey(row, col));
+}
+
+function toggleCell(row: number, col: string, _value: unknown) {
+  const key = cellKey(row, col);
+  const next = new Set(expandedCells.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  expandedCells.value = next;
+}
+
+function isJsonString(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try { JSON.parse(trimmed); return true; } catch { return false; }
+  }
+  return false;
+}
+
+function expandedCellContent(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  const s = String(value);
+  if (isJsonString(s)) {
+    try { return JSON.stringify(JSON.parse(s), null, 2); } catch { /* fall through */ }
+  }
+  return s;
 }
 
 function formatCell(value: unknown): string {
@@ -229,7 +277,8 @@ h1 {
   color: #f1f5f9;
 }
 .table-wrapper {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 75vh;
   border: 1px solid #334155;
   border-radius: 8px;
 }
@@ -250,6 +299,7 @@ th {
   font-weight: 600;
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 td {
   max-width: 300px;
@@ -259,6 +309,18 @@ td {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 300px;
+  cursor: pointer;
+}
+.cell.expanded {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: none;
+}
+td:has(.cell.expanded) {
+  white-space: normal;
+  max-width: none;
 }
 .json-block {
   background: #0f172a;

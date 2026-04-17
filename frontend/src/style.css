@@ -481,14 +481,12 @@ a { color: #c4b5fd; text-decoration: none; }
 .question-pill::after {
   content: '';
   position: absolute;
-  bottom: -5px;
-  left: 10px;
-  width: 12px;
-  height: 8px;
+  bottom: -7px;
+  left: 11px;
+  width: 8px;
+  height: 7px;
   background: rgba(255, 255, 255, 0.05);
-  border: 0 solid rgba(255, 255, 255, 0.08);
-  border-width: 0 0 1px 1px;
-  clip-path: polygon(0 0, 100% 0, 15% 100%);
+  clip-path: polygon(0 0, 100% 0, 3% 100%);
   pointer-events: none;
   transition: 0.15s;
 }

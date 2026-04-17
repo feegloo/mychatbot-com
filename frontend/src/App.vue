@@ -3,9 +3,9 @@
   <router-view v-if="isEmbed" :key="$route.fullPath" />
 
   <!-- Normal mode -->
-  <div v-else class="app-layout">
+  <div v-else class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
-    <ConversationNav :class="{ open: sidebarOpen }" @navigate="sidebarOpen = false" />
+    <ConversationNav :class="{ open: sidebarOpen }" :collapsed="sidebarCollapsed" @navigate="sidebarOpen = false" @toggle-collapse="sidebarCollapsed = !sidebarCollapsed" />
     <main class="app-main">
       <button class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle menu">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -23,6 +23,7 @@ import { getBrowserFingerprint, getUserId, setUserId } from "./utils/fingerprint
 import { resolveFingerprint } from "./api";
 
 const sidebarOpen = ref(false);
+const sidebarCollapsed = ref(false);
 const route = useRoute();
 const isEmbed = computed(() => route.meta.embed === true);
 
