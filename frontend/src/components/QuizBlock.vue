@@ -269,27 +269,27 @@ async function downloadPdf() {
 
   // Title
   doc.setFont(PDF_FONT, "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(15);
   doc.setTextColor(0, 0, 0);
   doc.text(props.quiz.title, marginLeft, y);
-  y += 8;
+  y += 7;
 
   // Quiz type subtitle
   doc.setFont(PDF_FONT, "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
   const typeLabel = isMultiple.value
     ? "Multiple choice — select all correct answers"
     : "Single choice — select one correct answer";
   doc.text(typeLabel, marginLeft, y);
-  y += 8;
+  y += 6;
 
   // Name line
   doc.setFont(PDF_FONT, "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.text("Name: ___________________________________    Date: _______________", marginLeft, y);
-  y += 12;
+  y += 9;
 
   // Questions
   for (let qi = 0; qi < props.quiz.questions.length; qi++) {
@@ -300,91 +300,91 @@ async function downloadPdf() {
 
     // Question text
     doc.setFont(PDF_FONT, "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     const questionText = `${qi + 1}. ${q.q}`;
     const questionLines = doc.splitTextToSize(questionText, contentWidth);
     doc.text(questionLines, marginLeft, y);
-    y += questionLines.length * 5.5 + 3;
+    y += questionLines.length * 4.8 + 2;
 
     // Options
     doc.setFont(PDF_FONT, "normal");
-    doc.setFontSize(10.5);
+    doc.setFontSize(9.5);
     for (let oi = 0; oi < q.options.length; oi++) {
       const letter = variantLetter(oi);
       const optText = `${letter}. ${q.options[oi]}`;
       const optLines = doc.splitTextToSize(optText, contentWidth - 12);
 
-      checkNewPage(optLines.length * 5 + 4);
+      checkNewPage(optLines.length * 4.5 + 3);
 
       // Draw radio circle (single choice) or checkbox (multiple choice)
       const boxX = marginLeft + 2;
-      const boxY = y - 3.2;
+      const boxY = y - 2.8;
       const isChecked = selections[qi]?.has(oi);
       const isWrong = isChecked && !q.correct.includes(oi);
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.4);
       if (isMultiple.value) {
-        doc.rect(boxX, boxY, 3.5, 3.5);
+        doc.rect(boxX, boxY, 3, 3);
         if (isChecked) {
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.6);
           if (isWrong) {
             // Draw X inside box for wrong answer
-            doc.line(boxX + 0.5, boxY + 0.5, boxX + 3.0, boxY + 3.0);
-            doc.line(boxX + 3.0, boxY + 0.5, boxX + 0.5, boxY + 3.0);
+            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6);
+            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6);
           } else {
             // Draw checkmark inside box for correct answer
-            doc.line(boxX + 0.6, boxY + 1.8, boxX + 1.4, boxY + 2.8);
-            doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7);
+            doc.line(boxX + 0.5, boxY + 1.5, boxX + 1.2, boxY + 2.4);
+            doc.line(boxX + 1.2, boxY + 2.4, boxX + 2.5, boxY + 0.6);
           }
           doc.setLineWidth(0.4);
         }
       } else {
-        doc.circle(boxX + 1.75, boxY + 1.75, 1.75);
+        doc.circle(boxX + 1.5, boxY + 1.5, 1.5);
         if (isChecked) {
           if (isWrong) {
             // Draw X inside circle for wrong answer
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.6);
-            doc.line(boxX + 0.55, boxY + 0.55, boxX + 2.95, boxY + 2.95);
-            doc.line(boxX + 2.95, boxY + 0.55, boxX + 0.55, boxY + 2.95);
+            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6);
+            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6);
             doc.setLineWidth(0.4);
           } else {
             // Draw filled inner circle for correct answer
             doc.setFillColor(0, 0, 0);
-            doc.circle(boxX + 1.75, boxY + 1.75, 1.0, 'F');
+            doc.circle(boxX + 1.5, boxY + 1.5, 0.85, 'F');
           }
         }
       }
 
       // Option text
       doc.text(optLines, marginLeft + 9, y);
-      y += optLines.length * 5 + 2;
+      y += optLines.length * 4.5 + 1.5;
     }
 
     // Explanation (if question was submitted and has explanation)
     if (showExplanation(qi) && q.explanation) {
-      checkNewPage(12);
+      checkNewPage(10);
       doc.setFont(PDF_FONT, "italic");
-      doc.setFontSize(9.5);
+      doc.setFontSize(8.5);
       doc.setTextColor(80, 80, 80);
       const expLines = doc.splitTextToSize(q.explanation, contentWidth - 4);
       doc.text(expLines, marginLeft + 2, y);
-      y += expLines.length * 4.5 + 2;
+      y += expLines.length * 3.8 + 1.5;
       doc.setTextColor(0, 0, 0);
     }
 
-    y += 5; // Space between questions
+    y += 3; // Space between questions
   }
 
   // Score summary (if all questions answered)
   if (allSubmitted.value) {
     checkNewPage(12);
     doc.setFont(PDF_FONT, "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.text(`Score: ${correctCount.value}/${props.quiz.questions.length}`, marginLeft, y);
-    y += 10;
+    y += 8;
   }
 
   // Build filename
