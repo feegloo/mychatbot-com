@@ -1354,26 +1354,24 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
-/* Subtle fade-in for assistant answer content (expand from left) */
-@keyframes msg-expand-ltr {
-  from { opacity: 0; max-width: 40px; }
-  to { opacity: 1; max-width: 85vw; }
+/* Reveal assistant answer content (clip from right, expand left-to-right) */
+@keyframes msg-reveal-ltr {
+  from { clip-path: inset(0 100% 0 0); opacity: 0; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
 }
 
-/* Subtle fade-in for user message (expand from right) */
-@keyframes msg-expand-rtl {
-  from { opacity: 0; max-width: 40px; }
-  to { opacity: 1; max-width: 85vw; }
+/* Reveal user message content (clip from right, expand left-to-right) */
+@keyframes msg-reveal-user-ltr {
+  from { clip-path: inset(0 100% 0 0); opacity: 0; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-expand-rtl 0.25s ease-out both;
-  overflow: hidden;
+  animation: msg-reveal-ltr 0.375s cubic-bezier(0.55, 0, 1, 0.45) both;
 }
 
 .message.user .user-text {
-  animation: msg-expand-ltr 0.25s ease-out both;
-  overflow: hidden;
+  animation: msg-reveal-user-ltr 0.25s ease-out both;
 }
 
 /* Bubble tip fade-in */
