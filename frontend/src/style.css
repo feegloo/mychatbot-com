@@ -329,7 +329,7 @@ a { color: #c4b5fd; text-decoration: none; }
 .conv-nav-expand-arrow {
   display: none;
   color: #64748b;
-  margin-top: 6px;
+  cursor: pointer;
   transition: color 0.15s;
 }
 .conv-nav.collapsed:hover .conv-nav-expand-arrow {

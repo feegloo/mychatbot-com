@@ -1351,6 +1351,6 @@ function openFilePreview(file: FileInfo) {
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-fade-in-ltr 0.35s ease-out both;
+  animation: msg-fade-in-ltr 0.175s ease-out both;
 }
 </style>
