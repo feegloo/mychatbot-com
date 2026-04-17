@@ -434,7 +434,27 @@ const hasRichContent = computed(() => {
 
 async function downloadMessagePdf() {
   const title = props.conversationName || "chatrag";
-  await printContentAsPdf(props.msg.content, title);
+
+  // Patch markdown with current checklist checked states from the DOM
+  let md = props.msg.content;
+  const boxes: boolean[] = [];
+  for (const el of contentEls.value ?? []) {
+    el.querySelectorAll('.checklist-box').forEach((box) => {
+      boxes.push(box.classList.contains('checked'));
+    });
+  }
+  if (boxes.length) {
+    let idx = 0;
+    md = md.replace(/^(\s*[-*+]\s+\[)([ xX])(\]\s+)/gm, (match, before, check, after) => {
+      if (idx < boxes.length) {
+        const checked = boxes[idx++];
+        return `${before}${checked ? 'x' : ' '}${after}`;
+      }
+      return match;
+    });
+  }
+
+  await printContentAsPdf(md, title);
 }
 
 type ContentPart =

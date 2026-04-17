@@ -320,24 +320,40 @@ async function downloadPdf() {
       const boxX = marginLeft + 2;
       const boxY = y - 3.2;
       const isChecked = selections[qi]?.has(oi);
+      const isWrong = isChecked && !q.correct.includes(oi);
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.4);
       if (isMultiple.value) {
         doc.rect(boxX, boxY, 3.5, 3.5);
         if (isChecked) {
-          // Draw checkmark inside box
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.6);
-          doc.line(boxX + 0.6, boxY + 1.8, boxX + 1.4, boxY + 2.8);
-          doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7);
+          if (isWrong) {
+            // Draw X inside box for wrong answer
+            doc.line(boxX + 0.5, boxY + 0.5, boxX + 3.0, boxY + 3.0);
+            doc.line(boxX + 3.0, boxY + 0.5, boxX + 0.5, boxY + 3.0);
+          } else {
+            // Draw checkmark inside box for correct answer
+            doc.line(boxX + 0.6, boxY + 1.8, boxX + 1.4, boxY + 2.8);
+            doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7);
+          }
           doc.setLineWidth(0.4);
         }
       } else {
         doc.circle(boxX + 1.75, boxY + 1.75, 1.75);
         if (isChecked) {
-          // Draw filled inner circle
-          doc.setFillColor(0, 0, 0);
-          doc.circle(boxX + 1.75, boxY + 1.75, 1.0, 'F');
+          if (isWrong) {
+            // Draw X inside circle for wrong answer
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.6);
+            doc.line(boxX + 0.55, boxY + 0.55, boxX + 2.95, boxY + 2.95);
+            doc.line(boxX + 2.95, boxY + 0.55, boxX + 0.55, boxY + 2.95);
+            doc.setLineWidth(0.4);
+          } else {
+            // Draw filled inner circle for correct answer
+            doc.setFillColor(0, 0, 0);
+            doc.circle(boxX + 1.75, boxY + 1.75, 1.0, 'F');
+          }
         }
       }
 
