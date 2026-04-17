@@ -1354,9 +1354,9 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
-/* Reveal assistant answer content (clip from right, expand left-to-right) */
+/* Reveal assistant answer content (clip from top-left corner, diagonal reveal) */
 @keyframes msg-reveal-ltr {
-  from { clip-path: inset(0 100% 0 0); opacity: 0; }
+  from { clip-path: inset(0 100% 100% 0); opacity: 0; }
   to { clip-path: inset(0 0 0 0); opacity: 1; }
 }
 
@@ -1367,11 +1367,11 @@ function openFilePreview(file: FileInfo) {
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-reveal-ltr 0.375s cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: msg-reveal-ltr 0.25s cubic-bezier(0.55, 0, 1, 0.45) both;
 }
 
 .message.user .user-text {
-  animation: msg-reveal-user-ltr 0.25s ease-out both;
+  animation: msg-reveal-user-ltr 0.167s ease-out both;
 }
 
 /* Bubble tip fade-in */

@@ -682,6 +682,14 @@ a { color: #c4b5fd; text-decoration: none; }
   margin-left: 10px;
 }
 
+@media (min-width: 769px) {
+  .message-row.assistant {
+    margin-left: 180px;
+  }
+}
+
+
+
 /* Bubble tip (the little triangle) */
 .message-row .bubble-tip {
   flex-shrink: 0;

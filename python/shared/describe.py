@@ -117,6 +117,7 @@ Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzy
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
 Bądź zwięzły — to ma być szybka analiza, nie rozprawka.
 NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
+Od czasu do czasu użyj profesjonalnych emoji, żeby wiadomość była bardziej żywa i łatwa do przeskanowania (np. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰). Nie przesadzaj — jedno-dwa na sekcję wystarczą. Nigdy nie używaj dziecinnych lub nieprofesjonalnych emoji (💩, 🤡, 😜 itp.).
 Odpowiadaj po polsku."""),
             ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
         ])
@@ -165,6 +166,7 @@ If file metadata is provided below (JSON block marked with =====), you MUST use 
 Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
 Be concise — this is a quick analysis, not an essay.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
+Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
 Reply in the same language as the content."""),
             ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
         ])
