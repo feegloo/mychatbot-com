@@ -169,13 +169,7 @@ async function downloadPdf() {
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
   doc.text(props.quiz.title, marginLeft, y);
-  y += 12;
-
-  // Thin separator
-  doc.setDrawColor(180, 180, 180);
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, y, pageWidth - marginRight, y);
-  y += 8;
+  y += 14;
 
   // Name line
   doc.setFont(PDF_FONT, "normal");
