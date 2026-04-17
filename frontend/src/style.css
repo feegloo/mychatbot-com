@@ -736,6 +736,10 @@ a { color: #c4b5fd; text-decoration: none; }
   max-width: 100%;
 }
 
+.message.assistant.welcome-message > strong {
+  margin-bottom: 10px;
+}
+
 .message strong {
   display: block;
   font-size: 11px;
@@ -753,7 +757,7 @@ a { color: #c4b5fd; text-decoration: none; }
 
 /* Markdown content styles for assistant messages */
 .markdown-content {
-  margin: 10px 0 0;
+  margin: 9px 0 0;
   font-size: 15px;
   line-height: 1.6;
 }
@@ -934,15 +938,15 @@ li:has(.checklist-box) {
 .markdown-content h2,
 .markdown-content h3,
 .markdown-content h4 {
-  margin: 12px 0 4px;
+  margin: 8px 0 4px;
   font-weight: 600;
   color: #e2e8f0;
   text-transform: none;
   letter-spacing: normal;
 }
 
-.markdown-content h1 { font-size: 18px; }
-.markdown-content h2 { font-size: 16px; }
+.markdown-content h1 { font-size: 24px; }
+.markdown-content h2 { font-size: 20px; }
 .markdown-content h3 { font-size: 15px; }
 
 .markdown-content a {
