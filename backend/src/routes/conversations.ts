@@ -402,10 +402,7 @@ conversationsRouter.patch("/conversations/:conversationId/name", async (ctx) => 
 });
 
 const batchSchema = z.object({
-  conversations: z.array(z.object({
-    conversationId: z.string().regex(/^[0-9A-Za-z-]{16,36}$/),
-    token: z.string()
-  })).max(100)
+  conversationIds: z.array(z.string().regex(/^[0-9A-Za-z-]{16,36}$/))
 });
 
 conversationsRouter.post("/conversations/batch", async (ctx) => {
@@ -416,22 +413,14 @@ conversationsRouter.post("/conversations/batch", async (ctx) => {
     return;
   }
 
-  const ids = parsed.data.conversations.map((c) => c.conversationId);
-  const summaries = await getConversationSummaries(ids);
+  const summaries = await getConversationSummaries(parsed.data.conversationIds);
 
-  const results = await Promise.all(
-    summaries.map(async (row) => {
-      const entry = parsed.data.conversations.find((c) => c.conversationId === row.id);
-      const role = await resolveConversationRole(row.id, entry?.token);
-      return {
-        conversationId: row.id,
-        displayName: row.display_name || null,
-        status: row.status,
-        role,
-        fileNames: row.fileNames
-      };
-    })
-  );
+  const results = summaries.map((row) => ({
+    conversationId: row.id,
+    displayName: row.display_name || null,
+    status: row.status,
+    fileNames: row.fileNames
+  }));
 
   ctx.body = { conversations: results };
 });

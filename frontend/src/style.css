@@ -72,7 +72,7 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 12px;
   gap: 8px;
   overflow: hidden;
-  transition: width 0.25s ease, padding 0.25s ease;
+  transition: width 0.12s ease, padding 0.12s ease;
 }
 
 .conv-nav-new {
@@ -85,7 +85,7 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 600;
-  transition: opacity 0.15s, transform 0.15s, padding 0.25s ease, border-radius 0.25s ease;
+  transition: opacity 0.15s, transform 0.15s, padding 0.12s ease, border-radius 0.12s ease;
   position: relative;
   overflow: hidden;
 }
@@ -94,7 +94,7 @@ a { color: #c4b5fd; text-decoration: none; }
   display: inline;
   white-space: nowrap;
   opacity: 1;
-  transition: opacity 0.18s ease 0.12s;
+  transition: opacity 0.15s ease 0.06s;
 }
 .conv-nav-new .conv-nav-new-icon {
   position: absolute;
@@ -125,7 +125,7 @@ a { color: #c4b5fd; text-decoration: none; }
   flex: 1;
   min-height: 0;
   opacity: 1;
-  transition: opacity 0.2s ease 0.15s;
+  transition: opacity 0.15s ease 0.06s;
 }
 
 .conv-nav-item {
@@ -260,11 +260,11 @@ a { color: #c4b5fd; text-decoration: none; }
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-label {
     opacity: 0;
-    transition: opacity 0.12s ease;
+    transition: opacity 0.08s ease;
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-icon {
     opacity: 1;
-    transition: opacity 0.18s ease 0.12s;
+    transition: opacity 0.1s ease 0.06s;
   }
   .conv-nav.collapsed .conv-nav-list {
     opacity: 0;
@@ -273,14 +273,14 @@ a { color: #c4b5fd; text-decoration: none; }
     pointer-events: none;
     margin-top: 0;
     gap: 0;
-    transition: opacity 0.12s ease, flex 0.25s ease, margin-top 0.25s ease, gap 0.25s ease;
+    transition: opacity 0.08s ease, flex 0.12s ease, margin-top 0.12s ease, gap 0.12s ease;
   }
   .conv-nav.collapsed .donate-widget {
     opacity: 0;
     pointer-events: none;
     max-height: 0;
     padding: 0;
-    transition: opacity 0.12s ease, max-height 0.25s ease, padding 0.25s ease;
+    transition: opacity 0.08s ease, max-height 0.12s ease, padding 0.12s ease;
   }
 
   /* Collapsed conversation indicators */
@@ -294,14 +294,14 @@ a { color: #c4b5fd; text-decoration: none; }
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.12s ease, max-height 0.2s ease, padding 0.2s ease;
+    transition: opacity 0.08s ease, max-height 0.1s ease, padding 0.1s ease;
   }
   .conv-nav.collapsed .conv-nav-collapsed-hint {
     max-height: 200px;
     padding: 8px 0;
     opacity: 1;
     pointer-events: auto;
-    transition: opacity 0.2s ease 0.15s, max-height 0.25s ease, padding 0.25s ease;
+    transition: opacity 0.12s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
   }
   .conv-nav.collapsed .conv-nav-bottom {
     justify-content: center;
@@ -326,13 +326,28 @@ a { color: #c4b5fd; text-decoration: none; }
   margin-top: 2px;
 }
 
+.conv-nav-expand-arrow {
+  display: none;
+  color: #64748b;
+  margin-top: 6px;
+  transition: color 0.15s;
+}
+.conv-nav.collapsed:hover .conv-nav-expand-arrow {
+  color: #e2e8f0;
+}
+@media (min-width: 769px) {
+  .conv-nav.collapsed .conv-nav-expand-arrow {
+    display: block;
+  }
+}
+
 /* Donate widget */
 .donate-widget {
   padding: 8px 4px;
   flex-shrink: 0;
   max-height: 200px;
   overflow: hidden;
-  transition: opacity 0.2s ease 0.15s, max-height 0.25s ease, padding 0.25s ease;
+  transition: opacity 0.15s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
 }
 
 .donate-thanks {
@@ -680,7 +695,7 @@ a { color: #c4b5fd; text-decoration: none; }
 
 /* Markdown content styles for assistant messages */
 .markdown-content {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   font-size: 15px;
   line-height: 1.6;
 }

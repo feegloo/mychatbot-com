@@ -52,7 +52,7 @@
           />
         </div>
 
-        <div v-if="canReply" class="chat-input-bar">
+        <div v-if="roleLoaded && canReply" class="chat-input-bar">
           <textarea
             ref="questionInput"
             class="chat-textarea"
@@ -70,7 +70,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           </button>
         </div>
-        <div v-else class="chat-readonly-notice">
+        <div v-else-if="roleLoaded" class="chat-readonly-notice">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           View only — reply to a message to start your own thread
         </div>
@@ -209,6 +209,7 @@ const messages = ref<ChatMessage[]>([]);
 const hasLocalError = ref(false);
 
 
+const roleLoaded = ref(false);
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
 const canReply = computed(() => status.value.role === "owner" || status.value.role === "editor");
 
@@ -443,6 +444,7 @@ let intervalHandle: number | undefined;
 onMounted(async () => {
   await loadConversation();
   loaded.value = true;
+  roleLoaded.value = true;
   await nextTick();
   setTimeout(() => scrollToBottom(), 100);
 

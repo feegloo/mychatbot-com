@@ -43,24 +43,20 @@ export type ConversationSummary = {
   conversationId: string;
   displayName: string | null;
   status: "processing" | "ready" | "failed";
-  role: "owner" | "editor" | "viewer";
   fileNames: string[];
 };
 
 export async function listMyConversations(): Promise<ConversationSummary[]> {
   const tokens = getTokensMap();
-  const entries = Object.entries(tokens);
-  if (!entries.length) return [];
+  const ids = Object.keys(tokens);
+  if (!ids.length) return [];
 
-  const response = await api.post("/conversations/batch", {
-    conversations: entries.map(([conversationId, token]) => ({ conversationId, token }))
-  });
+  const response = await api.post("/conversations/batch", { conversationIds: ids });
   const conversations = (response.data as { conversations: ConversationSummary[] }).conversations;
 
   // Remove stale tokens for conversations that no longer exist in the DB
   const returnedIds = new Set(conversations.map((c) => c.conversationId));
-  const requestedIds = entries.map(([id]) => id);
-  const staleIds = requestedIds.filter((id) => !returnedIds.has(id));
+  const staleIds = ids.filter((id) => !returnedIds.has(id));
   if (staleIds.length) {
     const updated = getTokensMap();
     for (const id of staleIds) delete updated[id];
