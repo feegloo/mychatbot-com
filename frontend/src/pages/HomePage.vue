@@ -3,7 +3,7 @@
     <!-- Logo + tagline -->
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
-      <p class="home-subtitle">Upload files. Get answers from AI chatbot with semantic search and RAG.</p>
+      <p class="home-subtitle">Upload files. Get answers from AI chatbot with semantic search and RAG.<br/> Generate checklist, quiz, poem, download PDF, share answers.</p>
     </div>
 
     <!-- Upload section (fades out after upload starts processing) -->
