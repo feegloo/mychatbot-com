@@ -3,7 +3,7 @@ name: Deploy to GCP Cloud Run
 on:
   push:
     branches:
-      - main #TODO: main
+      - master #TODO: main
 
 env:
   REGION: europe-west1
