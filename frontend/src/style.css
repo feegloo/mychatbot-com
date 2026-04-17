@@ -72,6 +72,7 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 12px;
   gap: 8px;
   overflow: hidden;
+  transition: width 0.25s ease, padding 0.25s ease;
 }
 
 .conv-nav-new {
@@ -190,9 +191,56 @@ a { color: #c4b5fd; text-decoration: none; }
   }
 }
 
+/* ── Sidebar bottom row (Donate + collapse arrow) ── */
+
+.conv-nav-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.conv-nav-collapse-btn {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .conv-nav-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .conv-nav-collapse-btn:hover {
+    color: #e2e8f0;
+  }
+
+  .conv-nav.collapsed {
+    width: 28px;
+    padding: 12px 4px;
+  }
+  .conv-nav.collapsed .conv-nav-new,
+  .conv-nav.collapsed .conv-nav-list {
+    display: none;
+  }
+  .conv-nav.collapsed .donate-widget {
+    display: none;
+  }
+  .conv-nav.collapsed .conv-nav-bottom {
+    justify-content: center;
+  }
+}
+
 /* Donate widget */
 .donate-widget {
-  margin-top: auto;
   padding: 8px 4px;
   flex-shrink: 0;
 }
