@@ -231,10 +231,15 @@ a { color: #c4b5fd; text-decoration: none; }
   }
 
   .conv-nav.collapsed {
-    width: 40px;
-    padding: 12px 4px;
+    width: 54px;
+    padding: 12px 8px;
     cursor: pointer;
   }
+
+  .conv-nav.collapsed .conv-nav-collapse-btn {
+    margin-left: none;
+  }
+
   .conv-nav.collapsed .conv-nav-new {
     padding: 8px;
     font-size: 16px;
