@@ -1,7 +1,5 @@
 <template>
   <div class="debug-page">
-    <h1>Database Debug</h1>
-
     <div v-if="!authenticated" class="login-box">
       <h2>Login required</h2>
       <form @submit.prevent="doLogin">
