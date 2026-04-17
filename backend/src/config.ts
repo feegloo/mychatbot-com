@@ -28,8 +28,8 @@ export const config = {
   openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
   pythonServerUrl: process.env.PYTHON_SERVER_URL || "http://localhost:8321",  gcsBucket: process.env.GCS_BUCKET || "",
   logsRoot: resolvePath(process.env.LOGS_ROOT || "../logs"),
-  debugUser: process.env.DEBUG_USER,
-  debugPass: process.env.DEBUG_PASS,
+  debugUser: process.env.DEBUG_USER || "chatrag",
+  debugPass: process.env.DEBUG_PASS || "chatragadmin",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
 };

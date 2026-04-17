@@ -1,5 +1,10 @@
 <template>
   <div class="header" style="margin-bottom: 12px; position: relative;">
+    <div v-if="processing" class="indexing-bar">
+      <div class="indexing-spinner"></div>
+      <span class="indexing-label-full">Processing files …</span>
+      <span class="indexing-label-short">Processing</span>
+    </div>
     <div class="conv-title-center" style="position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
         <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0;">
       <h1
@@ -28,7 +33,7 @@
     <div class="header-actions" style="display:flex; gap:8px; align-items: center; flex-wrap: wrap; margin-left: auto; z-index: 1;">
       <slot name="language-toggle"></slot>
       <button class="add-btn" @click="copyUrl">
-        <template v-if="copied">Copied!</template>
+        <template v-if="copied">Link copied!</template>
         <template v-else>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 3px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         </template>
@@ -46,6 +51,7 @@ const props = defineProps<{
   conversationId: string;
   conversationTitle: string;
   canUpload: boolean;
+  processing?: boolean;
 }>();
 
 const emit = defineEmits<{

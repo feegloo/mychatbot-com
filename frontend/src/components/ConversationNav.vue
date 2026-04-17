@@ -1,7 +1,8 @@
 <template>
-  <nav class="conv-nav" :class="{ collapsed: collapsed }">
-    <router-link to="/" class="conv-nav-new button" @click="$emit('navigate')">
-      + New chat
+  <nav class="conv-nav" :class="{ collapsed: collapsed }" @click="onNavClick">
+    <router-link to="/" class="conv-nav-new button" @click.stop="$emit('navigate')">
+      <span class="conv-nav-new-icon">+</span>
+      <span class="conv-nav-new-label">+ New chat</span>
     </router-link>
 
     <div class="conv-nav-list">
@@ -42,8 +43,15 @@ import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
 import DonateWidget from "./DonateWidget.vue";
 
-defineProps<{ collapsed: boolean }>();
-defineEmits<{ navigate: [], 'toggle-collapse': [] }>();
+const props = defineProps<{ collapsed: boolean }>();
+const emit = defineEmits<{ navigate: [], 'toggle-collapse': [] }>();
+
+function onNavClick(e: MouseEvent) {
+  if (props.collapsed) {
+    e.preventDefault();
+    emit('toggle-collapse');
+  }
+}
 
 function convLabel(conv: ConversationSummary): string {
   if (conv.displayName) return conv.displayName;
