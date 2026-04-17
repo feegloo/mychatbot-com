@@ -20,7 +20,7 @@
 
     <!-- Default donate button -->
     <button v-else-if="canDonate" class="conv-nav-donate" @click="handleDonate">
-      Donate $
+      Donate 1$
     </button>
   </div>
 </template>

@@ -86,29 +86,44 @@
         </div>
       </div>
 
-      <!-- Desktop-only: large preview in right column -->
-      <div class="welcome-right-col" @click="openFilePreview(files![0])">
-        <div v-if="isImageFile(files![0])" class="welcome-preview-large">
-          <img :src="getFileUrl(files![0])" :alt="files![0].originalName" loading="lazy" />
+      <!-- Desktop-only: large preview in right column (carousel if 2+ files) -->
+      <div class="welcome-right-col" @click="openFilePreview(currentPreviewFile!)">
+        <!-- Left arrow (only if multiple files) -->
+        <button v-if="hasMultipleFiles" class="carousel-arrow carousel-arrow-left" @click="prevPreviewFile($event)" title="Previous file">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+
+        <div v-if="isImageFile(currentPreviewFile!)" class="welcome-preview-large">
+          <img :src="getFileUrl(currentPreviewFile!)" :alt="currentPreviewFile!.originalName" loading="lazy" />
         </div>
-        <div v-else-if="isPdfFile(files![0])" class="welcome-preview-large pdf-preview-large">
+        <div v-else-if="isPdfFile(currentPreviewFile!)" class="welcome-preview-large pdf-preview-large">
           <object
-            :data="getFileUrl(files![0]) + '#page=1&view=FitH'"
+            :data="getFileUrl(currentPreviewFile!) + '#page=1&view=FitH'"
             type="application/pdf"
             class="pdf-large-object"
           >
             <div class="pdf-fallback-icon-large">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span class="pdf-fallback-label">{{ files![0].originalName }}</span>
+              <span class="pdf-fallback-label">{{ currentPreviewFile!.originalName }}</span>
             </div>
           </object>
           <div class="pdf-click-overlay"></div>
         </div>
         <div v-else class="welcome-preview-large text-preview-large">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span class="text-fallback-label">{{ files![0].originalName }}</span>
+          <span class="text-fallback-label">{{ currentPreviewFile!.originalName }}</span>
         </div>
-        <span class="welcome-preview-name">{{ files![0].originalName }}</span>
+
+        <!-- Right arrow (only if multiple files) -->
+        <button v-if="hasMultipleFiles" class="carousel-arrow carousel-arrow-right" @click="nextPreviewFile($event)" title="Next file">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+
+        <span class="welcome-preview-name">{{ currentPreviewFile!.originalName }}</span>
+        <!-- File counter dots -->
+        <div v-if="hasMultipleFiles" class="carousel-dots">
+          <span v-for="(_, i) in files" :key="i" class="carousel-dot" :class="{ active: i === previewFileIndex }"></span>
+        </div>
       </div>
     </div>
 
@@ -333,6 +348,22 @@ const uploadError = ref("");
 
 const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0);
 
+// File carousel for right-column preview (when 2+ files uploaded)
+const previewFileIndex = ref(0);
+const hasMultipleFiles = computed(() => (props.files?.length ?? 0) > 1);
+const currentPreviewFile = computed(() => props.files?.[previewFileIndex.value] ?? props.files?.[0]);
+
+function nextPreviewFile(event: Event) {
+  event.stopPropagation();
+  if (!props.files?.length) return;
+  previewFileIndex.value = (previewFileIndex.value + 1) % props.files.length;
+}
+
+function prevPreviewFile(event: Event) {
+  event.stopPropagation();
+  if (!props.files?.length) return;
+  previewFileIndex.value = (previewFileIndex.value - 1 + props.files.length) % props.files.length;
+}
 
 function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
@@ -949,6 +980,7 @@ function openFilePreview(file: FileInfo) {
 
 /* Desktop: large right-column preview */
 .welcome-right-col {
+  position: relative;
   flex-shrink: 0;
   margin-top: 10px;
   align-self: stretch;
@@ -1052,6 +1084,63 @@ function openFilePreview(file: FileInfo) {
   text-overflow: ellipsis;
   max-width: 180px;
   text-align: center;
+}
+
+/* Carousel arrows for multi-file preview */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 50%;
+  color: #e2e8f0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.15s;
+  padding: 0;
+}
+
+.welcome-right-col:hover .carousel-arrow {
+  opacity: 1;
+}
+
+.carousel-arrow:hover {
+  background: rgba(167, 139, 250, 0.3);
+  border-color: rgba(167, 139, 250, 0.5);
+}
+
+.carousel-arrow-left {
+  left: 6px;
+}
+
+.carousel-arrow-right {
+  right: 6px;
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  padding: 0 8px 8px;
+}
+
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.3);
+  transition: background 0.2s;
+}
+
+.carousel-dot.active {
+  background: #a78bfa;
 }
 
 /* Responsive: mobile/tablet = small thumbs, wide desktop = large right preview */
@@ -1215,12 +1304,13 @@ function openFilePreview(file: FileInfo) {
   color: #a78bfa;
 }
 
-/* Welcome message title (h3) — larger and more prominent */
-.welcome-message .markdown-content h3:first-child {
-  font-size: 19px;
+/* Welcome message title (h2) — larger and more prominent */
+.welcome-message .markdown-content h2:first-child {
+  font-size: 20px;
   font-weight: 700;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   color: #f1f5f9;
+  line-height: 1.3;
 }
 
 /* Subtle fade-in for assistant answer content */
