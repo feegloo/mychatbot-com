@@ -998,7 +998,7 @@ function openFilePreview(file: FileInfo) {
 
 @media (hover: hover) {
   .welcome-right-col:hover {
-    border: 1px solid #a78bfa;
+    border: 1px solid #a78bfa87;
     /* background: rgba(167, 139, 250, 0.08); */
   }
 }

@@ -237,7 +237,7 @@ a { color: #c4b5fd; text-decoration: none; }
   }
 
   .conv-nav.collapsed .conv-nav-collapse-btn {
-    margin-left: none;
+    margin-left: 0;
   }
 
   .conv-nav.collapsed .conv-nav-new {
@@ -552,7 +552,7 @@ a { color: #c4b5fd; text-decoration: none; }
 .question-pill::after {
   content: '';
   position: absolute;
-  bottom: -6px;
+  bottom: -8px;
   left: 11px;
   width: 8px;
   height: 7px;
@@ -1082,8 +1082,8 @@ h1, h2, h3 {
 .sidebar-toggle {
   display: none;
   position: absolute;
-  top: 18px;
-  right: 12px;
+  top: 11px;
+  right: 9px;
   z-index: 20;
   background: none;
   border: none;
