@@ -1,11 +1,14 @@
 import jsPDF from "jspdf";
+import { ensureFontsLoaded, registerFonts, PDF_FONT } from "./pdfFonts";
 
 /**
  * Generates a PDF from raw markdown content using native jsPDF text rendering.
  * No html2canvas / DOM screenshot — instant, no blink, clean vector text output.
  */
-export function printContentAsPdf(markdown: string, title: string) {
+export async function printContentAsPdf(markdown: string, title: string) {
+  await ensureFontsLoaded();
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  registerFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginLeft = 20;
@@ -50,7 +53,7 @@ export function printContentAsPdf(markdown: string, title: string) {
 
     if (inCodeBlock) {
       checkNewPage(5);
-      doc.setFont("courier", "normal");
+      doc.setFont(PDF_FONT, "normal");
       doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
       const codeLines = doc.splitTextToSize(line || " ", contentWidth - 8);
@@ -95,7 +98,7 @@ export function printContentAsPdf(markdown: string, title: string) {
 
       y += spacing;
       checkNewPage(fontSize / 2 + 4);
-      doc.setFont("helvetica", "bold");
+      doc.setFont(PDF_FONT, "bold");
       doc.setFontSize(fontSize);
       doc.setTextColor(0, 0, 0);
       const wrapped = doc.splitTextToSize(text, contentWidth);
@@ -125,7 +128,7 @@ export function printContentAsPdf(markdown: string, title: string) {
       const checked = checklistMatch[2].toLowerCase() === "x";
       const text = stripInlineFormatting(checklistMatch[3]);
       checkNewPage(6);
-      doc.setFont("helvetica", "normal");
+      doc.setFont(PDF_FONT, "normal");
       doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
       // Draw checkbox
@@ -135,9 +138,9 @@ export function printContentAsPdf(markdown: string, title: string) {
       doc.setLineWidth(0.4);
       doc.rect(boxX, boxY, 3.5, 3.5);
       if (checked) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont(PDF_FONT, "bold");
         doc.text("✓", boxX + 0.5, boxY + 3);
-        doc.setFont("helvetica", "normal");
+        doc.setFont(PDF_FONT, "normal");
       }
       const wrapped = doc.splitTextToSize(text, contentWidth - 12);
       doc.text(wrapped, marginLeft + 9, y);
@@ -152,7 +155,7 @@ export function printContentAsPdf(markdown: string, title: string) {
       const indent = Math.min(Math.floor(ulMatch[1].length / 2), 3);
       const text = stripInlineFormatting(ulMatch[2]);
       checkNewPage(6);
-      doc.setFont("helvetica", "normal");
+      doc.setFont(PDF_FONT, "normal");
       doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
       const bulletX = marginLeft + indent * 5;
@@ -171,7 +174,7 @@ export function printContentAsPdf(markdown: string, title: string) {
       const num = olMatch[2];
       const text = stripInlineFormatting(olMatch[3]);
       checkNewPage(6);
-      doc.setFont("helvetica", "normal");
+      doc.setFont(PDF_FONT, "normal");
       doc.setFontSize(10.5);
       doc.setTextColor(0, 0, 0);
       const numX = marginLeft + indent * 5;
@@ -186,7 +189,7 @@ export function printContentAsPdf(markdown: string, title: string) {
     // --- Regular paragraph ---
     const text = stripInlineFormatting(line);
     checkNewPage(6);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(PDF_FONT, "normal");
     doc.setFontSize(10.5);
     doc.setTextColor(0, 0, 0);
 
@@ -277,7 +280,7 @@ function renderTable(
     doc.setLineWidth(0.2);
     doc.rect(marginLeft, y - 4, contentWidth, rowHeight);
 
-    doc.setFont("helvetica", isHeaderRow ? "bold" : "normal");
+    doc.setFont(PDF_FONT, isHeaderRow ? "bold" : "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(0, 0, 0);
 

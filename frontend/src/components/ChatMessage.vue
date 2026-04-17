@@ -388,9 +388,9 @@ const hasRichContent = computed(() => {
   return true;
 });
 
-function downloadMessagePdf() {
+async function downloadMessagePdf() {
   const title = props.conversationName || "chatrag";
-  printContentAsPdf(props.msg.content, title);
+  await printContentAsPdf(props.msg.content, title);
 }
 
 type ContentPart =

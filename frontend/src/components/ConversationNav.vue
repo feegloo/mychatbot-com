@@ -23,76 +23,18 @@
       </p>
     </div>
 
-    <button v-if="showDonate" class="conv-nav-donate" @click="handleDonate">Donate $</button>
+    <DonateWidget />
   </nav>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { loadStripe, type Stripe, type PaymentRequest } from "@stripe/stripe-js";
 import { listMyConversations, type ConversationSummary } from "../api";
 import { cleanFileName } from "../utils/text";
-import axios from "axios";
-
-const api = axios.create({
-  // @ts-ignore
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
-});
+import DonateWidget from "./DonateWidget.vue";
 
 defineEmits<{ navigate: [] }>();
-
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-const showDonate = ref(false);
-
-let stripeInstance: Stripe | null = null;
-let paymentRequest: PaymentRequest | null = null;
-
-async function initStripe() {
-  if (!isIOS) return;
-  // @ts-ignore
-  const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-  if (!key) return;
-
-  stripeInstance = await loadStripe(key);
-  if (!stripeInstance) return;
-
-  paymentRequest = stripeInstance.paymentRequest({
-    country: "US",
-    currency: "usd",
-    total: { label: "ChatRAG Donation", amount: 100 },
-    requestPayerName: false,
-    requestPayerEmail: false,
-  });
-
-  const result = await paymentRequest.canMakePayment();
-  if (result?.applePay) {
-    showDonate.value = true;
-
-    paymentRequest.on("paymentmethod", async (ev) => {
-      try {
-        const { data } = await api.post("/donate");
-        const { error } = await stripeInstance!.confirmCardPayment(
-          data.clientSecret,
-          { payment_method: ev.paymentMethod.id },
-          { handleActions: false }
-        );
-        if (error) {
-          ev.complete("fail");
-        } else {
-          ev.complete("success");
-        }
-      } catch {
-        ev.complete("fail");
-      }
-    });
-  }
-}
-
-async function handleDonate() {
-  if (!paymentRequest) return;
-  paymentRequest.show();
-}
 
 function convLabel(conv: ConversationSummary): string {
   if (conv.displayName) return conv.displayName;
@@ -157,7 +99,6 @@ watch(
 
 onMounted(() => {
   load();
-  initStripe();
   window.addEventListener('conversation-updated', load);
 });
 

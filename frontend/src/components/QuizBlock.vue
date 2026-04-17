@@ -52,6 +52,7 @@
 import { reactive, computed, onMounted } from "vue";
 import { getData, setData } from "../utils/localData";
 import jsPDF from "jspdf";
+import { ensureFontsLoaded, registerFonts, PDF_FONT } from "../utils/pdfFonts";
 
 export interface QuizQuestion {
   q: string;
@@ -145,8 +146,10 @@ const correctCount = computed(() =>
   props.quiz.questions.filter((_, i) => isCorrect(i)).length
 );
 
-function downloadPdf() {
+async function downloadPdf() {
+  await ensureFontsLoaded();
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  registerFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginLeft = 20;
@@ -162,7 +165,7 @@ function downloadPdf() {
   };
 
   // Title
-  doc.setFont("helvetica", "bold");
+  doc.setFont(PDF_FONT, "bold");
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
   doc.text(props.quiz.title, marginLeft, y);
@@ -175,7 +178,7 @@ function downloadPdf() {
   y += 8;
 
   // Name line
-  doc.setFont("helvetica", "normal");
+  doc.setFont(PDF_FONT, "normal");
   doc.setFontSize(11);
   doc.text("Name: ___________________________________    Date: _______________", marginLeft, y);
   y += 12;
@@ -188,7 +191,7 @@ function downloadPdf() {
     checkNewPage(30);
 
     // Question text
-    doc.setFont("helvetica", "bold");
+    doc.setFont(PDF_FONT, "bold");
     doc.setFontSize(11);
     const questionText = `${qi + 1}. ${q.q}`;
     const questionLines = doc.splitTextToSize(questionText, contentWidth);
@@ -196,7 +199,7 @@ function downloadPdf() {
     y += questionLines.length * 5.5 + 3;
 
     // Options
-    doc.setFont("helvetica", "normal");
+    doc.setFont(PDF_FONT, "normal");
     doc.setFontSize(10.5);
     for (let oi = 0; oi < q.options.length; oi++) {
       const letter = variantLetter(oi);

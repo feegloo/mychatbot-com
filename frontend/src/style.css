@@ -190,6 +190,84 @@ a { color: #c4b5fd; text-decoration: none; }
   }
 }
 
+/* Donate widget */
+.donate-widget {
+  margin-top: auto;
+  padding: 8px 4px;
+  flex-shrink: 0;
+}
+
+.donate-thanks {
+  color: #34d399;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 4px;
+  animation: donate-fade-in 0.3s ease;
+}
+
+@keyframes donate-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.donate-methods {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.donate-methods::-webkit-scrollbar {
+  display: none;
+}
+
+.donate-bubble {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.15s, border-color 0.15s;
+  scroll-snap-align: start;
+  color: #e2e8f0;
+  padding: 0;
+}
+
+.donate-bubble:active {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) {
+  .donate-bubble:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.08);
+  }
+}
+
+.donate-bubble-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donate-bubble-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
 .page {
   max-width: 1200px;
   margin: 0 auto;
