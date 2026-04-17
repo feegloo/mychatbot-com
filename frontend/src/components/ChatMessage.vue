@@ -1,6 +1,5 @@
 <template>
   <div class="message-row" :class="msg.role">
-    <BubbleTip v-if="msg.role === 'user'" :width="12" :height="10" />
     <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ senderLabel }}</strong>
     <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
@@ -203,7 +202,6 @@
       @close="previewOpen = false"
     />
   </div>
-  <BubbleTip v-if="msg.role === 'assistant'" :width="12" :height="10" />
   </div>
 </template>
 
@@ -224,7 +222,6 @@ import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
 import { printContentAsPdf } from "../utils/printPdf";
 import UploadingDots from "./UploadingDots.vue";
-import BubbleTip from "./BubbleTip.vue";
 
 marked.setOptions({
   breaks: true,
@@ -311,9 +308,6 @@ function renderMarkdown(content: string): string {
   );
 }
 
-const animateIn = ref(true);
-onMounted(() => { setTimeout(() => { animateIn.value = false; }, 200); });
-
 const props = defineProps<{
   msg: ChatMessage;
   asking: boolean;
@@ -327,7 +321,11 @@ const props = defineProps<{
   conversationName?: string;
   fileName?: string;
   isThread?: boolean;
+  noAnimation?: boolean;
 }>();
+
+const animateIn = ref(!props.noAnimation);
+onMounted(() => { if (animateIn.value) setTimeout(() => { animateIn.value = false; }, 400); });
 
 // Use storageConversationId for file URLs (for threads, points to parent's storage)
 const effectiveStorageId = computed(() => props.storageConversationId || props.conversationId);
@@ -1379,33 +1377,23 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
-/* Reveal assistant answer content (clip from right to left) */
-@keyframes msg-reveal-rtl {
-  from { clip-path: inset(0 0 100% 100%); opacity: 0; }
-  to { clip-path: inset(0 0 0 0); opacity: 1; }
-}
-
-/* Reveal user message content (clip from right, expand left-to-right) */
-@keyframes msg-reveal-user-ltr {
-  from { clip-path: inset(0 100% 0 0); opacity: 0; }
-  to { clip-path: inset(0 0 0 0); opacity: 1; }
+/* Fade-in from top for new assistant messages */
+@keyframes msg-fade-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .message.assistant .message-content-wrap.animate-in {
-  animation: msg-reveal-rtl 0.111s cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: msg-fade-in-down 0.35s ease-out both;
+}
+
+/* Reveal from left-to-right for new user messages */
+@keyframes msg-reveal-user-ltr {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
 }
 
 .message.user .user-text.animate-in {
   animation: msg-reveal-user-ltr 0.111s ease-out both;
-}
-
-/* Bubble tip fade-in */
-@keyframes tip-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.message-row .bubble-tip {
-  animation: tip-fade 0.2s ease-out both;
 }
 </style>

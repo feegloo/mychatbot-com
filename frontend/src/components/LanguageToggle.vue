@@ -74,6 +74,7 @@ const emit = defineEmits<{
   translated: [translations: Map<number, string>];
   'questions-translated': [translations: string[]];
   restored: [newTranslations: Map<number, string>];
+  'lang-changed': [language: string];
 }>();
 
 const detectedLang = ref("");
@@ -314,6 +315,11 @@ async function translateTo(targetLang: string) {
     translating.value = false;
   }
 }
+
+// Emit whenever the current display language changes (detection, translation, restore)
+watch(currentLang, (lang) => {
+  if (lang) emit('lang-changed', lang);
+});
 
 defineExpose({ detectedLang, isTranslated, currentLang, availableLangs });
 </script>

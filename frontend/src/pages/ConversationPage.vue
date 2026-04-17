@@ -17,6 +17,7 @@
           @translated="onTranslated"
           @questions-translated="onQuestionsTranslated"
           @restored="onRestored"
+          @lang-changed="currentLanguage = $event"
         />
       </template>
     </ConversationHeader>
@@ -46,6 +47,7 @@
             :conversationName="conversationTitle"
             :fileName="primaryFileName"
             :isThread="isThread"
+            :noAnimation="index < initialMessageCount"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
             @view-threads="viewThreads"
@@ -95,6 +97,7 @@ import { useRouter } from "vue-router";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
 import LanguageToggle from "../components/LanguageToggle.vue";
+import { useTextSelectionSpeech } from "../composables/useTextSelectionSpeech";
 
 const props = defineProps<{ conversationId: string }>();
 
@@ -103,6 +106,12 @@ const question = ref("");
 const asking = ref(false);
 const questionInput = ref<HTMLTextAreaElement | null>(null);
 const chatContainer = ref<HTMLDivElement | null>(null);
+
+const currentLanguage = ref("");
+
+// Enable text-to-speech tooltip for selected text within chat messages
+// Only active when current display language differs from browser language
+useTextSelectionSpeech(chatContainer, currentLanguage);
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);
@@ -207,6 +216,7 @@ const status = ref<ConversationStatus>({
   accessRequests: []
 });
 const messages = ref<ChatMessage[]>([]);
+const initialMessageCount = ref(Infinity);
 const hasLocalError = ref(false);
 
 
@@ -320,6 +330,9 @@ async function loadConversation() {
     }
   }
   loaded.value = true;
+  if (initialMessageCount.value === Infinity) {
+    initialMessageCount.value = messages.value.length;
+  }
 }
 
 async function onReload() {

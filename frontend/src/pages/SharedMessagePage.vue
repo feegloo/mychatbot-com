@@ -15,6 +15,7 @@
           :conversationId="message.conversationId"
           :isWelcome="sharedIsWelcome"
           :files="sharedFiles"
+          :noAnimation="true"
           @select-question="replyText = $event; startThread()"
         />
       </div>

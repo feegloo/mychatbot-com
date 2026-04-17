@@ -35,6 +35,7 @@
           :isFirstMessage="index === 0 && msg.role === 'assistant'"
           :canUpload="false"
           :suggestedQuestions="suggestedQuestionsForMessage(index)"
+          :noAnimation="index < initialMessageCount"
           @select-question="question = $event; submitQuestion()"
         />
       </div>
@@ -75,6 +76,7 @@ import {
 } from "../api";
 import { cleanFileName } from "../utils/text";
 import ChatMessageItem from "../components/ChatMessage.vue";
+import { useTextSelectionSpeech } from "../composables/useTextSelectionSpeech";
 
 const props = defineProps<{ conversationId: string }>();
 
@@ -83,6 +85,8 @@ const question = ref("");
 const asking = ref(false);
 const questionInput = ref<HTMLTextAreaElement | null>(null);
 const chatContainer = ref<HTMLDivElement | null>(null);
+
+useTextSelectionSpeech(chatContainer);
 const loaded = ref(false);
 const fatalError = ref("");
 const hasLocalError = ref(false);
@@ -99,6 +103,7 @@ const status = ref<ConversationStatus>({
   accessRequests: [],
 });
 const messages = ref<ChatMessage[]>([]);
+const initialMessageCount = ref(Infinity);
 
 const HOST = window.location.origin;
 const fullConversationUrl = computed(() => `${HOST}/c/${conversationId}`);
@@ -143,6 +148,9 @@ async function loadConversation() {
     status.value = response;
     if (!asking.value && !hasLocalError.value) {
       messages.value = response.messages || [];
+      if (initialMessageCount.value === Infinity) {
+        initialMessageCount.value = messages.value.length;
+      }
     }
   } catch (err: any) {
     if (!loaded.value) {

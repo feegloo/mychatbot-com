@@ -12,6 +12,7 @@ import { healthRouter } from "./routes/health.js";
 import { storageRouter } from "./routes/storage.js";
 import { debugRouter } from "./routes/debug.js";
 import { translateRouter } from "./routes/translate.js";
+import { synthesizeRouter } from "./routes/synthesize.js";
 import { donateRouter } from "./routes/donate.js";
 import { config } from "./config.js";
 
@@ -28,6 +29,7 @@ export function createApp() {
     .use(storageRouter.routes())
     .use(debugRouter.routes())
     .use(translateRouter.routes())
+    .use(synthesizeRouter.routes())
     .use(donateRouter.routes());
 
   app.use(async (ctx, next) => {

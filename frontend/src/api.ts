@@ -219,6 +219,15 @@ export async function detectLanguage(text: string) {
   return response.data as { language: string; confidence: number };
 }
 
+export async function synthesizeSpeech(text: string, language?: string): Promise<Blob> {
+  const body: { text: string; language?: string } = { text };
+  if (language) body.language = language;
+  const response = await api.post("/synthesize", body, {
+    responseType: "blob",
+  });
+  return response.data as Blob;
+}
+
 export async function resolveFingerprint(fingerprint: string) {
   const response = await api.post("/fingerprint", { fingerprint });
   return response.data as { userId: number };

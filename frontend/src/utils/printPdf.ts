@@ -275,13 +275,20 @@ export async function printContentAsPdf(markdown: string, title: string) {
       // Draw checkbox
       const boxX = marginLeft + 2;
       const boxY = y - 3;
-      doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.4);
-      doc.rect(boxX, boxY, 3.5, 3.5);
       if (checked) {
-        doc.setFont(PDF_FONT, "bold");
-        doc.text("✓", boxX + 0.5, boxY + 3);
-        doc.setFont(PDF_FONT, "normal");
+        doc.setDrawColor(34, 197, 94);
+        doc.setFillColor(34, 197, 94);
+        doc.rect(boxX, boxY, 3.5, 3.5, 'FD');
+        // Draw checkmark with vector lines (like quiz)
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.6);
+        doc.line(boxX + 0.6, boxY + 1.75, boxX + 1.4, boxY + 2.8);
+        doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7);
+        doc.setLineWidth(0.4);
+      } else {
+        doc.setDrawColor(100, 100, 100);
+        doc.rect(boxX, boxY, 3.5, 3.5);
       }
       const wrapped = doc.splitTextToSize(text, contentWidth - 12);
       doc.text(wrapped, marginLeft + 9, y);
