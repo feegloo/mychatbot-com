@@ -153,9 +153,9 @@ def _append_contextual_prompts(
             if ftype == "image":
                 if has_ingredients and len(contextual) < 2:
                     if language == "pl":
-                        contextual.append(f"{short_name} - stwórz przepis 🍳")
+                        contextual.append(f"{short_name} - stwórz przepis 🍝")
                     else:
-                        contextual.append(f"{short_name} - create recipe 🍳")
+                        contextual.append(f"{short_name} - create recipe 🍝")
                 if len(contextual) < 2:
                     if language == "pl":
                         contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
