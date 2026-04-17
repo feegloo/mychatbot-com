@@ -186,6 +186,8 @@ export type SharedMessage = {
   role: "assistant";
   content: string;
   citations: ChatMessage["citations"];
+  uploadedFileNames?: string[];
+  files?: ConversationStatus["files"];
 };
 
 export async function getSharedMessage(messageId: string) {

@@ -10,9 +10,11 @@
       </div>
       <div class="shared-message-container">
         <ChatMessageItem
-          :msg="{ id: message.id, role: message.role, content: message.content, citations: message.citations }"
+          :msg="message"
           :asking="false"
           :conversationId="message.conversationId"
+          :isWelcome="sharedIsWelcome"
+          :files="sharedFiles"
           @select-question="replyText = $event; startThread()"
         />
       </div>
@@ -74,6 +76,8 @@ const replyInput = ref<HTMLTextAreaElement | null>(null);
 const creatingThread = ref(false);
 
 const totalReplies = computed(() => threads.value.reduce((sum, t) => sum + t.messageCount, 0));
+const sharedIsWelcome = computed(() => !!message.value?.uploadedFileNames?.length);
+const sharedFiles = computed(() => message.value?.files);
 
 async function load() {
   loading.value = true;
