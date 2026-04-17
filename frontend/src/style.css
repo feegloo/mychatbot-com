@@ -1163,7 +1163,7 @@ textarea.big-input {
 }
 
 .conv-title {
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   margin: 0 0 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -1192,14 +1192,14 @@ textarea.big-input {
 .conv-title-measure {
   visibility: hidden;
   white-space: pre;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: 600;
   padding: 2px 8px;
   font-family: inherit;
 }
 
 .conv-title-input {
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: 600;
   margin: 0 0 6px;
   padding: 2px 8px;

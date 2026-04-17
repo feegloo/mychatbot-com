@@ -30,7 +30,7 @@
     <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
     <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
       <div class="welcome-left-col">
-        <div ref="messageContentEl" class="message-content-wrap">
+        <div ref="messageContentEl" class="message-content-wrap" :class="{ 'animate-in': animateIn }">
           <div v-for="(part, pi) in contentParts" :key="pi">
             <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
             <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
@@ -131,7 +131,7 @@
 
     <!-- Regular assistant content -->
     <template v-else-if="msg.role === 'assistant'">
-      <div ref="messageContentEl" class="message-content-wrap">
+      <div ref="messageContentEl" class="message-content-wrap" :class="{ 'animate-in': animateIn }">
       <div v-for="(part, pi) in contentParts" :key="pi">
         <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
         <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
@@ -139,7 +139,7 @@
       </div>
       </div>
     </template>
-    <span v-else class="user-text">{{ msg.content }}</span>
+    <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
 
     <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
     <div v-if="isWelcome && !welcomeHasFiles && suggestedQuestions?.length" class="welcome-suggested-questions">
@@ -208,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onBeforeUnmount } from "vue";
+import { computed, ref, watch, nextTick, onBeforeUnmount, onMounted } from "vue";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { createTooltip, destroyTooltip } from "floating-vue";
@@ -310,6 +310,9 @@ function renderMarkdown(content: string): string {
     }
   );
 }
+
+const animateIn = ref(true);
+onMounted(() => { setTimeout(() => { animateIn.value = false; }, 200); });
 
 const props = defineProps<{
   msg: ChatMessage;
@@ -1388,11 +1391,11 @@ function openFilePreview(file: FileInfo) {
   to { clip-path: inset(0 0 0 0); opacity: 1; }
 }
 
-.message.assistant .message-content-wrap {
+.message.assistant .message-content-wrap.animate-in {
   animation: msg-reveal-rtl 0.111s cubic-bezier(0.55, 0, 1, 0.45) both;
 }
 
-.message.user .user-text {
+.message.user .user-text.animate-in {
   animation: msg-reveal-user-ltr 0.111s ease-out both;
 }
 
