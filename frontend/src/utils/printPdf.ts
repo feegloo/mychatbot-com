@@ -330,6 +330,29 @@ export async function printContentAsPdf(markdown: string, title: string) {
     i++;
   }
 
+  // Add watermark on every page
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    doc.setFont(PDF_FONT, "normal");
+    doc.setFontSize(8);
+    const prefix = "created with ";
+    const link = "chatrag.app";
+    const prefixWidth = doc.getTextWidth(prefix);
+    const linkWidth = doc.getTextWidth(link);
+    const totalWidth = prefixWidth + linkWidth;
+    const wmX = pw - 12 - totalWidth;
+    const wmY = ph - 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setGState(new (doc as any).GState({ opacity: 0.35 }));
+    doc.text(prefix, wmX, wmY);
+    doc.setTextColor(70, 130, 220);
+    doc.textWithLink(link, wmX + prefixWidth, wmY, { url: "https://chatrag.app" });
+    doc.setGState(new (doc as any).GState({ opacity: 1 }));
+  }
+
   const safeName = title
     .replace(/[^a-zA-Z0-9\u0080-\uFFFF _-]+/g, "_")
     .replace(/_+/g, "_")
