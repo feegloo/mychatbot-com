@@ -24,6 +24,16 @@
       </p>
     </div>
 
+    <div class="conv-nav-collapsed-hint">
+      <div
+        v-for="conv in conversations.slice(0, 5)"
+        :key="'mini-' + conv.conversationId"
+        class="conv-nav-mini-item"
+        :class="{ active: conv.conversationId === currentId }"
+      ></div>
+      <span v-if="conversations.length > 5" class="conv-nav-mini-more">+{{ conversations.length - 5 }}</span>
+    </div>
+
     <div class="conv-nav-bottom">
       <DonateWidget />
       <button class="conv-nav-collapse-btn" @click.stop="$emit('toggle-collapse')" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'">

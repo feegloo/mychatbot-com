@@ -85,14 +85,25 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 600;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.15s, transform 0.15s, padding 0.25s ease, border-radius 0.25s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .conv-nav-new .conv-nav-new-label {
   display: inline;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.18s ease 0.12s;
 }
 .conv-nav-new .conv-nav-new-icon {
-  display: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
 @media (hover: hover) {
@@ -113,6 +124,8 @@ a { color: #c4b5fd; text-decoration: none; }
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  opacity: 1;
+  transition: opacity 0.2s ease 0.15s;
 }
 
 .conv-nav-item {
@@ -246,26 +259,80 @@ a { color: #c4b5fd; text-decoration: none; }
     border-radius: 8px;
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-label {
-    display: none;
+    opacity: 0;
+    transition: opacity 0.12s ease;
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-icon {
-    display: inline;
+    opacity: 1;
+    transition: opacity 0.18s ease 0.12s;
   }
   .conv-nav.collapsed .conv-nav-list {
-    display: none;
+    opacity: 0;
+    flex: 0;
+    overflow: hidden;
+    pointer-events: none;
+    margin-top: 0;
+    gap: 0;
+    transition: opacity 0.12s ease, flex 0.25s ease, margin-top 0.25s ease, gap 0.25s ease;
   }
   .conv-nav.collapsed .donate-widget {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    padding: 0;
+    transition: opacity 0.12s ease, max-height 0.25s ease, padding 0.25s ease;
+  }
+
+  /* Collapsed conversation indicators */
+  .conv-nav-collapsed-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, max-height 0.2s ease, padding 0.2s ease;
+  }
+  .conv-nav.collapsed .conv-nav-collapsed-hint {
+    max-height: 200px;
+    padding: 8px 0;
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.2s ease 0.15s, max-height 0.25s ease, padding 0.25s ease;
   }
   .conv-nav.collapsed .conv-nav-bottom {
     justify-content: center;
   }
 }
 
+.conv-nav-mini-item {
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: #334155;
+  transition: background 0.15s;
+}
+
+.conv-nav-mini-item.active {
+  background: #818cf8;
+}
+
+.conv-nav-mini-more {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
 /* Donate widget */
 .donate-widget {
   padding: 8px 4px;
   flex-shrink: 0;
+  max-height: 200px;
+  overflow: hidden;
+  transition: opacity 0.2s ease 0.15s, max-height 0.25s ease, padding 0.25s ease;
 }
 
 .donate-thanks {
@@ -837,8 +904,10 @@ li:has(.checklist-box) {
 
 .typing-dots {
   display: flex;
+  align-items: center;
   gap: 5px;
-  padding: 8px 0 4px;
+  margin: 6px 0 0;
+  height: 24px;
 }
 
 .typing-dots span {
@@ -894,6 +963,19 @@ textarea.big-input {
 .chat-input-bar:focus-within {
   border-color: rgba(167, 139, 250, 0.4);
   box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+}
+
+.chat-readonly-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  padding: 10px 16px;
+  margin-top: 18px;
+  margin-bottom: 10px;
+  text-align: center;
+  justify-content: center;
 }
 
 .chat-textarea {

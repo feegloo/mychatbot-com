@@ -1344,13 +1344,13 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
-/* Subtle fade-in for assistant answer content */
-@keyframes msg-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Subtle fade-in for assistant answer content (left to right) */
+@keyframes msg-fade-in-ltr {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-fade-in 0.3s ease-out;
+  animation: msg-fade-in-ltr 0.35s ease-out both;
 }
 </style>

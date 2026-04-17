@@ -135,7 +135,9 @@ export async function getConversation(conversationId: string) {
 }
 
 export async function askQuestion(conversationId: string, question: string, userId?: number) {
-  const response = await api.post("/ask", { conversationId, question, ...(userId ? { userId } : {}) });
+  const response = await api.post("/ask", { conversationId, question, ...(userId ? { userId } : {}) }, {
+    headers: authHeaders(conversationId)
+  });
   return response.data as {
     answer: string;
     citations: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
