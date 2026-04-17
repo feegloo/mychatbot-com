@@ -15,6 +15,44 @@
 import { ref, computed, watch } from "vue";
 import { translateTexts, detectLanguage } from "../api";
 
+// Protect special markers like [source:1], [action:...] from being translated
+const MARKER_RE = /\[(source|action):[^\]]*\]/gi;
+
+function extractMarkers(texts: string[]): { cleaned: string[]; markers: Map<number, { placeholder: string; original: string }[]> } {
+  const markers = new Map<number, { placeholder: string; original: string }[]>();
+  const cleaned = texts.map((text, i) => {
+    const found: { placeholder: string; original: string }[] = [];
+    let counter = 0;
+    const result = text.replace(MARKER_RE, (match) => {
+      const placeholder = `__MRK${i}_${counter++}__`;
+      found.push({ placeholder, original: match });
+      return placeholder;
+    });
+    if (found.length) markers.set(i, found);
+    return result;
+  });
+  return { cleaned, markers };
+}
+
+function restoreMarkers(translations: string[], markers: Map<number, { placeholder: string; original: string }[]>): string[] {
+  return translations.map((text, i) => {
+    const m = markers.get(i);
+    if (!m) return text;
+    let result = text;
+    for (const { placeholder, original } of m) {
+      result = result.replace(placeholder, original);
+    }
+    return result;
+  });
+}
+
+async function translateWithMarkers(texts: string[], targetLang: string, sourceLang?: string) {
+  const { cleaned, markers } = extractMarkers(texts);
+  const result = await translateTexts(cleaned, targetLang, sourceLang);
+  result.translations = restoreMarkers(result.translations, markers);
+  return result;
+}
+
 const props = defineProps<{
   messages: Array<{ role: string; content: string }>;
   suggestedQuestions?: string[];
@@ -101,7 +139,7 @@ async function toggle() {
       // Translate new messages from browserLang to detectedLang
       for (let batch = 0; batch < toTranslateBack.length; batch += 20) {
         const chunk = toTranslateBack.slice(batch, batch + 20);
-        const result = await translateTexts(
+        const result = await translateWithMarkers(
           chunk.map(c => c.content),
           detectedLang.value,
           browserLang.value
@@ -146,7 +184,7 @@ async function toggle() {
     // Translate in batches of 20
     for (let batch = 0; batch < toTranslate.length; batch += 20) {
       const chunk = toTranslate.slice(batch, batch + 20);
-      const result = await translateTexts(
+      const result = await translateWithMarkers(
         chunk.map(c => c.content),
         browserLang.value,
         detectedLang.value
@@ -172,7 +210,7 @@ async function toggle() {
       });
       for (let batch = 0; batch < qToTranslate.length; batch += 20) {
         const chunk = qToTranslate.slice(batch, batch + 20);
-        const result = await translateTexts(
+        const result = await translateWithMarkers(
           chunk.map(c => c.text),
           browserLang.value,
           detectedLang.value
