@@ -33,8 +33,8 @@ debugRouter.get("/debug/tables", async (ctx) => {
     await Promise.all([
       query("SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT 1000"),
       query("SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT 1000"),
-      query("SELECT * FROM public.suggested_questions LIMIT 1000"),
-      query("SELECT * FROM public.uploaded_files LIMIT 1000"),
+      query("SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT 1000"),
+      query("SELECT * FROM public.uploaded_files ORDER BY created_at DESC LIMIT 1000"),
     ]);
 
   ctx.body = {
