@@ -745,10 +745,6 @@ a { color: #c4b5fd; text-decoration: none; }
   margin-bottom: 2px;
 }
 
-.message.assistant strong {
-  margin-bottom: 16px;
-}
-
 .message p {
   margin: 6px 0 0;
   font-size: 15px;

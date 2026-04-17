@@ -36,7 +36,7 @@
               :name="`quiz-${messageId}-${quizIndex}-q${qi}`"
               :checked="selections[qi]?.has(oi)"
               class="quiz-radio"
-              @change="toggleSingle(qi, oi)"
+              @click="toggleSingle(qi, oi)"
             />
             <span class="quiz-radio-custom"></span>
             <span class="quiz-option-text"><span class="quiz-variant-label">{{ variantLetter(oi) }}.</span> {{ opt }}</span>
@@ -319,12 +319,26 @@ async function downloadPdf() {
       // Draw radio circle (single choice) or checkbox (multiple choice)
       const boxX = marginLeft + 2;
       const boxY = y - 3.2;
+      const isChecked = selections[qi]?.has(oi);
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.4);
       if (isMultiple.value) {
         doc.rect(boxX, boxY, 3.5, 3.5);
+        if (isChecked) {
+          // Draw checkmark inside box
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(0.6);
+          doc.line(boxX + 0.6, boxY + 1.8, boxX + 1.4, boxY + 2.8);
+          doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7);
+          doc.setLineWidth(0.4);
+        }
       } else {
         doc.circle(boxX + 1.75, boxY + 1.75, 1.75);
+        if (isChecked) {
+          // Draw filled inner circle
+          doc.setFillColor(0, 0, 0);
+          doc.circle(boxX + 1.75, boxY + 1.75, 1.0, 'F');
+        }
       }
 
       // Option text
@@ -332,7 +346,29 @@ async function downloadPdf() {
       y += optLines.length * 5 + 2;
     }
 
+    // Explanation (if question was submitted and has explanation)
+    if (showExplanation(qi) && q.explanation) {
+      checkNewPage(12);
+      doc.setFont(PDF_FONT, "italic");
+      doc.setFontSize(9.5);
+      doc.setTextColor(80, 80, 80);
+      const expLines = doc.splitTextToSize(q.explanation, contentWidth - 4);
+      doc.text(expLines, marginLeft + 2, y);
+      y += expLines.length * 4.5 + 2;
+      doc.setTextColor(0, 0, 0);
+    }
+
     y += 5; // Space between questions
+  }
+
+  // Score summary (if all questions answered)
+  if (allSubmitted.value) {
+    checkNewPage(12);
+    doc.setFont(PDF_FONT, "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Score: ${correctCount.value}/${props.quiz.questions.length}`, marginLeft, y);
+    y += 10;
   }
 
   // Build filename
