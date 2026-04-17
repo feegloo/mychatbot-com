@@ -90,6 +90,7 @@ import {
 } from "../api";
 import { cleanFileName } from "../utils/text";
 import { getUserId } from "../utils/fingerprint";
+import { getData, setData } from "../utils/localData";
 import { useRouter } from "vue-router";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
@@ -430,6 +431,38 @@ function autoResize(e: Event) {
   el.style.height = el.scrollHeight + 'px';
 }
 
+// --- Scroll position persistence ---
+const SCROLL_POS_KEY = 'scrollPositions';
+
+function saveScrollPosition() {
+  if (!chatContainer.value) return;
+  const c = chatContainer.value;
+  const maxScroll = c.scrollHeight - c.clientHeight;
+  if (maxScroll <= 0) return;
+  const ratio = c.scrollTop / maxScroll;
+  const all = getData<Record<string, number>>(SCROLL_POS_KEY) || {};
+  all[conversationId] = ratio;
+  setData(SCROLL_POS_KEY, all);
+}
+
+function restoreScrollPosition(): boolean {
+  if (!chatContainer.value) return false;
+  const all = getData<Record<string, number>>(SCROLL_POS_KEY);
+  const ratio = all?.[conversationId];
+  if (ratio == null) return false;
+  const c = chatContainer.value;
+  const maxScroll = c.scrollHeight - c.clientHeight;
+  if (maxScroll <= 0) return false;
+  c.scrollTo({ top: ratio * maxScroll, behavior: 'instant' });
+  return true;
+}
+
+let scrollSaveTimer: ReturnType<typeof setTimeout> | undefined;
+function onChatScroll() {
+  if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+  scrollSaveTimer = setTimeout(saveScrollPosition, 300);
+}
+
 let prevMessageCount = 0;
 const conversationReady = ref(false);
 watch(() => messages.value.length, async (newLen) => {
@@ -447,8 +480,15 @@ onMounted(async () => {
   loaded.value = true;
   roleLoaded.value = true;
   await nextTick();
+  // Restore saved scroll position, or fall back to scrolling to bottom
+  if (!restoreScrollPosition()) {
+    scrollToBottom();
+  }
   prevMessageCount = messages.value.length;
   conversationReady.value = true;
+
+  // Listen for scroll events to persist position
+  chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true });
 
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined;
@@ -471,5 +511,7 @@ onUnmounted(() => {
   if (intervalHandle !== undefined) {
     clearInterval(intervalHandle);
   }
+  chatContainer.value?.removeEventListener('scroll', onChatScroll);
+  if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
 });
 </script>

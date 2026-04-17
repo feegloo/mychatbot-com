@@ -35,11 +35,18 @@ beforeEach(() => {
     setFillColor: vi.fn(),
     setLineWidth: vi.fn(),
     text: vi.fn(),
+    textWithLink: vi.fn(),
     line: vi.fn(),
     rect: vi.fn(),
     roundedRect: vi.fn(),
     addPage: vi.fn(),
+    addImage: vi.fn(),
     save: vi.fn(),
+    setPage: vi.fn(),
+    getNumberOfPages: vi.fn().mockReturnValue(1),
+    getTextWidth: vi.fn().mockReturnValue(20),
+    setGState: vi.fn(),
+    GState: vi.fn().mockImplementation(() => ({})),
     splitTextToSize: vi.fn().mockImplementation((text: string, _width: number) => [text]),
   };
 });
@@ -162,7 +169,7 @@ describe('printContentAsPdf – mermaid blocks', () => {
     await printContentAsPdf(md, 'test');
 
     const allText = allTextStrings().join(' ');
-    expect(allText).toContain('[Diagram]');
+    expect(allText).toContain('[Diagram could not be rendered]');
     expect(allText).not.toContain('graph TD');
   });
 });

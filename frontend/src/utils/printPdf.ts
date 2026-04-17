@@ -10,12 +10,40 @@ async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dat
       startOnLoad: false,
       theme: 'default',
       securityLevel: 'strict',
+      // Disable HTML labels so SVG uses <text> instead of <foreignObject>.
+      // <foreignObject> taints the canvas and prevents PNG export.
+      flowchart: { htmlLabels: false },
+      sequence: { useMaxWidth: true },
+      themeVariables: {
+        nodeBorder: '#666666',
+        mainBkg: '#f4f4f4',
+        nodeTextColor: '#1a1a1a',
+        primaryTextColor: '#1a1a1a',
+        secondaryTextColor: '#1a1a1a',
+        tertiaryTextColor: '#1a1a1a',
+        lineColor: '#666666',
+        textColor: '#1a1a1a',
+        labelTextColor: '#1a1a1a',
+      },
     });
     const { svg } = await mermaid.render(id, code);
 
+    // Strip any remaining <foreignObject> elements to guarantee canvas safety
+    let cleanSvg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
+
+    // Ensure all SVG <text> elements have a dark fill so labels are visible on light background
+    cleanSvg = cleanSvg.replace(/<text\b([^>]*)>/g, (_match, attrs: string) => {
+      // If text already has a dark fill, leave it; otherwise force dark
+      if (/fill\s*[:=]\s*["']?#[0-4]/.test(attrs)) return _match;
+      if (/fill\s*=\s*["']/.test(attrs)) {
+        return `<text${attrs.replace(/fill\s*=\s*["'][^"']*["']/, 'fill="#1a1a1a"')}>`;
+      }
+      return `<text${attrs} fill="#1a1a1a">`;
+    });
+
     // Parse SVG to get intrinsic size
     const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svg, "image/svg+xml");
+    const svgDoc = parser.parseFromString(cleanSvg, "image/svg+xml");
     const svgEl = svgDoc.querySelector("svg");
     if (!svgEl) return null;
 
@@ -43,14 +71,15 @@ async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dat
     svgEl.setAttribute("width", String(canvasW));
     svgEl.setAttribute("height", String(canvasH));
     const serialized = new XMLSerializer().serializeToString(svgEl);
-    const blob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+
+    // Use a data URL instead of blob URL for reliable cross-browser SVG→canvas rendering
+    const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
 
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error("Failed to load mermaid SVG as image"));
-      img.src = url;
+      img.src = svgDataUrl;
     });
 
     const canvas = document.createElement("canvas");
@@ -60,7 +89,6 @@ async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dat
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvasW, canvasH);
     ctx.drawImage(img, 0, 0, canvasW, canvasH);
-    URL.revokeObjectURL(url);
 
     const dataUrl = canvas.toDataURL("image/png");
     // Convert canvas pixels back to mm

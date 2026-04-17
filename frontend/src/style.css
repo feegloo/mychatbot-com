@@ -45,12 +45,14 @@ a { color: #c4b5fd; text-decoration: none; }
 
 .app-layout {
   display: flex;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .app-main {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -250,7 +252,7 @@ a { color: #c4b5fd; text-decoration: none; }
   }
 
   .conv-nav.collapsed .conv-nav-collapse-btn {
-    margin-left: 0;
+    display: none;
   }
 
   .conv-nav.collapsed .conv-nav-new {
@@ -304,7 +306,7 @@ a { color: #c4b5fd; text-decoration: none; }
     transition: opacity 0.12s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
   }
   .conv-nav.collapsed .conv-nav-bottom {
-    justify-content: center;
+    display: block;
   }
 }
 
@@ -338,6 +340,7 @@ a { color: #c4b5fd; text-decoration: none; }
 @media (min-width: 769px) {
   .conv-nav.collapsed .conv-nav-expand-arrow {
     display: block;
+    margin: 0 auto;
   }
 }
 
@@ -427,6 +430,7 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 20px 28px;
   width: 100%;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -464,6 +468,7 @@ a { color: #c4b5fd; text-decoration: none; }
   gap: 16px;
   flex: 1;
   min-height: 0;
+  grid-template-rows: 1fr;
 }
 
 .grid-2 {
