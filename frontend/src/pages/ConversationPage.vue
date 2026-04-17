@@ -431,8 +431,9 @@ function autoResize(e: Event) {
 }
 
 let prevMessageCount = 0;
+const conversationReady = ref(false);
 watch(() => messages.value.length, async (newLen) => {
-  if (newLen > prevMessageCount) {
+  if (conversationReady.value && newLen > prevMessageCount) {
     await nextTick();
     setTimeout(() => scrollToBottom(), 0);
   }
@@ -446,7 +447,8 @@ onMounted(async () => {
   loaded.value = true;
   roleLoaded.value = true;
   await nextTick();
-  setTimeout(() => scrollToBottom(), 100);
+  prevMessageCount = messages.value.length;
+  conversationReady.value = true;
 
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined;
