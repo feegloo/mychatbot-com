@@ -441,7 +441,9 @@ conversationsRouter.get("/messages/:messageId", async (ctx) => {
   }
 
   const raw = msg.citations_json;
-  const uploadedFileNames = raw && !Array.isArray(raw) ? raw._uploadedFileNames : undefined;
+  const uploadedFileNames = raw && !Array.isArray(raw) && Array.isArray(raw._uploadedFileNames)
+    ? raw._uploadedFileNames.filter((name: unknown): name is string => typeof name === "string")
+    : undefined;
   const citations = Array.isArray(raw) ? raw : [];
   let files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata: any | null }> | undefined;
   if (uploadedFileNames?.length) {
