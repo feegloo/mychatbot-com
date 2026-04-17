@@ -993,7 +993,8 @@ function openFilePreview(file: FileInfo) {
 .welcome-right-col {
   position: relative;
   flex-shrink: 0;
-  margin-top: 10px;
+  margin-right: -2px;
+  margin-top: 15px;
   align-self: stretch;
   display: flex;
   flex-direction: column;

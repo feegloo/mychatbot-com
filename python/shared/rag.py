@@ -21,7 +21,7 @@ _llm_instance = None
 _llm_provider_key = None
 
 # Multiple seed values to introduce variation for repeated prompts (OpenAI only)
-_SEED_OPTIONS = [365, 742, 158]
+_SEED_OPTIONS = [365, 742, 158, 2901, 4417, 5830, 6193, 7764, 8529, 9046]
 
 # Patterns that trigger quiz mode
 _QUIZ_PATTERNS = re.compile(
