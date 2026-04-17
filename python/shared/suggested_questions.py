@@ -112,6 +112,12 @@ _PERSON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_INGREDIENT_PATTERN = re.compile(
+    r'\b(ingredient|ingredients|składnik|składniki|skład|composition|'
+    r'contains|zawiera|nutrition|wartości odżywcze|product label|etykiet)\b',
+    re.IGNORECASE,
+)
+
 
 def _append_contextual_prompts(
     questions: list[str],
@@ -125,6 +131,7 @@ def _append_contextual_prompts(
     Contextual action prompts (EXIF, recognize, file metadata) take priority
     over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.
+    'create recipe' is added when the welcome message mentions ingredients.
     """
     # Split LLM output: first 3 are questions, rest are actions
     normal_questions = questions[:3]
@@ -134,6 +141,7 @@ def _append_contextual_prompts(
     contextual: list[str] = []
     if file_names and file_types:
         has_person = bool(_PERSON_PATTERN.search(welcome_message))
+        has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
 
         for name in file_names:
             if len(contextual) >= 2:
@@ -143,14 +151,20 @@ def _append_contextual_prompts(
             short_name = display_name if len(display_name) <= 30 else display_name[:27] + "..."
 
             if ftype == "image":
-                if language == "pl":
-                    contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
-                    if has_person and len(contextual) < 2:
-                        contextual.append(f"{short_name} - rozpoznaj osobę 🔍")
-                else:
-                    contextual.append(f"{short_name} - show EXIF metadata 📷")
-                    if has_person and len(contextual) < 2:
-                        contextual.append(f"{short_name} - recognize person name 🔍")
+                if has_ingredients and len(contextual) < 2:
+                    if language == "pl":
+                        contextual.append(f"{short_name} - stwórz przepis 🍳")
+                    else:
+                        contextual.append(f"{short_name} - create recipe 🍳")
+                if len(contextual) < 2:
+                    if language == "pl":
+                        contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
+                        if has_person and len(contextual) < 2:
+                            contextual.append(f"{short_name} - rozpoznaj osobę 🔍")
+                    else:
+                        contextual.append(f"{short_name} - show EXIF metadata 📷")
+                        if has_person and len(contextual) < 2:
+                            contextual.append(f"{short_name} - recognize person name 🔍")
             elif ftype == "pdf":
                 if language == "pl":
                     contextual.append(f"{short_name} - pokaż metadane pliku 📄")
