@@ -349,7 +349,7 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 8px 4px;
   flex-shrink: 0;
   max-height: 200px;
-  overflow: hidden;
+  overflow: visible;
   transition: opacity 0.15s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
 }
 
@@ -934,16 +934,16 @@ li:has(.checklist-box) {
 .markdown-content h2,
 .markdown-content h3,
 .markdown-content h4 {
-  margin: 8px 0 8px;
+  margin: 12px 0 4px;
   font-weight: 600;
   color: #e2e8f0;
   text-transform: none;
   letter-spacing: normal;
 }
 
-.markdown-content h1 { font-size: 24px; }
-.markdown-content h2 { font-size: 20px; }
-.markdown-content h3 { font-size: 16px; }
+.markdown-content h1 { font-size: 18px; }
+.markdown-content h2 { font-size: 16px; }
+.markdown-content h3 { font-size: 15px; }
 
 .markdown-content a {
   color: #a78bfa;
@@ -1159,7 +1159,7 @@ textarea.big-input {
 }
 
 .conv-title {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   margin: 0 0 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -1237,7 +1237,7 @@ h1, h2, h3 {
 .sidebar-toggle {
   display: none;
   position: absolute;
-  top: 11px;
+  top: 13px;
   right: 9px;
   z-index: 20;
   background: none;

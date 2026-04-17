@@ -786,10 +786,12 @@ function openFilePreview(file: FileInfo) {
   font-family: inherit;
 }
 
-/* On touch devices, always show */
+/* On touch devices, always show and add spacing below */
 @media (hover: none) {
   .msg-actions {
     opacity: 1;
+    position: static;
+    margin-bottom: 5px;
   }
 }
 
@@ -1003,7 +1005,7 @@ function openFilePreview(file: FileInfo) {
   position: relative;
   flex-shrink: 0;
   margin-right: -2px;
-  margin-top: 22px;
+  margin-top: 15px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -1367,7 +1369,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-reveal-ltr 0.25s cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation: msg-reveal-ltr 0.167s cubic-bezier(0.55, 0, 1, 0.45) both;
 }
 
 .message.user .user-text {
