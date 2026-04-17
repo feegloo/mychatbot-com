@@ -92,8 +92,14 @@ const pendingRequestId = ref(localStorage.getItem(`pending-access-request:${prop
 
 function onMoreFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
-  moreFiles.value = Array.from(target.files || []);
-  uploadError.value = "";
+  const allFiles = Array.from(target.files || []);
+  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
+  moreFiles.value = allFiles.filter(f => !f.type.startsWith('video/'));
+  if (videoFiles.length) {
+    uploadError.value = "Video files are not supported.";
+  } else {
+    uploadError.value = "";
+  }
   if (moreFiles.value.length) {
     uploadMore();
   }

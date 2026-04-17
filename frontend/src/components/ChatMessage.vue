@@ -368,9 +368,16 @@ function prevPreviewFile(event: Event) {
 
 function onUploadFilesChange(event: Event) {
   const target = event.target as HTMLInputElement;
-  selectedUploadFiles.value = Array.from(target.files || []);
-  uploadError.value = "";
-  if (selectedUploadFiles.value.length) {
+  const allFiles = Array.from(target.files || []);
+  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
+  const validFiles = allFiles.filter(f => !f.type.startsWith('video/'));
+  if (videoFiles.length) {
+    uploadError.value = "Video files are not supported.";
+  } else {
+    uploadError.value = "";
+  }
+  selectedUploadFiles.value = validFiles;
+  if (validFiles.length) {
     doUploadFiles();
   }
 }

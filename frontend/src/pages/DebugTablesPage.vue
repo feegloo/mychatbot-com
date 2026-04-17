@@ -32,7 +32,9 @@
 
       <div class="table-section">
         <template v-if="view === 'json'">
-          <pre class="json-block">{{ JSON.stringify(data[activeTable], null, 2) }}</pre>
+          <div class="table-wrapper">
+            <pre class="json-block">{{ JSON.stringify(data[activeTable], null, 2) }}</pre>
+          </div>
         </template>
 
         <template v-else>
@@ -282,6 +284,7 @@ h1 {
 }
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8rem;
 }
@@ -322,13 +325,11 @@ td:has(.cell.expanded) {
 }
 .json-block {
   background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 8px;
+  margin: 0;
   padding: 12px;
-  overflow-x: auto;
   font-size: 0.8rem;
-  max-height: 500px;
-  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .loading {
   color: #94a3b8;

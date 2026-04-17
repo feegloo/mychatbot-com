@@ -66,13 +66,19 @@ function openFilePicker() {
 
 function onInputChange(event: Event) {
   const target = event.target as HTMLInputElement;
-  files.value = Array.from(target.files || []);
+  const allFiles = Array.from(target.files || []);
+  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
+  files.value = allFiles.filter(f => !f.type.startsWith('video/'));
+  if (videoFiles.length) error.value = "Video files are not supported.";
   if (files.value.length) submit();
 }
 
 function onDrop(event: DragEvent) {
   dragover.value = false;
-  files.value = Array.from(event.dataTransfer?.files || []);
+  const allFiles = Array.from(event.dataTransfer?.files || []);
+  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
+  files.value = allFiles.filter(f => !f.type.startsWith('video/'));
+  if (videoFiles.length) error.value = "Video files are not supported.";
   if (files.value.length) submit();
 }
 

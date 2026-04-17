@@ -130,6 +130,13 @@ conversationsRouter.post("/conversations/:conversationId/files", upload.array("f
     return;
   }
 
+  const videoFiles = files.filter(f => f.mimetype?.startsWith("video/"));
+  if (videoFiles.length) {
+    ctx.status = 400;
+    ctx.body = { error: "Video files are not supported." };
+    return;
+  }
+
   if (role !== "owner" && role !== "editor") {
     ctx.status = 403;
     ctx.body = { error: "You don't have permission to upload files" };

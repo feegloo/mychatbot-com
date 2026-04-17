@@ -20,6 +20,13 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     return;
   }
 
+  const videoFiles = files.filter(f => f.mimetype?.startsWith("video/"));
+  if (videoFiles.length) {
+    ctx.status = 400;
+    ctx.body = { error: "Video files are not supported." };
+    return;
+  }
+
   const conversationId = generateShortId();
   const salt = uuidv4();
   const ownerPassword = deriveToken(conversationId, salt);
