@@ -31,7 +31,7 @@
       <div class="upload-status-area">
         <div class="file-list" v-if="files.length" style="margin-top: 16px">
           <div v-for="file in files" :key="file.name" class="file-pill">
-            {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
+            {{ file.name }} - {{ (file.size / 1024 / 1024).toFixed(1) }} MB
           </div>
         </div>
 

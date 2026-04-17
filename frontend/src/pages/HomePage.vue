@@ -33,7 +33,7 @@
         <div class="upload-status-area">
           <div class="file-list" v-if="uploadFiles.length" style="margin-top: 16px">
             <div v-for="file in uploadFiles" :key="file.name" class="file-pill">
-              {{ file.name }} - {{ Math.round(file.size / 1024) }} KB
+              {{ file.name }} - {{ (file.size / 1024 / 1024).toFixed(1) }} MB
             </div>
           </div>
           <p v-if="uploading" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
