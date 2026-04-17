@@ -170,6 +170,19 @@ export async function findStoredName(conversationId: string, originalName: strin
   return null;
 }
 
+export async function getUploadedFilesByOriginalNames(conversationId: string, originalNames: string[]) {
+  if (!originalNames.length) return [];
+  const result = await query<UploadedFileRecord>(
+    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
+     FROM uploaded_files
+     WHERE conversation_id = $1
+       AND original_name = ANY($2::text[])
+     ORDER BY created_at ASC`,
+    [conversationId, originalNames]
+  );
+  return result.rows;
+}
+
 export async function insertUploadedFile(file: UploadedFileRecord) {
   await query(
     `INSERT INTO uploaded_files (id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key)

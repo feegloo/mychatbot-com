@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata, resolveUserByFingerprint, getThreadsForMessage, getThreadReplyCountsForMessages } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata, resolveUserByFingerprint, getThreadsForMessage, getThreadReplyCountsForMessages, getUploadedFilesByOriginalNames } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { generateShortId } from "../utils/id.js";
 import { config } from "../config.js";
@@ -440,7 +440,24 @@ conversationsRouter.get("/messages/:messageId", async (ctx) => {
     return;
   }
 
-  const citations = Array.isArray(msg.citations_json) ? msg.citations_json : [];
+  const raw = msg.citations_json;
+  const uploadedFileNames = raw && !Array.isArray(raw) ? raw._uploadedFileNames : undefined;
+  const citations = Array.isArray(raw) ? raw : [];
+  let files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata: any | null }> | undefined;
+  if (uploadedFileNames?.length) {
+    const uploadedFiles = await getUploadedFilesByOriginalNames(msg.conversation_id, uploadedFileNames);
+    const byName = new Map(uploadedFiles.map((f) => [f.original_name, f]));
+    files = uploadedFileNames
+      .map((name: string) => byName.get(name))
+      .filter((f: (typeof uploadedFiles)[number] | undefined): f is (typeof uploadedFiles)[number] => !!f)
+      .map((f: (typeof uploadedFiles)[number]) => ({
+        id: f.id,
+        originalName: f.original_name,
+        mimeType: f.mime_type,
+        sizeBytes: Number(f.size_bytes),
+        metadata: f.metadata_json || null,
+      }));
+  }
   ctx.body = {
     id: msg.id,
     conversationId: msg.conversation_id,
@@ -448,6 +465,8 @@ conversationsRouter.get("/messages/:messageId", async (ctx) => {
     role: msg.role,
     content: msg.content,
     citations,
+    ...(uploadedFileNames ? { uploadedFileNames } : {}),
+    ...(files?.length ? { files } : {}),
   };
 });
 

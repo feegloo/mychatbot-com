@@ -217,8 +217,9 @@ const canReply = computed(() => status.value.role === "owner" || status.value.ro
 function isUploadMessage(index: number): boolean {
   const msg = messages.value[index];
   if (msg?.role !== "assistant") return false;
-  // Parent message in a thread (branched-from) shows as welcome with files
-  if (msg.isParentMessage) return true;
+  // Parent message in a thread should only be treated as upload/welcome
+  // when it explicitly references uploaded files.
+  if (msg.isParentMessage) return !!msg.uploadedFileNames?.length;
   // Has explicit uploadedFileNames from backend
   if (msg.uploadedFileNames?.length) return true;
   // Legacy: first message is a welcome message if it's from the assistant with no preceding user message
