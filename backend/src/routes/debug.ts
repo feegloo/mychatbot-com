@@ -23,7 +23,7 @@ debugRouter.get("/debug/tables", async (ctx) => {
   const idx = decoded.indexOf(":");
   const user = idx < 0 ? decoded : decoded.slice(0, idx);
   const pass = idx < 0 ? "" : decoded.slice(idx + 1);
-  if (!safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
+  if (!config.debugUser || !config.debugPass || !safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
     ctx.status = 401;
     ctx.body = { error: "Invalid credentials" };
     return;
