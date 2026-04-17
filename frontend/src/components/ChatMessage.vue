@@ -1,5 +1,7 @@
 <template>
-  <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
+  <div class="message-row" :class="msg.role">
+    <BubbleTip v-if="msg.role === 'user'" :width="12" :height="10" />
+    <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
     <strong>{{ senderLabel }}</strong>
     <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
       <AppButton
@@ -201,6 +203,8 @@
       @close="previewOpen = false"
     />
   </div>
+  <BubbleTip v-if="msg.role === 'assistant'" :width="12" :height="10" />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -220,6 +224,7 @@ import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
 import { printContentAsPdf } from "../utils/printPdf";
 import UploadingDots from "./UploadingDots.vue";
+import BubbleTip from "./BubbleTip.vue";
 
 marked.setOptions({
   breaks: true,
@@ -509,6 +514,10 @@ const contentParts = computed<ContentPart[]>(() => {
           if (!Array.isArray(q.correct)) {
             q.correct = [q.correct as unknown as number];
           }
+        }
+        // Default multiple to true if not specified (backward compat)
+        if (typeof quizData.multiple !== 'boolean') {
+          quizData.multiple = quizData.questions.some(q => q.correct.length > 1);
         }
         parts.push({ type: 'quiz', quiz: quizData, quizIndex: quizCounter++ });
       } else {
@@ -1345,13 +1354,35 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
-/* Subtle fade-in for assistant answer content (left to right) */
-@keyframes msg-fade-in-ltr {
-  from { opacity: 0; clip-path: inset(0 100% 0 0); }
-  to { opacity: 1; clip-path: inset(0 0 0 0); }
+/* Subtle fade-in for assistant answer content (expand from left) */
+@keyframes msg-expand-ltr {
+  from { opacity: 0; max-width: 40px; }
+  to { opacity: 1; max-width: 85vw; }
+}
+
+/* Subtle fade-in for user message (expand from right) */
+@keyframes msg-expand-rtl {
+  from { opacity: 0; max-width: 40px; }
+  to { opacity: 1; max-width: 85vw; }
 }
 
 .message.assistant .message-content-wrap {
-  animation: msg-fade-in-ltr 0.175s ease-out both;
+  animation: msg-expand-rtl 0.25s ease-out both;
+  overflow: hidden;
+}
+
+.message.user .user-text {
+  animation: msg-expand-ltr 0.25s ease-out both;
+  overflow: hidden;
+}
+
+/* Bubble tip fade-in */
+@keyframes tip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.message-row .bubble-tip {
+  animation: tip-fade 0.2s ease-out both;
 }
 </style>

@@ -28,7 +28,7 @@
     <div class="grid" style="grid-template-columns: 1fr;">
       <section class="chat-panel">
 
-        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;  padding-bottom: 12px">
+        <div class="chat-log" ref="chatContainer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;  padding-bottom: 12px">
           <div style="flex: 1"></div>
           <ChatMessageItem
             v-for="(msg, index) in messages"

@@ -29,23 +29,25 @@ async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dat
     const { svg } = await mermaid.render(id, code);
 
     // Strip any remaining <foreignObject> elements to guarantee canvas safety
-    let cleanSvg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
-
-    // Ensure all SVG <text> elements have a dark fill so labels are visible on light background
-    cleanSvg = cleanSvg.replace(/<text\b([^>]*)>/g, (_match, attrs: string) => {
-      // If text already has a dark fill, leave it; otherwise force dark
-      if (/fill\s*[:=]\s*["']?#[0-4]/.test(attrs)) return _match;
-      if (/fill\s*=\s*["']/.test(attrs)) {
-        return `<text${attrs.replace(/fill\s*=\s*["'][^"']*["']/, 'fill="#1a1a1a"')}>`;
-      }
-      return `<text${attrs} fill="#1a1a1a">`;
-    });
+    const cleanSvg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
 
     // Parse SVG to get intrinsic size
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(cleanSvg, "image/svg+xml");
     const svgEl = svgDoc.querySelector("svg");
     if (!svgEl) return null;
+
+    // Force all <text> and <tspan> elements to use dark fill via inline style.
+    // Mermaid sets text color via CSS classes in <style> blocks which can result
+    // in invisible (white/transparent) text when rendered to canvas for PDF export.
+    svgEl.querySelectorAll("text, tspan").forEach((el) => {
+      (el as SVGElement).style.setProperty("fill", "#1a1a1a", "important");
+    });
+    // Also force edge/link labels
+    svgEl.querySelectorAll(".edgeLabel, .label, .nodeLabel, .labelText").forEach((el) => {
+      (el as SVGElement).style.setProperty("color", "#1a1a1a", "important");
+      (el as SVGElement).style.setProperty("fill", "#1a1a1a", "important");
+    });
 
     // Get dimensions from SVG attributes or viewBox
     let svgW = parseFloat(svgEl.getAttribute("width") || "0");

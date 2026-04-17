@@ -323,7 +323,7 @@ function autoResize(e: Event) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 4px;
   padding-right: 8px;
   margin-bottom: 16px;
 }

@@ -13,31 +13,56 @@
       </button>
     </div>
 
+    <div class="quiz-type-badge">{{ isMultiple ? '☑ Multiple choice' : '○ Single choice' }}</div>
+
     <div v-for="(q, qi) in quiz.questions" :key="qi" class="quiz-question">
       <div class="quiz-question-text">{{ qi + 1 }}. {{ q.q }}</div>
       <div class="quiz-options">
-        <label
-          v-for="(opt, oi) in q.options"
-          :key="oi"
-          class="quiz-option"
-          :class="{
-            'selected': selections[qi]?.has(oi),
-            'correct': submitted[qi] && q.correct.includes(oi),
-            'wrong': submitted[qi] && selections[qi]?.has(oi) && !q.correct.includes(oi),
-            'submitted': submitted[qi],
-          }"
-        >
-          <input
-            type="checkbox"
-            :checked="selections[qi]?.has(oi)"
-            class="quiz-checkbox"
-            @change="toggleOption(qi, oi)"
-          />
-          <span class="quiz-checkbox-custom"></span>
-          <span class="quiz-option-text"><span class="quiz-variant-label">{{ variantLetter(oi) }}.</span> {{ opt }}</span>
-        </label>
+        <!-- SINGLE CHOICE: radio-style -->
+        <template v-if="!isMultiple">
+          <label
+            v-for="(opt, oi) in q.options"
+            :key="oi"
+            class="quiz-option"
+            :class="{
+              'selected': selections[qi]?.has(oi),
+              'correct': submitted[qi] && q.correct.includes(oi),
+              'wrong': submitted[qi] && selections[qi]?.has(oi) && !q.correct.includes(oi),
+              'submitted': submitted[qi],
+            }"
+          >
+            <input
+              type="radio"
+              :name="`quiz-${messageId}-${quizIndex}-q${qi}`"
+              :checked="selections[qi]?.has(oi)"
+              class="quiz-radio"
+              @change="toggleSingle(qi, oi)"
+            />
+            <span class="quiz-radio-custom"></span>
+            <span class="quiz-option-text"><span class="quiz-variant-label">{{ variantLetter(oi) }}.</span> {{ opt }}</span>
+          </label>
+        </template>
+
+        <!-- MULTIPLE CHOICE: checkbox-style -->
+        <template v-else>
+          <label
+            v-for="(opt, oi) in q.options"
+            :key="oi"
+            class="quiz-option"
+            :class="multiOptionClass(qi, oi)"
+          >
+            <input
+              type="checkbox"
+              :checked="selections[qi]?.has(oi)"
+              class="quiz-checkbox"
+              @change="toggleMulti(qi, oi)"
+            />
+            <span class="quiz-checkbox-custom"></span>
+            <span class="quiz-option-text"><span class="quiz-variant-label">{{ variantLetter(oi) }}.</span> {{ opt }}</span>
+          </label>
+        </template>
       </div>
-      <div v-if="submitted[qi] && q.explanation" class="quiz-explanation">
+      <div v-if="showExplanation(qi) && q.explanation" class="quiz-explanation">
         <span class="quiz-explanation-text">{{ q.explanation }}</span>
       </div>
     </div>
@@ -63,6 +88,7 @@ export interface QuizQuestion {
 
 export interface QuizData {
   title: string;
+  multiple?: boolean;
   questions: QuizQuestion[];
 }
 
@@ -74,12 +100,16 @@ const props = defineProps<{
   fileName?: string;
 }>();
 
+const isMultiple = computed(() => props.quiz.multiple === true);
+
 function variantLetter(index: number): string {
-  return String.fromCharCode(65 + index); // A, B, C, D, ...
+  return String.fromCharCode(65 + index);
 }
 
 const selections = reactive<Record<number, Set<number>>>({});
 const submitted = reactive<Record<number, boolean>>({});
+// For multiple choice: track which individual options were marked wrong
+const wrongOptions = reactive<Record<number, Set<number>>>({});
 
 function storageKey(): string | null {
   return props.messageId ? `quiz:${props.messageId}:${props.quizIndex ?? 0}` : null;
@@ -92,48 +122,121 @@ function saveState() {
   for (const [qi, opts] of Object.entries(selections)) {
     data[Number(qi)] = [...opts];
   }
-  setData(key, { selections: data, submitted: { ...submitted } });
+  const wrongData: Record<number, number[]> = {};
+  for (const [qi, opts] of Object.entries(wrongOptions)) {
+    wrongData[Number(qi)] = [...opts];
+  }
+  setData(key, {
+    selections: data,
+    submitted: { ...submitted },
+    multiple: isMultiple.value,
+    wrongOptions: wrongData,
+  });
 }
 
 function loadState() {
   const key = storageKey();
   if (!key) return;
   try {
-    const state = getData<{ selections: Record<number, number[]>; submitted: Record<number, boolean> }>(key);
+    const state = getData<{
+      selections: Record<number, number[]>;
+      submitted: Record<number, boolean>;
+      multiple?: boolean;
+      wrongOptions?: Record<number, number[]>;
+    }>(key);
     if (!state) return;
     for (const [qi, opts] of Object.entries(state.selections ?? {})) {
       selections[Number(qi)] = new Set(opts);
     }
     Object.assign(submitted, state.submitted ?? {});
+    if (state.wrongOptions) {
+      for (const [qi, opts] of Object.entries(state.wrongOptions)) {
+        wrongOptions[Number(qi)] = new Set(opts);
+      }
+    }
   } catch { /* ignore corrupt data */ }
 }
 
 onMounted(loadState);
 
-function toggleOption(qi: number, oi: number) {
+// ---------- SINGLE CHOICE (radio) ----------
+function toggleSingle(qi: number, oi: number) {
   if (!selections[qi]) selections[qi] = new Set();
+
   if (selections[qi].has(oi)) {
-    selections[qi].delete(oi);
-  } else {
-    // If already submitted, reset first (clear previous selection)
-    if (submitted[qi]) {
-      selections[qi].clear();
-      submitted[qi] = false;
-    }
-    selections[qi].add(oi);
-  }
-  // Auto-submit once at least one option is selected, reset if none
-  if (selections[qi].size) {
-    submitted[qi] = true;
-  } else {
+    // Unclick — deselect
+    selections[qi].clear();
     submitted[qi] = false;
+  } else {
+    // Select new option (clear previous)
+    selections[qi].clear();
+    submitted[qi] = false;
+    selections[qi].add(oi);
+    submitted[qi] = true;
   }
   saveState();
+}
+
+// ---------- MULTIPLE CHOICE (checkbox) ----------
+function toggleMulti(qi: number, oi: number) {
+  const q = props.quiz.questions[qi];
+  if (!selections[qi]) selections[qi] = new Set();
+  if (!wrongOptions[qi]) wrongOptions[qi] = new Set();
+
+  if (selections[qi].has(oi)) {
+    // Uncheck
+    selections[qi].delete(oi);
+    wrongOptions[qi].delete(oi);
+    // If a wrong option was unchecked, and no wrong options remain, reset submitted state
+    // to allow continued selection
+    if (wrongOptions[qi].size === 0) {
+      submitted[qi] = false;
+    }
+  } else {
+    // Check
+    selections[qi].add(oi);
+
+    // If this option is wrong, mark it immediately
+    if (!q.correct.includes(oi)) {
+      wrongOptions[qi].add(oi);
+      submitted[qi] = true; // lock: show wrong immediately
+    } else {
+      // Correct option selected — check if all correct answers are now selected
+      const allCorrectSelected = q.correct.every(c => selections[qi].has(c));
+      if (allCorrectSelected && wrongOptions[qi].size === 0) {
+        submitted[qi] = true; // all correct found, show success
+      }
+    }
+  }
+  saveState();
+}
+
+function multiOptionClass(qi: number, oi: number) {
+  const q = props.quiz.questions[qi];
+  const sel = selections[qi] || new Set();
+  const wrong = wrongOptions[qi] || new Set();
+  const isSelected = sel.has(oi);
+  const isSubmitted = submitted[qi];
+
+  return {
+    'selected': isSelected && !isSubmitted,
+    'correct': isSubmitted && q.correct.includes(oi) && isSelected,
+    'wrong': wrong.has(oi),
+    'submitted': isSubmitted,
+    // Show green outline on unselected correct options only when fully resolved
+    'correct-reveal': isSubmitted && q.correct.includes(oi) && !isSelected,
+  };
+}
+
+function showExplanation(qi: number): boolean {
+  return !!submitted[qi];
 }
 
 function isCorrect(qi: number): boolean {
   const q = props.quiz.questions[qi];
   const sel = selections[qi] || new Set();
+  const wrong = wrongOptions[qi] || new Set();
+  if (wrong.size > 0) return false;
   if (sel.size !== q.correct.length) return false;
   return q.correct.every((c) => sel.has(c));
 }
@@ -169,11 +272,22 @@ async function downloadPdf() {
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
   doc.text(props.quiz.title, marginLeft, y);
-  y += 14;
+  y += 8;
+
+  // Quiz type subtitle
+  doc.setFont(PDF_FONT, "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  const typeLabel = isMultiple.value
+    ? "Multiple choice — select all correct answers"
+    : "Single choice — select one correct answer";
+  doc.text(typeLabel, marginLeft, y);
+  y += 8;
 
   // Name line
   doc.setFont(PDF_FONT, "normal");
   doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
   doc.text("Name: ___________________________________    Date: _______________", marginLeft, y);
   y += 12;
 
@@ -202,12 +316,16 @@ async function downloadPdf() {
 
       checkNewPage(optLines.length * 5 + 4);
 
-      // Empty checkbox
+      // Draw radio circle (single choice) or checkbox (multiple choice)
       const boxX = marginLeft + 2;
       const boxY = y - 3.2;
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.4);
-      doc.rect(boxX, boxY, 3.5, 3.5);
+      if (isMultiple.value) {
+        doc.rect(boxX, boxY, 3.5, 3.5);
+      } else {
+        doc.circle(boxX + 1.75, boxY + 1.75, 1.75);
+      }
 
       // Option text
       doc.text(optLines, marginLeft + 9, y);
@@ -272,7 +390,7 @@ async function downloadPdf() {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   color: #c4b5fd;
   font-weight: 600;
   font-size: 15px;
@@ -280,6 +398,13 @@ async function downloadPdf() {
 
 .quiz-title {
   flex: 1;
+}
+
+.quiz-type-badge {
+  font-size: 12px;
+  color: #a78bfa;
+  margin-bottom: 14px;
+  opacity: 0.8;
 }
 
 .quiz-download-btn {
@@ -354,12 +479,12 @@ async function downloadPdf() {
 }
 
 @media (hover: hover) {
-  .quiz-option:hover:not(.correct):not(.wrong) {
+  .quiz-option:hover:not(.correct):not(.wrong):not(.correct-reveal) {
     background: rgba(15, 23, 42, 0.65);
     border-color: rgba(255, 255, 255, 0.12);
   }
 }
-.quiz-option:active:not(.correct):not(.wrong) {
+.quiz-option:active:not(.correct):not(.wrong):not(.correct-reveal) {
   background: rgba(15, 23, 42, 0.65);
   border-color: rgba(255, 255, 255, 0.12);
 }
@@ -377,6 +502,12 @@ async function downloadPdf() {
   cursor: pointer;
 }
 
+.quiz-option.correct-reveal {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #86efac;
+}
+
 .quiz-option.wrong {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.4);
@@ -384,11 +515,13 @@ async function downloadPdf() {
   cursor: pointer;
 }
 
-.quiz-option.submitted:not(.correct):not(.wrong) {
+.quiz-option.submitted:not(.correct):not(.wrong):not(.correct-reveal) {
   cursor: pointer;
 }
 
-.quiz-option input[type="checkbox"].quiz-checkbox {
+/* ---- Hidden native inputs ---- */
+.quiz-option input[type="checkbox"].quiz-checkbox,
+.quiz-option input[type="radio"].quiz-radio {
   position: absolute;
   opacity: 0;
   width: 0;
@@ -396,6 +529,7 @@ async function downloadPdf() {
   pointer-events: none;
 }
 
+/* ---- CHECKBOX custom (multiple choice) ---- */
 .quiz-checkbox-custom {
   width: 18px;
   height: 18px;
@@ -409,7 +543,6 @@ async function downloadPdf() {
   transition: all 0.15s;
 }
 
-/* Checked state (before submission) */
 .quiz-checkbox:checked ~ .quiz-checkbox-custom {
   background: #7c3aed;
   border-color: #7c3aed;
@@ -423,7 +556,6 @@ async function downloadPdf() {
   line-height: 1;
 }
 
-/* Correct answer after submission */
 .quiz-option.correct .quiz-checkbox-custom {
   background: #22c55e;
   border-color: #22c55e;
@@ -437,7 +569,6 @@ async function downloadPdf() {
   line-height: 1;
 }
 
-/* Wrong answer after submission */
 .quiz-option.wrong .quiz-checkbox-custom {
   background: #ef4444;
   border-color: #ef4444;
@@ -451,7 +582,15 @@ async function downloadPdf() {
   line-height: 1;
 }
 
-/* Unselected correct option: show green outline but no fill */
+.quiz-option.correct-reveal .quiz-checkbox-custom {
+  background: transparent;
+  border-color: #22c55e;
+}
+
+.quiz-option.correct-reveal .quiz-checkbox-custom::after {
+  content: '';
+}
+
 .quiz-option.correct .quiz-checkbox:not(:checked) ~ .quiz-checkbox-custom {
   background: transparent;
   border-color: #22c55e;
@@ -459,6 +598,69 @@ async function downloadPdf() {
 
 .quiz-option.correct .quiz-checkbox:not(:checked) ~ .quiz-checkbox-custom::after {
   content: '';
+}
+
+/* ---- RADIO custom (single choice) ---- */
+.quiz-radio-custom {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.quiz-radio:checked ~ .quiz-radio-custom {
+  border-color: #7c3aed;
+}
+
+.quiz-radio:checked ~ .quiz-radio-custom::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7c3aed;
+}
+
+.quiz-option.correct .quiz-radio-custom {
+  border-color: #22c55e;
+}
+
+.quiz-option.correct .quiz-radio-custom::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.quiz-option.wrong .quiz-radio-custom {
+  border-color: #ef4444;
+}
+
+.quiz-option.wrong .quiz-radio-custom::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.quiz-option.correct .quiz-radio:not(:checked) ~ .quiz-radio-custom {
+  border-color: #22c55e;
+}
+
+.quiz-option.correct .quiz-radio:not(:checked) ~ .quiz-radio-custom::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid #22c55e;
 }
 
 .quiz-option-text {
