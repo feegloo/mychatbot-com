@@ -680,7 +680,7 @@ a { color: #c4b5fd; text-decoration: none; }
 
 /* Markdown content styles for assistant messages */
 .markdown-content {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   font-size: 15px;
   line-height: 1.6;
 }
