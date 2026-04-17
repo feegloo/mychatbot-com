@@ -684,7 +684,7 @@ a { color: #c4b5fd; text-decoration: none; }
 
 @media (min-width: 769px) {
   .message-row.assistant {
-    margin-left: 180px;
+    margin-left: 150px;
   }
 }
 
