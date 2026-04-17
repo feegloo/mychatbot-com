@@ -35,7 +35,7 @@
           </div>
         </div>
 
-        <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
+        <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center"><UploadingDots /></p>
 
         <p v-if="error" style="color:#f87171; margin-top:12px; text-align:center">{{ error }}</p>
       </div>
@@ -47,6 +47,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { uploadFiles, saveConversationToken } from "../api";
+import UploadingDots from "../components/UploadingDots.vue";
 
 onMounted(() => {
   document.title = "chatrag.app";

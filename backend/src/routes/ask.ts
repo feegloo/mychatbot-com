@@ -65,6 +65,11 @@ askRouter.post("/ask", async (ctx) => {
     if (f.metadata_json) fileMetadata[f.original_name] = f.metadata_json;
   }
 
+  console.log(`[ask] question="${question.slice(0, 100)}" convId=${conversationId} imageFiles=${imageFilePaths.length} metadataKeys=${Object.keys(fileMetadata).join(",") || "none"}`);
+  if (imageFilePaths.length) {
+    console.log(`[ask] imageFilePaths=${JSON.stringify(imageFilePaths)}`);
+  }
+
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,

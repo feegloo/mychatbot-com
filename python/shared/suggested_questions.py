@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .rag import get_llm
 from .lang_detect import detect_language
+from .extractors import clean_file_name
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,8 @@ def _append_contextual_prompts(
             if len(contextual) >= 2:
                 break
             ftype = file_types.get(name, "document")
-            short_name = name if len(name) <= 30 else name[:27] + "..."
+            display_name = clean_file_name(name)
+            short_name = display_name if len(display_name) <= 30 else display_name[:27] + "..."
 
             if ftype == "image":
                 if language == "pl":

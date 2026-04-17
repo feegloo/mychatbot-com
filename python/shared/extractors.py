@@ -30,6 +30,22 @@ IMAGE_EXTENSIONS = {
 }
 
 
+# Strip storage uniqueness suffix from filenames for display.
+# Mirrors frontend cleanFileName: UUID prefix and 16-char base62 suffix.
+_UUID_PREFIX_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_', re.IGNORECASE)
+_SHORT_ID_SUFFIX_RE = re.compile(r'_[0-9A-Za-z]{16}(\.[^.]+)$')
+_SHORT_ID_SUFFIX_NO_EXT_RE = re.compile(r'_[0-9A-Za-z]{16}$')
+
+
+def clean_file_name(name: str) -> str:
+    """Remove storage ID prefix/suffix from a filename for user-facing display."""
+    name = _UUID_PREFIX_RE.sub('', name)
+    result = _SHORT_ID_SUFFIX_RE.sub(r'\1', name)
+    if result == name:
+        result = _SHORT_ID_SUFFIX_NO_EXT_RE.sub('', name)
+    return result
+
+
 def _sanitize_text(text: str) -> str:
     """Remove problematic characters that cause issues in JSON/database.
     

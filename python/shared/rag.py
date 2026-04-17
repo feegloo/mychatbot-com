@@ -296,7 +296,11 @@ _RECOGNIZE_PROMPT_PATTERN = re.compile(
 
 
 def _is_recognize_request(question: str) -> bool:
-    return bool(_RECOGNIZE_PATTERNS.search(question) or _RECOGNIZE_PROMPT_PATTERN.search(question))
+    m1 = _RECOGNIZE_PATTERNS.search(question)
+    m2 = _RECOGNIZE_PROMPT_PATTERN.search(question)
+    is_match = bool(m1 or m2)
+    logger.info(f"🔍 _is_recognize_request('{question[:80]}'): {is_match} (pattern1={bool(m1)}, pattern2={bool(m2)})")
+    return is_match
 
 
 def _handle_recognize(
@@ -310,13 +314,19 @@ def _handle_recognize(
     Returns {"answer": ..., "citations": []} or None if not applicable.
     """
     if not image_file_paths:
+        logger.info("🔍 _handle_recognize: no image_file_paths provided, returning None")
         return None
 
     from .metadata import enrich_metadata_web
 
     welcome_str = _format_welcome_messages(welcome_messages)
 
-    logger.info(f"🔍 Recognition mode: calling Vision API for {len(image_file_paths)} image(s)")
+    logger.info(
+        f"🔍 Recognition mode: calling Vision API for {len(image_file_paths)} image(s)\n"
+        f"   image_file_paths={image_file_paths}\n"
+        f"   file_metadata keys={list(file_metadata.keys()) if file_metadata else None}\n"
+        f"   welcome_str length={len(welcome_str)} chars"
+    )
     enrichment = enrich_metadata_web(
         file_paths=image_file_paths,
         exif_metadata=file_metadata,
@@ -325,8 +335,10 @@ def _handle_recognize(
 
     if not enrichment:
         # Vision API returned nothing — fall back to normal RAG
-        logger.info("🔍 Vision API returned no results, falling back to normal RAG")
+        logger.info("🔍 Vision API returned no results (empty enrichment dict), falling back to normal RAG")
         return None
+    
+    logger.info(f"🔍 Enrichment result keys per file: { {k: list(v.keys()) for k, v in enrichment.items()} }")
 
     # Build a human-readable answer from the identification results
     parts = []
@@ -404,10 +416,13 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
             return result
 
     # Check for "recognize person name" intent - triggers Vision API
+    logger.info(f"🔍 Checking recognize intent: image_file_paths={'present, count=' + str(len(image_file_paths)) if image_file_paths else 'None'}")
     if _is_recognize_request(question) and image_file_paths:
         result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
         if result:
+            logger.info(f"🔍 Recognition returned answer ({len(result.get('answer', ''))} chars)")
             return result
+        logger.info("🔍 _handle_recognize returned None, continuing to normal RAG")
 
     # Determine max_distance based on question word count
     word_count = len([w for w in question.strip().split() if w])

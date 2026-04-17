@@ -39,14 +39,17 @@ def reverse_image_search(image_path: str) -> dict | None:
 
     Returns None if credentials are not configured or the call fails.
     """
+    logger.info(f"🔍 reverse_image_search called for: {image_path}")
     if not _credentials_available():
-        logger.info("⏭️  GOOGLE_APPLICATION_CREDENTIALS not set, skipping reverse image search")
+        creds_env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+        logger.info(f"⏭️  GOOGLE_APPLICATION_CREDENTIALS not set or file missing (env='{creds_env}'), skipping reverse image search")
         return None
 
     p = Path(image_path)
     if not p.exists():
         logger.warning(f"Image file not found: {image_path}")
         return None
+    logger.info(f"📁 Image file exists, size={p.stat().st_size} bytes")
 
     try:
         from google.cloud import vision
@@ -55,11 +58,13 @@ def reverse_image_search(image_path: str) -> dict | None:
         return None
 
     try:
+        logger.info("📡 Calling Google Vision API web_detection...")
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=p.read_bytes())
         response = client.web_detection(image=image, timeout=5.0)
+        logger.info("✅ Google Vision API call completed")
     except Exception as e:
-        logger.warning(f"⚠️  Google Vision API call failed: {e}")
+        logger.warning(f"⚠️  Google Vision API call failed: {type(e).__name__}: {e}")
         return None
 
     if response.error.message:
@@ -68,6 +73,7 @@ def reverse_image_search(image_path: str) -> dict | None:
 
     web = response.web_detection
     if not web:
+        logger.info("⚠️  Vision API returned no web_detection data")
         return None
 
     result: dict[str, Any] = {}
@@ -129,7 +135,14 @@ def identify_from_web_results(
     from openai import OpenAI
     from .config import get_settings
 
+    logger.info(
+        f"🧠 identify_from_web_results called: "
+        f"web_results={'present' if web_results else 'None'}, "
+        f"image_description={len(image_description or '')} chars, "
+        f"exif_metadata={'present' if exif_metadata else 'None'}"
+    )
     if not web_results and not image_description and not exif_metadata:
+        logger.info("⚠️  No context available for identification, returning None")
         return None
 
     # Build context sections
@@ -186,6 +199,8 @@ If the results are too ambiguous or there's not enough evidence, respond with:
 {{"identified_name": null, "confidence": "low", "category": "unknown", "reasoning": "explanation"}}"""
 
     try:
+        logger.info(f"🤖 Calling OpenAI {settings.openai_chat_model} for identification...")
+        logger.info(f"📝 LLM prompt context length: {len(combined_context)} chars")
         response = client.chat.completions.create(
             model=settings.openai_chat_model,
             max_completion_tokens=200,
@@ -195,10 +210,16 @@ If the results are too ambiguous or there's not enough evidence, respond with:
             ],
         )
         text = response.choices[0].message.content.strip()
+        logger.info(f"🤖 LLM raw response: {text[:500]}")
         result = json.loads(text)
         if result.get("identified_name"):
             logger.info(f"🎯 Identified: {result['identified_name']} ({result.get('confidence', '?')})")
+        else:
+            logger.info(f"🎯 No identification - confidence={result.get('confidence')}, reasoning={result.get('reasoning', '')}")
         return result
+    except json.JSONDecodeError as e:
+        logger.warning(f"⚠️  LLM returned invalid JSON: {e}. Raw text: {text[:500]}")
+        return None
     except Exception as e:
-        logger.warning(f"⚠️  LLM identification failed: {e}")
+        logger.warning(f"⚠️  LLM identification failed: {type(e).__name__}: {e}")
         return None

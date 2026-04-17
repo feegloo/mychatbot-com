@@ -102,6 +102,12 @@ async def index(req: IndexRequest):
 @app.post("/answer")
 async def answer(req: AnswerRequest):
     try:
+        logger.info(
+            f"📥 /answer request: question='{req.question[:100]}' "
+            f"image_file_paths={req.image_file_paths} "
+            f"file_metadata_keys={list(req.file_metadata.keys()) if req.file_metadata else None} "
+            f"welcome_messages_count={len(req.welcome_messages) if req.welcome_messages else 0}"
+        )
         result = await asyncio.to_thread(
             answer_with_citations,
             collection_name=req.collection_name,
@@ -112,6 +118,8 @@ async def answer(req: AnswerRequest):
             image_file_paths=req.image_file_paths,
             file_metadata=req.file_metadata,
         )
+        answer_preview = (result.get("answer", "") or "")[:200]
+        logger.info(f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'")
         return result
     except Exception as e:
         logger.exception("Error answering question")

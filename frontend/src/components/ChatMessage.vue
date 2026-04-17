@@ -80,7 +80,7 @@
           </AppButton>
           <template v-if="selectedUploadFiles.length">
             <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
-            <span v-if="uploadingFiles" class="upload-file-status">Uploading…</span>
+            <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
           </template>
           <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
         </div>
@@ -160,7 +160,7 @@
       </AppButton>
       <template v-if="selectedUploadFiles.length">
         <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
-        <span v-if="uploadingFiles" class="upload-file-status">Uploading…</span>
+        <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
       </template>
       <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
     </div>
@@ -219,6 +219,7 @@ import MermaidBlock from "./MermaidBlock.vue";
 import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
 import { printContentAsPdf } from "../utils/printPdf";
+import UploadingDots from "./UploadingDots.vue";
 
 marked.setOptions({
   breaks: true,
@@ -737,7 +738,10 @@ function openFilePreview(file: FileInfo) {
 <style scoped>
 .user-text {
   white-space: pre-wrap;
-  margin: 0;
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  display: block;
 }
 
 /* Message action buttons container */
@@ -1251,6 +1255,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 :deep(.action-btn) {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1259,9 +1264,22 @@ function openFilePreview(file: FileInfo) {
   color: #94a3b8;
   border-radius: 999px;
   padding: 6px 12px;
-  margin: 4px 6px 0 0;
+  margin: 4px 6px 8px 0;
   font-size: 12px;
   cursor: pointer;
+  transition: 0.15s;
+}
+
+:deep(.action-btn)::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 11px;
+  width: 8px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  clip-path: polygon(0 0, 100% 0, 3% 100%);
+  pointer-events: none;
   transition: 0.15s;
 }
 
@@ -1271,11 +1289,17 @@ function openFilePreview(file: FileInfo) {
     border-color: rgba(167, 139, 250, 0.25);
     color: #ddd6fe;
   }
+  :deep(.action-btn:hover)::after {
+    background: rgba(167, 139, 250, 0.1);
+  }
 }
 :deep(.action-btn:active) {
   background: rgba(167, 139, 250, 0.1);
   border-color: rgba(167, 139, 250, 0.25);
   color: #ddd6fe;
+}
+:deep(.action-btn:active)::after {
+  background: rgba(167, 139, 250, 0.1);
 }
 
 /* Thread reply indicator */

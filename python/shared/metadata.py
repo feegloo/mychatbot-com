@@ -261,7 +261,14 @@ def enrich_metadata_web(
     from .image_search import reverse_image_search, identify_from_web_results
 
     image_paths = [fp for fp in file_paths if Path(fp).suffix.lower() in IMAGE_EXTENSIONS]
+    logger.info(
+        f"🔍 enrich_metadata_web: {len(file_paths)} file_paths, "
+        f"{len(image_paths)} images, "
+        f"exif keys={list((exif_metadata or {}).keys())}, "
+        f"welcome_message={len(welcome_message)} chars"
+    )
     if not image_paths:
+        logger.info("🔍 No image paths found after filtering, returning empty")
         return {}
 
     exif_metadata = exif_metadata or {}
@@ -269,6 +276,7 @@ def enrich_metadata_web(
     result = {}
     for fp in image_paths:
         p = Path(fp)
+        logger.info(f"🔍 Processing image: {p.name} (exists={p.exists()})")
         enrichment: dict[str, Any] = {}
 
         # Step 3: fetch Vision API web detection
@@ -277,11 +285,19 @@ def enrich_metadata_web(
             web_results = reverse_image_search(fp)
             if web_results:
                 enrichment["web_detection"] = web_results
+                logger.info(f"🔍 Vision API returned web_detection for {p.name}")
+            else:
+                logger.info(f"🔍 Vision API returned None for {p.name}")
         except Exception as e:
-            logger.warning(f"⚠️  Vision API failed for {p.name}: {e}")
+            logger.warning(f"⚠️  Vision API failed for {p.name}: {type(e).__name__}: {e}")
 
         # Final identification: combine EXIF (1) + AI description (2) + Vision (3)
         file_exif = exif_metadata.get(p.name, {})
+        logger.info(
+            f"🔍 Calling identify_from_web_results for {p.name}: "
+            f"web_results={'present' if web_results else 'None'}, "
+            f"exif={'present' if file_exif else 'None'}"
+        )
         try:
             identification = identify_from_web_results(
                 web_results=web_results or {},
@@ -291,11 +307,17 @@ def enrich_metadata_web(
             if identification and identification.get("identified_name"):
                 enrichment["identified_name"] = identification["identified_name"]
                 enrichment["identification"] = identification
+                logger.info(f"✅ Identified {p.name}: {identification['identified_name']}")
+            else:
+                logger.info(f"⚠️  No identification for {p.name}: {identification}")
         except Exception as e:
-            logger.warning(f"⚠️  LLM identification failed for {p.name}: {e}")
+            logger.warning(f"⚠️  LLM identification failed for {p.name}: {type(e).__name__}: {e}")
 
         if enrichment:
             result[p.name] = enrichment
             logger.info(f"🔍 Enrichment for {p.name}: {list(enrichment.keys())}")
+        else:
+            logger.info(f"🔍 No enrichment produced for {p.name}")
 
+    logger.info(f"🔍 enrich_metadata_web final result: {len(result)} files enriched")
     return result

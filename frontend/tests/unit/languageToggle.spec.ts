@@ -1,0 +1,493 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
+import { nextTick } from "vue";
+
+// Mock the api module
+const detectLanguageMock = vi.fn();
+const translateTextsMock = vi.fn();
+
+vi.mock("../../src/api", () => ({
+  detectLanguage: (...args: unknown[]) => detectLanguageMock(...args),
+  translateTexts: (...args: unknown[]) => translateTextsMock(...args),
+}));
+
+import LanguageToggle from "../../src/components/LanguageToggle.vue";
+
+function makeMessages(contents: string[], role = "assistant") {
+  return contents.map(c => ({ role, content: c }));
+}
+
+describe("LanguageToggle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+    translateTextsMock.mockImplementation(async (texts: string[]) => ({
+      translations: texts.map(t => `[translated] ${t}`),
+    }));
+  });
+
+  // ── Visibility ──
+
+  describe("visibility", () => {
+    it("is hidden when no messages", async () => {
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [] },
+      });
+      await flushPromises();
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(false);
+    });
+
+    it("is hidden when assistant message is too short", async () => {
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["short"]) },
+      });
+      await flushPromises();
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(false);
+    });
+
+    it("is hidden when detected=en, browser=en (only 1 lang)", async () => {
+      // navigator.language is mocked as 'en' by default in happy-dom
+      Object.defineProperty(navigator, "language", { value: "en", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+      // available = {en} — only 1 lang
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(false);
+    });
+
+    it("shows when detected=pl, browser=pl (English always available)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["To jest wystarczająco długa polska wiadomość do wykrycia."]) },
+      });
+      await flushPromises();
+      await nextTick();
+      // available = {pl, en} — 2 langs
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(true);
+    });
+
+    it("shows when detected=en, browser=pl", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl-PL", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+      // available = {en, pl} — 2 langs
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(true);
+    });
+
+    it("shows when detected=hi, browser=pl (3 langs: hi, pl, en)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है जो भाषा का पता लगाने के लिए पर्याप्त है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(true);
+    });
+  });
+
+  // ── Toggle mode (2 languages) ──
+
+  describe("toggle mode (2 languages)", () => {
+    it("toggles between detected and other language on click", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(false);
+
+      // Click to translate to Polish
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect(vm.currentLang).toBe("pl");
+      expect(vm.isTranslated).toBe(true);
+      expect(wrapper.emitted("translated")).toBeTruthy();
+    });
+
+    it("toggles back to original on second click", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // First click: translate
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+      expect((wrapper.vm as any).currentLang).toBe("pl");
+
+      // Second click: restore
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+      expect((wrapper.vm as any).currentLang).toBe("en");
+      expect(wrapper.emitted("restored")).toBeTruthy();
+    });
+
+    it("does not show dropdown in toggle mode", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // Click should not show dropdown, should directly translate
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+      expect(wrapper.find(".lang-dropdown").exists()).toBe(false);
+    });
+
+    it("Polish doc + Polish browser → toggle translates to English", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["To jest wystarczająco długa polska wiadomość do wykrycia."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      // available = {pl, en}, detected = pl, so toggle target = en
+      expect(vm.availableLangs).toContain("en");
+      expect(vm.availableLangs).toContain("pl");
+      expect(vm.availableLangs.length).toBe(2);
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect(vm.currentLang).toBe("en");
+      expect(translateTextsMock).toHaveBeenCalled();
+      // Check that targetLang was 'en'
+      const callArgs = translateTextsMock.mock.calls[0];
+      expect(callArgs[1]).toBe("en");
+    });
+  });
+
+  // ── Dropdown mode (3+ languages) ──
+
+  describe("dropdown mode (3+ languages)", () => {
+    it("shows dropdown on first click for 3-language scenario", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है जो भाषा का पता लगाने के लिए पर्याप्त है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.availableLangs.length).toBe(3);
+      expect(vm.availableLangs).toContain("hi");
+      expect(vm.availableLangs).toContain("pl");
+      expect(vm.availableLangs).toContain("en");
+
+      // Click opens dropdown
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      expect(wrapper.find(".lang-dropdown").exists()).toBe(true);
+    });
+
+    it("dropdown shows options except current language", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है जो भाषा का पता लगाने के लिए पर्याप्त है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      const items = wrapper.findAll(".lang-dropdown-item");
+      // Current is 'hi', so should show pl and en
+      expect(items.length).toBe(2);
+      const texts = items.map(i => i.text());
+      expect(texts.some(t => t.includes("Polish"))).toBe(true);
+      expect(texts.some(t => t.includes("English"))).toBe(true);
+    });
+
+    it("clicking dropdown item translates to that language", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // Open dropdown
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+
+      // Click English option
+      const items = wrapper.findAll(".lang-dropdown-item");
+      const enItem = items.find(i => i.text().includes("English"));
+      expect(enItem).toBeTruthy();
+      await enItem!.trigger("click");
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(true);
+      expect(wrapper.find(".lang-dropdown").exists()).toBe(false);
+    });
+
+    it("clicking button when translated restores to original (detected)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // Translate to English via dropdown
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      const items = wrapper.findAll(".lang-dropdown-item");
+      const enItem = items.find(i => i.text().includes("English"));
+      await enItem!.trigger("click");
+      await flushPromises();
+
+      expect((wrapper.vm as any).currentLang).toBe("en");
+
+      // Now click button again — should restore to original (hi)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect((wrapper.vm as any).currentLang).toBe("hi");
+      expect((wrapper.vm as any).isTranslated).toBe(false);
+      expect(wrapper.emitted("restored")).toBeTruthy();
+    });
+  });
+
+  // ── Flag display ──
+
+  describe("flag display", () => {
+    it("shows detected language flag initially", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.find(".lang-flag").text()).toBe("🇬🇧");
+    });
+
+    it("shows target language flag after translation", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+    });
+  });
+
+  // ── Language detection ──
+
+  describe("language detection", () => {
+    it("detects language from first assistant message > 20 chars", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "de", confidence: 0.9 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["Dies ist eine ausreichend lange deutsche Nachricht zur Erkennung."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      expect(detectLanguageMock).toHaveBeenCalledOnce();
+      expect((wrapper.vm as any).detectedLang).toBe("de");
+    });
+
+    it("retries detection on failure", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockRejectedValueOnce(new Error("network"));
+
+      const msgs = makeMessages(["This is a long enough English message for detection."]);
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: msgs },
+      });
+      await flushPromises();
+      await nextTick();
+
+      expect((wrapper.vm as any).detectedLang).toBe("");
+
+      // Now succeed on retry
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      // Trigger watch by updating messages
+      await wrapper.setProps({ messages: [...msgs, { role: "user", content: "new msg" }] });
+      await flushPromises();
+      await nextTick();
+
+      expect((wrapper.vm as any).detectedLang).toBe("en");
+    });
+
+    it("skips user-only messages for detection", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a user message, long enough to detect language."], "user") },
+      });
+      await flushPromises();
+      await nextTick();
+
+      expect(detectLanguageMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Suggested questions translation ──
+
+  describe("suggested questions", () => {
+    it("translates suggested questions when translating messages", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: {
+          messages: makeMessages(["This is a long enough English message for detection."]),
+          suggestedQuestions: ["What is this about?", "Tell me more"],
+        },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.emitted("questions-translated")).toBeTruthy();
+      const emitted = wrapper.emitted("questions-translated")![0][0] as string[];
+      expect(emitted.length).toBe(2);
+    });
+  });
+
+  // ── availableLangs computation ──
+
+  describe("availableLangs", () => {
+    it("deduplicates when detected=en, browser=en", async () => {
+      Object.defineProperty(navigator, "language", { value: "en", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.availableLangs).toEqual(["en"]);
+    });
+
+    it("has 2 langs when detected=pl, browser=pl (en always added)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["To jest wystarczająco długa polska wiadomość."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.availableLangs.length).toBe(2);
+      expect(vm.availableLangs).toContain("pl");
+      expect(vm.availableLangs).toContain("en");
+    });
+
+    it("has 3 langs when all different: detected=hi, browser=pl, plus en", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है जो पर्याप्त है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.availableLangs.length).toBe(3);
+      expect(new Set(vm.availableLangs)).toEqual(new Set(["hi", "pl", "en"]));
+    });
+
+    it("has 2 langs when detected=en, browser=fr (en deduped)", async () => {
+      Object.defineProperty(navigator, "language", { value: "fr", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a sufficiently long English message."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.availableLangs.length).toBe(2);
+      expect(vm.availableLangs).toContain("en");
+      expect(vm.availableLangs).toContain("fr");
+    });
+  });
+
+  // ── Marker preservation ──
+
+  describe("marker preservation", () => {
+    it("preserves [source:X] markers through translation", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `PRZETŁUMACZONE: ${t}`),
+      }));
+
+      const wrapper = mount(LanguageToggle, {
+        props: {
+          messages: [{ role: "assistant", content: "Answer text [source:1] more text [source:2]" }],
+        },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      const emitted = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const translated = emitted.get(0)!;
+      expect(translated).toContain("[source:1]");
+      expect(translated).toContain("[source:2]");
+    });
+  });
+});

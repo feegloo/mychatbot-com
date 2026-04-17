@@ -23,7 +23,9 @@ import { getBrowserFingerprint, getUserId, setUserId } from "./utils/fingerprint
 import { resolveFingerprint } from "./api";
 
 const sidebarOpen = ref(false);
-const sidebarCollapsed = ref(false);
+const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
+
+watch(sidebarCollapsed, (v) => localStorage.setItem('sidebarCollapsed', String(v)));
 const route = useRoute();
 const isEmbed = computed(() => route.meta.embed === true);
 

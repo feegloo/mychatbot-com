@@ -22,6 +22,10 @@ describe("cleanFileName", () => {
     expect(cleanFileName("550e8400-e29b-41d4-a716-446655440000_550e8400-e29b-41d4-a716-446655440001_file.txt"))
       .toBe("550e8400-e29b-41d4-a716-446655440001_file.txt");
   });
+
+  it("strips short-ID suffix from filename without extension", () => {
+    expect(cleanFileName("Wallhaven-289e1g_B2p2jEVxhjrYZkvh")).toBe("Wallhaven-289e1g");
+  });
 });
 
 describe("linkify", () => {

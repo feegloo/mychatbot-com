@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .rag import get_llm
 from .lang_detect import detect_language
+from .extractors import clean_file_name
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,14 @@ def describe_documents(
     # Build a concise snippet from the beginning of each document
     snippets: list[str] = []
     for doc in extracted:
-        name = doc.get("file_name", "unknown")
+        name = clean_file_name(doc.get("file_name", "unknown"))
         text = (doc.get("text") or "")[:3000]
         if text.strip():
             snippets.append(f"[File: {name}]\n{text}")
 
     for img in images:
         desc = img.get("description", "")
-        name = img.get("file_name", "image")
+        name = clean_file_name(img.get("file_name", "image"))
         page = img.get("page", "?")
         if desc:
             snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
@@ -67,8 +68,8 @@ def describe_documents(
     if language is None:
         language = detect_language(combined[:2000])
 
-    file_names = [doc.get("file_name", "") for doc in extracted]
-    file_names += [img.get("file_name", "") for img in images]
+    file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
+    file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
 
     if language == "pl":

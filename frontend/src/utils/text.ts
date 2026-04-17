@@ -5,7 +5,10 @@ export function cleanFileName(name: string): string {
   const cleaned = name.replace(uuidPrefix, "");
   // Strip new short-ID suffix: "filename_<16-char-base62>.ext"
   const shortIdSuffix = /_[0-9A-Za-z]{16}(\.[^.]+)$/;
-  return cleaned.replace(shortIdSuffix, "$1");
+  const result = cleaned.replace(shortIdSuffix, "$1");
+  if (result !== cleaned) return result;
+  // Also handle filenames without extension: "filename_<16-char-base62>"
+  return cleaned.replace(/_[0-9A-Za-z]{16}$/, "");
 }
 
 /** Convert URLs, bare domains and email addresses to clickable HTML links */

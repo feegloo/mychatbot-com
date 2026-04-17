@@ -6,8 +6,15 @@ let fontBoldBase64 = "";
 
 async function loadFontAsBase64(url: string): Promise<string> {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load font from ${url}: ${response.status}`);
+  }
   const buffer = await response.arrayBuffer();
   const bytes = new Uint8Array(buffer);
+  // Sanity-check: TTF files start with 0x00010000
+  if (bytes.length < 4 || !(bytes[0] === 0 && bytes[1] === 1 && bytes[2] === 0 && bytes[3] === 0)) {
+    throw new Error(`Font file at ${url} is not a valid TTF`);
+  }
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);

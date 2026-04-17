@@ -7,9 +7,10 @@ describe('pdfFonts', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    // Mock fetch to return fake font data
+    // Mock fetch to return fake font data with valid TTF magic bytes (0x00010000)
     globalThis.fetch = vi.fn().mockResolvedValue({
-      arrayBuffer: () => Promise.resolve(new Uint8Array([0, 0, 0]).buffer),
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new Uint8Array([0, 1, 0, 0]).buffer),
     } as unknown as Response);
   });
 

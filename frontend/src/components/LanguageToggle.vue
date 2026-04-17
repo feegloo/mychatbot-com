@@ -1,18 +1,30 @@
 <template>
-  <button
-    v-if="detectedLang && detectedLang !== browserLang"
-    class="lang-toggle-btn"
-    :title="translating ? 'Translating…' : (isTranslated ? `Showing ${langName(browserLang)} — click for original` : `Showing original (${langName(detectedLang)}) — click to translate`)"
-    @click="toggle"
-    :disabled="translating"
-  >
-    <span class="lang-flag" :class="{ translating }">{{ currentFlag }}</span>
-    <svg v-if="translating" class="lang-spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-  </button>
+  <div v-if="detectedLang && availableLangs.length > 1" class="lang-toggle-wrap" ref="wrapRef">
+    <button
+      class="lang-toggle-btn"
+      :title="translating ? 'Translating…' : buttonTitle"
+      @click="onButtonClick"
+      :disabled="translating"
+    >
+      <span class="lang-flag" :class="{ translating }">{{ currentFlag }}</span>
+      <svg v-if="translating" class="lang-spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </button>
+    <div v-if="showDropdown" class="lang-dropdown">
+      <button
+        v-for="lang in dropdownLangs"
+        :key="lang"
+        class="lang-dropdown-item"
+        @click="translateTo(lang)"
+      >
+        <span class="lang-flag">{{ flagFor(lang) }}</span>
+        <span>{{ langName(lang) }}</span>
+      </button>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { translateTexts, detectLanguage } from "../api";
 
 // Protect special markers like [source:1], [action:...] from being translated
@@ -66,11 +78,13 @@ const emit = defineEmits<{
 
 const detectedLang = ref("");
 const browserLang = ref(navigator.language.split("-")[0]);
-const isTranslated = ref(false);
+const currentLang = ref(""); // language messages are currently displayed in
 const translating = ref(false);
 const translationCache = ref<Map<string, string>>(new Map());
 const detectionAttempted = ref(false);
-const translatedUpToIndex = ref(-1); // tracks message count at time of last forward translation
+const translatedUpToIndex = ref(-1);
+const showDropdown = ref(false);
+const wrapRef = ref<HTMLElement | null>(null);
 
 const LANG_FLAGS: Record<string, string> = {
   en: "🇬🇧", pl: "🇵🇱", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹",
@@ -95,10 +109,47 @@ function langName(code: string) {
   return LANG_NAMES[code] || code;
 }
 
-const currentFlag = computed(() => {
-  const lang = isTranslated.value ? browserLang.value : detectedLang.value;
-  return LANG_FLAGS[lang] || "🌐";
+function flagFor(code: string) {
+  return LANG_FLAGS[code] || "🌐";
+}
+
+// Available target languages: unique set of {detected, browser, 'en'} minus current
+const availableLangs = computed(() => {
+  const set = new Set<string>();
+  if (detectedLang.value) set.add(detectedLang.value);
+  if (browserLang.value) set.add(browserLang.value);
+  set.add("en");
+  return [...set];
 });
+
+const isToggleMode = computed(() => availableLangs.value.length === 2);
+
+// Languages to show in dropdown (everything except current)
+const dropdownLangs = computed(() =>
+  availableLangs.value.filter(l => l !== currentLang.value)
+);
+
+const isTranslated = computed(() =>
+  currentLang.value !== "" && currentLang.value !== detectedLang.value
+);
+
+const currentFlag = computed(() => flagFor(currentLang.value || detectedLang.value));
+
+const buttonTitle = computed(() => {
+  if (isTranslated.value) {
+    return `Showing ${langName(currentLang.value)} — click for ${isToggleMode.value ? 'original' : 'options'}`;
+  }
+  return `Showing original (${langName(detectedLang.value)}) — click to translate`;
+});
+
+// Close dropdown on outside click
+function onClickOutside(e: MouseEvent) {
+  if (wrapRef.value && !wrapRef.value.contains(e.target as Node)) {
+    showDropdown.value = false;
+  }
+}
+onMounted(() => document.addEventListener("click", onClickOutside));
+onBeforeUnmount(() => document.removeEventListener("click", onClickOutside));
 
 // Detect language from first assistant message (retries until successful)
 watch(() => props.messages, async (msgs) => {
@@ -109,26 +160,48 @@ watch(() => props.messages, async (msgs) => {
   try {
     const result = await detectLanguage(firstAssistant.content);
     detectedLang.value = result.language;
+    currentLang.value = result.language;
   } catch {
     detectionAttempted.value = false; // allow retry on next message change
   }
 }, { immediate: true, deep: true });
 
-async function toggle() {
+function onButtonClick() {
   if (translating.value) return;
 
+  if (isToggleMode.value) {
+    // Two languages: toggle directly
+    const other = availableLangs.value.find(l => l !== currentLang.value)!;
+    translateTo(other);
+    return;
+  }
+
+  // Three+ languages: if currently translated, first click restores original
   if (isTranslated.value) {
-    // Restoring to original/detected language
+    translateTo(detectedLang.value);
+    return;
+  }
+
+  // Show dropdown to pick target
+  showDropdown.value = !showDropdown.value;
+}
+
+async function translateTo(targetLang: string) {
+  showDropdown.value = false;
+  if (translating.value) return;
+  if (targetLang === currentLang.value) return;
+
+  // Restoring to original (detected) language
+  if (targetLang === detectedLang.value) {
     translating.value = true;
     try {
-      // Translate messages added while in translated state (browserLang → detectedLang)
       const newMsgTranslations = new Map<number, string>();
       const toTranslateBack: { index: number; content: string }[] = [];
 
       props.messages.forEach((msg, i) => {
-        if (i <= translatedUpToIndex.value) return; // part of original batch, parent restores these
+        if (i <= translatedUpToIndex.value) return;
         if (!msg.content.trim()) return;
-        const cached = translationCache.value.get(msg.content);
+        const cached = translationCache.value.get(`${msg.content}→${detectedLang.value}`);
         if (cached) {
           newMsgTranslations.set(i, cached);
         } else {
@@ -136,28 +209,26 @@ async function toggle() {
         }
       });
 
-      // Translate new messages from browserLang to detectedLang
       for (let batch = 0; batch < toTranslateBack.length; batch += 20) {
         const chunk = toTranslateBack.slice(batch, batch + 20);
         const result = await translateWithMarkers(
           chunk.map(c => c.content),
           detectedLang.value,
-          browserLang.value
+          currentLang.value
         );
         chunk.forEach((item, j) => {
           const translated = result.translations[j];
           newMsgTranslations.set(item.index, translated);
-          // Cache both directions for future toggles
-          translationCache.value.set(item.content, translated);
-          translationCache.value.set(translated, item.content);
+          translationCache.value.set(`${item.content}→${detectedLang.value}`, translated);
+          translationCache.value.set(`${translated}→${currentLang.value}`, item.content);
         });
       }
 
-      isTranslated.value = false;
+      currentLang.value = detectedLang.value;
       emit("restored", newMsgTranslations);
     } catch (err) {
       console.error("Translation failed:", err);
-      isTranslated.value = false;
+      currentLang.value = detectedLang.value;
       emit("restored", new Map());
     } finally {
       translating.value = false;
@@ -165,15 +236,26 @@ async function toggle() {
     return;
   }
 
+  // Translating to a new target language
+  // If currently showing a translation, restore first then translate
+  const sourceLang = currentLang.value;
   translating.value = true;
   try {
+    // If we're in a translated state, restore originals first
+    if (isTranslated.value) {
+      currentLang.value = detectedLang.value;
+      emit("restored", new Map());
+      // Small tick to let parent restore originals
+      await new Promise(r => setTimeout(r, 0));
+    }
+
     const translations = new Map<number, string>();
     const toTranslate: { index: number; content: string }[] = [];
 
-    // Check cache first, collect untranslated
     props.messages.forEach((msg, i) => {
       if (!msg.content.trim()) return;
-      const cached = translationCache.value.get(msg.content);
+      const cacheKey = `${msg.content}→${targetLang}`;
+      const cached = translationCache.value.get(cacheKey);
       if (cached) {
         translations.set(i, cached);
       } else {
@@ -181,17 +263,16 @@ async function toggle() {
       }
     });
 
-    // Translate in batches of 20
     for (let batch = 0; batch < toTranslate.length; batch += 20) {
       const chunk = toTranslate.slice(batch, batch + 20);
       const result = await translateWithMarkers(
         chunk.map(c => c.content),
-        browserLang.value,
+        targetLang,
         detectedLang.value
       );
       chunk.forEach((item, j) => {
         translations.set(item.index, result.translations[j]);
-        translationCache.value.set(item.content, result.translations[j]);
+        translationCache.value.set(`${item.content}→${targetLang}`, result.translations[j]);
       });
     }
 
@@ -201,7 +282,8 @@ async function toggle() {
       const qToTranslate: { index: number; text: string }[] = [];
       const qTranslated: string[] = [];
       questions.forEach((q, i) => {
-        const cached = translationCache.value.get(q);
+        const cacheKey = `${q}→${targetLang}`;
+        const cached = translationCache.value.get(cacheKey);
         if (cached) {
           qTranslated[i] = cached;
         } else {
@@ -212,19 +294,19 @@ async function toggle() {
         const chunk = qToTranslate.slice(batch, batch + 20);
         const result = await translateWithMarkers(
           chunk.map(c => c.text),
-          browserLang.value,
+          targetLang,
           detectedLang.value
         );
         chunk.forEach((item, j) => {
           qTranslated[item.index] = result.translations[j];
-          translationCache.value.set(item.text, result.translations[j]);
+          translationCache.value.set(`${item.text}→${targetLang}`, result.translations[j]);
         });
       }
       emit("questions-translated", qTranslated);
     }
 
     translatedUpToIndex.value = props.messages.length - 1;
-    isTranslated.value = true;
+    currentLang.value = targetLang;
     emit("translated", translations);
   } catch (err) {
     console.error("Translation failed:", err);
@@ -233,10 +315,15 @@ async function toggle() {
   }
 }
 
-defineExpose({ detectedLang, isTranslated });
+defineExpose({ detectedLang, isTranslated, currentLang, availableLangs });
 </script>
 
 <style scoped>
+.lang-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .lang-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -268,6 +355,38 @@ defineExpose({ detectedLang, isTranslated });
 
 .lang-spinner {
   animation: spin 1s linear infinite;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #1e1e2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 4px 0;
+  z-index: 100;
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.lang-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.lang-dropdown-item:hover {
+  background: rgba(167, 139, 250, 0.15);
 }
 
 @keyframes spin {

@@ -36,7 +36,7 @@
               {{ file.name }} - {{ (file.size / 1024 / 1024).toFixed(1) }} MB
             </div>
           </div>
-          <p v-if="uploading" style="margin-top:12px; color:#a78bfa; text-align:center">Uploading...</p>
+          <p v-if="uploading" style="margin-top:12px; color:#a78bfa; text-align:center"><UploadingDots /></p>
           <p v-if="uploadError" style="color:#f87171; margin-top:12px; text-align:center">{{ uploadError }}</p>
         </div>
       </div>
@@ -96,6 +96,7 @@ import {
   type ChatMessage,
 } from "../api";
 import ChatMessageItem from "../components/ChatMessage.vue";
+import UploadingDots from "../components/UploadingDots.vue";
 
 onMounted(() => {
   document.title = "chatrag.app";

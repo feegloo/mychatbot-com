@@ -9,7 +9,7 @@
             {{ file.name }}
           </span>
         </div>
-        <span v-if="uploadingMore" style="font-size: 13px; color: #a78bfa">Uploading...</span>
+        <span v-if="uploadingMore" style="font-size: 13px; color: #a78bfa"><UploadingDots /></span>
       </template>
     </div>
 
@@ -57,6 +57,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import UploadingDots from "./UploadingDots.vue";
 import {
   type ConversationStatus,
   uploadMoreFiles,
