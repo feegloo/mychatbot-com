@@ -26,7 +26,7 @@
           </button>
         </div>
         <div class="view-toggle">
-          <button :class="{ active: view === 'json' }" @click="view = view === 'json' ? 'formatted' : 'json'">JSON</button>
+          <button :class="{ active: view === 'json' }" @click="view = view === 'json' ? 'formatted' : 'json'">{{ view === 'json' ? 'Table' : 'JSON' }}</button>
         </div>
       </div>
 
@@ -174,6 +174,9 @@ async function doLogin() {
   padding: 24px;
   font-family: system-ui, -apple-system, sans-serif;
   color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
 }
 h1 {
   margin-bottom: 16px;
@@ -276,9 +279,16 @@ h1 {
   background: #334155;
   color: #f1f5f9;
 }
+.table-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .table-wrapper {
+  flex: 1;
   overflow: auto;
-  max-height: 75vh;
+  min-height: 0;
   border: 1px solid #334155;
   border-radius: 8px;
 }
