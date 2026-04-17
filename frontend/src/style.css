@@ -934,16 +934,16 @@ li:has(.checklist-box) {
 .markdown-content h2,
 .markdown-content h3,
 .markdown-content h4 {
-  margin: 12px 0 4px;
+  margin: 8px 0 8px;
   font-weight: 600;
   color: #e2e8f0;
   text-transform: none;
   letter-spacing: normal;
 }
 
-.markdown-content h1 { font-size: 18px; }
-.markdown-content h2 { font-size: 16px; }
-.markdown-content h3 { font-size: 15px; }
+.markdown-content h1 { font-size: 24px; }
+.markdown-content h2 { font-size: 20px; }
+.markdown-content h3 { font-size: 16px; }
 
 .markdown-content a {
   color: #a78bfa;
@@ -1159,7 +1159,7 @@ textarea.big-input {
 }
 
 .conv-title {
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   margin: 0 0 6px;
   white-space: nowrap;
   overflow: hidden;

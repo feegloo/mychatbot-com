@@ -1003,7 +1003,7 @@ function openFilePreview(file: FileInfo) {
   position: relative;
   flex-shrink: 0;
   margin-right: -2px;
-  margin-top: 15px;
+  margin-top: 22px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
