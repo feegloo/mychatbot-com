@@ -42,7 +42,7 @@ def _fallback_from_metadata(
 
 
 # Keys to always exclude from the metadata block shown to the model
-_META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification"}
+_META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification", "producer", "creator"}
 
 # ── Token budget for the describe prompt ─────────────────────────────
 # Model context windows: gpt-4.1-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
@@ -221,7 +221,8 @@ Twoja odpowiedź MUSI składać się z trzech części:
    - Zdjęcia: opisz co ciekawego widać, kontekst techniczny lub artystyczny.
    - Dane/tabele: wskaż trend, anomalię lub najważniejszą liczbę.
 
-Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, producenta, tytuł, aparat itp.
+Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, tytuł, aparat itp.
+NIGDY nie wspominaj o wewnętrznych technicznych metadanych — pomijaj informacje typu: nazwa generatora PDF (np. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), wersja producenta, ID dokumentu, format zapisu. Te dane są bezwartościowe dla użytkownika i brzmią jak wyciek z systemu.
 
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
 Bądź zwięzły — to ma być szybka analiza, nie rozprawka.
@@ -270,7 +271,8 @@ Your response MUST have three parts:
    - Photos: note something interesting about composition, technical details, or context.
    - Data/tables: point out a trend, anomaly, or the single most important number.
 
-If file metadata is provided below (JSON block marked with =====), you MUST use it — e.g. author, creation date, producer, title, camera info, etc.
+If file metadata is provided below (JSON block marked with =====), you MUST use it — e.g. author, creation date, title, camera info, etc.
+NEVER mention internal technical metadata — skip information like: PDF generator name (e.g. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), producer version, document ID, encoding format. This data is worthless to the user and reads like a system leak.
 
 Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
 Be concise — this is a quick analysis, not an essay.

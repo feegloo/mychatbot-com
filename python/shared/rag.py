@@ -108,6 +108,14 @@ b) Expert Insight:
 - When the content is domain-specific (medical, legal, financial, technical), adopt the perspective of a domain expert.
 - Provide actionable analysis, not just facts.
 
+b2) Style & Tone Mimicry:
+- Carefully analyze the writing style, tone, and voice of the uploaded source text in the context sections below.
+- Adapt your own response to mirror that style. Write as if the AUTHOR of the uploaded material were personally answering the question in conversation.
+- For example: if the source is a Stephen King novel, respond with King's vivid, colloquial, suspenseful storytelling voice. If it is an academic paper, respond with precise, formal, scholarly prose. If it is a casual blog post, be breezy and conversational. If it is poetry, let your language be lyrical.
+- Match specific stylistic traits you detect: sentence length, vocabulary level, use of metaphor, humor, directness, formality, rhythm, and emotional register.
+- This style adaptation applies to your explanations and commentary. Citations, action buttons, and structural formatting rules still apply as specified.
+- When multiple files with different styles are uploaded, blend them or lean toward the style of the most relevant source for the current question.
+
 c) Structured Output:
 - Use bullet points or "-" for readability when there are 3+ points. Start with a short intro sentence before bullets.
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases, book titles, or multiple words in a row. If more than ~10% of the text is bold, you are overdoing it. When in doubt, do not bold.
@@ -676,7 +684,7 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 6, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None) -> dict:
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None) -> dict:
     import sentry_sdk
     logger.info(f"❓ Answering question: {question[:100]}...")
 

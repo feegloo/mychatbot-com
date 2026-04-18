@@ -21,6 +21,16 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         PDF
       </AppButton>
+      <AppButton
+        v-if="isFirstMessage && canUpload"
+        class="msg-action-btn"
+        title="Upload more files"
+        @click="uploadInput?.click()"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </AppButton>
+      <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
     </div>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
       <span></span><span></span><span></span>
@@ -73,12 +83,7 @@
           </AppButton>
         </div>
 
-        <div v-if="isFirstMessage && canUpload" class="welcome-upload-row">
-          <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
-          <AppButton class="upload-inline-btn" @click="uploadInput?.click()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload more files
-          </AppButton>
+        <div v-if="isFirstMessage && canUpload && (selectedUploadFiles.length || uploadError)" class="welcome-upload-row">
           <template v-if="selectedUploadFiles.length">
             <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
             <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
@@ -153,12 +158,7 @@
     </div>
 
     <!-- Upload files button (first message only, non-2-col fallback) -->
-    <div v-if="isFirstMessage && canUpload && !welcomeHasFiles" class="welcome-upload-row">
-      <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
-      <AppButton class="upload-inline-btn" @click="uploadInput?.click()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload more files
-      </AppButton>
+    <div v-if="isFirstMessage && canUpload && !welcomeHasFiles && (selectedUploadFiles.length || uploadError)" class="welcome-upload-row">
       <template v-if="selectedUploadFiles.length">
         <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
         <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
@@ -296,6 +296,23 @@ function renderMarkdown(content: string): string {
     poemPlaceholders.push(body.trim());
     return poemToken(i);
   });
+  // Protect [action:Label] and [suggest:Label] markers from marked (which may
+  // interpret square-bracket sequences as reference links and drop or re-encode
+  // them, causing the post-DOMPurify regex replacements to miss).
+  const actionPlaceholders: string[] = [];
+  const actionToken = (idx: number) => `\x01ACTION${idx}\x01`;
+  normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label) => {
+    const i = actionPlaceholders.length;
+    actionPlaceholders.push(label.trim());
+    return actionToken(i);
+  });
+  const suggestPlaceholders: string[] = [];
+  const suggestToken = (idx: number) => `\x01SUGGEST${idx}\x01`;
+  normalized = normalized.replace(/\[suggest:\s*([^\]]+)\]/g, (_, label) => {
+    const i = suggestPlaceholders.length;
+    suggestPlaceholders.push(label.trim());
+    return suggestToken(i);
+  });
   const rawHtml = marked.parse(normalized, { async: false }) as string;
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
   // Use flexible regex to handle any attribute order from marked
@@ -341,23 +358,21 @@ function renderMarkdown(content: string): string {
         `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
       ).join('')
   );
-  // Replace [action:Label] markers with clickable action buttons wrapped in a block container
-  const withActions = withSources.replace(
-    /\[action:\s*([^\]]+)\]/g,
-    (_, label) =>
-      `<button class="action-btn" data-action="${label.trim()}">${label.trim()}</button>`
-  );
+  // Restore [action:Label] placeholders as clickable action buttons
+  const withActions = withSources.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr) => {
+    const label = actionPlaceholders[parseInt(idxStr, 10)];
+    return `<button class="action-btn" data-action="${label}">${label}</button>`;
+  });
   // Wrap consecutive action buttons in a block-level container so they start on a new line
   const withActionsWrapped = withActions.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>'
   );
-  // Replace [suggest:Label] markers with clickable suggest pill buttons
-  const withSuggests = withActionsWrapped.replace(
-    /\[suggest:\s*([^\]]+)\]/g,
-    (_, label) =>
-      `<button class="suggest-btn" data-suggest="${label.trim()}">${label.trim()}</button>`
-  );
+  // Restore [suggest:Label] placeholders as clickable suggest pill buttons
+  const withSuggests = withActionsWrapped.replace(/\x01SUGGEST(\d+)\x01/g, (_, idxStr) => {
+    const label = suggestPlaceholders[parseInt(idxStr, 10)];
+    return `<button class="suggest-btn" data-suggest="${label}">${label}</button>`;
+  });
   // Wrap consecutive suggest buttons in a row container
   const withSuggestsWrapped = withSuggests.replace(
     /(<button class="suggest-btn"[^>]*>.*?<\/button>(?:\s*<button class="suggest-btn"[^>]*>.*?<\/button>)*)/g,
