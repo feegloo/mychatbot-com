@@ -672,26 +672,51 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
         prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         chain = prompt | llm
-        logger.info(f"🔗 Invoking LLM chain (matched_pages={len(matched_pages)} chars, exif={len(exif_str)} chars)...")
+
+        # Build the template variables for this invocation
+        if is_quiz:
+            prompt_vars = {
+                "question": question,
+                "context": context,
+                "chat_history": history_str,
+                "welcome_messages": welcome_str,
+                "raw_text": raw_text or "(no raw text available)",
+                "page_summaries": page_summaries or "(no page summaries available)",
+            }
+        else:
+            prompt_vars = {
+                "question": question,
+                "context": context,
+                "chat_history": history_str,
+                "welcome_messages": welcome_str,
+                "matched_pages": matched_pages,
+                "exif_metadata": exif_str,
+            }
+
+        # Render the full prompt string and log it for debugging
+        rendered_messages = prompt.format_messages(**prompt_vars)
+        rendered_prompt = "\n\n---MSG---\n\n".join(
+            f"[{m.type}]\n{m.content}" for m in rendered_messages
+        )
+        logger.info(f"📋 [FULL PROMPT] conversation={conversation_id} length={len(rendered_prompt)} chars")
+        logger.info(f"📋 [FULL PROMPT]\n{rendered_prompt}")
+
+        # Send the rendered prompt to Sentry as a debug message
+        sentry_sdk.capture_message(
+            f"LLM prompt for conversation {conversation_id}",
+            level="info",
+            extras={
+                "conversation_id": conversation_id,
+                "question": question,
+                "prompt_length": len(rendered_prompt),
+                "prompt": rendered_prompt[:100_000],  # cap at 100K to avoid Sentry limits
+                "mode": "quiz" if is_quiz else "answer",
+            },
+        )
+
+        logger.info(f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)...")
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
-            if is_quiz:
-                ai_message = chain.invoke({
-                    "question": question,
-                    "context": context,
-                    "chat_history": history_str,
-                    "welcome_messages": welcome_str,
-                    "raw_text": raw_text or "(no raw text available)",
-                    "page_summaries": page_summaries or "(no page summaries available)",
-                })
-            else:
-                ai_message = chain.invoke({
-                    "question": question,
-                    "context": context,
-                    "chat_history": history_str,
-                    "welcome_messages": welcome_str,
-                    "matched_pages": matched_pages,
-                    "exif_metadata": exif_str,
-                })
+            ai_message = chain.invoke(prompt_vars)
         answer = ai_message.content
 
         # Log the full question and model response for observability (visible in GCP Cloud Logging)
