@@ -79,7 +79,7 @@ debugRouter.get("/debug/tables", async (ctx) => {
  * Live view of file/page processing telemetry.
  * Shows all steps with timestamps, durations, errors, worker IDs.
  */
-debugRouter.get("/debug/processing-jobs/:conversationId?", async (ctx) => {
+async function handleProcessingJobs(ctx: any) {
   const auth = ctx.headers.authorization;
   if (!auth || !auth.startsWith("Basic ")) {
     ctx.status = 401;
@@ -163,4 +163,7 @@ debugRouter.get("/debug/processing-jobs/:conversationId?", async (ctx) => {
     total: jobs.rows.length,
     limit,
   };
-});
+}
+
+debugRouter.get("/debug/processing-jobs", handleProcessingJobs);
+debugRouter.get("/debug/processing-jobs/:conversationId", handleProcessingJobs);
