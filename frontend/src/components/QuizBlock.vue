@@ -1,7 +1,7 @@
 <template>
   <div class="quiz-block">
     <div class="quiz-header">
-      <span class="quiz-title">{{ quiz.title }} - Quiz 🧠</span>
+      <span class="quiz-title">{{ cleanTitle }} - Quiz 🧠</span>
       <button class="quiz-download-btn" title="Download PDF" @click="downloadPdf">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -97,6 +97,7 @@ const props = defineProps<{
   fileName?: string;
 }>();
 
+const cleanTitle = computed(() => props.quiz.title.replace(/\s*-\s*quiz\s*$/i, ''));
 const isMultiple = computed(() => props.quiz.multiple === true);
 
 function variantLetter(index: number): string {
@@ -277,7 +278,23 @@ async function downloadPdf() {
   doc.setFont(PDF_FONT, "bold");
   doc.setFontSize(15);
   doc.setTextColor(0, 0, 0);
-  doc.text(`${props.quiz.title} - Quiz \uD83E\uDDE0`, marginLeft, y);
+  const pdfCleanTitle = props.quiz.title.replace(/\s*-\s*quiz\s*$/i, '');
+  const titleStr = `${pdfCleanTitle} - Quiz`;
+  doc.text(titleStr, marginLeft, y);
+  // Render brain emoji as image (Roboto font cannot render emoji glyphs)
+  try {
+    const emojiCanvas = document.createElement('canvas');
+    emojiCanvas.width = 64;
+    emojiCanvas.height = 64;
+    const ectx = emojiCanvas.getContext('2d')!;
+    ectx.font = '52px serif';
+    ectx.textBaseline = 'middle';
+    ectx.textAlign = 'center';
+    ectx.fillText('\uD83E\uDDE0', 32, 34);
+    const emojiDataUrl = emojiCanvas.toDataURL('image/png');
+    const titleW = doc.getTextWidth(titleStr + ' ');
+    doc.addImage(emojiDataUrl, 'PNG', marginLeft + titleW, y - 4.2, 5, 5);
+  } catch (_) { /* emoji image fallback: skip silently */ }
   y += 7;
 
   // Quiz type subtitle
