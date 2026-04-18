@@ -6,7 +6,7 @@ import { generateShortId } from "../utils/id.js";
 import { createStorageProvider } from "../storage/index.js";
 import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken, insertConversationMessage, updateFileMetadata } from "../repositories/conversations.js";
 import { config } from "../config.js";
-import { indexConversation } from "../python/indexing.js";
+import { indexConversation, describeUrl } from "../python/indexing.js";
 import { deriveToken } from "../security.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -112,6 +112,83 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
           console.error(`[metadata update error for ${fileName}]:`, err.message);
         }
       }
+      await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId);
+      await updateConversationStatus(conversationId, "ready");
+    })
+    .catch(async (error) => {
+      await updateConversationStatus(conversationId, "failed", error.message);
+    });
+
+  ctx.body = {
+    conversationId,
+    status: "processing",
+    url: `/c/${conversationId}`,
+    ownerPassword
+  };
+});
+
+uploadRouter.post("/upload-url", async (ctx) => {
+  const { url } = ctx.request.body as { url?: string };
+  if (!url || typeof url !== "string") {
+    ctx.status = 400;
+    ctx.body = { error: "No URL provided" };
+    return;
+  }
+
+  // Basic URL validation
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+  } catch {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid URL" };
+    return;
+  }
+
+  const conversationId = generateShortId();
+  const salt = uuidv4();
+  const ownerPassword = deriveToken(conversationId, salt);
+  const namespace = conversationId;
+  const collectionName = `conversation_${conversationId}`;
+
+  await insertConversation({
+    id: conversationId,
+    salt: salt,
+    display_name: null,
+    status: "processing",
+    storage_namespace: namespace,
+    vector_collection_name: collectionName,
+    indexing_mode: config.pythonIndexingMode,
+    error_message: null,
+    parent_message_id: null,
+    parent_conversation_id: null
+  });
+
+  await insertAccessToken({
+    token: ownerPassword,
+    conversation_id: conversationId,
+    role: "owner"
+  });
+
+  describeUrl({
+    url,
+    conversationId,
+    collectionName,
+  })
+    .then(async (result) => {
+      const suggestedQuestions = result.parsedJson?.suggested_questions || [];
+      const welcomeMessage = result.parsedJson?.welcome_message || "";
+      const fallbackMessage = welcomeMessage
+        || `## ${parsed.hostname}\n\nWebsite loaded and ready. Ask me anything about this page.`;
+      const messageId = await insertConversationMessage({
+        conversationId,
+        role: "assistant",
+        content: fallbackMessage,
+        citations: { _sourceUrl: url },
+      });
       await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId);
       await updateConversationStatus(conversationId, "ready");
     })

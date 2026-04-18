@@ -72,28 +72,34 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         if suffix == ".pdf":
             output_dir = str(p.parent)
             if is_cloud_mode():
-                # Cloud Run Jobs: dispatch per-page containers
-                # Workers handle chunking + Chroma upsert independently.
-                # We still need text locally for welcome message + suggested questions.
+                # Cloud Run Jobs: dispatch per-page containers for image extraction.
+                # Always chunk text locally as fallback (cloud workers may fail).
                 logger.info(f"☁️ Cloud mode: dispatching Cloud Run Jobs for {p.name}")
                 import fitz
+                from .extractors import _reflow_pdf_text, _sanitize_text
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
 
-                # Extract text locally (cheap, no API calls) for describe + questions
+                # Extract + chunk text locally so all_chunks is always populated
                 page_texts: list[str] = []
+                local_chunks: list[Chunk] = []
                 for page_idx in range(total_pages):
                     try:
                         page = doc[page_idx]
                         raw = page.get_text() or ""
-                        page_texts.append(raw.strip())
+                        reflowed = _reflow_pdf_text(raw.strip())
+                        page_text = _sanitize_text(f"# Page {page_idx + 1}\n\n{reflowed}")
+                        page_texts.append(page_text)
+                        # Chunk locally so we always have text chunks even if cloud workers fail
+                        chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
+                        local_chunks.extend(chunks)
                     except Exception as e:
                         logger.warning(f"⚠️ Local text extraction failed for page {page_idx + 1}: {e}")
                         page_texts.append("")
                 doc.close()
 
                 full_text = "\n\n".join(page_texts)
-                logger.info(f"📄 Extracted {len(full_text)} chars locally for describe/questions")
+                logger.info(f"📄 Extracted {len(full_text)} chars, {len(local_chunks)} local chunks for {p.name}")
 
                 cloud_results = dispatch_page_jobs(
                     pdf_gcs_uri=file_path,
@@ -102,11 +108,12 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                     conversation_id=conversation_id,
                     collection_name=collection_name,
                 )
-                # Build FileProcessingResult with local text + cloud worker status
+                # Build FileProcessingResult with local text + chunks
                 result = FileProcessingResult(
                     file_name=p.name, file_path=file_path, total_pages=total_pages,
                 )
                 result.full_text = full_text
+                result.all_chunks = local_chunks
                 for cr in cloud_results:
                     if cr["status"] != "completed":
                         result.errors.append({"page": cr["page"], "error": cr.get("error", "unknown")})

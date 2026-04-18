@@ -26,7 +26,7 @@
             </svg>
           </div>
           <p><strong>Click to upload or drag & drop</strong></p>
-          <p class="dropzone-hint">PDF, images, .doc, other text files</p>
+          <p class="dropzone-hint">PDF, images, .doc, other text files — or paste a URL below</p>
           <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
         </div>
 
@@ -69,7 +69,7 @@
         ref="questionInput"
         class="chat-textarea"
         v-model="question"
-        placeholder="Ask a question..."
+        placeholder="Ask a question or paste a URL..."
         rows="1"
         @input="autoResize"
         @keydown.enter.exact.prevent="submitQuestion"
@@ -90,8 +90,10 @@ import { ref, nextTick, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   uploadFiles as apiUploadFiles,
+  uploadUrl as apiUploadUrl,
   createConversation,
   askQuestion,
+  generateImage,
   saveConversationToken,
   type ChatMessage,
 } from "../api";
@@ -191,8 +193,43 @@ function scrollToBottom(smooth = false) {
   }
 }
 
+const URL_REGEX = /^https?:\/\/[^\s]+$/i;
+
+function isUrl(text: string): boolean {
+  return URL_REGEX.test(text.trim());
+}
+
+async function submitUrlUpload(url: string) {
+  uploading.value = true;
+  uploadError.value = "";
+
+  try {
+    const data = await apiUploadUrl(url.trim());
+    if (data.ownerPassword) {
+      saveConversationToken(data.conversationId, data.ownerPassword);
+      ownerPassword.value = data.ownerPassword;
+    }
+    conversationId.value = data.conversationId;
+    showUpload.value = false;
+    router.push(data.url);
+  } catch (err: any) {
+    uploadError.value = err?.response?.data?.error || err?.message || "Failed to load URL";
+  } finally {
+    uploading.value = false;
+  }
+}
+
 async function submitQuestion() {
   if (asking.value || !question.value.trim()) return;
+
+  // If no conversation yet and the input looks like a URL, treat as URL upload
+  if (!conversationId.value && isUrl(question.value)) {
+    const url = question.value.trim();
+    question.value = "";
+    if (questionInput.value) questionInput.value.style.height = "auto";
+    await submitUrlUpload(url);
+    return;
+  }
 
   const currentQuestion = question.value;
   question.value = "";
@@ -213,8 +250,11 @@ async function submitQuestion() {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
     );
+    const isImageGen = /generat\w*\s+image|wygeneruj\s+obraz|generate\s+image|stwórz\s+obraz/i.test(currentQuestion);
     const response = await Promise.race([
-      askQuestion(convId, currentQuestion),
+      isImageGen
+        ? generateImage(convId, currentQuestion)
+        : askQuestion(convId, currentQuestion),
       timeout,
     ]);
     reactiveMsg.content = response.answer;

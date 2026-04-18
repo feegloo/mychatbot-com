@@ -87,6 +87,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import {
   askQuestion,
+  generateImage,
   getConversation,
   uploadMoreFiles,
   createConversationThread,
@@ -483,8 +484,11 @@ async function ask() {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
     );
+    const isImageGen = /generat\w*\s+image|wygeneruj\s+obraz|generate\s+image|stwórz\s+obraz/i.test(currentQuestion);
     const response = await Promise.race([
-      askQuestion(conversationId, currentQuestion, getUserId() || undefined),
+      isImageGen
+        ? generateImage(conversationId, currentQuestion, getUserId() || undefined)
+        : askQuestion(conversationId, currentQuestion, getUserId() || undefined),
       timeout,
     ]);
     reactiveMsg.content = response.answer;

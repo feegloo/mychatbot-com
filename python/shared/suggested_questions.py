@@ -80,15 +80,17 @@ b) Checklista ✅ — sugeruj gdy:
    - użytkownik powinien "podjąć działanie" na podstawie tekstu
    - dokument zawiera listę wymagań, zadań, rzeczy do zrobienia
 
-c) Wiersz 🎭 — sugeruj gdy:
+c) Napisz inspirowany wiersz 🎭 — sugeruj gdy:
    - autor to poeta, pisarz, lub treść związana z poezją
    - dokument to zbiór cytatów, aforyzmów, wierszy
    - treść ma literacki, artystyczny charakter
+   - akcja: "napisz inspirowany wiersz" (nie samo "wiersz")
 
-d) Napisz nowy rozdział ✏️ — sugeruj gdy:
+d) Napisz inspirowany rozdział ✏️ — sugeruj gdy:
    - dokument to fragment powieści, opowiadania, książki beletrystycznej
-   - np. książka Stephena Kinga — "napisz podobny rozdział w stylu autora"
+   - np. książka Stephena Kinga — "napisz inspirowany rozdział w stylu autora"
    - treść ma wyraźny styl narracyjny do naśladowania
+   - akcja: "napisz inspirowany rozdział" (nie samo "napisz rozdział")
 
 e) Przepis 🍝 — sugeruj gdy:
    - zdjęcie pokazuje składniki lub gotowe danie
@@ -118,6 +120,113 @@ j) Podsumowanie 📝 — sugeruj gdy:
 k) Wyjaśnij jak dla dziecka 👶 — sugeruj gdy:
    - treść jest techniczna, naukowa, lub pełna żargonu
    - dokument wymaga uproszczenia dla zrozumienia
+
+l) Fiszki do nauki 🃏 — sugeruj gdy:
+   - treść zawiera definicje, terminy, słownictwo, kluczowe pojęcia
+   - dokument to materiał do nauki, podręcznik, notatki z wykładu
+   - akcja: "stwórz fiszki do nauki" z pytaniem na jednej stronie i odpowiedzią na drugiej
+
+m) Oś czasu / timeline 📅 — sugeruj gdy:
+   - treść opisuje wydarzenia historyczne, biografię, kamienie milowe projektu
+   - dokument zawiera daty i sekwencję wydarzeń w czasie
+   - akcja: "stwórz oś czasu wydarzeń"
+
+n) Mapa myśli 🧩 — sugeruj gdy:
+   - treść przedstawia wiele powiązanych koncepcji lub tematów
+   - dokument nadaje się do wizualnego przeglądu relacji między ideami
+   - akcja: "stwórz mapę myśli" (wygeneruj jako diagram mermaid mindmap)
+
+o) Za i przeciw ⚖️ — sugeruj gdy:
+   - treść dotyczy decyzji, recenzji, oceny produktów lub opcji
+   - dokument prezentuje argumenty za i przeciw, lub porównuje podejścia
+   - akcja: "wypisz za i przeciw"
+
+p) Szkic emaila / listu 📧 — sugeruj gdy:
+   - treść zawiera informacje wymagające formalnej komunikacji
+   - dokument to reklamacja, wniosek, raport, lub wymaga odpowiedzi
+   - akcja: "napisz szkic emaila na podstawie treści"
+
+q) Notatki do nauki 📓 — sugeruj gdy:
+   - treść to wykład, artykuł naukowy, rozdział podręcznika
+   - dokument jest gęsty i wymaga wyciągnięcia najważniejszych punktów
+   - akcja: "stwórz notatki do nauki" (skondensowane, z kluczowymi punktami)
+
+r) Przetłumacz treść 🌍 — sugeruj gdy:
+   - treść jest w języku obcym dla użytkownika (np. dokument po angielsku dla polskiego użytkownika)
+   - dokument zawiera fragmenty w różnych językach
+   - akcja: "przetłumacz na [język]"
+
+s) FAQ / Najczęstsze pytania ❓ — sugeruj gdy:
+   - treść to dokumentacja, instrukcja obsługi, regulamin, polityka
+   - dokument opisuje produkt, usługę, lub proces z wieloma szczegółami
+   - akcja: "stwórz FAQ na podstawie treści"
+
+t) Debata / Argumenty 💬 — sugeruj gdy:
+   - treść dotyczy kontrowersyjnego tematu, opinii, eseju argumentacyjnego
+   - dokument prezentuje stanowisko które można przedyskutować z wielu stron
+   - akcja: "przedstaw argumenty obu stron"
+
+u) Słownik pojęć 📖 — sugeruj gdy:
+   - treść zawiera specjalistyczną terminologię, żargon branżowy
+   - dokument techniczny, medyczny, prawny z wieloma terminami do wyjaśnienia
+   - akcja: "stwórz słownik kluczowych pojęć"
+
+v) List motywacyjny / CV 💼 — sugeruj gdy:
+   - treść to oferta pracy, opis stanowiska, wymagania rekrutacyjne
+   - dokument to CV, portfolio, lub materiały do aplikacji
+   - akcja: "napisz list motywacyjny na podstawie oferty"
+
+w) Plan działania / Roadmap 🚩 — sugeruj gdy:
+   - treść opisuje cele, strategię, plan projektu, wizję
+   - dokument wymaga przełożenia na konkretne kroki z terminami
+   - akcja: "stwórz plan działania krok po kroku"
+
+x) Recenzja / Opinia ⭐ — sugeruj gdy:
+   - treść to produkt, książka, film, usługa, restauracja
+   - dokument zawiera doświadczenie użytkownika z czymś do oceny
+   - akcja: "napisz recenzję" lub "napisz opinię"
+
+y) Post na social media 📱 — sugeruj gdy:
+   - treść jest interesująca, newsowa, inspirująca, wizualna
+   - dokument nadaje się do podzielenia się z innymi online
+   - akcja: "napisz post na LinkedIn/Instagram/Twitter"
+
+z) Streszczenie wykonawcze 🎯 — sugeruj gdy:
+   - treść to długi raport, analiza, biznesplan, badanie
+   - dokument wymaga krótkiego, decyzyjnego streszczenia dla zarządu
+   - akcja: "stwórz streszczenie wykonawcze (executive summary)"
+
+aa) Scenariusz rozmowy / Dialog 🎬 — sugeruj gdy:
+   - treść dotyczy wywiadu, przesłuchania, spotkania, negocjacji
+   - dokument ma potencjał dramaturgiczny lub edukacyjny w formie dialogu
+   - akcja: "napisz scenariusz rozmowy / dialog"
+
+ab) Infografika (tekstowa) 📊 — sugeruj gdy:
+   - treść zawiera statystyki, dane liczbowe, fakty do zwizualizowania
+   - dokument nadaje się do prezentacji kluczowych liczb i faktów
+   - akcja: "stwórz tekstową infografikę z najważniejszymi danymi"
+
+ac) Piosenka / Tekst muzyczny 🎵 — sugeruj gdy:
+   - treść jest emocjonalna, opowiada historię, ma rymowany charakter
+   - dokument dotyczy muzyki, tekstów piosenek, lub ma potencjał liryczny
+   - akcja: "napisz inspirowaną piosenkę / tekst muzyczny"
+
+ad) Prezentacja / Slajdy 📽️ — sugeruj gdy:
+   - treść wymaga zaprezentowania publiczności, wykład, raport
+   - dokument ma strukturę nadającą się na slajdy (sekcje, punkty)
+   - akcja: "stwórz zarys prezentacji (outline slajdów)"
+
+ae) Bajka / Opowiadanie dla dzieci 🧚 — sugeruj gdy:
+   - treść zawiera moralne lekcje, przygody, postacie fantastyczne
+   - dokument lub zdjęcie przedstawia zwierzęta, naturę, magiczne sceny
+   - akcja: "napisz bajkę inspirowaną treścią"
+
+af) Wygeneruj obraz 🎨 — sugeruj gdy:
+   - treść opisuje sceny, krajobrazy, postacie, przedmioty wizualne
+   - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
+   - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
+   - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
+   - przykład: "wygeneruj obraz inspirowany treścią 🎨" lub "wygeneruj obraz - <temat> 🎨"
 
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}"""),
@@ -152,15 +261,17 @@ b) Checklist ✅ — suggest when:
    - user should "take action" based on the text
    - document contains requirements, tasks, things to do
 
-c) Poem 🎭 — suggest when:
+c) Write inspired poem 🎭 — suggest when:
    - author is a poet, writer, or content relates to poetry
    - document is a collection of quotes, aphorisms, poems
    - content has a literary, artistic character
+   - action: "write inspired poem" (not just "poem")
 
-d) Write new chapter ✏️ — suggest when:
+d) Write inspired chapter ✏️ — suggest when:
    - document is a fragment of a novel, short story, fiction book
-   - e.g. a Stephen King book — "write a similar chapter in the author's style"
+   - e.g. a Stephen King book — "write inspired chapter in the author's style"
    - content has a distinct narrative style worth imitating
+   - action: "write inspired chapter" (not just "write chapter")
 
 e) Recipe 🍝 — suggest when:
    - image shows ingredients or a finished dish
@@ -190,6 +301,113 @@ j) Summary 📝 — suggest when:
 k) Explain like I'm 5 👶 — suggest when:
    - content is technical, scientific, or full of jargon
    - document needs simplification for understanding
+
+l) Flashcards 🃏 — suggest when:
+   - content contains definitions, terms, vocabulary, key concepts
+   - document is study material, textbook, lecture notes
+   - action: "create study flashcards" with question on one side, answer on the other
+
+m) Timeline 📅 — suggest when:
+   - content describes historical events, biography, project milestones
+   - document contains dates and a sequence of events over time
+   - action: "create timeline of events"
+
+n) Mind map 🧩 — suggest when:
+   - content presents many related concepts or topics
+   - document is suitable for a visual overview of relationships between ideas
+   - action: "create mind map" (generate as mermaid mindmap diagram)
+
+o) Pros & Cons ⚖️ — suggest when:
+   - content is about decisions, reviews, product evaluations, or options
+   - document presents arguments for and against, or compares approaches
+   - action: "list pros and cons"
+
+p) Email / letter draft 📧 — suggest when:
+   - content contains info requiring formal communication
+   - document is a complaint, application, report, or needs a response
+   - action: "draft an email based on the content"
+
+q) Study notes 📓 — suggest when:
+   - content is a lecture, scientific article, textbook chapter
+   - document is dense and needs key points extracted
+   - action: "create study notes" (condensed, with key takeaways)
+
+r) Translate content 🌍 — suggest when:
+   - content is in a foreign language for the user
+   - document contains passages in different languages
+   - action: "translate to [language]"
+
+s) FAQ / Frequently asked questions ❓ — suggest when:
+   - content is documentation, user manual, terms of service, policy
+   - document describes a product, service, or process with many details
+   - action: "create FAQ from the content"
+
+t) Debate / Arguments 💬 — suggest when:
+   - content covers a controversial topic, opinion piece, argumentative essay
+   - document presents a position that can be discussed from multiple sides
+   - action: "present arguments from both sides"
+
+u) Glossary 📖 — suggest when:
+   - content contains specialized terminology, industry jargon
+   - technical, medical, or legal document with many terms to explain
+   - action: "create a glossary of key terms"
+
+v) Cover letter / CV 💼 — suggest when:
+   - content is a job offer, position description, recruitment requirements
+   - document is a CV, portfolio, or application materials
+   - action: "write a cover letter based on the job offer"
+
+w) Action plan / Roadmap 🚩 — suggest when:
+   - content describes goals, strategy, project plan, vision
+   - document needs to be translated into concrete steps with deadlines
+   - action: "create a step-by-step action plan"
+
+x) Review / Opinion ⭐ — suggest when:
+   - content is a product, book, film, service, restaurant
+   - document contains a user experience with something to evaluate
+   - action: "write a review" or "write an opinion"
+
+y) Social media post 📱 — suggest when:
+   - content is interesting, newsworthy, inspiring, visual
+   - document is suitable for sharing online with others
+   - action: "write a LinkedIn/Instagram/Twitter post"
+
+z) Executive summary 🎯 — suggest when:
+   - content is a long report, analysis, business plan, research
+   - document needs a short, decision-oriented summary for management
+   - action: "create an executive summary"
+
+aa) Dialogue / Script 🎬 — suggest when:
+   - content is about an interview, hearing, meeting, negotiation
+   - document has dramatic or educational potential in dialogue form
+   - action: "write a dialogue / script"
+
+ab) Text infographic 📊 — suggest when:
+   - content contains statistics, numerical data, facts to visualize
+   - document is suitable for presenting key numbers and facts
+   - action: "create a text infographic with the most important data"
+
+ac) Song / Lyrics 🎵 — suggest when:
+   - content is emotional, tells a story, has a rhyming character
+   - document is about music, song lyrics, or has lyrical potential
+   - action: "write an inspired song / lyrics"
+
+ad) Presentation / Slides 📽️ — suggest when:
+   - content needs to be presented to an audience, lecture, report
+   - document has a structure suitable for slides (sections, bullet points)
+   - action: "create a presentation outline (slide outline)"
+
+ae) Fairy tale / Children's story 🧚 — suggest when:
+   - content contains moral lessons, adventures, fantastical characters
+   - document or photo shows animals, nature, magical scenes
+   - action: "write a fairy tale inspired by the content"
+
+af) Generate image 🎨 — suggest when:
+   - content describes scenes, landscapes, characters, visual objects
+   - photo or document has potential for visual reinterpretation
+   - user might want to see an artistic visualization of the content
+   - action: MUST contain exactly the phrase "generate image" in the label
+   - example: "generate image inspired by the content 🎨" or "generate image - <topic> 🎨"
 
 Uploaded files: {file_types_str}
 Document description: {description}"""),

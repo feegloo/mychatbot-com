@@ -70,6 +70,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import {
   askQuestion,
+  generateImage,
   getConversation,
   type ConversationStatus,
   type ChatMessage,
@@ -195,7 +196,8 @@ async function ask() {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
     );
-    const response = await Promise.race([askQuestion(conversationId, currentQuestion), timeout]);
+    const isImageGen = /generat\w*\s+image|wygeneruj\s+obraz|generate\s+image|stwórz\s+obraz/i.test(currentQuestion);
+    const response = await Promise.race([isImageGen ? generateImage(conversationId, currentQuestion) : askQuestion(conversationId, currentQuestion), timeout]);
     reactiveMsg.content = response.answer;
     reactiveMsg.citations = response.citations;
     if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId;

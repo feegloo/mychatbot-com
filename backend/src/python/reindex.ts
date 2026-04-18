@@ -25,11 +25,19 @@ export async function ensureCollectionIndexed(conversationId: string, collection
   const namespace = storageNamespace || conversationId;
   const storageDir = path.join(config.storageRoot, namespace);
 
+  // Internal files generated during indexing — must not be re-indexed
+  const INTERNAL_FILE_PREFIXES = ["_raw_text", "_page_summaries"];
+
   // Check if files exist on local disk
   if (fs.existsSync(storageDir)) {
     files = fs.readdirSync(storageDir)
       .map(f => path.join(storageDir, f))
-      .filter(f => fs.statSync(f).isFile());
+      .filter(f => {
+        if (!fs.statSync(f).isFile()) return false;
+        const base = path.basename(f);
+        // Skip internal metadata files
+        return !INTERNAL_FILE_PREFIXES.some(prefix => base.startsWith(prefix));
+      });
   }
 
   // If no local files and GCS is configured, download from GCS

@@ -222,10 +222,26 @@ const MermaidBlock = defineAsyncComponent(() => import("./MermaidBlock.vue"));
 import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
 import UploadingDots from "./UploadingDots.vue";
+import hljs from "highlight.js";
+import "highlight.js/styles/github-dark-dimmed.min.css";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 
-marked.setOptions({
+marked.use({
   breaks: true,
   gfm: true,
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      let highlighted: string;
+      if (lang && hljs.getLanguage(lang)) {
+        highlighted = hljs.highlight(text, { language: lang }).value;
+      } else {
+        highlighted = hljs.highlightAuto(text).value;
+      }
+      const langClass = lang ? ` language-${lang}` : '';
+      return `<pre><code class="hljs${langClass}">${highlighted}</code></pre>`;
+    },
+  },
 });
 
 function normalizeCitations(text: string): string {
@@ -251,6 +267,35 @@ function renderMarkdown(content: string): string {
     /^([ \t]*[\*\-\+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[\*\-\+] )/gm,
     '$1\n\n$2\n\n$3'
   );
+  // Protect LaTeX blocks from marked's processing (underscores, asterisks, etc.)
+  const mathPlaceholders: { tex: string; display: boolean }[] = [];
+  const mathToken = (idx: number) => `\x00MATH${idx}\x00`;
+  // Display math $$...$$ first (greedy match avoids nesting issues)
+  normalized = normalized.replace(/\$\$([^$]+?)\$\$/g, (_, tex) => {
+    const i = mathPlaceholders.length;
+    mathPlaceholders.push({ tex, display: true });
+    return mathToken(i);
+  });
+  // Inline math $...$ (not preceded/followed by word chars, not currency like $10)
+  normalized = normalized.replace(/(?<!\w)\$([^\s$][^$\n]*?[^\s$])\$(?!\w)/g, (_, tex) => {
+    const i = mathPlaceholders.length;
+    mathPlaceholders.push({ tex, display: false });
+    return mathToken(i);
+  });
+  // Also catch single-char inline math like $x$
+  normalized = normalized.replace(/(?<!\w)\$([^\s$])\$(?!\w)/g, (_, tex) => {
+    const i = mathPlaceholders.length;
+    mathPlaceholders.push({ tex, display: false });
+    return mathToken(i);
+  });
+  // Protect [poem]...[/poem] blocks from marked processing
+  const poemPlaceholders: string[] = [];
+  const poemToken = (idx: number) => `\x00POEM${idx}\x00`;
+  normalized = normalized.replace(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi, (_, body) => {
+    const i = poemPlaceholders.length;
+    poemPlaceholders.push(body.trim());
+    return poemToken(i);
+  });
   const rawHtml = marked.parse(normalized, { async: false }) as string;
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
   // Use flexible regex to handle any attribute order from marked
@@ -260,8 +305,35 @@ function renderMarkdown(content: string): string {
     .replace(/<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*\/?>/gi,
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
   const sanitized = DOMPurify.sanitize(withChecklists);
+  // Restore LaTeX blocks and render with KaTeX
+  const withKatex = sanitized.replace(/\x00MATH(\d+)\x00/g, (_, idxStr) => {
+    const idx = parseInt(idxStr, 10);
+    const { tex, display } = mathPlaceholders[idx];
+    try { return katex.renderToString(tex, { displayMode: display, throwOnError: false }); }
+    catch { return display ? `$$${tex}$$` : `$${tex}$`; }
+  });
+  // Restore [poem] blocks as styled blockquote with decorative quotes
+  const withPoems = withKatex.replace(/\x00POEM(\d+)\x00/g, (_, idxStr) => {
+    const idx = parseInt(idxStr, 10);
+    const lines = poemPlaceholders[idx].split('\n').map(l => l.trim()).filter(Boolean);
+    const body = lines.join('<br>');
+    return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`;
+  });
+  // Replace ++underline++ markers with <u> tags
+  const withUnderline = withPoems.replace(
+    /\+\+([^+]+)\+\+/g,
+    '<u>$1</u>'
+  );
+  // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
+  const allowedColors = new Set(['green','red','amber','blue','purple','pink','cyan','orange','lime','rose']);
+  const withColors = withUnderline.replace(
+    /\[c:(\w+)\](.*?)\[\/c\]/g,
+    (_, color, text) => allowedColors.has(color)
+      ? `<span class="text-color-${color}">${text}</span>`
+      : text
+  );
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  const withSources = sanitized.replace(
+  const withSources = withColors.replace(
     /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
     (_, nums) =>
       nums.split(/,\s*/).map((n: string) =>
@@ -280,8 +352,19 @@ function renderMarkdown(content: string): string {
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>'
   );
+  // Replace [suggest:Label] markers with clickable suggest pill buttons
+  const withSuggests = withActionsWrapped.replace(
+    /\[suggest:\s*([^\]]+)\]/g,
+    (_, label) =>
+      `<button class="suggest-btn" data-suggest="${label.trim()}">${label.trim()}</button>`
+  );
+  // Wrap consecutive suggest buttons in a row container
+  const withSuggestsWrapped = withSuggests.replace(
+    /(<button class="suggest-btn"[^>]*>.*?<\/button>(?:\s*<button class="suggest-btn"[^>]*>.*?<\/button>)*)/g,
+    '<div class="suggest-btns-row">$1</div>'
+  );
   // Add target="_blank" to all <a> tags that don't already have it
-  const withTargetBlank = withActionsWrapped.replace(
+  const withTargetBlank = withSuggestsWrapped.replace(
     /<a (?![^>]*target=)/gi,
     '<a target="_blank" rel="noopener noreferrer" '
   );
@@ -695,6 +778,16 @@ function onContentClick(e: MouseEvent) {
     return;
   }
 
+  // Handle suggest button clicks
+  const suggestBtn = (e.target as HTMLElement).closest(".suggest-btn") as HTMLElement | null;
+  if (suggestBtn) {
+    const suggest = suggestBtn.dataset.suggest;
+    if (suggest) {
+      emit('select-question', suggest);
+    }
+    return;
+  }
+
   // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
   const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
   if (checkBox) {
@@ -1028,7 +1121,7 @@ function openFilePreview(file: FileInfo) {
   flex-shrink: 0;
   margin-right: -2px;
   margin-top: 15px;
-  align-self: stretch;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1295,6 +1388,18 @@ function openFilePreview(file: FileInfo) {
   margin-top: 8px;
 }
 
+/* Colored text markers */
+:deep(.text-color-green) { color: #86efac; }
+:deep(.text-color-red) { color: #fca5a5; }
+:deep(.text-color-amber) { color: #fcd34d; }
+:deep(.text-color-blue) { color: #93c5fd; }
+:deep(.text-color-purple) { color: #c4b5fd; }
+:deep(.text-color-pink) { color: #f9a8d4; }
+:deep(.text-color-cyan) { color: #67e8f9; }
+:deep(.text-color-orange) { color: #fdba74; }
+:deep(.text-color-lime) { color: #bef264; }
+:deep(.text-color-rose) { color: #fda4af; }
+
 :deep(.action-btn) {
   position: relative;
   display: inline-flex;
@@ -1341,6 +1446,82 @@ function openFilePreview(file: FileInfo) {
 }
 :deep(.action-btn:active)::after {
   background: rgba(167, 139, 250, 0.1);
+}
+
+/* Suggest follow-up buttons */
+:deep(.suggest-btns-row) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+:deep(.suggest-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  color: #93c5fd;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+@media (hover: hover) {
+  :deep(.suggest-btn:hover) {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #bfdbfe;
+  }
+}
+:deep(.suggest-btn:active) {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #bfdbfe;
+}
+
+/* Highlight.js code block overrides */
+:deep(pre) {
+  border-radius: 8px;
+  overflow-x: auto;
+}
+:deep(pre code.hljs) {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 8px;
+}
+
+/* Poem / Quote block — decorative centered blockquote */
+:deep(.poem-block) {
+  text-align: center;
+  margin: 20px 0;
+  padding: 24px 28px 20px;
+  background: rgba(167, 139, 250, 0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.1);
+}
+:deep(.poem-quote-mark) {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 48px;
+  line-height: 1;
+  color: rgba(167, 139, 250, 0.35);
+  user-select: none;
+}
+:deep(.poem-quote-close) {
+  margin-top: 4px;
+}
+:deep(.poem-body) {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15.5px;
+  line-height: 1.9;
+  color: #d1d5db;
+  font-style: italic;
+  padding: 0 8px;
+  letter-spacing: 0.01em;
 }
 
 /* Thread reply indicator */

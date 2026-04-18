@@ -108,6 +108,11 @@ export async function uploadFiles(files: File[]) {
   return response.data as { conversationId: string; url: string; status: string; ownerPassword: string };
 }
 
+export async function uploadUrl(url: string) {
+  const response = await api.post("/upload-url", { url });
+  return response.data as { conversationId: string; url: string; status: string; ownerPassword: string };
+}
+
 export async function createConversation() {
   const response = await api.post("/conversations");
   return response.data as { conversationId: string; url: string; status: string; ownerPassword: string };
@@ -141,6 +146,23 @@ export async function askQuestion(conversationId: string, question: string, user
     citations: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
     userMessageId?: string;
     assistantMessageId?: string;
+  };
+}
+
+export async function generateImage(conversationId: string, question: string, userId?: number) {
+  const response = await api.post("/generate-image", { conversationId, question, ...(userId ? { userId } : {}) }, {
+    headers: authHeaders(conversationId)
+  });
+  return response.data as {
+    answer: string;
+    citations: Array<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null }>;
+    userMessageId?: string;
+    assistantMessageId?: string;
+    generatedImage?: {
+      fileName: string;
+      imagePrompt: string;
+      revisedPrompt: string;
+    };
   };
 }
 

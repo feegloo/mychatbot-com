@@ -9,6 +9,7 @@ import json
 import logging
 import asyncio
 import os
+import urllib.error
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -30,7 +31,9 @@ from shared.rag import answer_with_citations
 from shared.indexing import index_documents
 from shared.vector_store import collection_count
 from shared.metadata import enrich_metadata_web
+from shared.image_gen import generate_image, build_image_prompt
 from shared.telemetry import close_db_pool
+from shared.url_fetch import fetch_url, describe_url, _extract_visible_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -89,6 +92,20 @@ class EnrichMetadataRequest(BaseModel):
     file_paths: list[str]
     exif_metadata: dict[str, dict] | None = None
     welcome_message: str = ""
+
+
+class DescribeUrlRequest(BaseModel):
+    url: str
+    conversation_id: str
+    collection_name: str
+
+
+class GenerateImageRequest(BaseModel):
+    question: str
+    storage_dir: str
+    context: str = ""
+    welcome_messages: list[str] | None = None
+    size: str = "1024x1024"
 
 
 @app.get("/health")
@@ -198,6 +215,111 @@ async def enrich_metadata(req: EnrichMetadataRequest):
     except Exception as e:
         logger.warning(f"Metadata enrichment failed (non-fatal): {e}")
         return {}
+
+
+@app.post("/describe-url")
+async def describe_url_endpoint(req: DescribeUrlRequest):
+    """Fetch a web page and describe its content using the LLM.
+
+    Also indexes the page text into the vector store so the user can
+    ask follow-up questions about the website content.
+    """
+    try:
+        def _process_url():
+            from shared.chunkers import split_into_chunks, Chunk
+            from shared.vector_store import upsert_chunks
+            from shared.lang_detect import detect_language
+            from shared.suggested_questions import suggest_questions_from_chunks
+
+            # 1. Fetch HTML
+            logger.info(f"🌐 Fetching URL: {req.url}")
+            html = fetch_url(req.url)
+            logger.info(f"🌐 Fetched {len(html)} chars of HTML from {req.url}")
+
+            # 2. Extract visible text for indexing
+            visible_text = _extract_visible_text(html)
+            detected_language = detect_language(visible_text[:2000])
+
+            # 3. Generate description
+            logger.info(f"📝 Generating URL description...")
+            welcome_message = describe_url(req.url, html, language=detected_language)
+
+            # 4. Chunk the visible text and index into vector store
+            chunks = split_into_chunks(
+                text=visible_text,
+                file_name=req.url,
+            )
+            logger.info(f"📦 Indexing {len(chunks)} chunks from URL content...")
+            upsert_result = upsert_chunks(
+                collection_name=req.collection_name,
+                conversation_id=req.conversation_id,
+                chunks=chunks,
+            )
+
+            # 5. Generate suggested questions
+            chunk_texts = [c.text for c in chunks]
+            suggested_questions = suggest_questions_from_chunks(
+                chunk_texts,
+                language=detected_language,
+                description=welcome_message,
+                file_names=[req.url],
+                file_types={req.url: "webpage"},
+                welcome_message=welcome_message,
+            )
+
+            return {
+                "welcome_message": welcome_message,
+                "suggested_questions": suggested_questions,
+                "detected_language": detected_language,
+                "chunk_count": len(chunks),
+                "html_length": len(html),
+                "url": req.url,
+                **upsert_result,
+            }
+
+        result = await asyncio.to_thread(_process_url)
+        return result
+    except urllib.error.URLError as e:
+        logger.exception(f"Failed to fetch URL: {req.url}")
+        raise HTTPException(status_code=422, detail=f"Could not fetch URL: {e.reason}")
+    except Exception as e:
+        logger.exception(f"Error describing URL: {req.url}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/generate-image")
+async def generate_image_endpoint(req: GenerateImageRequest):
+    """Generate an image from a text prompt using DALL-E.
+
+    1. Builds a visual prompt from the user's question + context
+    2. Calls OpenAI image generation API
+    3. Saves the image to the conversation's storage directory
+    4. Returns the file name (served via /api/storage/)
+    """
+    try:
+        def _generate():
+            # Build a detailed visual prompt from the user's request + context
+            image_prompt = build_image_prompt(
+                question=req.question,
+                context=req.context,
+                welcome_messages=req.welcome_messages,
+            )
+            logger.info(f"🎨 Image prompt: {image_prompt[:150]}...")
+
+            # Generate and save the image
+            result = generate_image(
+                prompt=image_prompt,
+                storage_dir=req.storage_dir,
+                size=req.size,
+            )
+            result["image_prompt"] = image_prompt
+            return result
+
+        result = await asyncio.to_thread(_generate)
+        return result
+    except Exception as e:
+        logger.exception("Error generating image")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

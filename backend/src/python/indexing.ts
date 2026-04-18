@@ -70,3 +70,33 @@ export async function indexConversation(options: {
     stderrLogPath: "",
   };
 }
+
+export async function describeUrl(options: {
+  url: string;
+  conversationId: string;
+  collectionName: string;
+}) {
+  const response = await fetch(`${config.pythonServerUrl}/describe-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: options.url,
+      conversation_id: options.conversationId,
+      collection_name: options.collectionName,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Python server error (${response.status}): ${text}`);
+  }
+
+  const parsedJson = await response.json();
+  return {
+    stdout: JSON.stringify(parsedJson),
+    stderr: "",
+    parsedJson,
+    stdoutLogPath: "",
+    stderrLogPath: "",
+  };
+}
