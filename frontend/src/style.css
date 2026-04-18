@@ -1483,6 +1483,18 @@ h1, h2, h3 {
   transform: translateY(6px) scale(0.85);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
+/* On mobile, animate from below (tooltip appears below text) */
+@media (hover: none) {
+  .speech-tooltip {
+    transform: translateY(-6px) scale(0.85);
+  }
+  .speech-tooltip-visible {
+    transform: translateY(0) scale(1);
+  }
+  .speech-tooltip-hiding {
+    transform: translateY(-6px) scale(0.85);
+  }
+}
 
 .speech-tooltip-visible {
   opacity: 1;
@@ -1555,4 +1567,38 @@ h1, h2, h3 {
   background: rgba(196, 181, 253, 0.12);
   border-radius: 3px;
   transition: left 0.06s, top 0.06s, width 0.06s;
+}
+
+/* ── Caption highlight (active word during TTS playback) ── */
+.speech-caption-highlight {
+  position: absolute;
+  z-index: 9999;
+  pointer-events: none;
+  background: rgba(139, 92, 246, 0.18);
+  border-radius: 3px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.13s ease, transform 0.13s ease;
+}
+.speech-caption-highlight.caption-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Ghost translation label (below active word during TTS playback) ── */
+.speech-caption-ghost {
+  position: absolute;
+  z-index: 10001;
+  pointer-events: none;
+  font-size: 11px;
+  line-height: 1.2;
+  color: rgba(196, 181, 253, 0.75);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.13s ease, transform 0.13s ease;
+}
+.speech-caption-ghost.caption-active {
+  opacity: 1;
+  transform: translateY(0);
 }

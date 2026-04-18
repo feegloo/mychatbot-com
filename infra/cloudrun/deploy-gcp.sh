@@ -212,7 +212,11 @@ GEMMA_MODEL=${GEMMA_MODEL:-gemma4},\
 GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-chatrag},\
 DEBUG_PASS=${DEBUG_PASS:-chatragadmin},\
-STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}"
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY},\
+WORKER_MODE=${WORKER_MODE:-cloud_run},\
+WORKER_JOB_NAME=${WORKER_JOB_NAME:-chatrag-worker},\
+WORKER_REGION=${WORKER_REGION:-europe-west1},\
+GCP_PROJECT_ID=${GCP_PROJECT_ID}"
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
 info "Step 9/9: Getting service URL..."

@@ -19,6 +19,7 @@ export function useTextSelectionSpeech(
   currentLanguage?: Ref<string>,
 ) {
   const browserLang = navigator.language.split("-")[0];
+  const isTouchDevice = window.matchMedia("(hover: none)").matches;
   let tooltip: HTMLDivElement | null = null;
   let selectionTimer: ReturnType<typeof setTimeout> | null = null;
   let currentAudio: HTMLAudioElement | null = null;
@@ -30,6 +31,8 @@ export function useTextSelectionSpeech(
   let highlightEl: HTMLElement | null = null;
   let lastWordRange: Range | null = null;
   let mouseDownPos: { x: number; y: number } | null = null;
+  let isPinned = false;
+  let pinnedRange: Range | null = null;
 
   // ── Caption playback state ──
   let speechRange: Range | null = null;
@@ -54,6 +57,8 @@ export function useTextSelectionSpeech(
     } else {
       container.classList.remove("speech-active");
       // If speech just became inactive, clean up any visible tooltip/highlight
+      isPinned = false;
+      pinnedRange = null;
       hideTooltipImmediate();
       removeHighlight();
       stopCaptionPlayback();
@@ -93,14 +98,24 @@ export function useTextSelectionSpeech(
     const tooltipWidth = 34;
     const tooltipHeight = 34;
     let left = rect.left + scrollX + rect.width / 2 - tooltipWidth / 2;
-    let top = rect.top + scrollY - tooltipHeight - 8;
+
+    // On mobile/touch devices, position below text to avoid system menu overlap
+    let top: number;
+    if (isTouchDevice) {
+      top = rect.bottom + scrollY + 8;
+      if (top + tooltipHeight > scrollY + window.innerHeight - 4) {
+        top = rect.top + scrollY - tooltipHeight - 8;
+      }
+    } else {
+      top = rect.top + scrollY - tooltipHeight - 8;
+      if (top < scrollY + 4) {
+        top = rect.bottom + scrollY + 8;
+      }
+    }
 
     if (left < scrollX + 4) left = scrollX + 4;
     if (left + tooltipWidth > scrollX + window.innerWidth - 4) {
       left = scrollX + window.innerWidth - tooltipWidth - 4;
-    }
-    if (top < scrollY + 4) {
-      top = rect.bottom + scrollY + 8;
     }
 
     tooltip.style.left = `${left}px`;
@@ -173,10 +188,13 @@ export function useTextSelectionSpeech(
   }
 
   function onStopClick() {
+    isPinned = false;
+    pinnedRange = null;
     stopCaptionPlayback();
     stopSingleWordGhost();
     stopCurrentAudio();
     hideTooltip();
+    removeHighlight();
   }
 
   async function onSpeakClick(text: string) {
@@ -208,16 +226,22 @@ export function useTextSelectionSpeech(
       }
 
       audio.addEventListener("ended", () => {
+        isPinned = false;
+        pinnedRange = null;
         stopCaptionPlayback();
         stopSingleWordGhost();
         stopCurrentAudio();
         hideTooltip();
+        removeHighlight();
       });
       audio.addEventListener("error", () => {
+        isPinned = false;
+        pinnedRange = null;
         stopCaptionPlayback();
         stopSingleWordGhost();
         stopCurrentAudio();
         hideTooltip();
+        removeHighlight();
       });
 
       await audio.play();
@@ -360,6 +384,8 @@ export function useTextSelectionSpeech(
 
   /**
    * Start the animation loop that highlights words in sync with audio playback.
+   * Each word is shown only during its [start, end) interval; between words the
+   * highlight and ghost hide with a CSS transition, then reappear for the next word.
    */
   function startCaptionAnimation(audio: HTMLAudioElement): void {
     let lastIdx = -1;
@@ -370,24 +396,12 @@ export function useTextSelectionSpeech(
       const time = audio.currentTime;
       let currentIdx = -1;
 
+      // Only highlight while within a word's [start, end) window
       for (let i = 0; i < activeCaptionWords.length; i++) {
         const { caption } = activeCaptionWords[i];
         if (time >= caption.start && time < caption.end) {
           currentIdx = i;
           break;
-        }
-        // Between captions: keep highlighting previous word
-        if (i > 0 && time >= activeCaptionWords[i - 1].caption.end && time < caption.start) {
-          currentIdx = i - 1;
-          break;
-        }
-      }
-
-      // After last caption, keep highlighting briefly
-      if (currentIdx === -1 && activeCaptionWords.length > 0) {
-        const last = activeCaptionWords[activeCaptionWords.length - 1];
-        if (time >= last.caption.start && time < last.caption.end + 0.3) {
-          currentIdx = activeCaptionWords.length - 1;
         }
       }
 
@@ -407,8 +421,8 @@ export function useTextSelectionSpeech(
    */
   function updateCaptionVisuals(idx: number): void {
     if (idx < 0 || !activeCaptionWords) {
-      if (captionHighlightEl) captionHighlightEl.style.display = "none";
-      if (captionGhostEl) captionGhostEl.style.display = "none";
+      if (captionHighlightEl) captionHighlightEl.classList.remove("caption-active");
+      if (captionGhostEl) captionGhostEl.classList.remove("caption-active");
       return;
     }
 
@@ -429,9 +443,9 @@ export function useTextSelectionSpeech(
     captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`;
     captionHighlightEl.style.width = `${rect.width + 4}px`;
     captionHighlightEl.style.height = `${rect.height + 2}px`;
-    captionHighlightEl.style.display = "block";
+    captionHighlightEl.classList.add("caption-active");
 
-    // ── Ghost translation label ──
+    // ── Ghost translation label (positioned BELOW the word) ──
     if (ghostWord) {
       if (!captionGhostEl) {
         captionGhostEl = document.createElement("div");
@@ -439,7 +453,7 @@ export function useTextSelectionSpeech(
         document.body.appendChild(captionGhostEl);
       }
       captionGhostEl.textContent = ghostWord;
-      captionGhostEl.style.display = "block";
+      captionGhostEl.classList.add("caption-active");
       // Force reflow to measure width
       void captionGhostEl.offsetHeight;
       const ghostWidth = captionGhostEl.offsetWidth;
@@ -448,15 +462,16 @@ export function useTextSelectionSpeech(
       if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
         ghostLeft = scrollX + window.innerWidth - ghostWidth - 4;
       }
-      let ghostTop = rect.top + scrollY - 22;
-      // If too close to viewport top, show below the word
-      if (rect.top < 25) {
-        ghostTop = rect.bottom + scrollY + 4;
+      // Position below the word
+      let ghostTop = rect.bottom + scrollY + 3;
+      // If too close to viewport bottom, show above the word instead
+      if (rect.bottom + 20 > window.innerHeight) {
+        ghostTop = rect.top + scrollY - 18;
       }
       captionGhostEl.style.left = `${ghostLeft}px`;
       captionGhostEl.style.top = `${ghostTop}px`;
     } else {
-      if (captionGhostEl) captionGhostEl.style.display = "none";
+      if (captionGhostEl) captionGhostEl.classList.remove("caption-active");
     }
   }
 
@@ -470,8 +485,8 @@ export function useTextSelectionSpeech(
     }
     activeCaptionWords = null;
     speechRange = null;
-    if (captionHighlightEl) captionHighlightEl.style.display = "none";
-    if (captionGhostEl) captionGhostEl.style.display = "none";
+    if (captionHighlightEl) captionHighlightEl.classList.remove("caption-active");
+    if (captionGhostEl) captionGhostEl.classList.remove("caption-active");
   }
 
   /**
@@ -495,16 +510,16 @@ export function useTextSelectionSpeech(
     captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`;
     captionHighlightEl.style.width = `${rect.width + 4}px`;
     captionHighlightEl.style.height = `${rect.height + 2}px`;
-    captionHighlightEl.style.display = "block";
+    captionHighlightEl.classList.add("caption-active");
 
-    // Ghost label
+    // Ghost label (below the word)
     if (!captionGhostEl) {
       captionGhostEl = document.createElement("div");
       captionGhostEl.className = "speech-caption-ghost";
       document.body.appendChild(captionGhostEl);
     }
     captionGhostEl.textContent = translatedText.trim();
-    captionGhostEl.style.display = "block";
+    captionGhostEl.classList.add("caption-active");
     void captionGhostEl.offsetHeight;
     const ghostWidth = captionGhostEl.offsetWidth;
     let ghostLeft = rect.left + scrollX + rect.width / 2 - ghostWidth / 2;
@@ -512,17 +527,18 @@ export function useTextSelectionSpeech(
     if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
       ghostLeft = scrollX + window.innerWidth - ghostWidth - 4;
     }
-    let ghostTop = rect.top + scrollY - 22;
-    if (rect.top < 25) {
-      ghostTop = rect.bottom + scrollY + 4;
+    // Position below the word
+    let ghostTop = rect.bottom + scrollY + 3;
+    if (rect.bottom + 20 > window.innerHeight) {
+      ghostTop = rect.top + scrollY - 18;
     }
     captionGhostEl.style.left = `${ghostLeft}px`;
     captionGhostEl.style.top = `${ghostTop}px`;
   }
 
   function stopSingleWordGhost(): void {
-    if (captionHighlightEl) captionHighlightEl.style.display = "none";
-    if (captionGhostEl) captionGhostEl.style.display = "none";
+    if (captionHighlightEl) captionHighlightEl.classList.remove("caption-active");
+    if (captionGhostEl) captionGhostEl.classList.remove("caption-active");
   }
 
   // ── Word highlight on hover ──
@@ -593,7 +609,7 @@ export function useTextSelectionSpeech(
 
   function onMouseMove(e: MouseEvent) {
     if (!isSpeechActive()) { removeHighlight(); return; }
-    if (isPlaying) { removeHighlight(); return; }
+    if (isPlaying || isPinned) return;
 
     const container = containerRef.value;
     if (!container) return;
@@ -640,8 +656,16 @@ export function useTextSelectionSpeech(
     if (tooltip && tooltip.contains(e.target as Node)) return;
     // Don't hide while loading or playing
     if (isLoading || isPlaying) return;
-    hideTooltip();
+    // Don't hide tooltip when pinned — onClickWord will handle toggling
+    if (!isPinned) hideTooltip();
     mouseDownPos = { x: e.clientX, y: e.clientY };
+  }
+
+  function unpinWord() {
+    isPinned = false;
+    pinnedRange = null;
+    hideTooltip();
+    removeHighlight();
   }
 
   function onClickWord(e: MouseEvent) {
@@ -661,8 +685,10 @@ export function useTextSelectionSpeech(
     if (!container) return;
 
     const target = e.target as HTMLElement;
-    if (!container.contains(target)) return;
-    if (!isInContent(target)) return;
+    if (!container.contains(target) || !isInContent(target)) {
+      if (isPinned) unpinWord();
+      return;
+    }
 
     // Don't interfere with interactive elements
     if (target.closest("button, a, .inline-source-btn, .action-btn, .checklist-box")) return;
@@ -672,14 +698,32 @@ export function useTextSelectionSpeech(
     if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) return;
 
     const wordRange = getWordRangeAtPoint(e.clientX, e.clientY);
-    if (!wordRange) return;
+    if (!wordRange) {
+      if (isPinned) unpinWord();
+      return;
+    }
 
     const word = wordRange.toString().trim();
-    if (word.length < 2) return;
+    if (word.length < 2) {
+      if (isPinned) unpinWord();
+      return;
+    }
 
     const rect = wordRange.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
 
+    // If clicking the same pinned word, toggle off
+    if (isPinned && pinnedRange &&
+        pinnedRange.startContainer === wordRange.startContainer &&
+        pinnedRange.startOffset === wordRange.startOffset &&
+        pinnedRange.endOffset === wordRange.endOffset) {
+      unpinWord();
+      return;
+    }
+
+    // Pin the clicked word
+    isPinned = true;
+    pinnedRange = wordRange;
     showTooltip(rect, word, wordRange);
   }
 
@@ -726,12 +770,12 @@ export function useTextSelectionSpeech(
   }
 
   function onScroll() {
-    if (!isPlaying) hideTooltip();
-    removeHighlight();
+    if (!isPlaying && !isPinned) hideTooltip();
+    if (!isPinned) removeHighlight();
   }
 
   function onMouseLeave() {
-    removeHighlight();
+    if (!isPinned) removeHighlight();
   }
 
   // ── Lifecycle ──

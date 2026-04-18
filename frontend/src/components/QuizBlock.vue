@@ -1,10 +1,7 @@
 <template>
   <div class="quiz-block">
     <div class="quiz-header">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0">
-        <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span class="quiz-title">{{ quiz.title }}</span>
+      <span class="quiz-title">{{ quiz.title }} - Quiz 🧠</span>
       <button class="quiz-download-btn" title="Download PDF" @click="downloadPdf">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -14,6 +11,7 @@
     </div>
 
     <div class="quiz-type-badge">{{ isMultiple ? '☑ Multiple choice' : '○ Single choice' }}</div>
+    <button class="quiz-restart-btn" @click="restartQuiz">⟲ Restart quiz</button>
 
     <div v-for="(q, qi) in quiz.questions" :key="qi" class="quiz-question">
       <div class="quiz-question-text">{{ qi + 1 }}. {{ q.q }}</div>
@@ -244,6 +242,15 @@ const allSubmitted = computed(() =>
   props.quiz.questions.every((_, i) => submitted[i])
 );
 
+function restartQuiz() {
+  for (let i = 0; i < props.quiz.questions.length; i++) {
+    selections[i] = new Set();
+    submitted[i] = false;
+    wrongOptions[i] = new Set();
+  }
+  saveState();
+}
+
 const correctCount = computed(() =>
   props.quiz.questions.filter((_, i) => isCorrect(i)).length
 );
@@ -270,7 +277,7 @@ async function downloadPdf() {
   doc.setFont(PDF_FONT, "bold");
   doc.setFontSize(15);
   doc.setTextColor(0, 0, 0);
-  doc.text(props.quiz.title, marginLeft, y);
+  doc.text(`${props.quiz.title} - Quiz \uD83E\uDDE0`, marginLeft, y);
   y += 7;
 
   // Quiz type subtitle
@@ -454,8 +461,31 @@ async function downloadPdf() {
 .quiz-type-badge {
   font-size: 12px;
   color: #a78bfa;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   opacity: 0.8;
+}
+
+.quiz-restart-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 14px;
+}
+
+@media (hover: hover) {
+  .quiz-restart-btn:hover {
+    background: rgba(124, 58, 237, 0.15);
+    border-color: rgba(124, 58, 237, 0.35);
+  }
 }
 
 .quiz-download-btn {

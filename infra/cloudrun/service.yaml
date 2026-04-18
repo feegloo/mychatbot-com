@@ -38,6 +38,12 @@ spec:
               value: "REPLACE_WITH_OPENAI_KEY"
             - name: STORAGE_PROVIDER
               value: disk
+            - name: WORKER_MODE
+              value: cloud_run
+            - name: WORKER_JOB_NAME
+              value: chatrag-worker
+            - name: WORKER_REGION
+              value: europe-west1
             - name: FRONTEND_DIST_PATH
               value: /app/frontend/dist
             - name: PYTHON_BIN

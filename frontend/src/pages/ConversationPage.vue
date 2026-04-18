@@ -9,6 +9,7 @@
       :processing="loaded && status.status !== 'ready'"
       @renamed="status.displayName = $event"
       @reload="onReload"
+      @view-threads="viewHeaderThreads"
     >
       <template #language-toggle>
         <LanguageToggle
@@ -407,6 +408,14 @@ async function handleUploadFiles(files: File[]) {
 function viewThreads(messageId: string) {
   // Navigate to the shared message page to see all threads
   routerInstance.push(`/m/${messageId}`);
+}
+
+function viewHeaderThreads() {
+  // Find the first message that has threads and navigate to its shared view
+  const msg = messages.value.find(m => m.threadReplyCount && m.threadReplyCount > 0 && m.id);
+  if (msg) {
+    routerInstance.push(`/m/${msg.id}`);
+  }
 }
 
 function scrollToBottom(smooth = false) {

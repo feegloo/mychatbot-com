@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "sentry": {
+      "command": "npx",
+      "args": ["@sentry/mcp-server@latest"],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "sntrys_YOUR_TOKEN_HERE",
+        "EMBEDDED_AGENT_PROVIDER": "openai",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
