@@ -449,6 +449,7 @@ watch(renderedPages, async () => {
 
 .pdf-page-canvas {
   display: block;
+  width: 100% !important;
 }
 
 .pdf-page-loading,

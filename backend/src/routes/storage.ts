@@ -60,7 +60,7 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
   const ext = path.extname(fileName).toLowerCase();
   const allowedExts = new Set([
     ".png", ".jpg", ".jpeg", ".gif", ".webp",
-    ".pdf", ".txt", ".csv",
+    ".pdf", ".txt", ".csv", ".json",
     ".doc", ".docx", ".xls", ".xlsx", ".pptx",
     ".odt", ".ods", ".odp",
     ".rtf", ".md",

@@ -1051,7 +1051,7 @@ function openFilePreview(file: FileInfo) {
 .welcome-preview-large {
   flex: 1;
   min-height: 0;
-  max-height: 360px;
+  max-height: 720px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: 0;

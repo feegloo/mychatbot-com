@@ -686,12 +686,12 @@ a { color: #c4b5fd; text-decoration: none; }
 
 .message-row.assistant {
   justify-content: flex-end;
-  margin-left: 10px;
+  margin-left: 5px;
 }
 
 @media (min-width: 769px) {
   .message-row.assistant {
-    margin-left: 150px;
+    margin-left: 130px;
   }
 }
 
