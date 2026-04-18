@@ -150,7 +150,8 @@ Chat history (previous exchange for follow-up context):
 
 == SECTION 6: Start Answering ==
 You have all the context above. Now answer the following question thoroughly with inline [source:N] citations:
-"{question}""""),
+"{question}"
+"""),
 ])
     
 def build_context(rows: list[dict]) -> str:
