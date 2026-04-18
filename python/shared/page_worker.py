@@ -240,8 +240,9 @@ def process_pdf_page(
 
         # Step 5: Generate short page summary for welcome page
         if len(page_text.strip()) > 50:
-            # Just take first 200 chars as a rough summary (LLM summary is expensive per-page)
-            result.description_summary = page_text[:200].replace("\n", " ").strip()
+            # Take ~10% of page text (min 200 chars, max 600 chars) as a summary
+            summary_len = max(200, min(600, len(page_text) // 10))
+            result.description_summary = page_text[:summary_len].replace("\n", " ").strip()
 
     except Exception as e:
         result.error = str(e)[:500]

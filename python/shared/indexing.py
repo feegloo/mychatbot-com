@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -155,6 +156,26 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         all_chunks.extend(img_chunks)
 
     logger.info(f"✅ Processed {len(file_results)} file(s): {len(all_chunks)} chunks, {len(all_images)} images")
+
+    # Save raw text and page summaries to disk for follow-up answer context
+    storage_dir = str(Path(file_paths[0]).parent) if file_paths else None
+    if storage_dir:
+        try:
+            raw_texts = {}
+            for doc in extracted:
+                if doc.get("text"):
+                    raw_texts[doc["file_name"]] = doc["text"]
+            if raw_texts:
+                raw_text_path = Path(storage_dir) / "_raw_text.json"
+                raw_text_path.write_text(json.dumps(raw_texts, ensure_ascii=False), encoding="utf-8")
+                total_raw = sum(len(t) for t in raw_texts.values())
+                logger.info(f"💾 Saved raw text to {raw_text_path} ({total_raw} chars, {len(raw_texts)} files)")
+            if all_page_summaries:
+                summaries_path = Path(storage_dir) / "_page_summaries.json"
+                summaries_path.write_text(json.dumps(all_page_summaries, ensure_ascii=False), encoding="utf-8")
+                logger.info(f"💾 Saved {len(all_page_summaries)} page summaries to {summaries_path}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to save raw text / page summaries: {e}")
 
     # Run vector upsert and description in parallel first (both are IO-bound API calls)
     logger.info(f"📦 Upserting {len(all_chunks)} chunks + generating description in parallel...")

@@ -8,6 +8,7 @@ export async function answerQuestion(options: {
   welcomeMessages?: string[];
   imageFilePaths?: string[];
   fileMetadata?: Record<string, any>;
+  storageDir?: string;
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -20,6 +21,7 @@ export async function answerQuestion(options: {
       welcome_messages: options.welcomeMessages || [],
       image_file_paths: options.imageFilePaths || null,
       file_metadata: options.fileMetadata || null,
+      storage_dir: options.storageDir || null,
     }),
   });
 

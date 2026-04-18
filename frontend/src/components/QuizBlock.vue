@@ -279,22 +279,7 @@ async function downloadPdf() {
   doc.setFontSize(15);
   doc.setTextColor(0, 0, 0);
   const pdfCleanTitle = props.quiz.title.replace(/\s*-\s*quiz\s*$/i, '');
-  const titleStr = `${pdfCleanTitle} - Quiz`;
-  doc.text(titleStr, marginLeft, y);
-  // Render brain emoji as image (Roboto font cannot render emoji glyphs)
-  try {
-    const emojiCanvas = document.createElement('canvas');
-    emojiCanvas.width = 64;
-    emojiCanvas.height = 64;
-    const ectx = emojiCanvas.getContext('2d')!;
-    ectx.font = '52px serif';
-    ectx.textBaseline = 'middle';
-    ectx.textAlign = 'center';
-    ectx.fillText('\uD83E\uDDE0', 32, 34);
-    const emojiDataUrl = emojiCanvas.toDataURL('image/png');
-    const titleW = doc.getTextWidth(titleStr + ' ');
-    doc.addImage(emojiDataUrl, 'PNG', marginLeft + titleW, y - 4.2, 5, 5);
-  } catch (_) { /* emoji image fallback: skip silently */ }
+  doc.text(`${pdfCleanTitle} - Quiz`, marginLeft, y);
   y += 7;
 
   // Quiz type subtitle

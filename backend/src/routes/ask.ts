@@ -80,6 +80,8 @@ askRouter.post("/ask", async (ctx) => {
     console.log(`[ask] imageFilePaths=${JSON.stringify(imageFilePaths)}`);
   }
 
+  const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace);
+
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,
@@ -88,6 +90,7 @@ askRouter.post("/ask", async (ctx) => {
     welcomeMessages,
     imageFilePaths: imageFilePaths.length ? imageFilePaths : undefined,
     fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
+    storageDir,
   });
 
   const payload = result.parsedJson || {

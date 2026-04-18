@@ -76,6 +76,7 @@ class AnswerRequest(BaseModel):
     welcome_messages: list[str] | None = None
     image_file_paths: list[str] | None = None
     file_metadata: dict[str, dict] | None = None
+    storage_dir: str | None = None
 
 
 class IndexRequest(BaseModel):
@@ -169,6 +170,7 @@ async def answer(req: AnswerRequest):
             welcome_messages=req.welcome_messages,
             image_file_paths=req.image_file_paths,
             file_metadata=req.file_metadata,
+            storage_dir=req.storage_dir,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'")

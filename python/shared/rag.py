@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+from pathlib import Path
 from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
@@ -15,6 +16,9 @@ from .vector_store import query_chunks
 import re
 
 logger = logging.getLogger(__name__)
+
+# Max chars of full matched pages to include in answer prompts.
+_MATCHED_PAGES_MAX_CHARS = 40_000
 
 # Module-level cache for LLM instance
 _llm_instance = None
@@ -55,7 +59,13 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question)."""),
-    ("human", """Uploaded file descriptions (in chronological order):
+    ("human", """Raw document text (original file content - use for quiz questions):
+    {raw_text}
+
+    Page summaries (overview of each page):
+    {page_summaries}
+
+    Uploaded file descriptions (in chronological order):
     {welcome_messages}
 
     Chat history (last exchange):
@@ -64,58 +74,101 @@ Rules:
     Question:
     {question}
 
-    Retrieved context:
+    Retrieved context (most relevant chunks):
     {context}"""),
 ])
 
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a helpful RAG assistant.
+    ("system", """You are a helpful AI chatbot assistant. Answer the user's question accurately using ONLY the context provided below.
 
-    Answer the user's question using the retrieved context below, the uploaded file descriptions, and (when relevant) the chat history.
-    The uploaded file descriptions contain summaries of ALL files uploaded to this conversation (in chronological order) - always treat them as primary context.
-    The chat history may contain previous answers that are directly relevant to the current question - use them as additional context for follow-ups and creative or synthesis tasks.
-    If neither the retrieved context, file descriptions, nor the chat history contain enough information to answer, say that you could not find enough evidence in the uploaded files.
-    Use the chat history to understand follow-up questions and resolve references (e.g. "it", "that", "more details").
+== USER QUESTION ==
+"{question}"
 
-    Additional guidelines:
-    a) try to format the answer in bullet points or with "-" for easier readability when possible (or other format that suits the question)
-    - but omit bullets if there are less than 3 points
-    - avoid starting with a bullet point but rather start with a short intro sentence if using bullets
-    - after bullets, you can add a concluding sentence if it adds value, but keep it concise
-    b) avoid too many sentences in a row without any formatting - break them up with bullets or newlines if it improves readability
-    c) use **bolding** sparingly — only for the most important keywords, names, or numbers that the user should notice at a glance. Do not bold entire phrases or sentences. Use _ for italics if it helps readability. Use other markdown formatting sparingly
-    d) do not just repeat the retrieved text, try to synthesize it into a helpful answer
-    e) try to use information from multiple chunks if relevant
-    f) IMPORTANT – citation format: Use EXACTLY this format: [source:N] where N is the source number. Examples: [source:1], [source:2], [source:1][source:3]. NEVER use bare brackets like [1], [2] — always include the "source:" prefix. ALWAYS write "source" in English, never translate it.
-    g) Citation frequency: Do NOT cite every sentence. Place citations sparingly — only at the end of a paragraph or section, not after each individual point. When a section or group of bullets comes from the same source, use a single citation at the end. Aim for roughly one citation per paragraph or topic block, not per sentence.
-    h) Action buttons: When you want to suggest a follow-up action to the user (like creating a diagram, quiz, summary, checklist, etc.), do NOT write it as inline text. Instead, output action markers using this format: [action:Label]. For example, instead of writing "mogę też stworzyć diagram albo quiz", write: [action:Socrates quotes - create diagram] [action:Socrates quotes - create quiz]. The label MUST include the main topic/subject for context (so the model can answer it standalone), and be at least 4 words long. You can place multiple action markers next to each other. Always place them at the very end of your answer, after all content.
+Now read all context sections below carefully before answering.
 
-    Return a concise but useful answer with inline source citations using [source:N] format.
-    Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
-    ("human", """Uploaded file descriptions (in chronological order):
-    {welcome_messages}
+Sections provided:
+1. Matching Sources (top embedding matches from the vector database, with similarity scores)
+2. Answer Guidelines (tone, structured output, citation rules)
+3. Welcome Page Description (short summary of each uploaded file)
+4. Full Pages of Matched Sources (complete page text for pages where matches were found)
+5. EXIF Metadata (image file metadata, if available)
+6. Start Answering
 
-    Chat history (last exchange):
-    {chat_history}
+--
 
-    Question:
-    {question}
+== SECTION 2: Answer Guidelines ==
 
-    Retrieved context:
-    {context}"""),
+a) Tone & Goal:
+- Be helpful, accurate, and concise. Synthesize information - do not just repeat the retrieved text.
+- If none of the context contains enough information, say you could not find enough evidence in the uploaded files.
+- Use the chat history to resolve follow-up references (e.g. "it", "that", "more details").
+
+b) Expert Insight:
+- When the content is domain-specific (medical, legal, financial, technical), adopt the perspective of a domain expert.
+- Provide actionable analysis, not just facts.
+
+c) Structured Output:
+- Use bullet points or "-" for readability when there are 3+ points. Start with a short intro sentence before bullets.
+- Use **bolding** sparingly - only for the most important keywords, names, or numbers.
+- Supported rich output formats: source citations, quiz, checklist, recipe, poem, diagram, mermaid, table. Use whichever best fits the question.
+- IMPORTANT - citation format: Use EXACTLY [source:N] where N is the source number. Examples: [source:1], [source:2], [source:1][source:3]. NEVER use bare brackets like [1], [2]. ALWAYS write "source" in English, never translate it.
+- Citation frequency: Cite generously for each key fact or claim. Place citations at the end of each paragraph or bullet point. When a group of bullets comes from the same source, use a single citation at the end.
+- If a source has a high similarity score (close to 1.0), it is highly relevant - prioritize it. Lower scores mean weaker matches.
+
+d) Action Buttons:
+- When suggesting a follow-up action (diagram, quiz, summary, checklist, etc.), output action markers: [action:Label]. The label MUST include the main topic and be at least 4 words long. Place them at the very end of your answer.
+- Example: [action:Socrates quotes - create diagram] [action:Socrates quotes - create quiz]
+
+Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
+    ("human", """== SECTION 1: Matching Sources ==
+{context}
+
+--
+
+== SECTION 3: Welcome Page Description ==
+Below is a short summary generated during file upload/indexing for each source file:
+{welcome_messages}
+
+--
+
+== SECTION 4: Full Pages of Matched Sources ==
+Below is the full text of pages where matching sources were found. Use this for additional detail beyond the matching chunks.
+{matched_pages}
+
+--
+
+== SECTION 5: EXIF Metadata ==
+{exif_metadata}
+
+--
+
+Chat history (previous exchange for follow-up context):
+{chat_history}
+
+--
+
+== SECTION 6: Start Answering ==
+You have all the context above. Now answer the following question thoroughly with inline [source:N] citations:
+"{question}""""),
 ])
     
 def build_context(rows: list[dict]) -> str:
+    if not rows:
+        return "(no matching sources found)"
     parts = []
     for i, row in enumerate(rows, 1):
-        label = f"[{i}] File: {row['file_name']}"
+        # Convert L2 distance to approximate cosine similarity: sim ≈ 1 - dist/2
+        distance = row.get("distance", 0)
+        similarity = max(0.0, 1.0 - distance / 2.0)
+        label = f"[Source {i}] File: {row['file_name']}"
+        if row.get("page") is not None:
+            label += f" (Page {row['page']})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
-        if row.get("page") is not None:
-            label += f" | Page: {row['page']}"
-        parts.append(f"{label}\n{row['text']}")
-    return "\n\n---\n\n".join(parts)
+        label += f" | Similarity: {similarity:.2f}"
+        parts.append(f"{label}\n\"{row['text']}\"")
+    return "\n\n--\n\n".join(parts)
 
 
 def get_llm() -> Any:
@@ -412,7 +465,158 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
     return "\n".join(parts)
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None) -> dict:
+def _load_raw_text_legacy(storage_dir: str | None) -> str:
+    """Load raw PDF text from disk (used only for quiz prompt)."""
+    if not storage_dir:
+        return ""
+    try:
+        raw_path = Path(storage_dir) / "_raw_text.json"
+        if not raw_path.exists():
+            return ""
+        data = json.loads(raw_path.read_text(encoding="utf-8"))
+        parts = []
+        for fname, text in data.items():
+            parts.append(f"[File: {fname}]\n{text}")
+        combined = "\n\n---\n\n".join(parts)
+        if len(combined) > 80_000:
+            combined = combined[:80_000] + "\n\n[... truncated]"
+        return combined
+    except Exception:
+        return ""
+
+
+def _load_page_summaries_legacy(storage_dir: str | None) -> str:
+    """Load per-page summaries from disk (used only for quiz prompt)."""
+    if not storage_dir:
+        return ""
+    try:
+        summaries_path = Path(storage_dir) / "_page_summaries.json"
+        if not summaries_path.exists():
+            return ""
+        summaries = json.loads(summaries_path.read_text(encoding="utf-8"))
+        lines = []
+        for ps in summaries:
+            page = ps.get("page", "?")
+            fname = ps.get("file_name", "")
+            summary = ps.get("summary", "").strip()
+            if summary:
+                prefix = f"[{fname} p.{page}]" if fname else f"[p.{page}]"
+                lines.append(f"{prefix} {summary}")
+        combined = "\n".join(lines)
+        if len(combined) > 20_000:
+            combined = combined[:20_000] + "\n[... truncated]"
+        return combined
+    except Exception:
+        return ""
+
+
+def _extract_matched_pages(storage_dir: str | None, rows: list[dict]) -> str:
+    """Extract full page text only for pages referenced by matching chunks.
+
+    Instead of sending the entire raw document, we extract only the unique
+    pages that the top-k matching sources came from.  This dramatically
+    reduces the context window while giving the model complete page text
+    for the most relevant pages.
+    """
+    if not storage_dir or not rows:
+        return "(no full page text available)"
+    try:
+        raw_path = Path(storage_dir) / "_raw_text.json"
+        if not raw_path.exists():
+            return "(no full page text available)"
+        data: dict[str, str] = json.loads(raw_path.read_text(encoding="utf-8"))
+
+        # Collect unique (file_name, page) pairs from matching rows
+        needed: dict[str, set[int]] = {}  # file_name -> set of page numbers
+        for row in rows:
+            page = row.get("page")
+            fname = row.get("file_name", "")
+            if page is not None and page > 0 and fname:
+                needed.setdefault(fname, set()).add(int(page))
+
+        if not needed:
+            return "(matched sources have no page numbers)"
+
+        # Parse raw text per file using '# Page N' headers as delimiters
+        _page_header_re = re.compile(r'^# Page (\d+)$', re.MULTILINE)
+        parts: list[str] = []
+        for fname, pages_needed in needed.items():
+            raw = data.get(fname, "")
+            if not raw:
+                continue
+            # Split the raw text into pages by finding all '# Page N' headers
+            headers = list(_page_header_re.finditer(raw))
+            if not headers:
+                continue
+            page_texts: dict[int, str] = {}
+            for idx, match in enumerate(headers):
+                page_num = int(match.group(1))
+                start = match.start()
+                end = headers[idx + 1].start() if idx + 1 < len(headers) else len(raw)
+                page_texts[page_num] = raw[start:end].strip()
+
+            # Extract only the needed pages, sorted ascending
+            for page_num in sorted(pages_needed):
+                text = page_texts.get(page_num)
+                if text:
+                    parts.append(f"[Full Page {page_num} of {fname}]\n\"{text}\"")
+
+        if not parts:
+            return "(could not extract full page text)"
+
+        combined = "\n\n--\n\n".join(parts)
+        if len(combined) > _MATCHED_PAGES_MAX_CHARS:
+            combined = combined[:_MATCHED_PAGES_MAX_CHARS] + "\n\n[... truncated]"
+        logger.info(f"📄 Extracted {len(parts)} matched pages: {len(combined)} chars")
+        return combined
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to extract matched pages: {e}")
+        return "(error extracting page text)"
+
+
+def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
+    """Format EXIF metadata for all files into a prompt section."""
+    if not file_metadata:
+        return "(no file metadata available)"
+    parts = []
+    for filename, meta in file_metadata.items():
+        if not meta:
+            continue
+        file_type = meta.get("file_type", "")
+        fields: list[tuple[str, Any]] = []
+        if file_type == "image":
+            camera_parts = [meta.get("camera_make", ""), meta.get("camera_model", "")]
+            camera = " ".join(p for p in camera_parts if p).strip() or None
+            fields = [
+                ("Camera", camera),
+                ("Date taken", meta.get("date_taken")),
+                ("Dimensions", f"{meta.get('image_width')}x{meta.get('image_height')}" if meta.get("image_width") else None),
+                ("ISO", meta.get("iso")),
+                ("Exposure", meta.get("exposure_time")),
+                ("F-number", meta.get("f_number")),
+                ("Focal length", meta.get("focal_length")),
+                ("Lens", meta.get("lens_model")),
+                ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
+                ("Software", meta.get("software")),
+                ("Copyright", meta.get("copyright")),
+                ("Artist", meta.get("artist")),
+            ]
+        else:
+            # PDF or other file metadata
+            fields = [
+                ("Title", meta.get("title")),
+                ("Author", meta.get("author")),
+                ("Subject", meta.get("subject")),
+                ("Created", meta.get("creation_date")),
+                ("Pages", meta.get("page_count")),
+            ]
+        line_parts = [f"{label}: {value}" for label, value in fields if value]
+        if line_parts:
+            parts.append(f"[{filename}] " + " | ".join(line_parts))
+    return "\n".join(parts) if parts else "(no file metadata available)"
+
+
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 6, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None) -> dict:
     import sentry_sdk
     logger.info(f"❓ Answering question: {question[:100]}...")
 
@@ -447,26 +651,47 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         logger.info(f"📚 Retrieved {len(rows)} context chunks")
         context = build_context(rows)
 
+        # Extract full page text only for pages referenced by matching chunks
+        matched_pages = _extract_matched_pages(storage_dir, rows)
+
+        # Format EXIF / file metadata for the prompt
+        exif_str = _format_exif_for_prompt(file_metadata)
+
         llm = get_llm()
 
         # Choose prompt based on whether this is a quiz request
         is_quiz = _is_quiz_request(question)
-        prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         if is_quiz:
             logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
+            # Quiz still uses the old raw_text + page_summaries variables
+            raw_text = _load_raw_text_legacy(storage_dir)
+            page_summaries = _load_page_summaries_legacy(storage_dir)
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
 
+        prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         chain = prompt | llm
-        logger.info(f"🔗 Invoking LLM chain...")
+        logger.info(f"🔗 Invoking LLM chain (matched_pages={len(matched_pages)} chars, exif={len(exif_str)} chars)...")
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
-            ai_message = chain.invoke({
-                "question": question,
-                "context": context,
-                "chat_history": history_str,
-                "welcome_messages": welcome_str,
-            })
+            if is_quiz:
+                ai_message = chain.invoke({
+                    "question": question,
+                    "context": context,
+                    "chat_history": history_str,
+                    "welcome_messages": welcome_str,
+                    "raw_text": raw_text or "(no raw text available)",
+                    "page_summaries": page_summaries or "(no page summaries available)",
+                })
+            else:
+                ai_message = chain.invoke({
+                    "question": question,
+                    "context": context,
+                    "chat_history": history_str,
+                    "welcome_messages": welcome_str,
+                    "matched_pages": matched_pages,
+                    "exif_metadata": exif_str,
+                })
         answer = ai_message.content
 
         # Log the full question and model response for observability (visible in GCP Cloud Logging)

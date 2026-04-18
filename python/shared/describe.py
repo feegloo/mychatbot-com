@@ -46,12 +46,13 @@ _META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_b
 
 # ── Token budget for the describe prompt ─────────────────────────────
 # Model context windows: gpt-4.1-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
-# We keep the content budget modest to avoid slow/expensive calls and
-# "lost in the middle" quality issues.  ~15K tokens ≈ 60K chars is safe
-# for all supported models while still covering large PDFs well.
-_DESCRIBE_MAX_CONTENT_CHARS = 60_000
-# When a document is large, we split the budget: 60 % for text, 40 % for page summaries.
-_TEXT_BUDGET_RATIO = 0.6
+# We keep the content budget generous to cover large PDFs well while still
+# fitting comfortably in all supported model context windows.
+# ~30K tokens ≈ 120K chars is safe for all models and gives the LLM
+# much more raw text to work with for detailed welcome messages.
+_DESCRIBE_MAX_CONTENT_CHARS = 120_000
+# When a document is large, we split the budget: 70 % for text, 30 % for page summaries.
+_TEXT_BUDGET_RATIO = 0.7
 
 
 def _estimate_total_text_len(extracted: list[dict]) -> int:
