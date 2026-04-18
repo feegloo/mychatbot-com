@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
+
+# Disable chromadb's posthog telemetry before importing —
+# avoids "capture() takes 1 positional argument but 3 were given" errors
+# caused by posthog API incompatibility.
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 import chromadb
 import sentry_sdk
@@ -29,17 +35,21 @@ def get_client():
 
     settings = get_settings()
 
+    no_telemetry = ChromaSettings(anonymized_telemetry=False)
+
     if settings.chroma_mode == "cloud":
         _chroma_client = chromadb.CloudClient(
             api_key=settings.chroma_api_key,
             tenant=settings.chroma_tenant,
             database=settings.chroma_database,
+            settings=no_telemetry,
         )
     elif settings.chroma_mode == "http":
         _chroma_client = chromadb.HttpClient(host=settings.chroma_http_host.replace("http://", "").replace("https://", "").split(":")[0],
-                                   port=int(settings.chroma_http_host.rsplit(":", 1)[-1]))
+                                   port=int(settings.chroma_http_host.rsplit(":", 1)[-1]),
+                                   settings=no_telemetry)
     else:
-        _chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_dir, settings=ChromaSettings(anonymized_telemetry=False))
+        _chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_dir, settings=no_telemetry)
     return _chroma_client
 
 

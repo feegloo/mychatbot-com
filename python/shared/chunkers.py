@@ -76,12 +76,15 @@ def _split_paragraphs(text: str) -> list[str]:
     return result
 
 
-def split_into_chunks(file_name: str, text: str) -> list[Chunk]:
+def split_into_chunks(file_name: str, text: str, *, page_num: int | None = None) -> list[Chunk]:
     if not text or not text.strip():
         return []
 
     # Normalize line endings
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # Build ID prefix: include page number when processing per-page
+    _id_prefix = f"{Path(file_name).stem}_p{page_num}" if page_num is not None else Path(file_name).stem
 
     # Plain text without markdown headers: split by paragraphs
     if not _has_markdown_headers(text):
@@ -94,7 +97,7 @@ def split_into_chunks(file_name: str, text: str) -> list[Chunk]:
                 for raw in _chunker(para):
                     section = _section_label(raw.text)
                     chunks.append(Chunk(
-                        chunk_id=f"{Path(file_name).stem}_chunk_{index}",
+                        chunk_id=f"{_id_prefix}_chunk_{index}",
                         file_name=file_name,
                         text=raw.text,
                         section=section,
@@ -105,7 +108,7 @@ def split_into_chunks(file_name: str, text: str) -> list[Chunk]:
             else:
                 section = _section_label(para)
                 chunks.append(Chunk(
-                    chunk_id=f"{Path(file_name).stem}_chunk_{index}",
+                    chunk_id=f"{_id_prefix}_chunk_{index}",
                     file_name=file_name,
                     text=para,
                     section=section,
@@ -128,7 +131,7 @@ def split_into_chunks(file_name: str, text: str) -> list[Chunk]:
         if page is None:
             page = _last_page_before(text, raw.start_index)
         chunks.append(Chunk(
-            chunk_id=f"{Path(file_name).stem}_chunk_{index}",
+            chunk_id=f"{_id_prefix}_chunk_{index}",
             file_name=file_name,
             text=raw.text,
             section=section,

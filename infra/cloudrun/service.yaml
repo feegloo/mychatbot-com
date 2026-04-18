@@ -32,6 +32,8 @@ spec:
             # Chroma runs in-process (local PersistentClient) for lowest latency
             - name: CHROMA_MODE
               value: local
+            - name: ANONYMIZED_TELEMETRY
+              value: "False"
             - name: OPENAI_API_KEY
               value: "REPLACE_WITH_OPENAI_KEY"
             - name: STORAGE_PROVIDER

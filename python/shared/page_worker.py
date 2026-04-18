@@ -234,7 +234,7 @@ def process_pdf_page(
             page_number=page_num, total_pages=total_pages,
             worker_id=worker_id,
         ) as ctx:
-            chunks = split_into_chunks(file_name, page_text)
+            chunks = split_into_chunks(file_name, page_text, page_num=page_num)
             result.chunks = chunks
             ctx["detail"] = f"{len(chunks)} chunks"
 

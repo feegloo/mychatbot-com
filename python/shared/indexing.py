@@ -105,6 +105,7 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
     extracted: list[dict] = []
     detected_language = None
     all_errors: list[dict] = []
+    all_page_summaries: list[dict] = []
 
     for fr in file_results:
         # Build extracted doc format for describe_documents compatibility
@@ -116,6 +117,15 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         all_chunks.extend(fr.all_chunks)
         all_images.extend(fr.all_images)
         all_errors.extend(fr.errors)
+
+        # Collect per-page summaries for large-document describe strategy
+        for pr in fr.page_results:
+            if pr.description_summary:
+                all_page_summaries.append({
+                    "page": pr.page_number,
+                    "file_name": pr.file_name,
+                    "summary": pr.description_summary,
+                })
 
         if detected_language is None and fr.full_text:
             detected_language = detect_language(fr.full_text[:2000])
@@ -149,6 +159,7 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 all_images,
                 language=detected_language,
                 file_metadata=file_metadata,
+                page_summaries=all_page_summaries or None,
             )
             upsert_result = upsert_future.result()
             welcome_message = describe_future.result()

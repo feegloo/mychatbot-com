@@ -17,38 +17,118 @@ logger = logging.getLogger(__name__)
 # Keys to always exclude from the metadata block shown to the model
 _META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification"}
 
+# ── Token budget for the describe prompt ─────────────────────────────
+# Model context windows: gpt-4.1-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
+# We keep the content budget modest to avoid slow/expensive calls and
+# "lost in the middle" quality issues.  ~15K tokens ≈ 60K chars is safe
+# for all supported models while still covering large PDFs well.
+_DESCRIBE_MAX_CONTENT_CHARS = 60_000
+# When a document is large, we split the budget: 60 % for text, 40 % for page summaries.
+_TEXT_BUDGET_RATIO = 0.6
+
+
+def _estimate_total_text_len(extracted: list[dict]) -> int:
+    """Return the total character count across all extracted documents."""
+    return sum(len(doc.get("text") or "") for doc in extracted)
+
+
+def _build_page_summary_block(page_summaries: list[dict]) -> str:
+    """Build a compact summary-per-page block from page summaries."""
+    lines: list[str] = []
+    for ps in page_summaries:
+        page = ps.get("page", "?")
+        fname = clean_file_name(ps.get("file_name", ""))
+        summary = ps.get("summary", "").strip()
+        if summary:
+            prefix = f"[{fname} p.{page}]" if fname else f"[p.{page}]"
+            lines.append(f"{prefix} {summary}")
+    return "\n".join(lines)
+
 
 def describe_documents(
     extracted: list[dict],
     images: list[dict],
     language: str | None = None,
     file_metadata: dict[str, dict] | None = None,
+    page_summaries: list[dict] | None = None,
 ) -> str:
     """Generate a welcome message with a ## Title, description, and expert insight.
 
     Uses the beginning of extracted text (no embeddings/RAG) so the response
     is as quick as possible.  When file_metadata contains EXIF data for images,
     it is included so the welcome message can mention camera, date, location etc.
-    """
-    # Build a concise snippet from the beginning of each document
-    snippets: list[str] = []
-    for doc in extracted:
-        name = clean_file_name(doc.get("file_name", "unknown"))
-        text = (doc.get("text") or "")[:3000]
-        if text.strip():
-            snippets.append(f"[File: {name}]\n{text}")
 
+    For very large documents the full text would exceed model limits, so we
+    use a hybrid strategy: truncated beginning of text + short per-page
+    summaries, staying within ``_DESCRIBE_MAX_CONTENT_CHARS``.
+    """
+    total_chars = _estimate_total_text_len(extracted)
+    is_large = total_chars > _DESCRIBE_MAX_CONTENT_CHARS and page_summaries
+
+    # ── Build image snippets (always included, capped) ───────────────
+    image_snippets: list[str] = []
     for img in images:
         desc = img.get("description", "")
         name = clean_file_name(img.get("file_name", "image"))
         page = img.get("page", "?")
         if desc:
-            snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
+            image_snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
+    image_block = "\n\n---\n\n".join(image_snippets)
 
-    if not snippets:
-        return ""
+    if is_large:
+        # ── Large-document strategy ──────────────────────────────────
+        # Split the budget between beginning-of-text and page summaries
+        # so the model sees both detail (start) and breadth (all pages).
+        image_chars = len(image_block)
+        remaining = _DESCRIBE_MAX_CONTENT_CHARS - image_chars
+        text_budget = int(remaining * _TEXT_BUDGET_RATIO)
+        summary_budget = remaining - text_budget
 
-    combined = "\n\n---\n\n".join(snippets)[:6000]
+        # Truncated text from each document (distribute budget evenly)
+        per_doc = max(text_budget // max(len(extracted), 1), 500)
+        text_snippets: list[str] = []
+        for doc in extracted:
+            name = clean_file_name(doc.get("file_name", "unknown"))
+            text = (doc.get("text") or "")[:per_doc]
+            if text.strip():
+                text_snippets.append(f"[File: {name}]\n{text}")
+
+        # Page summaries block
+        summary_text = _build_page_summary_block(page_summaries)[:summary_budget]
+
+        parts: list[str] = []
+        if text_snippets:
+            parts.append("\n\n---\n\n".join(text_snippets))
+        if summary_text:
+            parts.append(
+                f"[Short summaries of all pages — the full text above was truncated "
+                f"because the document is very large ({total_chars} chars)]\n{summary_text}"
+            )
+        if image_block:
+            parts.append(image_block)
+
+        combined = "\n\n---\n\n".join(parts)
+        if not combined.strip():
+            return ""
+        logger.info(
+            f"📝 Large-doc describe: {total_chars} chars total → "
+            f"{len(combined)} chars context (text {text_budget}, summaries {summary_budget})"
+        )
+    else:
+        # ── Small-document strategy (original) ───────────────────────
+        snippets: list[str] = []
+        per_doc = max(_DESCRIBE_MAX_CONTENT_CHARS // max(len(extracted), 1), 3000)
+        for doc in extracted:
+            name = clean_file_name(doc.get("file_name", "unknown"))
+            text = (doc.get("text") or "")[:per_doc]
+            if text.strip():
+                snippets.append(f"[File: {name}]\n{text}")
+        snippets.extend(image_snippets)
+
+        if not snippets:
+            return ""
+
+        combined = "\n\n---\n\n".join(snippets)[:_DESCRIBE_MAX_CONTENT_CHARS]
 
     # Build a metadata block from file_metadata (EXIF, PDF info, etc.)
     # Only include files that have meaningful metadata beyond basic file stats.
