@@ -72,11 +72,28 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             output_dir = str(p.parent)
             if is_cloud_mode():
                 # Cloud Run Jobs: dispatch per-page containers
+                # Workers handle chunking + Chroma upsert independently.
+                # We still need text locally for welcome message + suggested questions.
                 logger.info(f"☁️ Cloud mode: dispatching Cloud Run Jobs for {p.name}")
                 import fitz
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
+
+                # Extract text locally (cheap, no API calls) for describe + questions
+                page_texts: list[str] = []
+                for page_idx in range(total_pages):
+                    try:
+                        page = doc[page_idx]
+                        raw = page.get_text() or ""
+                        page_texts.append(raw.strip())
+                    except Exception as e:
+                        logger.warning(f"⚠️ Local text extraction failed for page {page_idx + 1}: {e}")
+                        page_texts.append("")
                 doc.close()
+
+                full_text = "\n\n".join(page_texts)
+                logger.info(f"📄 Extracted {len(full_text)} chars locally for describe/questions")
+
                 cloud_results = dispatch_page_jobs(
                     pdf_gcs_uri=file_path,
                     total_pages=total_pages,
@@ -84,10 +101,11 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                     conversation_id=conversation_id,
                     collection_name=collection_name,
                 )
-                # Build a stub FileProcessingResult from cloud results
+                # Build FileProcessingResult with local text + cloud worker status
                 result = FileProcessingResult(
                     file_name=p.name, file_path=file_path, total_pages=total_pages,
                 )
+                result.full_text = full_text
                 for cr in cloud_results:
                     if cr["status"] != "completed":
                         result.errors.append({"page": cr["page"], "error": cr.get("error", "unknown")})

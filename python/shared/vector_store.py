@@ -64,6 +64,8 @@ def _get_openai_client() -> OpenAI:
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed texts using OpenAI API directly (bypasses LangChain/tiktoken overhead)."""
+    if not texts:
+        return []
     client = _get_openai_client()
     settings = get_settings()
 
@@ -123,6 +125,9 @@ def collection_count(collection_name: str) -> int:
 
 
 def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk]) -> dict:
+    if not chunks:
+        logger.info("⚠️ No chunks to upsert, skipping")
+        return {"upserted": 0}
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
 

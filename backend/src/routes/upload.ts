@@ -95,15 +95,14 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
       const fileMetadata = result.parsedJson?.file_metadata || {};
-      let messageId: string | undefined;
-      if (welcomeMessage) {
-        messageId = await insertConversationMessage({
-          conversationId,
-          role: "assistant",
-          content: welcomeMessage,
-          citations: { _uploadedFileNames: uploadedFileNames },
-        });
-      }
+      const fallbackMessage = welcomeMessage
+        || `## ${uploadedFileNames.join(", ")}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? "this document" : "these documents"}.`;
+      const messageId = await insertConversationMessage({
+        conversationId,
+        role: "assistant",
+        content: fallbackMessage,
+        citations: { _uploadedFileNames: uploadedFileNames },
+      });
       // Store file metadata per file
       for (const [fileName, metadata] of Object.entries(fileMetadata)) {
         try {

@@ -14,6 +14,33 @@ from .extractors import clean_file_name
 logger = logging.getLogger(__name__)
 
 
+def _fallback_from_metadata(
+    extracted: list[dict],
+    images: list[dict],
+    file_metadata: dict[str, dict] | None,
+    language: str | None,
+) -> str:
+    """Generate a minimal welcome message when no text could be extracted."""
+    file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
+    file_names += [clean_file_name(img.get("file_name", "")) for img in images]
+    name_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn)) or "document"
+
+    title_from_meta = ""
+    if file_metadata:
+        for meta in file_metadata.values():
+            if isinstance(meta, dict) and meta.get("title"):
+                title_from_meta = meta["title"]
+                break
+
+    title = title_from_meta or name_list
+    msg = f"## {title}\n\n"
+    if language == "pl":
+        msg += f"Plik **{name_list}** został przesłany. Nie udało się wyodrębnić treści tekstowej — dokument może zawierać wyłącznie obrazy lub być zabezpieczony. Możesz zadać pytanie, a postaram się pomóc."
+    else:
+        msg += f"**{name_list}** has been uploaded. Text extraction was not possible — the document may contain only images or be protected. Feel free to ask a question and I'll do my best to help."
+    return msg
+
+
 # Keys to always exclude from the metadata block shown to the model
 _META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification"}
 
@@ -109,7 +136,7 @@ def describe_documents(
 
         combined = "\n\n---\n\n".join(parts)
         if not combined.strip():
-            return ""
+            return _fallback_from_metadata(extracted, images, file_metadata, language)
         logger.info(
             f"📝 Large-doc describe: {total_chars} chars total → "
             f"{len(combined)} chars context (text {text_budget}, summaries {summary_budget})"
@@ -126,7 +153,8 @@ def describe_documents(
         snippets.extend(image_snippets)
 
         if not snippets:
-            return ""
+            # No text extracted — return a minimal fallback from metadata
+            return _fallback_from_metadata(extracted, images, file_metadata, language)
 
         combined = "\n\n---\n\n".join(snippets)[:_DESCRIBE_MAX_CONTENT_CHARS]
 

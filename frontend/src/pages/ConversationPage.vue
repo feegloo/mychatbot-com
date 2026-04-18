@@ -6,7 +6,7 @@
       :conversationId="conversationId"
       :conversationTitle="conversationTitle"
       :canUpload="canUpload"
-      :processing="loaded && status.status !== 'ready'"
+      :processing="loaded && status.status === 'processing'"
       @renamed="status.displayName = $event"
       @reload="onReload"
       @view-threads="viewHeaderThreads"
@@ -24,8 +24,8 @@
       </template>
     </ConversationHeader>
 
-    <p v-if="status.errorMessage" style="color:#f87171; margin-bottom:16px">
-      {{ status.errorMessage }}
+    <p v-if="status.status === 'failed'" style="color:#f87171; margin-bottom:16px; text-align:center; padding: 12px;">
+      Something went wrong while processing your files. Please try uploading again.
     </p>
 
     <div class="grid" style="grid-template-columns: 1fr;">
