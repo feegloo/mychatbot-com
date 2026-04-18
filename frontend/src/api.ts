@@ -235,6 +235,42 @@ export async function synthesizeSpeech(text: string, language?: string): Promise
   return response.data as Blob;
 }
 
+export type WordCaption = {
+  word: string;
+  start: number;
+  end: number;
+};
+
+export async function synthesizeSpeechWithCaptions(
+  text: string,
+  language?: string,
+  translateTo?: string,
+): Promise<{ audio: Blob; captions: WordCaption[] | null; translatedText?: string }> {
+  const body: { text: string; language?: string; translateTo?: string } = { text };
+  if (language) body.language = language;
+  if (translateTo) body.translateTo = translateTo;
+
+  const response = await api.post("/synthesize-with-captions", body);
+  const data = response.data as {
+    audio: string;
+    captions: WordCaption[] | null;
+    translatedText?: string;
+  };
+
+  // Decode base64 audio to Blob
+  const binaryStr = atob(data.audio);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  return {
+    audio: new Blob([bytes], { type: "audio/mpeg" }),
+    captions: data.captions ?? null,
+    translatedText: data.translatedText,
+  };
+}
+
 export async function resolveFingerprint(fingerprint: string) {
   const response = await api.post("/fingerprint", { fingerprint });
   return response.data as { userId: number };

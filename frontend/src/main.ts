@@ -14,12 +14,16 @@ Sentry.init({
   environment: import.meta.env.MODE === "production" ? "prod" : "dev",
   integrations: [
     Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration(),
   ],
   sendDefaultPii: true,
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
+});
+
+// Lazy-load the replay integration after initial render
+Sentry.lazyLoadIntegration("replayIntegration").then((replay) => {
+  Sentry.addIntegration(replay());
 });
 
 app.use(router).use(FloatingVue).mount("#app");

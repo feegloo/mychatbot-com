@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
+    "@sentry/vue": "^10.49.0",
     "@stripe/stripe-js": "^9.2.0",
     "axios": "^1.8.4",
     "dompurify": "^3.3.3",
     "floating-vue": "^5.2.2",
-    "html2canvas-pro": "^2.0.2",
     "jspdf": "^4.2.1",
     "marked": "^18.0.0",
     "mermaid": "^11.14.0",

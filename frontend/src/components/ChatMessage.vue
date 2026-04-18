@@ -216,11 +216,11 @@ import { getUserId } from "../utils/fingerprint";
 import ImageModal from "./ImageModal.vue";
 import SourcePreviewModal from "./SourcePreviewModal.vue";
 import AppButton from "./AppButton.vue";
-import QuizBlock from "./QuizBlock.vue";
-import MermaidBlock from "./MermaidBlock.vue";
+import { defineAsyncComponent } from "vue";
+const QuizBlock = defineAsyncComponent(() => import("./QuizBlock.vue"));
+const MermaidBlock = defineAsyncComponent(() => import("./MermaidBlock.vue"));
 import type { QuizData } from "./QuizBlock.vue";
 import { getData, setData } from "../utils/localData";
-import { printContentAsPdf } from "../utils/printPdf";
 import UploadingDots from "./UploadingDots.vue";
 
 marked.setOptions({
@@ -455,6 +455,7 @@ async function downloadMessagePdf() {
     });
   }
 
+  const { printContentAsPdf } = await import("../utils/printPdf");
   await printContentAsPdf(md, title);
 }
 

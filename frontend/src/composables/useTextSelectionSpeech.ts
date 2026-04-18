@@ -1,5 +1,5 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from "vue";
-import { synthesizeSpeech } from "../api";
+import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from "../api";
 
 /**
  * Composable that enables text-to-speech on message content when the
@@ -31,6 +31,13 @@ export function useTextSelectionSpeech(
   let lastWordRange: Range | null = null;
   let mouseDownPos: { x: number; y: number } | null = null;
 
+  // ── Caption playback state ──
+  let speechRange: Range | null = null;
+  let captionHighlightEl: HTMLElement | null = null;
+  let captionGhostEl: HTMLElement | null = null;
+  let captionAnimFrame: number | null = null;
+  let activeCaptionWords: { caption: WordCaption; range: Range; ghostWord: string }[] | null = null;
+
   /** Is TTS active (current display language differs from browser language)? */
   function isSpeechActive(): boolean {
     const lang = currentLanguage?.value;
@@ -49,6 +56,7 @@ export function useTextSelectionSpeech(
       // If speech just became inactive, clean up any visible tooltip/highlight
       hideTooltipImmediate();
       removeHighlight();
+      stopCaptionPlayback();
       stopCurrentAudio();
     }
   }
@@ -76,7 +84,8 @@ export function useTextSelectionSpeech(
     return el;
   }
 
-  function showTooltip(rect: DOMRect, selectedText: string) {
+  function showTooltip(rect: DOMRect, selectedText: string, sourceRange?: Range) {
+    speechRange = sourceRange || null;
     if (!tooltip) tooltip = createTooltipEl();
 
     const scrollX = window.scrollX;
@@ -164,43 +173,356 @@ export function useTextSelectionSpeech(
   }
 
   function onStopClick() {
+    stopCaptionPlayback();
+    stopSingleWordGhost();
     stopCurrentAudio();
     hideTooltip();
   }
 
   async function onSpeakClick(text: string) {
+    stopCaptionPlayback();
     stopCurrentAudio();
     setIconState("loading");
     abortController = new AbortController();
 
     try {
-      const blob = await synthesizeSpeech(text.slice(0, 2000), currentLanguage?.value);
+      // Use captions API for word-by-word playback with ghost translation
+      const result = await synthesizeSpeechWithCaptions(
+        text.slice(0, 2000),
+        currentLanguage?.value,
+        browserLang,
+      );
       if (abortController?.signal.aborted) return;
 
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(result.audio);
       currentBlobUrl = url;
 
       const audio = new Audio(url);
       currentAudio = audio;
 
+      const isSingleWord = text.trim().split(/\s+/).length === 1;
+
+      // Prepare word-by-word caption data
+      if (speechRange && result.captions && result.captions.length > 0) {
+        prepareCaptionPlayback(result.captions, result.translatedText);
+      }
+
       audio.addEventListener("ended", () => {
+        stopCaptionPlayback();
+        stopSingleWordGhost();
         stopCurrentAudio();
         hideTooltip();
       });
       audio.addEventListener("error", () => {
+        stopCaptionPlayback();
+        stopSingleWordGhost();
         stopCurrentAudio();
         hideTooltip();
       });
 
       await audio.play();
       isPlaying = true;
-      // Show pause icon while playing
       setIconState("pause");
+
+      // Start word-by-word highlight animation or single-word ghost
+      if (activeCaptionWords) {
+        startCaptionAnimation(audio);
+      } else if (isSingleWord && result.translatedText && speechRange) {
+        showSingleWordGhost(speechRange, result.translatedText);
+      }
+      // Multi-word with null captions → plain playback, no animation
     } catch (err: any) {
       if (err?.name === "AbortError" || abortController?.signal.aborted) return;
       console.error("Speech synthesis error:", err);
+      stopCaptionPlayback();
       hideTooltip();
     }
+  }
+
+  // ── Caption playback functions ──
+
+  /**
+   * Extract individual word Ranges from a parent Range in the DOM.
+   */
+  function extractWordRangesFromRange(parentRange: Range): { word: string; range: Range }[] {
+    const results: { word: string; range: Range }[] = [];
+
+    // Single text node range (e.g. clicked one word)
+    if (parentRange.startContainer === parentRange.endContainer &&
+        parentRange.startContainer.nodeType === Node.TEXT_NODE) {
+      const text = parentRange.toString();
+      const wordRegex = /[\p{L}\p{N}'\u2019-]+/gu;
+      let match;
+      while ((match = wordRegex.exec(text)) !== null) {
+        const r = document.createRange();
+        r.setStart(parentRange.startContainer, parentRange.startOffset + match.index);
+        r.setEnd(parentRange.startContainer, parentRange.startOffset + match.index + match[0].length);
+        results.push({ word: match[0], range: r });
+      }
+      return results;
+    }
+
+    // Walk text nodes within the range's common ancestor
+    const ancestor = parentRange.commonAncestorContainer;
+    const root = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement! : ancestor as HTMLElement;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      if (!parentRange.intersectsNode(node)) continue;
+      const text = node.textContent || "";
+      const nodeStart = (node === parentRange.startContainer) ? parentRange.startOffset : 0;
+      const nodeEnd = (node === parentRange.endContainer) ? parentRange.endOffset : text.length;
+
+      const wordRegex = /[\p{L}\p{N}'\u2019-]+/gu;
+      let match;
+      while ((match = wordRegex.exec(text)) !== null) {
+        const ws = match.index;
+        const we = match.index + match[0].length;
+        if (ws >= nodeStart && we <= nodeEnd) {
+          const r = document.createRange();
+          r.setStart(node, ws);
+          r.setEnd(node, we);
+          results.push({ word: match[0], range: r });
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Match Whisper word captions to DOM word ranges by fuzzy text comparison.
+   */
+  function matchCaptionsToWords(
+    captions: WordCaption[],
+    domWords: { word: string; range: Range }[],
+  ): { caption: WordCaption; range: Range; ghostWord: string }[] {
+    const result: { caption: WordCaption; range: Range; ghostWord: string }[] = [];
+    let domIdx = 0;
+
+    for (const cap of captions) {
+      const cleanCap = cap.word.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+      if (!cleanCap) continue;
+
+      for (let j = domIdx; j < domWords.length; j++) {
+        const cleanDom = domWords[j].word.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+        if (cleanDom === cleanCap || cleanDom.startsWith(cleanCap) || cleanCap.startsWith(cleanDom)) {
+          result.push({ caption: cap, range: domWords[j].range, ghostWord: "" });
+          domIdx = j + 1;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Assign ghost (translated) words to each matched caption using proportional alignment.
+   */
+  function alignGhosts(
+    matched: { caption: WordCaption; range: Range; ghostWord: string }[],
+    translatedText: string,
+  ): void {
+    if (!translatedText || !matched.length) return;
+
+    const targetWords = translatedText.split(/\s+/).filter((w) => w.length > 0);
+    const n = matched.length;
+    const m = targetWords.length;
+    if (!m) return;
+
+    for (let i = 0; i < n; i++) {
+      const start = Math.round((i * m) / n);
+      const end = Math.round(((i + 1) * m) / n);
+      matched[i].ghostWord = targetWords.slice(start, Math.max(start + 1, end)).join(" ");
+    }
+  }
+
+  /**
+   * Prepare caption playback: extract DOM word ranges, match to Whisper captions, align ghosts.
+   */
+  function prepareCaptionPlayback(captions: WordCaption[], translatedText?: string): void {
+    if (!speechRange) return;
+
+    const domWords = extractWordRangesFromRange(speechRange);
+    if (!domWords.length) return;
+
+    const matched = matchCaptionsToWords(captions, domWords);
+    if (!matched.length) return;
+
+    if (translatedText) {
+      alignGhosts(matched, translatedText);
+    }
+
+    activeCaptionWords = matched;
+  }
+
+  /**
+   * Start the animation loop that highlights words in sync with audio playback.
+   */
+  function startCaptionAnimation(audio: HTMLAudioElement): void {
+    let lastIdx = -1;
+
+    function tick() {
+      if (!activeCaptionWords || !currentAudio) return;
+
+      const time = audio.currentTime;
+      let currentIdx = -1;
+
+      for (let i = 0; i < activeCaptionWords.length; i++) {
+        const { caption } = activeCaptionWords[i];
+        if (time >= caption.start && time < caption.end) {
+          currentIdx = i;
+          break;
+        }
+        // Between captions: keep highlighting previous word
+        if (i > 0 && time >= activeCaptionWords[i - 1].caption.end && time < caption.start) {
+          currentIdx = i - 1;
+          break;
+        }
+      }
+
+      // After last caption, keep highlighting briefly
+      if (currentIdx === -1 && activeCaptionWords.length > 0) {
+        const last = activeCaptionWords[activeCaptionWords.length - 1];
+        if (time >= last.caption.start && time < last.caption.end + 0.3) {
+          currentIdx = activeCaptionWords.length - 1;
+        }
+      }
+
+      if (currentIdx !== lastIdx) {
+        lastIdx = currentIdx;
+        updateCaptionVisuals(currentIdx);
+      }
+
+      captionAnimFrame = requestAnimationFrame(tick);
+    }
+
+    captionAnimFrame = requestAnimationFrame(tick);
+  }
+
+  /**
+   * Update the caption highlight and ghost overlay for the given word index.
+   */
+  function updateCaptionVisuals(idx: number): void {
+    if (idx < 0 || !activeCaptionWords) {
+      if (captionHighlightEl) captionHighlightEl.style.display = "none";
+      if (captionGhostEl) captionGhostEl.style.display = "none";
+      return;
+    }
+
+    const { range, ghostWord } = activeCaptionWords[idx];
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    // ── Active word highlight ──
+    if (!captionHighlightEl) {
+      captionHighlightEl = document.createElement("div");
+      captionHighlightEl.className = "speech-caption-highlight";
+      document.body.appendChild(captionHighlightEl);
+    }
+    captionHighlightEl.style.left = `${rect.left + scrollX - 2}px`;
+    captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`;
+    captionHighlightEl.style.width = `${rect.width + 4}px`;
+    captionHighlightEl.style.height = `${rect.height + 2}px`;
+    captionHighlightEl.style.display = "block";
+
+    // ── Ghost translation label ──
+    if (ghostWord) {
+      if (!captionGhostEl) {
+        captionGhostEl = document.createElement("div");
+        captionGhostEl.className = "speech-caption-ghost";
+        document.body.appendChild(captionGhostEl);
+      }
+      captionGhostEl.textContent = ghostWord;
+      captionGhostEl.style.display = "block";
+      // Force reflow to measure width
+      void captionGhostEl.offsetHeight;
+      const ghostWidth = captionGhostEl.offsetWidth;
+      let ghostLeft = rect.left + scrollX + rect.width / 2 - ghostWidth / 2;
+      if (ghostLeft < scrollX + 4) ghostLeft = scrollX + 4;
+      if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
+        ghostLeft = scrollX + window.innerWidth - ghostWidth - 4;
+      }
+      let ghostTop = rect.top + scrollY - 22;
+      // If too close to viewport top, show below the word
+      if (rect.top < 25) {
+        ghostTop = rect.bottom + scrollY + 4;
+      }
+      captionGhostEl.style.left = `${ghostLeft}px`;
+      captionGhostEl.style.top = `${ghostTop}px`;
+    } else {
+      if (captionGhostEl) captionGhostEl.style.display = "none";
+    }
+  }
+
+  /**
+   * Stop caption playback: cancel animation, hide overlays, clear state.
+   */
+  function stopCaptionPlayback(): void {
+    if (captionAnimFrame !== null) {
+      cancelAnimationFrame(captionAnimFrame);
+      captionAnimFrame = null;
+    }
+    activeCaptionWords = null;
+    speechRange = null;
+    if (captionHighlightEl) captionHighlightEl.style.display = "none";
+    if (captionGhostEl) captionGhostEl.style.display = "none";
+  }
+
+  /**
+   * Show a static ghost translation + highlight for a single-word TTS
+   * (no Whisper timestamps needed — just display while audio plays).
+   */
+  function showSingleWordGhost(range: Range, translatedText: string): void {
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    // Highlight the word
+    if (!captionHighlightEl) {
+      captionHighlightEl = document.createElement("div");
+      captionHighlightEl.className = "speech-caption-highlight";
+      document.body.appendChild(captionHighlightEl);
+    }
+    captionHighlightEl.style.left = `${rect.left + scrollX - 2}px`;
+    captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`;
+    captionHighlightEl.style.width = `${rect.width + 4}px`;
+    captionHighlightEl.style.height = `${rect.height + 2}px`;
+    captionHighlightEl.style.display = "block";
+
+    // Ghost label
+    if (!captionGhostEl) {
+      captionGhostEl = document.createElement("div");
+      captionGhostEl.className = "speech-caption-ghost";
+      document.body.appendChild(captionGhostEl);
+    }
+    captionGhostEl.textContent = translatedText.trim();
+    captionGhostEl.style.display = "block";
+    void captionGhostEl.offsetHeight;
+    const ghostWidth = captionGhostEl.offsetWidth;
+    let ghostLeft = rect.left + scrollX + rect.width / 2 - ghostWidth / 2;
+    if (ghostLeft < scrollX + 4) ghostLeft = scrollX + 4;
+    if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
+      ghostLeft = scrollX + window.innerWidth - ghostWidth - 4;
+    }
+    let ghostTop = rect.top + scrollY - 22;
+    if (rect.top < 25) {
+      ghostTop = rect.bottom + scrollY + 4;
+    }
+    captionGhostEl.style.left = `${ghostLeft}px`;
+    captionGhostEl.style.top = `${ghostTop}px`;
+  }
+
+  function stopSingleWordGhost(): void {
+    if (captionHighlightEl) captionHighlightEl.style.display = "none";
+    if (captionGhostEl) captionGhostEl.style.display = "none";
   }
 
   // ── Word highlight on hover ──
@@ -271,6 +593,7 @@ export function useTextSelectionSpeech(
 
   function onMouseMove(e: MouseEvent) {
     if (!isSpeechActive()) { removeHighlight(); return; }
+    if (isPlaying) { removeHighlight(); return; }
 
     const container = containerRef.value;
     if (!container) return;
@@ -278,6 +601,8 @@ export function useTextSelectionSpeech(
     const target = e.target as HTMLElement;
     if (!container.contains(target)) { removeHighlight(); return; }
     if (!isInContent(target)) { removeHighlight(); return; }
+    // Skip interactive elements (action buttons, links, etc.) — same as onClickWord
+    if (target.closest("button, a, .inline-source-btn, .action-btn, .checklist-box")) { removeHighlight(); return; }
 
     // Don't highlight while text is being selected
     const sel = window.getSelection();
@@ -355,7 +680,7 @@ export function useTextSelectionSpeech(
     const rect = wordRange.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
 
-    showTooltip(rect, word);
+    showTooltip(rect, word, wordRange);
   }
 
   // ── Text selection ──
@@ -395,13 +720,13 @@ export function useTextSelectionSpeech(
         const range = sel.getRangeAt(0);
         const rect = range.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) return;
-        showTooltip(rect, text);
+        showTooltip(rect, text, range);
       } catch { /* ignore */ }
     }, 250);
   }
 
   function onScroll() {
-    hideTooltip();
+    if (!isPlaying) hideTooltip();
     removeHighlight();
   }
 
@@ -434,9 +759,12 @@ export function useTextSelectionSpeech(
     document.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("scroll", onScroll, true);
     containerRef.value?.removeEventListener("mouseleave", onMouseLeave);
+    stopCaptionPlayback();
     stopCurrentAudio();
     removeHighlight();
     if (tooltip) { tooltip.remove(); tooltip = null; }
+    if (captionHighlightEl) { captionHighlightEl.remove(); captionHighlightEl = null; }
+    if (captionGhostEl) { captionGhostEl.remove(); captionGhostEl = null; }
     containerRef.value?.classList.remove("speech-active");
   });
 }

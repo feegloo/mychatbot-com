@@ -23,7 +23,8 @@ describe("DiskStorageProvider", () => {
       buffer: Buffer.from("Hello, World!"),
     });
 
-    expect(result.storageKey).toContain("hello.txt");
+    expect(result.storageKey).toContain("hello");
+    expect(result.storageKey).toMatch(/hello_[A-Za-z0-9]+\.txt$/);
     expect(result.absolutePath).toBeDefined();
 
     const content = await fs.readFile(result.absolutePath!, "utf-8");

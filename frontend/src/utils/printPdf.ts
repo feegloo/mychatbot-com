@@ -1,10 +1,10 @@
-import jsPDF from "jspdf";
-import mermaid from "mermaid";
+import type jsPDF from "jspdf";
 import { ensureFontsLoaded, registerFonts, PDF_FONT } from "./pdfFonts";
 
 /** Render mermaid code to a PNG data URL suitable for embedding in jsPDF. */
 async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
+    const [{ default: mermaid }] = await Promise.all([import("mermaid")]);
     const id = `mermaid-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     mermaid.initialize({
       startOnLoad: false,
@@ -108,7 +108,7 @@ async function renderMermaidToPng(code: string, maxWidth: number): Promise<{ dat
  * No html2canvas / DOM screenshot — instant, no blink, clean vector text output.
  */
 export async function printContentAsPdf(markdown: string, title: string) {
-  await ensureFontsLoaded();
+  const [{ default: jsPDF }] = await Promise.all([import("jspdf"), ensureFontsLoaded()]);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   registerFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();

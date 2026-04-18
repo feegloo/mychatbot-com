@@ -241,6 +241,13 @@ a { color: #c4b5fd; text-decoration: none; }
 }
 
 @media (min-width: 769px) {
+  .conv-nav-bottom .donate-widget {
+    order: -1;
+    margin-left: 0;
+  }
+  .conv-nav-collapse-btn {
+    margin-left: auto;
+  }
   .conv-nav-collapse-btn:hover {
     color: #e2e8f0;
   }
@@ -1521,6 +1528,14 @@ h1, h2, h3 {
 .speech-active .markdown-content,
 .speech-active .user-text {
   cursor: default;
+}
+/* Keep pointer cursor on interactive elements inside speech-active content */
+.speech-active .markdown-content .action-btn,
+.speech-active .markdown-content .action-btns-row .action-btn,
+.speech-active .markdown-content a,
+.speech-active .markdown-content .inline-source-btn,
+.speech-active .markdown-content .checklist-box {
+  cursor: pointer;
 }
 
 /* Global violet text selection */

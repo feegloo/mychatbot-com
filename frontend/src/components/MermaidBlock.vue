@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue';
-import mermaid from 'mermaid';
+import type mermaidType from 'mermaid';
 
 const props = defineProps<{ code: string }>();
 
@@ -38,29 +38,38 @@ const ready = ref(false);
 const diagramEl = ref<HTMLElement | null>(null);
 let renderCounter = 0;
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    darkMode: true,
-    background: '#1e1e2e',
-    primaryColor: '#7c3aed',
-    primaryTextColor: '#e2e8f0',
-    primaryBorderColor: '#7c3aed',
-    lineColor: '#94a3b8',
-    secondaryColor: '#334155',
-    tertiaryColor: '#1e293b',
-  },
-  flowchart: { htmlLabels: true, curve: 'basis' },
-  securityLevel: 'strict',
-});
+let mermaid: typeof mermaidType | null = null;
+
+async function getMermaid() {
+  if (mermaid) return mermaid;
+  const mod = await import('mermaid');
+  mermaid = mod.default;
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#1e1e2e',
+      primaryColor: '#7c3aed',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#7c3aed',
+      lineColor: '#94a3b8',
+      secondaryColor: '#334155',
+      tertiaryColor: '#1e293b',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis' },
+    securityLevel: 'strict',
+  });
+  return mermaid;
+}
 
 async function renderDiagram() {
   if (!diagramEl.value) return;
   ready.value = false;
   try {
+    const m = await getMermaid();
     const id = `mermaid-${Date.now()}-${renderCounter++}`;
-    const { svg } = await mermaid.render(id, props.code);
+    const { svg } = await m.render(id, props.code);
     diagramEl.value.innerHTML = svg;
     // Wait one frame so the browser paints the SVG before revealing
     requestAnimationFrame(() => {

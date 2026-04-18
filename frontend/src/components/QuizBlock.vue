@@ -76,7 +76,6 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted } from "vue";
 import { getData, setData } from "../utils/localData";
-import jsPDF from "jspdf";
 import { ensureFontsLoaded, registerFonts, PDF_FONT } from "../utils/pdfFonts";
 
 export interface QuizQuestion {
@@ -250,7 +249,7 @@ const correctCount = computed(() =>
 );
 
 async function downloadPdf() {
-  await ensureFontsLoaded();
+  const [{ default: jsPDF }] = await Promise.all([import("jspdf"), ensureFontsLoaded()]);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   registerFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();

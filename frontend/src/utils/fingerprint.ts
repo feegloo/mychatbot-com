@@ -1,5 +1,3 @@
-import FingerprintJS from "@fingerprintjs/fingerprintjs";
-
 const FINGERPRINT_KEY = "chatrag-fingerprint";
 const USER_ID_KEY = "chatrag-user-id";
 
@@ -16,6 +14,7 @@ export async function getBrowserFingerprint(): Promise<string> {
     return stored;
   }
 
+  const FingerprintJS = (await import("@fingerprintjs/fingerprintjs")).default;
   const fp = await FingerprintJS.load();
   const result = await fp.get();
   cachedFingerprint = result.visitorId;

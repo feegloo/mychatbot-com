@@ -190,8 +190,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --subnet default \
   --vpc-egress private-ranges-only \
   --port 8080 \
-  --memory 2Gi \
-  --cpu 2 \
+  --memory 4Gi \
+  --cpu 4 \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 300 \

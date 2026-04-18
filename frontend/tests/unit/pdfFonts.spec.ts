@@ -21,10 +21,11 @@ describe('pdfFonts', () => {
 
     await ensureFontsLoaded();
 
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
     const urls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0] as string);
     expect(urls.some((u: string) => u.includes('Roboto-Regular.ttf'))).toBe(true);
     expect(urls.some((u: string) => u.includes('Roboto-Bold.ttf'))).toBe(true);
+    expect(urls.some((u: string) => u.includes('Roboto-Italic.ttf'))).toBe(true);
   });
 
   it('ensureFontsLoaded caches and does not re-fetch', async () => {
@@ -34,8 +35,8 @@ describe('pdfFonts', () => {
     await ensureFontsLoaded();
     await ensureFontsLoaded();
 
-    // Only fetched once (2 files on first call, 0 on second)
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    // Only fetched once (3 files on first call, 0 on second)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
   });
 
   it('registerFonts adds fonts to jsPDF instance', async () => {
@@ -50,11 +51,13 @@ describe('pdfFonts', () => {
 
     registerFonts(doc);
 
-    expect(addFileToVFSSpy).toHaveBeenCalledTimes(2);
+    expect(addFileToVFSSpy).toHaveBeenCalledTimes(3);
     expect(addFileToVFSSpy).toHaveBeenCalledWith('Roboto-Regular.ttf', expect.any(String));
     expect(addFileToVFSSpy).toHaveBeenCalledWith('Roboto-Bold.ttf', expect.any(String));
+    expect(addFileToVFSSpy).toHaveBeenCalledWith('Roboto-Italic.ttf', expect.any(String));
     expect(addFontSpy).toHaveBeenCalledWith('Roboto-Regular.ttf', 'Roboto', 'normal');
     expect(addFontSpy).toHaveBeenCalledWith('Roboto-Bold.ttf', 'Roboto', 'bold');
+    expect(addFontSpy).toHaveBeenCalledWith('Roboto-Italic.ttf', 'Roboto', 'italic');
   });
 
   it('registerFonts throws if fonts not loaded', async () => {

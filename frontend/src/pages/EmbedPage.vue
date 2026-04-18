@@ -97,6 +97,7 @@ const status = ref<ConversationStatus>({
   status: "processing",
   role: "viewer",
   parentMessageId: null,
+  parentConversationId: null,
   files: [],
   messages: [],
   suggestedQuestions: [],

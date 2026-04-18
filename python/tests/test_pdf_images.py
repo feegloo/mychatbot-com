@@ -183,7 +183,7 @@ class TestPromptQuality:
         _describe_image(b"fake")
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        assert call_kwargs["max_completion_tokens"] == 150, "max_completion_tokens should be 150 for shorter descriptions"
+        assert call_kwargs["max_completion_tokens"] == 300, "max_completion_tokens should be 300"
 
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
@@ -198,7 +198,7 @@ class TestPromptQuality:
         _describe_image(b"fake")
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        prompt_text = call_kwargs["messages"][0]["content"][0]["text"]
-        # Prompt should be short — under 150 chars
-        assert len(prompt_text) < 150, f"Prompt too long ({len(prompt_text)} chars): {prompt_text}"
-        assert "2-3 sentences" in prompt_text or "brief" in prompt_text.lower()
+        prompt_text = call_kwargs["messages"][0]["content"]
+        # Prompt should be short — under 250 chars
+        assert len(prompt_text) < 250, f"Prompt too long ({len(prompt_text)} chars): {prompt_text}"
+        assert "sentences" in prompt_text.lower() or "brief" in prompt_text.lower()

@@ -252,8 +252,12 @@ function isLastUploadMessage(index: number): boolean {
 }
 
 function suggestedQuestionsForMessage(index: number): string[] | undefined {
-  if (!isUploadMessage(index)) return undefined;
   const msg = messages.value[index];
+  // Non-upload messages with explicit suggested questions (e.g. viewer hello message)
+  if (!isUploadMessage(index) && msg?.suggestedQuestions?.length) {
+    return msg.suggestedQuestions;
+  }
+  if (!isUploadMessage(index)) return undefined;
   // Use per-message suggested questions if available
   if (msg.suggestedQuestions?.length) return msg.suggestedQuestions;
   // Legacy fallback: show all questions on last upload message only
@@ -305,16 +309,32 @@ async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
 
-  // Viewer mode: show only a synthetic hello message, no conversation history
+  // Viewer mode: show the original welcome message + a virtual hello message
   const viewerMode = response.role === "viewer" && !response.parentMessageId && !response.parentConversationId;
   if (viewerMode) {
     if (messages.value.length === 0) {
       const name = response.displayName || "this topic";
-      messages.value = [{
+      const serverMessages = response.messages || [];
+      const firstWelcome = serverMessages.find((m: ChatMessage) => m.role === 'assistant');
+
+      const viewerMessages: ChatMessage[] = [];
+
+      // 1st message: original welcome message (same as owner sees, with file previews)
+      if (firstWelcome) {
+        viewerMessages.push({
+          ...firstWelcome,
+          suggestedQuestions: undefined, // questions go on the hello message
+        });
+      }
+
+      // 2nd message: virtual hello message with suggested questions
+      viewerMessages.push({
         role: "assistant",
         content: `Hi! How can I help you with **${name}**?`,
         suggestedQuestions: response.suggestedQuestions.length ? response.suggestedQuestions : undefined,
-      }];
+      });
+
+      messages.value = viewerMessages;
     }
     loaded.value = true;
     if (initialMessageCount.value === Infinity) {

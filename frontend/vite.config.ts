@@ -14,6 +14,13 @@ export default defineConfig({
   ],
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          sentry: ["@sentry/vue"],
+        },
+      },
+    },
   },
   server: {
     port: 5173
