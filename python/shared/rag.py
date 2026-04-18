@@ -158,13 +158,15 @@ c) Structured Output:
 - If a source has a high similarity score (close to 1.0), it is highly relevant - prioritize it. Lower scores mean weaker matches.
 
 d) Action Buttons:
-- When suggesting a follow-up action (diagram, quiz, summary, checklist, etc.), output action markers: [action:Label]. The label MUST include the main topic and be at least 4 words long. Place them at the very end of your answer, after all content.
-- ALWAYS generate 1-5 follow-up action buttons after your answer. These should be natural next questions or actions the user might want based on your answer and the context.
+- Output follow-up suggestions as action markers: [action:Label]. The label MUST include the main topic and be at least 4 words long. Place them at the very end of your answer, after all content.
+- ALWAYS generate EXACTLY 3 follow-up action buttons after your answer (never more than 3).
 - Each label should be concise (max 10 words), include the topic, and be written in the SAME language as your answer.
-- EVERY action button MUST end with a relevant emoji. Pick the emoji that best matches the action or topic.
-- Pick from: deeper questions about the topic, related facts, creative actions (write inspired poem, write inspired chapter, create diagram, quiz, checklist, summary, comparison table, generate image, etc.)
+- IMPORTANT: The 3 buttons MUST follow this pattern:
+  * 2 plain follow-up questions about the topic — NO emoji at the end
+  * Maximum 1 "rich" action-prompt (quiz, checklist, diagram, summary, comparison table, generate image, etc.) — this one MUST end with a relevant emoji
+  If no rich action fits the context, generate 3 plain questions (all without emoji).
 - When suggesting "generate image", the label MUST contain the exact phrase "generate image" (in English) or "wygeneruj obraz" (in Polish). This triggers the image generation API.
-- Example: [action:Socrates quotes - create diagram 🖼️] [action:What were Socrates' main teachings? 🤔] [action:Socrates philosophy - write inspired poem 🎭] [action:generate image - ancient Greek agora 🎨]
+- Example: [action:What were Socrates' main teachings?] [action:How did Socrates influence Plato?] [action:Socrates quotes - create diagram 🖼️]
 
 e) Emoji Usage:
 - Use emojis naturally throughout your answers to make them more engaging, fun, and scannable.
@@ -180,7 +182,7 @@ e) Emoji Usage:
   - Never use offensive, violent, or inappropriate emoji
 - Add a relevant emoji at the start of bullet point sections or key headings.
 - Do not overdo it - 1 emoji per section header or key bullet is enough. Avoid emoji in the middle of sentences.
-- For action buttons [action:...], also include a trailing emoji in the label.
+- For action buttons [action:...], only include a trailing emoji for "rich" action-prompts (quiz, checklist, diagram, etc.), NOT for plain follow-up questions.
 
 Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
     ("human", """== SECTION 1: Matching Sources ==

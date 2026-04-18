@@ -357,10 +357,10 @@ function renderMarkdown(content: string): string {
     const label = actionPlaceholders[parseInt(idxStr, 10)];
     return `<button class="action-btn" data-action="${label}">${label}</button>`;
   });
-  // Wrap consecutive action buttons in a block-level container so they start on a new line
+  // Wrap consecutive action buttons in an inline container (like welcome message pills)
   const withActionsWrapped = withActions.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
-    '<div class="action-btns-row">$1</div>'
+    '<span class="action-btns-row">$1</span>'
   );
   // Add target="_blank" to all <a> tags that don't already have it
   const withTargetBlank = withActionsWrapped.replace(
@@ -1372,9 +1372,10 @@ function openFilePreview(file: FileInfo) {
 }
 
 :deep(.action-btns-row) {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 4px;
 }
 
 /* Colored text markers */
