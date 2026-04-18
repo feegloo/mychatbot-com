@@ -68,6 +68,7 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
 const props = defineProps<{
   messages: Array<{ role: string; content: string }>;
   suggestedQuestions?: string[];
+  conversationId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -86,6 +87,31 @@ const detectionAttempted = ref(false);
 const translatedUpToIndex = ref(-1);
 const showDropdown = ref(false);
 const wrapRef = ref<HTMLElement | null>(null);
+
+const CONV_LANG_KEY = "conversation-languages";
+
+function getStoredLanguage(): string | null {
+  if (!props.conversationId) return null;
+  try {
+    const stored = localStorage.getItem(CONV_LANG_KEY);
+    const map = stored ? JSON.parse(stored) : {};
+    return map[props.conversationId] || null;
+  } catch { return null; }
+}
+
+function storeLanguage(lang: string) {
+  if (!props.conversationId) return;
+  try {
+    const stored = localStorage.getItem(CONV_LANG_KEY);
+    const map = stored ? JSON.parse(stored) : {};
+    if (lang === detectedLang.value) {
+      delete map[props.conversationId];
+    } else {
+      map[props.conversationId] = lang;
+    }
+    localStorage.setItem(CONV_LANG_KEY, JSON.stringify(map));
+  } catch { /* ignore */ }
+}
 
 const LANG_FLAGS: Record<string, string> = {
   en: "🇬🇧", pl: "🇵🇱", de: "🇩🇪", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹",
@@ -162,6 +188,14 @@ watch(() => props.messages, async (msgs) => {
     const result = await detectLanguage(firstAssistant.content);
     detectedLang.value = result.language;
     currentLang.value = result.language;
+
+    // Auto-translate if there's a stored language preference different from detected
+    const storedLang = getStoredLanguage();
+    if (storedLang && storedLang !== result.language) {
+      // Defer to next tick so the component is fully rendered
+      await new Promise(r => setTimeout(r, 50));
+      translateTo(storedLang);
+    }
   } catch {
     detectionAttempted.value = false; // allow retry on next message change
   }
@@ -226,10 +260,12 @@ async function translateTo(targetLang: string) {
       }
 
       currentLang.value = detectedLang.value;
+      storeLanguage(detectedLang.value);
       emit("restored", newMsgTranslations);
     } catch (err) {
       console.error("Translation failed:", err);
       currentLang.value = detectedLang.value;
+      storeLanguage(detectedLang.value);
       emit("restored", new Map());
     } finally {
       translating.value = false;
@@ -308,6 +344,7 @@ async function translateTo(targetLang: string) {
 
     translatedUpToIndex.value = props.messages.length - 1;
     currentLang.value = targetLang;
+    storeLanguage(targetLang);
     emit("translated", translations);
   } catch (err) {
     console.error("Translation failed:", err);

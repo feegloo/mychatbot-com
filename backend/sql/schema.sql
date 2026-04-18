@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   indexing_mode TEXT NOT NULL,
   error_message TEXT,
   parent_message_id TEXT,
+  parent_conversation_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -3,7 +3,7 @@ import multer from "@koa/multer";
 import path from "node:path";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata, resolveUserByFingerprint, getThreadsForMessage, getThreadReplyCountsForMessages, getUploadedFilesByOriginalNames } from "../repositories/conversations.js";
+import { getConversation, resolveConversationRole, insertUploadedFile, updateConversationStatus, replaceSuggestedQuestions, appendSuggestedQuestions, createAccessRequest, getAccessRequest, approveAccessRequest, insertAccessToken, insertConversation, updateConversationDisplayName, getConversationSummaries, insertConversationMessage, getMessageById, updateFileMetadata, resolveUserByFingerprint, getThreadsForMessage, getThreadReplyCountsForMessages, getUploadedFilesByOriginalNames, getThreadsForConversation, getConversationThreadReplyCount } from "../repositories/conversations.js";
 import { createStorageProvider } from "../storage/index.js";
 import { generateShortId } from "../utils/id.js";
 import { config } from "../config.js";
@@ -31,6 +31,7 @@ conversationsRouter.post("/conversations", async (ctx) => {
     indexing_mode: config.pythonIndexingMode,
     error_message: null,
     parent_message_id: null,
+    parent_conversation_id: null,
   });
 
   await insertAccessToken({
@@ -65,6 +66,9 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
     .map((m) => m.id);
   const threadCounts = await getThreadReplyCountsForMessages(assistantMessageIds);
 
+  // Count conversation-level thread replies (from viewers branching shared conversations)
+  const conversationThreadCount = await getConversationThreadReplyCount(conversationId);
+
   // For threads, storageNamespace differs from conversationId (points to parent's directory)
   const storageNamespace = data.conversation.storage_namespace !== data.conversation.id
     ? data.conversation.storage_namespace
@@ -76,7 +80,9 @@ conversationsRouter.get("/conversations/:conversationId", async (ctx) => {
     status: data.conversation.status,
     role,
     parentMessageId: data.conversation.parent_message_id || null,
+    parentConversationId: data.conversation.parent_conversation_id || null,
     ...(storageNamespace ? { storageNamespace } : {}),
+    ...(conversationThreadCount > 0 ? { conversationThreadCount } : {}),
     files: data.files.map((file) => ({
       id: file.id,
       originalName: file.original_name,
@@ -559,6 +565,76 @@ conversationsRouter.post("/messages/:messageId/threads", async (ctx) => {
     indexing_mode: parentConv.conversation.indexing_mode,
     error_message: null,
     parent_message_id: messageId,
+    parent_conversation_id: null,
+  });
+
+  await insertAccessToken({
+    token: ownerPassword,
+    conversation_id: threadId,
+    role: "owner",
+  });
+
+  ctx.body = {
+    conversationId: threadId,
+    ownerPassword,
+    url: `/c/${threadId}`,
+  };
+});
+
+// GET /conversations/:conversationId/threads — get all thread conversations branched from a shared conversation
+conversationsRouter.get("/conversations/:conversationId/threads", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+
+  const threads = await getThreadsForConversation(conversationId);
+  ctx.body = {
+    threads: threads.map((t) => ({
+      conversationId: t.id,
+      displayName: t.display_name,
+      messageCount: (t as any).message_count || 0,
+      lastUserId: (t as any).last_user_id || 0,
+    })),
+  };
+});
+
+// POST /conversations/:conversationId/threads — create a new thread from a shared conversation (viewer reply)
+const createConvThreadSchema = z.object({
+  userId: z.number().int().min(1)
+});
+
+conversationsRouter.post("/conversations/:conversationId/threads", async (ctx) => {
+  const conversationId = ctx.params.conversationId;
+
+  const parsed = createConvThreadSchema.safeParse(ctx.request.body);
+  if (!parsed.success) {
+    ctx.status = 400;
+    ctx.body = { error: "Invalid request" };
+    return;
+  }
+
+  // Get the parent conversation
+  const parentConv = await getConversation(conversationId);
+  if (!parentConv.conversation) {
+    ctx.status = 404;
+    ctx.body = { error: "Conversation not found" };
+    return;
+  }
+
+  // Create thread conversation
+  const threadId = generateShortId();
+  const salt = uuidv4();
+  const ownerPassword = deriveToken(threadId, salt);
+
+  await insertConversation({
+    id: threadId,
+    salt,
+    display_name: null,
+    status: "ready",
+    storage_namespace: parentConv.conversation.storage_namespace,
+    vector_collection_name: parentConv.conversation.vector_collection_name,
+    indexing_mode: parentConv.conversation.indexing_mode,
+    error_message: null,
+    parent_message_id: null,
+    parent_conversation_id: conversationId,
   });
 
   await insertAccessToken({

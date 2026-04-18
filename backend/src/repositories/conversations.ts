@@ -13,8 +13,8 @@ import type {
 
 export async function insertConversation(record: ConversationRecord) {
   await query(
-    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id, parent_conversation_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       record.id,
       record.salt,
@@ -23,7 +23,8 @@ export async function insertConversation(record: ConversationRecord) {
       record.vector_collection_name,
       record.indexing_mode,
       record.error_message,
-      record.parent_message_id || null
+      record.parent_message_id || null,
+      record.parent_conversation_id || null
     ]
   );
 }
@@ -48,7 +49,7 @@ export async function updateConversationDisplayName(id: string, displayName: str
 
 export async function getConversation(id: string, role: ConversationRole = "viewer") {
   const conversationResult = await query<ConversationRecord>(
-    `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id
+    `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id, parent_conversation_id
      FROM conversations
      WHERE id = $1`,
     [id]
@@ -57,7 +58,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   const conversation = conversationResult.rows[0] || null;
 
   // For thread conversations, fetch files from the parent conversation (via storage_namespace)
-  const fileOwner = (conversation?.parent_message_id && conversation.storage_namespace !== id)
+  const fileOwner = ((conversation?.parent_message_id || conversation?.parent_conversation_id) && conversation.storage_namespace !== id)
     ? conversation.storage_namespace
     : id;
 
@@ -99,6 +100,21 @@ export async function getConversation(id: string, role: ConversationRole = "view
     parentMessage = parentMsgResult.rows[0] || null;
 
     // Also fetch parent's welcome message contents for RAG prompt context
+    const parentConvId = conversation.storage_namespace;
+    const parentWelcomeMsgsResult = await query<ConversationMessageRecord>(
+      `SELECT content
+       FROM conversation_messages
+       WHERE conversation_id = $1 AND role = 'assistant'
+         AND citations_json::text LIKE '%_uploadedFileNames%'
+       ORDER BY created_at ASC`,
+      [parentConvId]
+    );
+    parentWelcomeContents = parentWelcomeMsgsResult.rows.map(m => m.content);
+  }
+
+  // For conversation-level threads (viewer branching from shared conversation),
+  // fetch parent's welcome contents for RAG prompt context
+  if (conversation?.parent_conversation_id && conversation.storage_namespace !== id) {
     const parentConvId = conversation.storage_namespace;
     const parentWelcomeMsgsResult = await query<ConversationMessageRecord>(
       `SELECT content
@@ -430,4 +446,36 @@ export async function getThreadReplyCountsForMessages(messageIds: string[]): Pro
     map.set(row.parent_message_id, parseInt(row.count, 10));
   }
   return map;
+}
+
+/**
+ * Get all thread conversations branched from a shared conversation (via parent_conversation_id).
+ */
+export async function getThreadsForConversation(conversationId: string) {
+  const result = await query<ConversationRecord & { message_count: number; last_user_id: number }>(
+    `SELECT c.id, c.display_name, c.status, c.parent_conversation_id, c.created_at,
+            COUNT(m.id)::int as message_count,
+            COALESCE(MAX(m.user_id), 0) as last_user_id
+     FROM conversations c
+     LEFT JOIN conversation_messages m ON m.conversation_id = c.id
+     WHERE c.parent_conversation_id = $1
+     GROUP BY c.id
+     ORDER BY c.created_at ASC`,
+    [conversationId]
+  );
+  return result.rows;
+}
+
+/**
+ * Count total replies across all conversation-level threads for a given conversation.
+ */
+export async function getConversationThreadReplyCount(conversationId: string): Promise<number> {
+  const result = await query<{ count: string }>(
+    `SELECT COUNT(m.id)::text as count
+     FROM conversation_messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.parent_conversation_id = $1`,
+    [conversationId]
+  );
+  return parseInt(result.rows[0]?.count || "0", 10);
 }

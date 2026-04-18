@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page" :class="{ 'shared-conversation-view': isViewer }">
     <ConversationHeader
       ref="headerRef"
       :status="status"
@@ -14,6 +14,7 @@
         <LanguageToggle
           :messages="messages"
           :suggestedQuestions="allSuggestedQuestions"
+          :conversationId="conversationId"
           @translated="onTranslated"
           @questions-translated="onQuestionsTranslated"
           @restored="onRestored"
@@ -59,7 +60,7 @@
             ref="questionInput"
             class="chat-textarea"
             v-model="question"
-            placeholder="Ask a question..."
+            :placeholder="isViewer ? 'Reply to start your own thread...' : 'Ask a question...'"
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
@@ -87,6 +88,8 @@ import {
   askQuestion,
   getConversation,
   uploadMoreFiles,
+  createConversationThread,
+  saveConversationToken,
   type ConversationStatus,
   type ChatMessage,
 } from "../api";
@@ -210,6 +213,7 @@ const status = ref<ConversationStatus>({
   status: "processing",
   role: "viewer",
   parentMessageId: null,
+  parentConversationId: null,
   files: [],
   messages: [],
   suggestedQuestions: [],
@@ -219,10 +223,12 @@ const messages = ref<ChatMessage[]>([]);
 const initialMessageCount = ref(Infinity);
 const hasLocalError = ref(false);
 
+// Viewer mode: when a viewer opens a shared conversation, show a hello message and let them reply
+const isViewer = computed(() => status.value.role === "viewer" && !status.value.parentMessageId && !status.value.parentConversationId);
 
 const roleLoaded = ref(false);
 const canUpload = computed(() => status.value.role === "owner" || status.value.role === "editor");
-const canReply = computed(() => status.value.role === "owner" || status.value.role === "editor");
+const canReply = computed(() => status.value.role === "owner" || status.value.role === "editor" || isViewer.value);
 
 function isUploadMessage(index: number): boolean {
   const msg = messages.value[index];
@@ -298,6 +304,25 @@ watch(conversationTitle, (title) => {
 async function loadConversation() {
   const response = await getConversation(conversationId);
   status.value = response;
+
+  // Viewer mode: show only a synthetic hello message, no conversation history
+  const viewerMode = response.role === "viewer" && !response.parentMessageId && !response.parentConversationId;
+  if (viewerMode) {
+    if (messages.value.length === 0) {
+      const name = response.displayName || "this topic";
+      messages.value = [{
+        role: "assistant",
+        content: `Hi! How can I help you with **${name}**?`,
+        suggestedQuestions: response.suggestedQuestions.length ? response.suggestedQuestions : undefined,
+      }];
+    }
+    loaded.value = true;
+    if (initialMessageCount.value === Infinity) {
+      initialMessageCount.value = messages.value.length;
+    }
+    return;
+  }
+
   if (!asking.value && !hasLocalError.value) {
     const serverMessages = response.messages || [];
     if (originalMessages.value.size > 0) {
@@ -391,6 +416,26 @@ async function ask() {
   if (!question.value.trim()) return;
   if (status.value.status !== "ready") {
     await loadConversation();
+    return;
+  }
+
+  // Viewer mode: create a new conversation thread and navigate to it
+  if (isViewer.value) {
+    const userId = getUserId();
+    if (!userId) return;
+    asking.value = true;
+    const pendingQuestion = question.value.trim();
+    question.value = "";
+    try {
+      const result = await createConversationThread(conversationId, userId);
+      saveConversationToken(result.conversationId, result.ownerPassword);
+      routerInstance.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } });
+    } catch (err: any) {
+      hasLocalError.value = true;
+      messages.value.push({ role: "assistant", content: `⚠️ Error: ${err?.response?.data?.error || err?.message || "Failed to create thread"}` });
+    } finally {
+      asking.value = false;
+    }
     return;
   }
 

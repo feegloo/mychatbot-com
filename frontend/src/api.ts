@@ -89,7 +89,9 @@ export type ConversationStatus = {
   status: "processing" | "ready" | "failed";
   role: "owner" | "editor" | "viewer";
   parentMessageId: string | null;
+  parentConversationId: string | null;
   storageNamespace?: string;
+  conversationThreadCount?: number;
   files: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata?: any }>;
   messages: ChatMessage[];
   suggestedQuestions: string[];
@@ -195,15 +197,20 @@ export async function getSharedMessage(messageId: string) {
   return response.data as SharedMessage;
 }
 
-export async function getDebugTables(username: string, password: string) {
+export async function getDebugTables(username: string, password: string, offset = 0) {
   const response = await api.get("/debug/tables", {
     auth: { username, password },
+    params: { offset },
   });
   return response.data as {
     conversations: Record<string, unknown>[];
     conversation_messages: Record<string, unknown>[];
     suggested_questions: Record<string, unknown>[];
     uploaded_files: Record<string, unknown>[];
+    user_fingerprints: Record<string, unknown>[];
+    conversation_access_tokens: Record<string, unknown>[];
+    access_requests: Record<string, unknown>[];
+    users: Record<string, unknown>[];
   };
 }
 
@@ -247,5 +254,15 @@ export async function getMessageThreads(messageId: string) {
 
 export async function createThread(messageId: string, userId: number) {
   const response = await api.post(`/messages/${messageId}/threads`, { userId });
+  return response.data as { conversationId: string; ownerPassword: string; url: string };
+}
+
+export async function getConversationThreads(conversationId: string) {
+  const response = await api.get(`/conversations/${conversationId}/threads`);
+  return response.data as { threads: ThreadSummary[] };
+}
+
+export async function createConversationThread(conversationId: string, userId: number) {
+  const response = await api.post(`/conversations/${conversationId}/threads`, { userId });
   return response.data as { conversationId: string; ownerPassword: string; url: string };
 }

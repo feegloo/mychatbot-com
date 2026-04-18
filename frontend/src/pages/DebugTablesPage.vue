@@ -61,6 +61,12 @@
           </div>
           <p v-else class="empty">No rows</p>
         </template>
+
+        <div v-if="canLoadMore" class="load-more-wrapper">
+          <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+            {{ loadingMore ? 'Loading…' : 'Load 1000 more rows' }}
+          </button>
+        </div>
       </div>
     </template>
   </div>
@@ -82,11 +88,17 @@ const loading = ref(true);
 const error = ref("");
 const view = ref<"formatted" | "json">("formatted");
 const activeTable = ref<keyof Tables>("conversations");
+const loadingMore = ref(false);
+const currentOffset = ref(0);
 const data = ref<Tables>({
   conversations: [],
   conversation_messages: [],
   suggested_questions: [],
   uploaded_files: [],
+  user_fingerprints: [],
+  conversation_access_tokens: [],
+  access_requests: [],
+  users: [],
 });
 
 const expandedCells = ref<Set<string>>(new Set());
@@ -146,6 +158,38 @@ function formatCell(value: unknown): string {
   if (typeof value === "object") return JSON.stringify(value);
   const s = String(value);
   return s.length > 120 ? s.slice(0, 120) + "…" : s;
+}
+
+// "users" is an aggregate query, not paginated
+const paginatedTables: (keyof Tables)[] = [
+  "conversations", "conversation_messages", "suggested_questions",
+  "uploaded_files", "user_fingerprints", "conversation_access_tokens", "access_requests",
+];
+
+const canLoadMore = computed(() => {
+  if (activeTable.value === "users") return false;
+  // Show button if the last fetch returned a full page (1000) for this table
+  return data.value[activeTable.value].length > 0 && data.value[activeTable.value].length % 1000 === 0;
+});
+
+async function loadMore() {
+  loadingMore.value = true;
+  try {
+    const nextOffset = currentOffset.value + 1000;
+    const more = await getDebugTables(username.value, password.value, nextOffset);
+    currentOffset.value = nextOffset;
+    for (const table of paginatedTables) {
+      if (more[table].length) {
+        data.value[table] = [...data.value[table], ...more[table]];
+      }
+    }
+    // Always replace aggregate data
+    data.value.users = more.users;
+  } catch (e: any) {
+    error.value = e?.message || "Failed to load more";
+  } finally {
+    loadingMore.value = false;
+  }
 }
 
 async function doLogin() {
@@ -352,5 +396,29 @@ td:has(.cell.expanded) {
 .empty {
   color: #64748b;
   font-style: italic;
+}
+.load-more-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+.load-more-btn {
+  padding: 8px 24px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+.load-more-btn:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

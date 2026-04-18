@@ -11,6 +11,7 @@ export type ConversationRecord = {
   indexing_mode: string;
   error_message: string | null;
   parent_message_id: string | null;
+  parent_conversation_id: string | null;
 };
 
 export type UploadedFileRecord = {

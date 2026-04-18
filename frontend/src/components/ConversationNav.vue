@@ -35,13 +35,13 @@
     </div>
 
     <div class="conv-nav-bottom">
-      <DonateWidget />
-      <button class="conv-nav-collapse-btn" @click.stop="$emit('toggle-collapse')" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'">
+      <button class="conv-nav-collapse-btn" @click.stop="$emit('toggle-collapse'); $emit('navigate')" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline v-if="!collapsed" points="15 18 9 12 15 6" />
           <polyline v-else points="9 18 15 12 9 6" />
         </svg>
       </button>
+      <DonateWidget />
       <svg class="conv-nav-expand-arrow" @click.stop="$emit('toggle-collapse')" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="9 18 15 12 9 6" />
       </svg>

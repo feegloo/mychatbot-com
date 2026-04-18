@@ -43,7 +43,8 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     vector_collection_name: collectionName,
     indexing_mode: config.pythonIndexingMode,
     error_message: null,
-    parent_message_id: null
+    parent_message_id: null,
+    parent_conversation_id: null
   });
 
   // Create owner access token - use derived token

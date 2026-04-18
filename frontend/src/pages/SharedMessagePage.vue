@@ -6,7 +6,7 @@
       <div class="shared-header">
         <span class="shared-label">Shared answer</span>
         <span v-if="message.displayName" class="shared-conv-name">{{ message.displayName }}</span>
-        <router-link :to="`/c/${message.conversationId}`" class="shared-open-link">Open full conversation →</router-link>
+        <router-link v-if="isOwner" :to="`/c/${message.conversationId}`" class="shared-open-link">Open full conversation →</router-link>
       </div>
       <div class="shared-message-container">
         <ChatMessageItem
@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, computed } from "vue";
 import { useRouter } from "vue-router";
-import { getSharedMessage, getMessageThreads, createThread, saveConversationToken, type SharedMessage, type ThreadSummary } from "../api";
+import { getSharedMessage, getMessageThreads, createThread, saveConversationToken, getConversationToken, type SharedMessage, type ThreadSummary } from "../api";
 import { getUserId } from "../utils/fingerprint";
 import ChatMessageItem from "../components/ChatMessage.vue";
 
@@ -78,6 +78,7 @@ const creatingThread = ref(false);
 
 const totalReplies = computed(() => threads.value.reduce((sum, t) => sum + t.messageCount, 0));
 const sharedIsWelcome = computed(() => !!message.value?.uploadedFileNames?.length);
+const isOwner = computed(() => !!message.value?.conversationId && !!getConversationToken(message.value.conversationId));
 const sharedFiles = computed(() => message.value?.files);
 
 async function load() {

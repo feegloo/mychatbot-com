@@ -29,18 +29,42 @@ debugRouter.get("/debug/tables", async (ctx) => {
     return;
   }
 
-  const [conversations, messages, suggestedQuestions, uploadedFiles] =
-    await Promise.all([
-      query("SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT 1000"),
-      query("SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT 1000"),
-      query("SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT 1000"),
-      query("SELECT * FROM public.uploaded_files ORDER BY created_at DESC LIMIT 1000"),
-    ]);
+  const offset = Math.max(0, parseInt(String(ctx.query.offset ?? "0"), 10) || 0);
+  const limit = 1000;
+
+  const [
+    conversations,
+    messages,
+    suggestedQuestions,
+    uploadedFiles,
+    userFingerprints,
+    conversationAccessTokens,
+    accessRequests,
+    users,
+  ] = await Promise.all([
+    query("SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.uploaded_files ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.user_fingerprints ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.conversation_access_tokens ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query("SELECT * FROM public.access_requests ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query(`SELECT cm.user_id, uf.fingerprint, COUNT(*) AS message_count,
+                  MIN(cm.created_at) AS first_seen, MAX(cm.created_at) AS last_seen
+           FROM public.conversation_messages cm
+           LEFT JOIN public.user_fingerprints uf ON uf.user_id = cm.user_id
+           GROUP BY cm.user_id, uf.fingerprint
+           ORDER BY message_count DESC`),
+  ]);
 
   ctx.body = {
     conversations: conversations.rows,
     conversation_messages: messages.rows,
     suggested_questions: suggestedQuestions.rows,
     uploaded_files: uploadedFiles.rows,
+    user_fingerprints: userFingerprints.rows,
+    conversation_access_tokens: conversationAccessTokens.rows,
+    access_requests: accessRequests.rows,
+    users: users.rows,
   };
 });

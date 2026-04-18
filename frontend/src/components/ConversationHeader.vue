@@ -26,6 +26,10 @@
       </div>
     </div>
     <div class="header-actions" style="display:flex; gap:8px; align-items: center; flex-wrap: nowrap; margin-left: auto; z-index: 1;">
+      <div v-if="status.conversationThreadCount" class="conv-thread-count" @click="$emit('view-threads')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        {{ status.conversationThreadCount }} {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
+      </div>
       <div v-if="processing" class="indexing-bar">
         <div class="indexing-spinner"></div>
         <span class="indexing-label-full">Processing files …</span>
@@ -57,6 +61,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   renamed: [name: string];
   reload: [];
+  'view-threads': [];
 }>();
 
 const editingName = ref(false);

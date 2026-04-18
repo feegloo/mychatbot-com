@@ -223,24 +223,24 @@ a { color: #c4b5fd; text-decoration: none; }
 }
 
 .conv-nav-collapse-btn {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.conv-nav-bottom .donate-widget {
+  margin-left: auto;
 }
 
 @media (min-width: 769px) {
-  .conv-nav-collapse-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto;
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    background: transparent;
-    border: none;
-    color: #64748b;
-    cursor: pointer;
-    transition: color 0.15s;
-  }
   .conv-nav-collapse-btn:hover {
     color: #e2e8f0;
   }
@@ -715,8 +715,23 @@ a { color: #c4b5fd; text-decoration: none; }
   max-width: 100%;
 }
 
+/* Shared views (SharedMessagePage + viewer conversation view): first assistant message full-width */
+.shared-message-page .message-row.assistant,
+.shared-conversation-view .message-row.assistant {
+  margin-left: 0;
+}
+
+.shared-message-page .message-row.assistant .message,
+.shared-conversation-view .message-row.assistant:first-child .message {
+  max-width: 100%;
+}
+
+.message.assistant > strong {
+  margin-bottom: 16px;
+}
+
 .message.assistant.welcome-message > strong {
-  margin-bottom: 10px;
+  margin-bottom: 9px;
 }
 
 .message strong {
@@ -1276,6 +1291,11 @@ h1, h2, h3 {
     transform: translateX(0);
   }
 
+  /* Flip chevron to ">" on mobile (close direction = right) */
+  .conv-nav-collapse-btn svg {
+    transform: rotate(180deg);
+  }
+
   .page {
     padding: 8px 10px;
   }
@@ -1383,6 +1403,28 @@ h1, h2, h3 {
   text-overflow: ellipsis;
   flex-shrink: 0;
   z-index: 1;
+}
+
+.conv-thread-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(167, 139, 250, 0.08);
+  border: 1px solid rgba(167, 139, 250, 0.15);
+  border-radius: 8px;
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .conv-thread-count:hover {
+    background: rgba(167, 139, 250, 0.15);
+  }
 }
 
 .indexing-label-full {
