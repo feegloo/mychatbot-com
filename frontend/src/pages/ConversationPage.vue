@@ -114,9 +114,15 @@ const chatContainer = ref<HTMLDivElement | null>(null);
 
 const currentLanguage = ref("");
 
+// Welcome message content used as TTS tone instructions
+const welcomeMessageContent = computed(() => {
+  const idx = messages.value.findIndex((_, i) => isUploadMessage(i));
+  return idx >= 0 ? messages.value[idx].content : "";
+});
+
 // Enable text-to-speech tooltip for selected text within chat messages
 // Only active when current display language differs from browser language
-useTextSelectionSpeech(chatContainer, currentLanguage);
+useTextSelectionSpeech(chatContainer, currentLanguage, welcomeMessageContent);
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);

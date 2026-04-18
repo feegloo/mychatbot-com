@@ -269,7 +269,7 @@ function renderMarkdown(content: string): string {
   );
   // Protect LaTeX blocks from marked's processing (underscores, asterisks, etc.)
   const mathPlaceholders: { tex: string; display: boolean }[] = [];
-  const mathToken = (idx: number) => `\x00MATH${idx}\x00`;
+  const mathToken = (idx: number) => `\x02MATH${idx}\x02`;
   // Display math $$...$$ first (greedy match avoids nesting issues)
   normalized = normalized.replace(/\$\$([^$]+?)\$\$/g, (_, tex) => {
     const i = mathPlaceholders.length;
@@ -290,7 +290,7 @@ function renderMarkdown(content: string): string {
   });
   // Protect [poem]...[/poem] blocks from marked processing
   const poemPlaceholders: string[] = [];
-  const poemToken = (idx: number) => `\x00POEM${idx}\x00`;
+  const poemToken = (idx: number) => `\x03POEM${idx}\x03`;
   normalized = normalized.replace(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi, (_, body) => {
     const i = poemPlaceholders.length;
     poemPlaceholders.push(body.trim());
@@ -317,14 +317,14 @@ function renderMarkdown(content: string): string {
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
   const sanitized = DOMPurify.sanitize(withChecklists);
   // Restore LaTeX blocks and render with KaTeX
-  const withKatex = sanitized.replace(/\x00MATH(\d+)\x00/g, (_, idxStr) => {
+  const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10);
     const { tex, display } = mathPlaceholders[idx];
     try { return katex.renderToString(tex, { displayMode: display, throwOnError: false }); }
     catch { return display ? `$$${tex}$$` : `$${tex}$`; }
   });
   // Restore [poem] blocks as styled blockquote with decorative quotes
-  const withPoems = withKatex.replace(/\x00POEM(\d+)\x00/g, (_, idxStr) => {
+  const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10);
     const lines = poemPlaceholders[idx].split('\n').map(l => l.trim()).filter(Boolean);
     const body = lines.join('<br>');

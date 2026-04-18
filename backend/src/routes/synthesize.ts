@@ -8,16 +8,18 @@ export const synthesizeRouter = new Router();
 
 /**
  * POST /synthesize
- * Body: { text: string; language?: string }
+ * Body: { text: string; language?: string; instructions?: string }
  * Returns: audio/mpeg binary (MP3)
  *
- * Uses OpenAI TTS API (tts-1 model, "nova" voice — soft female).
+ * Uses OpenAI TTS API (gpt-4o-mini-tts model, "nova" voice — soft female).
+ * Supports optional `instructions` for tone/style control.
  * Language is auto-detected from the text by the API if not provided.
  */
 synthesizeRouter.post("/synthesize", async (ctx) => {
-  const { text, language } = ctx.request.body as {
+  const { text, language, instructions } = ctx.request.body as {
     text: string;
     language?: string;
+    instructions?: string;
   };
 
   if (!text || typeof text !== "string") {
@@ -50,19 +52,21 @@ synthesizeRouter.post("/synthesize", async (ctx) => {
       input = text;
     }
 
+    const ttsPayload: Record<string, unknown> = {
+      model: "gpt-4o-mini-tts",
+      input,
+      voice: "nova",
+      response_format: "mp3",
+    };
+    if (instructions) ttsPayload.instructions = instructions;
+
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "tts-1",
-        input,
-        voice: "nova",
-        response_format: "mp3",
-        speed: 1.0,
-      }),
+      body: JSON.stringify(ttsPayload),
     });
 
     if (!response.ok) {
@@ -148,10 +152,11 @@ async function translateForCaptions(
  * and optionally translates text for ghost-word display.
  */
 synthesizeRouter.post("/synthesize-with-captions", async (ctx) => {
-  const { text, language, translateTo } = ctx.request.body as {
+  const { text, language, translateTo, instructions } = ctx.request.body as {
     text: string;
     language?: string;
     translateTo?: string;
+    instructions?: string;
   };
 
   if (!text || typeof text !== "string") {
@@ -175,19 +180,21 @@ synthesizeRouter.post("/synthesize-with-captions", async (ctx) => {
 
   try {
     // 1. Generate TTS audio
+    const ttsPayload: Record<string, unknown> = {
+      model: "gpt-4o-mini-tts",
+      input: text,
+      voice: "nova",
+      response_format: "mp3",
+    };
+    if (instructions) ttsPayload.instructions = instructions;
+
     const ttsResponse = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "tts-1",
-        input: text,
-        voice: "nova",
-        response_format: "mp3",
-        speed: 1.0,
-      }),
+      body: JSON.stringify(ttsPayload),
     });
 
     if (!ttsResponse.ok) {

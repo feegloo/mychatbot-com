@@ -100,6 +100,7 @@ e) Przepis 🍝 — sugeruj gdy:
 f) Rozpoznaj osobę 🔍 — sugeruj TYLKO gdy:
    - na zdjęciu widać wyraźnie osobę/twarz ludzką
    - NIE sugeruj dla zdjęć krajobrazów, zwierząt, przedmiotów
+   - format: "Kto jest kobietą/mężczyzną/osobą na zdjęciu [nazwa]? 🔍"
 
 g) Metadane EXIF 📷 — sugeruj TYLKO gdy:
    - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
@@ -281,6 +282,7 @@ e) Recipe 🍝 — suggest when:
 f) Recognize person 🔍 — suggest ONLY when:
    - image clearly shows a person/human face
    - do NOT suggest for landscapes, animals, objects
+   - format: "Who is the woman/man/person on the photo [name]? 🔍"
 
 g) EXIF metadata 📷 — suggest ONLY when:
    - file is an image (photo) — never for PDF or text files
@@ -441,6 +443,16 @@ _PERSON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_WOMAN_PATTERN = re.compile(
+    r'\b(woman|girl|female|lady|kobieta|dziewczyna|pani)\b',
+    re.IGNORECASE,
+)
+
+_MAN_PATTERN = re.compile(
+    r'\b(man|boy|male|gentleman|mężczyzna|chłopak|pan)\b',
+    re.IGNORECASE,
+)
+
 _INGREDIENT_PATTERN = re.compile(
     r'\b(ingredient|ingredients|składnik|składniki|skład|composition|'
     r'contains|zawiera|nutrition|wartości odżywcze|product label|etykiet)\b',
@@ -470,6 +482,8 @@ def _append_contextual_prompts(
     contextual: list[str] = []
     if file_names and file_types:
         has_person = bool(_PERSON_PATTERN.search(welcome_message))
+        is_woman = bool(_WOMAN_PATTERN.search(welcome_message))
+        is_man = bool(_MAN_PATTERN.search(welcome_message))
         has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
 
         for name in file_names:
@@ -489,11 +503,21 @@ def _append_contextual_prompts(
                     if language == "pl":
                         contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
                         if has_person and len(contextual) < 2:
-                            contextual.append(f"{short_name} - rozpoznaj osobę 🔍")
+                            if is_woman:
+                                contextual.append(f"Kto jest kobietą na zdjęciu {short_name}? 🔍")
+                            elif is_man:
+                                contextual.append(f"Kto jest mężczyzną na zdjęciu {short_name}? 🔍")
+                            else:
+                                contextual.append(f"Kto jest osobą na zdjęciu {short_name}? 🔍")
                     else:
                         contextual.append(f"{short_name} - show EXIF metadata 📷")
                         if has_person and len(contextual) < 2:
-                            contextual.append(f"{short_name} - recognize person name 🔍")
+                            if is_woman:
+                                contextual.append(f"Who is the woman on the photo {short_name}? 🔍")
+                            elif is_man:
+                                contextual.append(f"Who is the man on the photo {short_name}? 🔍")
+                            else:
+                                contextual.append(f"Who is the person on the photo {short_name}? 🔍")
             elif ftype == "pdf":
                 if language == "pl":
                     contextual.append(f"{short_name} - pokaż metadane pliku 📄")

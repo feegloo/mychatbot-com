@@ -437,12 +437,20 @@ _RECOGNIZE_PROMPT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Natural question format: "Who is the woman/man/person on the photo?"
+_RECOGNIZE_QUESTION_PATTERN = re.compile(
+    r'(who is the (woman|man|person|girl|boy|lady|guy)|'
+    r'kto jest (kobiet|mężczyzn|osob|dziewczyn|chłopak|pani))',
+    re.IGNORECASE,
+)
+
 
 def _is_recognize_request(question: str) -> bool:
     m1 = _RECOGNIZE_PATTERNS.search(question)
     m2 = _RECOGNIZE_PROMPT_PATTERN.search(question)
-    is_match = bool(m1 or m2)
-    logger.info(f"🔍 _is_recognize_request('{question[:80]}'): {is_match} (pattern1={bool(m1)}, pattern2={bool(m2)})")
+    m3 = _RECOGNIZE_QUESTION_PATTERN.search(question)
+    is_match = bool(m1 or m2 or m3)
+    logger.info(f"🔍 _is_recognize_request('{question[:80]}'): {is_match} (pattern1={bool(m1)}, pattern2={bool(m2)}, pattern3={bool(m3)})")
     return is_match
 
 

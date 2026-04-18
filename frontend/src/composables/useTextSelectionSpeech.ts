@@ -17,6 +17,7 @@ import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from
 export function useTextSelectionSpeech(
   containerRef: Ref<HTMLElement | null>,
   currentLanguage?: Ref<string>,
+  welcomeMessage?: Ref<string>,
 ) {
   const browserLang = navigator.language.split("-")[0];
   const isTouchDevice = window.matchMedia("(hover: none)").matches;
@@ -204,11 +205,16 @@ export function useTextSelectionSpeech(
     abortController = new AbortController();
 
     try {
+      // Pass welcome message content as TTS instructions so the model
+      // adjusts tone/style to match the conversation context
+      const ttsInstructions = welcomeMessage?.value || undefined;
+
       // Use captions API for word-by-word playback with ghost translation
       const result = await synthesizeSpeechWithCaptions(
         text.slice(0, 2000),
         currentLanguage?.value,
         browserLang,
+        ttsInstructions,
       );
       if (abortController?.signal.aborted) return;
 

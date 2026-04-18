@@ -248,9 +248,10 @@ export async function detectLanguage(text: string) {
   return response.data as { language: string; confidence: number };
 }
 
-export async function synthesizeSpeech(text: string, language?: string): Promise<Blob> {
-  const body: { text: string; language?: string } = { text };
+export async function synthesizeSpeech(text: string, language?: string, instructions?: string): Promise<Blob> {
+  const body: { text: string; language?: string; instructions?: string } = { text };
   if (language) body.language = language;
+  if (instructions) body.instructions = instructions;
   const response = await api.post("/synthesize", body, {
     responseType: "blob",
   });
@@ -267,10 +268,12 @@ export async function synthesizeSpeechWithCaptions(
   text: string,
   language?: string,
   translateTo?: string,
+  instructions?: string,
 ): Promise<{ audio: Blob; captions: WordCaption[] | null; translatedText?: string }> {
-  const body: { text: string; language?: string; translateTo?: string } = { text };
+  const body: { text: string; language?: string; translateTo?: string; instructions?: string } = { text };
   if (language) body.language = language;
   if (translateTo) body.translateTo = translateTo;
+  if (instructions) body.instructions = instructions;
 
   const response = await api.post("/synthesize-with-captions", body);
   const data = response.data as {

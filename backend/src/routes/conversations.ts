@@ -10,7 +10,7 @@ import { config } from "../config.js";
 import { indexConversation } from "../python/indexing.js";
 import { deriveToken } from "../security.js";
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 export const conversationsRouter = new Router();
 
 // POST /conversations — create an empty conversation (no files required)

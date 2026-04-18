@@ -195,6 +195,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 300 \
+  --max-request-body-size 104857600 \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\

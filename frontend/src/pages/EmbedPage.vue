@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, watchEffect, nextTick } from "vue";
 import {
   askQuestion,
   generateImage,
@@ -87,7 +87,9 @@ const asking = ref(false);
 const questionInput = ref<HTMLTextAreaElement | null>(null);
 const chatContainer = ref<HTMLDivElement | null>(null);
 
-useTextSelectionSpeech(chatContainer);
+const welcomeMessageContent = ref("");
+
+useTextSelectionSpeech(chatContainer, undefined, welcomeMessageContent);
 const loaded = ref(false);
 const fatalError = ref("");
 const hasLocalError = ref(false);
@@ -124,6 +126,12 @@ function isUploadMessage(index: number): boolean {
   if (msg.uploadedFileNames?.length) return true;
   return index === 0;
 }
+
+// Welcome message content used as TTS tone instructions
+watchEffect(() => {
+  const idx = messages.value.findIndex((_, i) => isUploadMessage(i));
+  welcomeMessageContent.value = idx >= 0 ? messages.value[idx].content : "";
+});
 
 function isLastUploadMessage(index: number): boolean {
   if (!isUploadMessage(index)) return false;
