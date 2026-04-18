@@ -4,6 +4,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import chromadb
+import sentry_sdk
 from chromadb.config import Settings as ChromaSettings
 from openai import OpenAI
 
@@ -56,34 +57,49 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     client = _get_openai_client()
     settings = get_settings()
 
-    if len(texts) <= EMBED_BATCH_SIZE:
-        response = client.embeddings.create(
-            model=settings.openai_embedding_model,
-            input=texts,
-        )
-        sorted_data = sorted(response.data, key=lambda x: x.index)
-        return [item.embedding for item in sorted_data]
+    with sentry_sdk.start_span(op="embedding", name=f"embed {len(texts)} texts") as span:
+        span.set_data("count", len(texts))
+        span.set_data("model", settings.openai_embedding_model)
 
-    # For very large batches, split and parallelize
-    all_vectors: list[list[float] | None] = [None] * len(texts)
-    batches = [(i, texts[i:i + EMBED_BATCH_SIZE]) for i in range(0, len(texts), EMBED_BATCH_SIZE)]
+        if len(texts) <= EMBED_BATCH_SIZE:
+            response = client.embeddings.create(
+                model=settings.openai_embedding_model,
+                input=texts,
+            )
+            tokens_used = getattr(response, 'usage', None)
+            if tokens_used:
+                span.set_data("total_tokens", tokens_used.total_tokens)
+                logger.info(f"⚡ Embedded {len(texts)} texts, {tokens_used.total_tokens} tokens")
+            sorted_data = sorted(response.data, key=lambda x: x.index)
+            return [item.embedding for item in sorted_data]
 
-    def _embed_batch(start_idx: int, batch: list[str]):
-        resp = client.embeddings.create(
-            model=settings.openai_embedding_model,
-            input=batch,
-        )
-        sorted_data = sorted(resp.data, key=lambda x: x.index)
-        for j, item in enumerate(sorted_data):
-            all_vectors[start_idx + j] = item.embedding
+        # For very large batches, split and parallelize
+        all_vectors: list[list[float] | None] = [None] * len(texts)
+        batches = [(i, texts[i:i + EMBED_BATCH_SIZE]) for i in range(0, len(texts), EMBED_BATCH_SIZE)]
+        total_tokens = 0
 
-    logger.info(f"⚡ Embedding {len(texts)} texts in {len(batches)} parallel batches")
-    with ThreadPoolExecutor(max_workers=EMBED_MAX_WORKERS) as pool:
-        futures = [pool.submit(_embed_batch, start, batch) for start, batch in batches]
-        for f in futures:
-            f.result()
+        def _embed_batch(start_idx: int, batch: list[str]):
+            nonlocal total_tokens
+            resp = client.embeddings.create(
+                model=settings.openai_embedding_model,
+                input=batch,
+            )
+            usage = getattr(resp, 'usage', None)
+            if usage:
+                total_tokens += usage.total_tokens
+            sorted_data = sorted(resp.data, key=lambda x: x.index)
+            for j, item in enumerate(sorted_data):
+                all_vectors[start_idx + j] = item.embedding
 
-    return all_vectors
+        logger.info(f"⚡ Embedding {len(texts)} texts in {len(batches)} parallel batches")
+        with ThreadPoolExecutor(max_workers=EMBED_MAX_WORKERS) as pool:
+            futures = [pool.submit(_embed_batch, start, batch) for start, batch in batches]
+            for f in futures:
+                f.result()
+
+        span.set_data("total_tokens", total_tokens)
+        logger.info(f"⚡ Embedded {len(texts)} texts in {len(batches)} batches, {total_tokens} tokens")
+        return all_vectors
 
 
 def collection_count(collection_name: str) -> int:
@@ -104,7 +120,8 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     docs = [chunk.text for chunk in chunks]
 
     logger.info(f"⚡ Embedding {len(docs)} chunks...")
-    vectors = embed_texts(docs)
+    with sentry_sdk.start_span(op="processing.create_embeddings", name=f"create embeddings for {len(docs)} chunks"):
+        vectors = embed_texts(docs)
     logger.info(f"✅ Embedding complete")
 
     metadatas = []

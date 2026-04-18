@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import serve from "koa-static";
 import send from "koa-send";
+import * as Sentry from "@sentry/node";
 import { uploadRouter } from "./routes/upload.js";
 import { conversationsRouter } from "./routes/conversations.js";
 import { askRouter } from "./routes/ask.js";
@@ -19,8 +20,14 @@ import { config } from "./config.js";
 export function createApp() {
   const app = new Koa();
 
+  app.on("error", (err) => {
+    Sentry.captureException(err);
+  });
+
   app.use(cors());
   app.use(bodyParser());
+
+  Sentry.setupKoaErrorHandler(app);
 
   const apiRouter = uploadRouter
     .use(conversationsRouter.routes())
@@ -41,6 +48,7 @@ export function createApp() {
         const status = err.status || err.statusCode || 500;
         const message = err.message || "Unknown error";
         console.error(`[API ${ctx.method} ${ctx.url}] ${status}: ${message}`);
+        if (status >= 500) Sentry.captureException(err);
         ctx.status = status;
         ctx.body = { msg: `[${status}] ${message}` };
       }

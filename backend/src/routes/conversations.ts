@@ -490,7 +490,8 @@ conversationsRouter.post("/fingerprint", async (ctx) => {
     ctx.body = { error: "Invalid fingerprint" };
     return;
   }
-  const userId = await resolveUserByFingerprint(parsed.data.fingerprint);
+  const userAgent = ctx.get("User-Agent") || undefined;
+  const userId = await resolveUserByFingerprint(parsed.data.fingerprint, userAgent);
   ctx.body = { userId };
 });
 

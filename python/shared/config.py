@@ -24,6 +24,8 @@ class Settings:
     use_gemma: bool
     gemma_model: str
     gemma_base_url: str
+    # Database for telemetry
+    database_url: str
 
 
 def get_settings() -> Settings:
@@ -57,4 +59,5 @@ def get_settings() -> Settings:
         use_gemma=os.getenv("USE_GEMMA", "false").lower() in ("true", "1", "yes"),
         gemma_model=os.getenv("GEMMA_MODEL", "gemma4"),
         gemma_base_url=os.getenv("GEMMA_BASE_URL", "http://localhost:11434"),
+        database_url=os.getenv("DATABASE_URL", "postgres://chatrag:chatrag@localhost:5432/chatrag"),
     )

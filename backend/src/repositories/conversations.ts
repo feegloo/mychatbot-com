@@ -367,7 +367,7 @@ export async function getConversationSummaries(conversationIds: string[]) {
  * Resolve a browser fingerprint to a userId.
  * If fingerprint doesn't exist yet, create a new user with auto-incremented userId.
  */
-export async function resolveUserByFingerprint(fingerprint: string): Promise<number> {
+export async function resolveUserByFingerprint(fingerprint: string, userAgent?: string): Promise<number> {
   // Try to find existing
   const existing = await query<UserFingerprintRecord>(
     `SELECT user_id FROM user_fingerprints WHERE fingerprint = $1`,
@@ -378,11 +378,11 @@ export async function resolveUserByFingerprint(fingerprint: string): Promise<num
   }
   // Insert new (SERIAL auto-increments user_id)
   const inserted = await query<UserFingerprintRecord>(
-    `INSERT INTO user_fingerprints (fingerprint)
-     VALUES ($1)
+    `INSERT INTO user_fingerprints (fingerprint, user_agent)
+     VALUES ($1, $2)
      ON CONFLICT (fingerprint) DO NOTHING
      RETURNING user_id`,
-    [fingerprint]
+    [fingerprint, userAgent ?? null]
   );
   if (inserted.rows[0]) {
     return inserted.rows[0].user_id;

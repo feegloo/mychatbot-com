@@ -413,80 +413,91 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
 
 
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 4, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None) -> dict:
+    import sentry_sdk
     logger.info(f"❓ Answering question: {question[:100]}...")
 
-    # Check for "show EXIF metadata" intent — return stored metadata directly
-    if _is_exif_request(question) and file_metadata:
-        result = _handle_exif(file_metadata)
-        if result:
-            return result
+    with sentry_sdk.start_span(op="rag.answer", name=f"answer: {question[:60]}") as rag_span:
+        rag_span.set_data("conversation_id", conversation_id)
+        rag_span.set_data("question", question[:200])
 
-    # Check for "recognize person name" intent - triggers Vision API
-    logger.info(f"🔍 Checking recognize intent: image_file_paths={'present, count=' + str(len(image_file_paths)) if image_file_paths else 'None'}")
-    if _is_recognize_request(question) and image_file_paths:
-        result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
-        if result:
-            logger.info(f"🔍 Recognition returned answer ({len(result.get('answer', ''))} chars)")
-            return result
-        logger.info("🔍 _handle_recognize returned None, continuing to normal RAG")
+        # Check for "show EXIF metadata" intent — return stored metadata directly
+        if _is_exif_request(question) and file_metadata:
+            result = _handle_exif(file_metadata)
+            if result:
+                return result
 
-    # Determine max_distance based on question word count
-    word_count = len([w for w in question.strip().split() if w])
-    max_distance = 1.1  # default for 3+ words
-    if word_count == 1:
-        max_distance = 1.5
-    elif word_count == 2:
-        max_distance = 1.3
-    logger.info(f"🔎 Using max_distance={max_distance} for question word count={word_count}")
-    rows = query_chunks(collection_name, conversation_id, question, top_k, max_distance)
-    logger.info(f"📚 Retrieved {len(rows)} context chunks")
-    context = build_context(rows)
+        # Check for "recognize person name" intent - triggers Vision API
+        logger.info(f"🔍 Checking recognize intent: image_file_paths={'present, count=' + str(len(image_file_paths)) if image_file_paths else 'None'}")
+        if _is_recognize_request(question) and image_file_paths:
+            result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
+            if result:
+                logger.info(f"🔍 Recognition returned answer ({len(result.get('answer', ''))} chars)")
+                return result
+            logger.info("🔍 _handle_recognize returned None, continuing to normal RAG")
 
-    llm = get_llm()
+        # Determine max_distance based on question word count
+        word_count = len([w for w in question.strip().split() if w])
+        max_distance = 1.1  # default for 3+ words
+        if word_count == 1:
+            max_distance = 1.5
+        elif word_count == 2:
+            max_distance = 1.3
+        logger.info(f"🔎 Using max_distance={max_distance} for question word count={word_count}")
+        rows = query_chunks(collection_name, conversation_id, question, top_k, max_distance)
+        logger.info(f"📚 Retrieved {len(rows)} context chunks")
+        context = build_context(rows)
 
-    # Choose prompt based on whether this is a quiz request
-    is_quiz = _is_quiz_request(question)
-    prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
-    if is_quiz:
-        logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
+        llm = get_llm()
 
-    history_str = _format_chat_history(chat_history)
-    welcome_str = _format_welcome_messages(welcome_messages)
+        # Choose prompt based on whether this is a quiz request
+        is_quiz = _is_quiz_request(question)
+        prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
+        if is_quiz:
+            logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
 
-    chain = prompt | llm
-    logger.info(f"🔗 Invoking LLM chain...")
-    ai_message = chain.invoke({
-        "question": question,
-        "context": context,
-        "chat_history": history_str,
-        "welcome_messages": welcome_str,
-    })
-    answer = ai_message.content
+        history_str = _format_chat_history(chat_history)
+        welcome_str = _format_welcome_messages(welcome_messages)
 
-    # Log the full question and model response for observability (visible in GCP Cloud Logging)
-    model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
-    logger.info(f"📝 [Q&A LOG] conversation={conversation_id} model={model_name}")
-    logger.info(f"📝 [Q&A LOG] question={question}")
-    logger.info(f"📝 [Q&A LOG] answer={answer[:500]}")
+        chain = prompt | llm
+        logger.info(f"🔗 Invoking LLM chain...")
+        with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
+            ai_message = chain.invoke({
+                "question": question,
+                "context": context,
+                "chat_history": history_str,
+                "welcome_messages": welcome_str,
+            })
+        answer = ai_message.content
 
-    # Log prompt cache metrics if available
-    usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get("usage", {})
-    if usage:
-        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
-        prompt_tokens = usage.get("prompt_tokens", 0)
-        completion_tokens = usage.get("completion_tokens", 0)
-        if cached:
-            logger.info(f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached*100//prompt_tokens}%)")
-        else:
-            logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
-        logger.info(f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}")
+        # Log the full question and model response for observability (visible in GCP Cloud Logging)
+        model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+        logger.info(f"📝 [Q&A LOG] conversation={conversation_id} model={model_name}")
+        logger.info(f"📝 [Q&A LOG] question={question}")
+        logger.info(f"📝 [Q&A LOG] answer={answer[:500]}")
 
-    logger.info(f"✅ Generated answer: {answer[:100]}...")
+        # Log prompt cache metrics if available
+        usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get("usage", {})
+        if usage:
+            cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            if cached:
+                logger.info(f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached*100//prompt_tokens}%)")
+            else:
+                logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
+            logger.info(f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}")
 
-    citations = _build_citations(rows)
-    answer = _strip_orphan_source_tags(answer, len(citations))
+            rag_span.set_data("model", model_name)
+            rag_span.set_data("prompt_tokens", prompt_tokens)
+            rag_span.set_data("completion_tokens", completion_tokens)
+            rag_span.set_data("total_tokens", prompt_tokens + completion_tokens)
 
-    return {
-        "answer": answer,
-        "citations": citations,
-    }
+        logger.info(f"✅ Generated answer: {answer[:100]}...")
+
+        citations = _build_citations(rows)
+        answer = _strip_orphan_source_tags(answer, len(citations))
+
+        return {
+            "answer": answer,
+            "citations": citations,
+        }

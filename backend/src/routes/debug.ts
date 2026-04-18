@@ -41,6 +41,7 @@ debugRouter.get("/debug/tables", async (ctx) => {
     conversationAccessTokens,
     accessRequests,
     users,
+    processingJobs,
   ] = await Promise.all([
     query("SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
     query("SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
@@ -55,6 +56,7 @@ debugRouter.get("/debug/tables", async (ctx) => {
            LEFT JOIN public.user_fingerprints uf ON uf.user_id = cm.user_id
            GROUP BY cm.user_id, uf.fingerprint
            ORDER BY message_count DESC`),
+    query("SELECT * FROM public.processing_jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
   ]);
 
   ctx.body = {
@@ -66,5 +68,99 @@ debugRouter.get("/debug/tables", async (ctx) => {
     conversation_access_tokens: conversationAccessTokens.rows,
     access_requests: accessRequests.rows,
     users: users.rows,
+    processing_jobs: processingJobs.rows,
+  };
+});
+
+/**
+ * GET /debug/processing-jobs
+ * GET /debug/processing-jobs/:conversationId
+ *
+ * Live view of file/page processing telemetry.
+ * Shows all steps with timestamps, durations, errors, worker IDs.
+ */
+debugRouter.get("/debug/processing-jobs/:conversationId?", async (ctx) => {
+  const auth = ctx.headers.authorization;
+  if (!auth || !auth.startsWith("Basic ")) {
+    ctx.status = 401;
+    ctx.body = { error: "Authentication required" };
+    return;
+  }
+  const decoded = Buffer.from(auth.slice(6), "base64").toString();
+  const idx = decoded.indexOf(":");
+  const user = idx < 0 ? decoded : decoded.slice(0, idx);
+  const pass = idx < 0 ? "" : decoded.slice(idx + 1);
+  if (!config.debugUser || !config.debugPass || !safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
+    ctx.status = 401;
+    ctx.body = { error: "Invalid credentials" };
+    return;
+  }
+
+  const conversationId = ctx.params.conversationId;
+  const limit = Math.min(parseInt(String(ctx.query.limit ?? "500"), 10) || 500, 5000);
+  const statusFilter = ctx.query.status as string | undefined;
+
+  let sql = `
+    SELECT id, conversation_id, file_name, page_number, total_pages,
+           status, step, detail, error_message, retry_count,
+           duration_ms, worker_id, started_at, completed_at, created_at
+    FROM processing_jobs
+  `;
+  const params: any[] = [];
+  const conditions: string[] = [];
+
+  if (conversationId) {
+    conditions.push(`conversation_id = $${params.length + 1}`);
+    params.push(conversationId);
+  }
+  if (statusFilter) {
+    conditions.push(`status = $${params.length + 1}`);
+    params.push(statusFilter);
+  }
+
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(" AND ")}`;
+  }
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit);
+
+  const jobs = await query(sql, params);
+
+  // Summary stats
+  const summaryResult = await query(`
+    SELECT
+      status,
+      COUNT(*) as count,
+      AVG(duration_ms) as avg_duration_ms,
+      MAX(duration_ms) as max_duration_ms,
+      MIN(duration_ms) as min_duration_ms
+    FROM processing_jobs
+    ${conversationId ? "WHERE conversation_id = $1" : ""}
+    GROUP BY status
+    ORDER BY status
+  `, conversationId ? [conversationId] : []);
+
+  // Recent conversations with jobs
+  const recentConversations = await query(`
+    SELECT conversation_id,
+           COUNT(*) as job_count,
+           COUNT(*) FILTER (WHERE status = 'completed') as completed,
+           COUNT(*) FILTER (WHERE status = 'failed') as failed,
+           COUNT(*) FILTER (WHERE status = 'running') as running,
+           MIN(created_at) as first_job,
+           MAX(created_at) as last_job,
+           AVG(duration_ms) FILTER (WHERE duration_ms IS NOT NULL) as avg_duration_ms
+    FROM processing_jobs
+    GROUP BY conversation_id
+    ORDER BY last_job DESC
+    LIMIT 20
+  `);
+
+  ctx.body = {
+    jobs: jobs.rows,
+    summary: summaryResult.rows,
+    recent_conversations: recentConversations.rows,
+    total: jobs.rows.length,
+    limit,
   };
 });
