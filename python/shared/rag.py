@@ -173,6 +173,12 @@ d) Action Buttons:
   If no rich action fits the context, generate 3 plain questions (all without emoji).
 - When suggesting "generate image", the label MUST contain the exact phrase "generate image" (in English) or "wygeneruj obraz" (in Polish). This triggers the image generation API.
 - Example: [action:What were Socrates' main teachings?] [action:How did Socrates influence Plato?] [action:Socrates quotes - create diagram 🖼️]
+- DEEP-DIVE DIRECTION: Each follow-up question should push the conversation DEEPER into expert territory. Think like a curious expert who wants to uncover non-obvious insights, counter-intuitive connections, or practical "insider knowledge" hidden in the content. Ask the kind of question that makes the user think "I wouldn't have thought to ask that, but now I really want to know."
+  * Go beyond surface-level summaries - ask about underlying mechanisms, edge cases, trade-offs, historical context, or real-world implications.
+  * Frame questions that connect ideas across different parts of the document in unexpected ways.
+  * Prefer "why" and "how" questions over "what" questions. Prefer questions that reveal hidden patterns, surprising contrasts, or actionable takeaways.
+  * NEVER rephrase or rehash information already covered in the current answer or previous conversation. Each suggestion must open a genuinely NEW angle.
+- PREVIOUS SUGGESTIONS: A list of all previously shown suggested questions and action buttons is provided in SECTION 5c below. You MUST NOT repeat or closely rephrase any of them. Generate fresh, progressively deeper questions that build on what was already explored.
 
 e) Emoji Usage:
 - Use emojis naturally throughout your answers to make them more engaging, fun, and scannable.
@@ -216,6 +222,12 @@ Below is the full text of pages where matching sources were found. Each block is
 == SECTION 5b: Chat History (Previous Messages) ==
 Below is the most recent question the user asked and the answer you gave. Use this to understand follow-up questions and maintain conversational continuity. If empty, this is the first question in the conversation.
 {chat_history}
+
+--
+
+== SECTION 5c: Previously Suggested Questions ==
+Below are ALL suggested questions and action buttons that were already shown to the user in this conversation. Do NOT repeat or closely rephrase ANY of these when generating your [action:...] buttons. Generate fresh, progressively deeper expert-level questions instead.
+{previous_suggested_questions}
 
 --
 
@@ -522,6 +534,13 @@ def _format_welcome_messages(welcome_messages: list[str] | None) -> str:
     return "\n\n".join(parts)
 
 
+def _format_previous_suggested_questions(questions: list[str] | None) -> str:
+    """Format all previously shown suggested questions/action buttons for the prompt."""
+    if not questions:
+        return "(none - this is the first interaction)"
+    return "\n".join(f"- {q}" for q in questions)
+
+
 def _format_chat_history(chat_history: list[dict] | None) -> str:
     """Format the last Q&A exchange into a string for the prompt."""
     if not chat_history:
@@ -688,7 +707,7 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None) -> dict:
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None, previous_suggested_questions: list[str] | None = None) -> dict:
     import sentry_sdk
     logger.info(f"❓ Answering question: {question[:100]}...")
 
@@ -741,6 +760,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
+        prev_questions_str = _format_previous_suggested_questions(previous_suggested_questions)
 
         prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         chain = prompt | llm
@@ -763,6 +783,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
                 "welcome_messages": welcome_str,
                 "matched_pages": matched_pages,
                 "exif_metadata": exif_str,
+                "previous_suggested_questions": prev_questions_str,
             }
 
         # Render the full prompt string and log it for debugging

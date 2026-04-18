@@ -9,6 +9,7 @@ export async function answerQuestion(options: {
   imageFilePaths?: string[];
   fileMetadata?: Record<string, any>;
   storageDir?: string;
+  previousSuggestedQuestions?: string[];
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -22,6 +23,7 @@ export async function answerQuestion(options: {
       image_file_paths: options.imageFilePaths || null,
       file_metadata: options.fileMetadata || null,
       storage_dir: options.storageDir || null,
+      previous_suggested_questions: options.previousSuggestedQuestions || null,
     }),
   });
 

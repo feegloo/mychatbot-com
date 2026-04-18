@@ -82,6 +82,21 @@ askRouter.post("/ask", async (ctx) => {
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace);
 
+  // Collect all previously shown suggested questions:
+  // 1. Indexing-time suggested questions from DB
+  const previousSuggestedQuestions: string[] = data.suggestedQuestions.map(q => q.question);
+  // 2. Action buttons extracted from previous assistant messages ([action:Label])
+  const actionRegex = /\[action:\s*([^\]]+)\]/g;
+  for (const msg of data.messages) {
+    if (msg.role === "assistant" && msg.content) {
+      let match;
+      while ((match = actionRegex.exec(msg.content)) !== null) {
+        previousSuggestedQuestions.push(match[1].trim());
+      }
+      actionRegex.lastIndex = 0;
+    }
+  }
+
   const result = await answerQuestion({
     conversationId,
     collectionName: data.conversation.vector_collection_name,
@@ -91,6 +106,7 @@ askRouter.post("/ask", async (ctx) => {
     imageFilePaths: imageFilePaths.length ? imageFilePaths : undefined,
     fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
     storageDir,
+    previousSuggestedQuestions: previousSuggestedQuestions.length ? previousSuggestedQuestions : undefined,
   });
 
   const payload = result.parsedJson || {
