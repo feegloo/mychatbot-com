@@ -17,3 +17,4 @@ __pycache__/
 gcloud-credentials.json
 playwright-report/
 test-results/
+.vscode/mcp.json
