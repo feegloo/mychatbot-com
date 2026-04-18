@@ -8,20 +8,13 @@ marked.use({ breaks: true, gfm: true });
 function renderMarkdownWithPlaceholders(content: string): string {
   let normalized = content;
 
-  // Protect [action:] and [suggest:] with placeholders before marked
+  // Protect [action:] with placeholders before marked
   const actionPlaceholders: string[] = [];
   const actionToken = (idx: number) => `\x01ACTION${idx}\x01`;
   normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label: string) => {
     const i = actionPlaceholders.length;
     actionPlaceholders.push(label.trim());
     return actionToken(i);
-  });
-  const suggestPlaceholders: string[] = [];
-  const suggestToken = (idx: number) => `\x01SUGGEST${idx}\x01`;
-  normalized = normalized.replace(/\[suggest:\s*([^\]]+)\]/g, (_, label: string) => {
-    const i = suggestPlaceholders.length;
-    suggestPlaceholders.push(label.trim());
-    return suggestToken(i);
   });
 
   const rawHtml = marked.parse(normalized, { async: false }) as string;
@@ -37,63 +30,50 @@ function renderMarkdownWithPlaceholders(content: string): string {
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>'
   );
-  // Restore suggest placeholders
-  result = result.replace(/\x01SUGGEST(\d+)\x01/g, (_, idxStr: string) => {
-    const label = suggestPlaceholders[parseInt(idxStr, 10)];
-    return `<button class="suggest-btn" data-suggest="${label}">${label}</button>`;
-  });
-  // Wrap suggest buttons
-  result = result.replace(
-    /(<button class="suggest-btn"[^>]*>.*?<\/button>(?:\s*<button class="suggest-btn"[^>]*>.*?<\/button>)*)/g,
-    '<div class="suggest-btns-row">$1</div>'
-  );
   return result;
 }
 
-describe('suggest rendering with placeholders', () => {
+describe('action button rendering with placeholders', () => {
   it('should preserve \\x01 placeholder through marked + DOMPurify', () => {
-    const input = '<p>\x01SUGGEST0\x01</p>';
+    const input = '<p>\x01ACTION0\x01</p>';
     const sanitized = DOMPurify.sanitize(input);
-    expect(sanitized).toContain('\x01SUGGEST0\x01');
+    expect(sanitized).toContain('\x01ACTION0\x01');
   });
 
-  it('should convert [suggest:] to buttons via placeholder approach', () => {
-    const input = 'Some text.\n\n[suggest:Follow up 1] [suggest:Follow up 2]';
+  it('should convert [action:] to buttons via placeholder approach', () => {
+    const input = 'Some text.\n\n[action:Follow up 1] [action:Follow up 2]';
     const result = renderMarkdownWithPlaceholders(input);
-    expect(result).toContain('suggest-btn');
+    expect(result).toContain('action-btn');
     expect(result).toContain('Follow up 1');
     expect(result).toContain('Follow up 2');
-    expect(result).not.toContain('[suggest:');
-  });
-
-  it('should convert [action:] and [suggest:] together', () => {
-    const input = 'Text here.\n\n[action:Do something]\n\n[suggest:What can I do?] [suggest:What else?]';
-    const result = renderMarkdownWithPlaceholders(input);
-    expect(result).toContain('action-btn');
-    expect(result).toContain('suggest-btn');
     expect(result).not.toContain('[action:');
-    expect(result).not.toContain('[suggest:');
   });
 
-  it('should handle action and suggest on same line', () => {
-    const input = '[action:Do something] [suggest:Follow up 1] [suggest:Follow up 2]';
+  it('should convert multiple [action:] markers', () => {
+    const input = 'Text here.\n\n[action:Do something]\n\n[action:What can I do?] [action:What else?]';
     const result = renderMarkdownWithPlaceholders(input);
     expect(result).toContain('action-btn');
-    expect(result).toContain('suggest-btn');
+    expect(result).not.toContain('[action:');
   });
 
-  it('should handle suggests in list items', () => {
-    const input = 'I can help:\n- option one\n- option two [suggest:Upload screenshot 📸] [suggest:Summarize text 🎨]';
+  it('should handle multiple actions on same line', () => {
+    const input = '[action:Do something] [action:Follow up 1] [action:Follow up 2]';
     const result = renderMarkdownWithPlaceholders(input);
-    expect(result).toContain('suggest-btn');
+    expect(result).toContain('action-btn');
+  });
+
+  it('should handle actions in list items', () => {
+    const input = 'I can help:\n- option one\n- option two [action:Upload screenshot 📸] [action:Summarize text 🎨]';
+    const result = renderMarkdownWithPlaceholders(input);
+    expect(result).toContain('action-btn');
     expect(result).toContain('Upload screenshot 📸');
     expect(result).toContain('Summarize text 🎨');
   });
 
-  it('should handle suggests with URLs inside', () => {
-    const input = 'Check [suggest:Upload onet.pl screenshot for analysis 📸] [suggest:Summarize website text 🎨]';
+  it('should handle actions with URLs inside', () => {
+    const input = 'Check [action:Upload onet.pl screenshot for analysis 📸] [action:Summarize website text 🎨]';
     const result = renderMarkdownWithPlaceholders(input);
-    expect(result).toContain('suggest-btn');
+    expect(result).toContain('action-btn');
     expect(result).toContain('Upload onet.pl screenshot for analysis 📸');
   });
 
@@ -110,14 +90,12 @@ describe('suggest rendering with placeholders', () => {
       '',
       '[action:Scar healing guide - summarize next steps]',
       '',
-      '[suggest:What can I do while scars heal?] [suggest:What signs mean my scar is ready?]'
+      '[action:What can I do while scars heal? 🤔] [action:What signs mean my scar is ready? 🔍]'
     ].join('\n');
     const result = renderMarkdownWithPlaceholders(input);
     expect(result).toContain('action-btn');
-    expect(result).toContain('suggest-btn');
     expect(result).toContain('What can I do while scars heal?');
     expect(result).toContain('What signs mean my scar is ready?');
-    expect(result).not.toContain('[suggest:');
     expect(result).not.toContain('[action:');
   });
 });

@@ -4,6 +4,15 @@
     <strong>{{ senderLabel }}</strong>
     <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
       <AppButton
+        v-if="isFirstMessage && canUpload"
+        class="msg-action-btn"
+        title="Upload more files"
+        @click="uploadInput?.click()"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload more files
+      </AppButton>
+      <AppButton
         class="msg-action-btn"
         :title="shareCopied ? 'Link copied!' : 'Share this answer'"
         @click="shareMessage"
@@ -20,16 +29,7 @@
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         PDF
-      </AppButton>
-      <AppButton
-        v-if="isFirstMessage && canUpload"
-        class="msg-action-btn"
-        title="Upload more files"
-        @click="uploadInput?.click()"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload
-      </AppButton>
+      </AppButton>      
       <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
     </div>
     <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
@@ -296,9 +296,9 @@ function renderMarkdown(content: string): string {
     poemPlaceholders.push(body.trim());
     return poemToken(i);
   });
-  // Protect [action:Label] and [suggest:Label] markers from marked (which may
-  // interpret square-bracket sequences as reference links and drop or re-encode
-  // them, causing the post-DOMPurify regex replacements to miss).
+  // Protect [action:Label] markers from marked (which may interpret
+  // square-bracket sequences as reference links and drop or re-encode them,
+  // causing the post-DOMPurify regex replacements to miss).
   const actionPlaceholders: string[] = [];
   const actionToken = (idx: number) => `\x01ACTION${idx}\x01`;
   normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label) => {
@@ -306,13 +306,7 @@ function renderMarkdown(content: string): string {
     actionPlaceholders.push(label.trim());
     return actionToken(i);
   });
-  const suggestPlaceholders: string[] = [];
-  const suggestToken = (idx: number) => `\x01SUGGEST${idx}\x01`;
-  normalized = normalized.replace(/\[suggest:\s*([^\]]+)\]/g, (_, label) => {
-    const i = suggestPlaceholders.length;
-    suggestPlaceholders.push(label.trim());
-    return suggestToken(i);
-  });
+
   const rawHtml = marked.parse(normalized, { async: false }) as string;
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
   // Use flexible regex to handle any attribute order from marked
@@ -368,18 +362,8 @@ function renderMarkdown(content: string): string {
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>'
   );
-  // Restore [suggest:Label] placeholders as clickable suggest pill buttons
-  const withSuggests = withActionsWrapped.replace(/\x01SUGGEST(\d+)\x01/g, (_, idxStr) => {
-    const label = suggestPlaceholders[parseInt(idxStr, 10)];
-    return `<button class="suggest-btn" data-suggest="${label}">${label}</button>`;
-  });
-  // Wrap consecutive suggest buttons in a row container
-  const withSuggestsWrapped = withSuggests.replace(
-    /(<button class="suggest-btn"[^>]*>.*?<\/button>(?:\s*<button class="suggest-btn"[^>]*>.*?<\/button>)*)/g,
-    '<div class="suggest-btns-row">$1</div>'
-  );
   // Add target="_blank" to all <a> tags that don't already have it
-  const withTargetBlank = withSuggestsWrapped.replace(
+  const withTargetBlank = withActionsWrapped.replace(
     /<a (?![^>]*target=)/gi,
     '<a target="_blank" rel="noopener noreferrer" '
   );
@@ -789,16 +773,6 @@ function onContentClick(e: MouseEvent) {
     const action = actionBtn.dataset.action;
     if (action) {
       emit('select-question', action);
-    }
-    return;
-  }
-
-  // Handle suggest button clicks
-  const suggestBtn = (e.target as HTMLElement).closest(".suggest-btn") as HTMLElement | null;
-  if (suggestBtn) {
-    const suggest = suggestBtn.dataset.suggest;
-    if (suggest) {
-      emit('select-question', suggest);
     }
     return;
   }
@@ -1461,41 +1435,6 @@ function openFilePreview(file: FileInfo) {
 }
 :deep(.action-btn:active)::after {
   background: rgba(167, 139, 250, 0.1);
-}
-
-/* Suggest follow-up buttons */
-:deep(.suggest-btns-row) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-:deep(.suggest-btn) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(96, 165, 250, 0.08);
-  border: 1px solid rgba(96, 165, 250, 0.18);
-  color: #93c5fd;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12.5px;
-  cursor: pointer;
-  transition: 0.15s;
-}
-
-@media (hover: hover) {
-  :deep(.suggest-btn:hover) {
-    background: rgba(96, 165, 250, 0.15);
-    border-color: rgba(96, 165, 250, 0.35);
-    color: #bfdbfe;
-  }
-}
-:deep(.suggest-btn:active) {
-  background: rgba(96, 165, 250, 0.15);
-  border-color: rgba(96, 165, 250, 0.35);
-  color: #bfdbfe;
 }
 
 /* Highlight.js code block overrides */
