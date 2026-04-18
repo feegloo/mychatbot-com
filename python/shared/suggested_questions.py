@@ -46,6 +46,11 @@ def suggest_questions_from_chunks(
         language = detect_language(text_for_lang)
 
     # --- Generate 3 natural questions + 2 contextual/creative prompts in one call ---
+    # Build file context hints for smarter action suggestions
+    _file_types_str = ""
+    if file_types and file_names:
+        _file_types_str = ", ".join(f"{n} ({file_types.get(n, 'unknown')})" for n in file_names)
+
     if language == "pl":
         prompt = ChatPromptTemplate.from_messages([
             ("system", """Wygeneruj DOKŁADNIE 5 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
@@ -56,12 +61,65 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
 - Ostatnie 2 to kreatywne/kontekstowe prompty-akcje w formie: "<temat z dokumentu> - <akcja>"
-  Przykładowe akcje: "stwórz diagram mermaid", "napisz wiersz", "napisz podobny", "stwórz quiz", "napisz podsumowanie", "stwórz tabelę porównawczą", "napisz email", "wyjaśnij jak dla dziecka"
-  Wybierz akcje które najlepiej pasują do treści dokumentu.
-  Każdy prompt-akcja MUSI kończyć się odpowiednim emoji (🖼️ dla diagramu mermaid, ✏️ dla pisania, 🧠 dla quizu, 📝 dla podsumowania, 📋 dla listy, ✅ dla checklisty, 🎭 dla wiersza, 📧 dla emaila, 👶 dla wyjaśnienia)
+  Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
+- KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków — nie pisz np. "recette du pain - create recipe" tylko "recette du pain - créer la recette". Dotyczy to również nazw akcji.
 
+== Wytyczne dotyczące promptów-akcji ==
+
+Wybierz akcje które NAJLEPIEJ pasują do charakteru treści. Bądź kreatywny i kontekstowy:
+
+a) Quiz 🧠 — sugeruj gdy:
+   - dokument to długi ebook lub podręcznik
+   - PDF wygląda na materiał edukacyjny (wykład, kurs, tutorial)
+   - treść uczy jakiegoś tematu z faktami do sprawdzenia
+
+b) Checklista ✅ — sugeruj gdy:
+   - treść opisuje kroki do wykonania, procedurę, instrukcję
+   - użytkownik powinien "podjąć działanie" na podstawie tekstu
+   - dokument zawiera listę wymagań, zadań, rzeczy do zrobienia
+
+c) Wiersz 🎭 — sugeruj gdy:
+   - autor to poeta, pisarz, lub treść związana z poezją
+   - dokument to zbiór cytatów, aforyzmów, wierszy
+   - treść ma literacki, artystyczny charakter
+
+d) Napisz nowy rozdział ✏️ — sugeruj gdy:
+   - dokument to fragment powieści, opowiadania, książki beletrystycznej
+   - np. książka Stephena Kinga — "napisz podobny rozdział w stylu autora"
+   - treść ma wyraźny styl narracyjny do naśladowania
+
+e) Przepis 🍝 — sugeruj gdy:
+   - zdjęcie pokazuje składniki lub gotowe danie
+   - plik dotyczy gotowania, pieczenia chleba, przepisów kulinarnych
+   - widoczne są produkty spożywcze na zdjęciu
+
+f) Rozpoznaj osobę 🔍 — sugeruj TYLKO gdy:
+   - na zdjęciu widać wyraźnie osobę/twarz ludzką
+   - NIE sugeruj dla zdjęć krajobrazów, zwierząt, przedmiotów
+
+g) Metadane EXIF 📷 — sugeruj TYLKO gdy:
+   - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
+
+h) Diagram mermaid 🖼️ — sugeruj gdy:
+   - treść opisuje proces, przepływ, architekturę, hierarchię
+   - dokument zawiera relacje między elementami do zwizualizowania
+   - treść techniczna z komponentami do zobrazowania
+
+i) Tabela porównawcza 📊 — sugeruj gdy:
+   - treść porównuje produkty, opcje, cechy, wyniki
+   - dokument zawiera dane liczbowe do zestawienia
+
+j) Podsumowanie 📝 — sugeruj gdy:
+   - dokument jest bardzo długi (wiele stron)
+   - treść jest gęsta, pełna szczegółów do skondensowania
+
+k) Wyjaśnij jak dla dziecka 👶 — sugeruj gdy:
+   - treść jest techniczna, naukowa, lub pełna żargonu
+   - dokument wymaga uproszczenia dla zrozumienia
+
+Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}"""),
             ("human", "{content}"),
         ])
@@ -75,19 +133,72 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
 - Last 2 are creative/contextual action-prompts in the form: "<topic from document> - <action>"
-  Example actions: "create mermaid diagram", "write poem", "write similar", "create quiz", "write summary", "create comparison table", "write email", "explain like I'm 5"
-  Pick actions that best fit the document's content.
-  Each action-prompt MUST end with a relevant emoji (🖼️ for mermaid diagram, ✏️ for writing, 🧠 for quiz, 📝 for summary, 📋 for checklist, ✅ for checklist, 🎭 for poem, 📧 for email, 👶 for ELI5)
+  Each action-prompt MUST end with a relevant emoji
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
+- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages — do NOT write "recette du pain - create recipe", instead write "recette du pain - créer la recette". This applies to action labels, topics, and everything else.
 
+== Action Prompt Guidelines ==
+
+Pick actions that BEST fit the nature of the content. Be creative and contextual:
+
+a) Quiz 🧠 — suggest when:
+   - document is a long ebook or textbook
+   - PDF looks like educational material (lecture, course, tutorial)
+   - content teaches a subject with facts worth testing
+
+b) Checklist ✅ — suggest when:
+   - content describes steps to follow, a procedure, instructions
+   - user should "take action" based on the text
+   - document contains requirements, tasks, things to do
+
+c) Poem 🎭 — suggest when:
+   - author is a poet, writer, or content relates to poetry
+   - document is a collection of quotes, aphorisms, poems
+   - content has a literary, artistic character
+
+d) Write new chapter ✏️ — suggest when:
+   - document is a fragment of a novel, short story, fiction book
+   - e.g. a Stephen King book — "write a similar chapter in the author's style"
+   - content has a distinct narrative style worth imitating
+
+e) Recipe 🍝 — suggest when:
+   - image shows ingredients or a finished dish
+   - file is about cooking, baking bread, culinary recipes
+   - food products are visible in the photo
+
+f) Recognize person 🔍 — suggest ONLY when:
+   - image clearly shows a person/human face
+   - do NOT suggest for landscapes, animals, objects
+
+g) EXIF metadata 📷 — suggest ONLY when:
+   - file is an image (photo) — never for PDF or text files
+
+h) Mermaid diagram 🖼️ — suggest when:
+   - content describes a process, flow, architecture, hierarchy
+   - document has relationships between elements to visualize
+   - technical content with components to diagram
+
+i) Comparison table 📊 — suggest when:
+   - content compares products, options, features, results
+   - document contains numerical data to tabulate
+
+j) Summary 📝 — suggest when:
+   - document is very long (many pages)
+   - content is dense, full of details to condense
+
+k) Explain like I'm 5 👶 — suggest when:
+   - content is technical, scientific, or full of jargon
+   - document needs simplification for understanding
+
+Uploaded files: {file_types_str}
 Document description: {description}"""),
             ("human", "{content}"),
         ])
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    response = chain.invoke({"content": sample, "description": description})
+    response = chain.invoke({"content": sample, "description": description, "file_types_str": _file_types_str})
 
     # Parse JSON response
     try:

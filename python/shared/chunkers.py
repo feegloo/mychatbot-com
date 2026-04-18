@@ -101,7 +101,7 @@ def split_into_chunks(file_name: str, text: str, *, page_num: int | None = None)
                         file_name=file_name,
                         text=raw.text,
                         section=section,
-                        page=None,
+                        page=page_num,
                         metadata={},
                     ))
                     index += 1
@@ -112,7 +112,7 @@ def split_into_chunks(file_name: str, text: str, *, page_num: int | None = None)
                     file_name=file_name,
                     text=para,
                     section=section,
-                    page=None,
+                    page=page_num,
                     metadata={},
                 ))
                 index += 1
@@ -124,12 +124,16 @@ def split_into_chunks(file_name: str, text: str, *, page_num: int | None = None)
     chunks = []
     for index, raw in enumerate(raw_chunks):
         section = _section_label(raw.text)
-        # Try to find page number inside the chunk text itself,
+        # Use the explicit page_num when processing per-page;
+        # otherwise try to find page number inside the chunk text itself,
         # or fall back to the last "# Page N" header before this
         # chunk's position in the original text.
-        page = _extract_page_from_chunk(raw.text)
-        if page is None:
-            page = _last_page_before(text, raw.start_index)
+        if page_num is not None:
+            page = page_num
+        else:
+            page = _extract_page_from_chunk(raw.text)
+            if page is None:
+                page = _last_page_before(text, raw.start_index)
         chunks.append(Chunk(
             chunk_id=f"{_id_prefix}_chunk_{index}",
             file_name=file_name,
