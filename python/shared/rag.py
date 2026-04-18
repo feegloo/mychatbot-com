@@ -133,7 +133,7 @@ Below is a short summary generated during file upload/indexing for each source f
 --
 
 == SECTION 4: Full Pages of Matched Sources ==
-Below is the full text of pages where matching sources were found. Use this for additional detail beyond the matching chunks.
+Below is the full text of pages where matching sources were found. Each block is labeled [Full Page N of filename] so you know which uploaded file the page belongs to. Use this for additional detail beyond the matching chunks.
 {matched_pages}
 
 --
@@ -143,7 +143,8 @@ Below is the full text of pages where matching sources were found. Use this for 
 
 --
 
-Chat history (previous exchange for follow-up context):
+== SECTION 5b: Chat History (Previous Messages) ==
+Below is the most recent question the user asked and the answer you gave. Use this to understand follow-up questions and maintain conversational continuity. If empty, this is the first question in the conversation.
 {chat_history}
 
 --
