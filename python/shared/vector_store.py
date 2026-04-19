@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -185,6 +186,21 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     }
 
 
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Compute cosine similarity between two embedding vectors.
+
+    Uses only stdlib math — negligible CPU cost for typical embedding dims (1536–3072).
+    Returns a value in [-1, 1]; OpenAI embeddings are unit-normalized so the result
+    is effectively in [0, 1] in practice.
+    """
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def query_chunks(
     collection_name: str,
     conversation_id: str,
@@ -206,7 +222,7 @@ def query_chunks(
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=top_k,
-        include=["documents", "metadatas", "distances"],
+        include=["documents", "metadatas", "distances", "embeddings"],
     )
 
     rows = []
@@ -214,16 +230,16 @@ def query_chunks(
     documents = result.get("documents", [[]])[0]
     metadatas = result.get("metadatas", [[]])[0]
     distances = result.get("distances", [[]])[0]
+    embeddings = result.get("embeddings", [[]])[0]
 
-    for chunk_id, document, metadata, distance in zip(ids, documents, metadatas, distances):
-        # Chroma returns L2 distance; convert to similarity (cosine) if needed, or use threshold directly
-        # For OpenAI embeddings, L2 distance is usually in [0,2], lower is better. We'll use a threshold.
-        # similarity = 1 - distance/2 (approx), so threshold 0.7 similarity ~ distance <= 0.3
+    for chunk_id, document, metadata, distance, embedding in zip(
+        ids, documents, metadatas, distances, embeddings
+    ):
         if distance > max_distance:
-            # continue
-            # Only include if similarity >= threshold (i.e., distance <= 0.3)
-            # if distance > (1 - similarity_threshold):
             continue
+        # True cosine similarity between the query and each stored chunk embedding.
+        # Chroma may return numpy arrays, so convert to list for the stdlib math computation.
+        cosine_sim = _cosine_similarity(query_vector, list(embedding)) if embedding is not None else None
         rows.append(
             {
                 "chunk_id": chunk_id,
@@ -233,6 +249,7 @@ def query_chunks(
                 "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
                 "chapter_number": metadata.get("chapter_number") or None,
                 "distance": distance,
+                "cosine_similarity": cosine_sim,
                 "metadata": metadata,
                 "image_name": metadata.get("image_name") or None,
             }

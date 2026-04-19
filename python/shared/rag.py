@@ -98,7 +98,7 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages(
 Now read all context sections below carefully before answering.
 
 Sections provided:
-1. Matching Sources (top embedding matches from the vector database, with similarity scores)
+1. Matching Sources (top embedding matches from the vector database, with L2 distance and cosine similarity scores)
 2. Answer Guidelines (tone, structured output, citation rules)
 3. Welcome Page Description (short summary of each uploaded file)
 4. Full Pages of Matched Sources (complete page text for pages where matches were found)
@@ -249,7 +249,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   * Cite each source only once per logical paragraph or section. Repeating [source:1][source:2] four times in four consecutive bullets is ugly and unhelpful.
   * When mixing sources, cite at the specific point where you switch to a new source.
   * Aim for citations to feel natural and unobtrusive, not mechanical.
-- If a source has a high similarity score (close to 1.0), it is highly relevant - prioritize it. Lower scores mean weaker matches.
+- Each source is labeled with its **L2 distance** (lower = closer match) and **Cosine similarity** (higher = more relevant, max 1.0). If a source has a high cosine similarity (close to 1.0) and a low L2 distance (close to 0.0), it is highly relevant — prioritize it. Lower cosine scores and higher L2 distances mean weaker matches.
 
 d) Action Buttons:
 - Output follow-up suggestions as action markers: [action:Label]. Place them at the very end of your answer, after all content.
@@ -412,9 +412,8 @@ def build_context(rows: list[dict]) -> str:
         return "(no matching sources found)"
     parts = []
     for i, row in enumerate(rows, 1):
-        # Convert L2 distance to approximate cosine similarity: sim ≈ 1 - dist/2
         distance = row.get("distance", 0)
-        similarity = max(0.0, 1.0 - distance / 2.0)
+        cosine_sim = row.get("cosine_similarity")
         label = f"[Source {i}] File: {row['file_name']}"
         if row.get("page") is not None:
             label += f" (Page {row['page']})"
@@ -422,7 +421,9 @@ def build_context(rows: list[dict]) -> str:
             label += f" (Chapter {row['chapter_number']})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
-        label += f" | Similarity: {similarity:.2f}"
+        label += f" | L2-dist: {distance:.3f}"
+        cosine_str = f"{cosine_sim:.3f}" if cosine_sim is not None else "N/A"
+        label += f" | Cosine: {cosine_str}"
         parts.append(f'{label}\n"{row["text"]}"')
     return "\n\n--\n\n".join(parts)
 
