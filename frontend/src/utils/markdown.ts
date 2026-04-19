@@ -187,7 +187,11 @@ export function renderMarkdown(content: string): string {
   )
   // Wrap tables so wide markdown tables can scroll horizontally on narrow screens
   const withScrollableTables = withTargetBlank
-    .replace(/<table>/g, '<div class="markdown-table-scroll"><table>')
+    .replace(
+      /<table(\s[^>]*)?>/g,
+      (_match, attrs: string | undefined) =>
+        `<div class="markdown-table-scroll"><table${attrs ?? ''}>`,
+    )
     .replace(/<\/table>/g, '</table></div>')
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
