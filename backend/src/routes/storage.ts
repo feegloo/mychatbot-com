@@ -1,6 +1,7 @@
 import Router from '@koa/router'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { Readable } from 'node:stream'
 import { config } from '../config.js'
 import { findStoredName, getStorageNamespace } from '../repositories/conversations.js'
 import { generateSignedReadUrl } from '../storage/gcs-storage.js'
@@ -141,6 +142,45 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
       : `${namespace}/${safeName}`
     try {
       const signedUrl = await generateSignedReadUrl(gcsKey)
+      // For PDF previews, proxy through same-origin endpoint so pdf.js can use range requests
+      // without cross-origin/CORS issues from signed GCS URLs.
+      if (ext === '.pdf') {
+        const range = ctx.get('range')
+        const upstream = await fetch(signedUrl, {
+          headers: range ? { Range: range } : {},
+        })
+        if (!upstream.ok && upstream.status !== 206) {
+          ctx.status = upstream.status || 502
+          ctx.body = { error: `Failed to read file from storage (status: ${upstream.status})` }
+          return
+        }
+        if (!upstream.body) {
+          ctx.status = 502
+          ctx.body = { error: 'Empty storage response' }
+          return
+        }
+
+        ctx.status = upstream.status
+        const passthroughHeaders = [
+          'content-type',
+          'content-length',
+          'content-range',
+          'accept-ranges',
+          'etag',
+          'last-modified',
+        ]
+        for (const header of passthroughHeaders) {
+          const value = upstream.headers.get(header)
+          if (value) ctx.set(header, value)
+        }
+        ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`)
+        ctx.set('X-Content-Type-Options', 'nosniff')
+        ctx.set('Cache-Control', 'public, max-age=86400')
+        const webStream = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
+        ctx.body = Readable.fromWeb(webStream)
+        return
+      }
+
       ctx.redirect(signedUrl)
       return
     } catch {
