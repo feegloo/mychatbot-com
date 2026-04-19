@@ -37,7 +37,7 @@
             </div>
           </div>
           <p v-if="uploading" style="margin-top:12px; color:#a78bfa; text-align:center"><UploadingDots /></p>
-          <p v-if="uploadError" style="color:#f87171; margin-top:12px; text-align:center">{{ uploadError }}</p>
+          <ErrorDetail v-if="uploadError.message" :message="uploadError.message" :raw="uploadError.raw" />
         </div>
       </div>
     </Transition>
@@ -95,9 +95,11 @@ import {
   askQuestion,
   generateImage,
   saveConversationToken,
+  extractError,
   type ChatMessage,
 } from "../api";
 import ChatMessageItem from "../components/ChatMessage.vue";
+import ErrorDetail from "../components/ErrorDetail.vue";
 import UploadingDots from "../components/UploadingDots.vue";
 
 onMounted(() => {
@@ -111,7 +113,7 @@ const uploadFilesArr = ref<File[]>([]);
 const uploadFiles = uploadFilesArr;
 const dragover = ref(false);
 const uploading = ref(false);
-const uploadError = ref("");
+const uploadError = ref<{ message: string; raw?: string }>({ message: "" });
 const inputRef = ref<HTMLInputElement | null>(null);
 const showUpload = ref(true);
 const skipUploadTransition = ref(false);
@@ -134,7 +136,7 @@ function onInputChange(event: Event) {
   const allFiles = Array.from(target.files || []);
   const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
   uploadFilesArr.value = allFiles.filter(f => !f.type.startsWith('video/'));
-  if (videoFiles.length) uploadError.value = "Video files are not supported.";
+  if (videoFiles.length) uploadError.value = { message: "Video files are not supported." };
   if (uploadFilesArr.value.length) submitUpload();
 }
 
@@ -143,13 +145,13 @@ function onDrop(event: DragEvent) {
   const allFiles = Array.from(event.dataTransfer?.files || []);
   const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
   uploadFilesArr.value = allFiles.filter(f => !f.type.startsWith('video/'));
-  if (videoFiles.length) uploadError.value = "Video files are not supported.";
+  if (videoFiles.length) uploadError.value = { message: "Video files are not supported." };
   if (uploadFilesArr.value.length) submitUpload();
 }
 
 async function submitUpload() {
   uploading.value = true;
-  uploadError.value = "";
+  uploadError.value = { message: "" };
 
   try {
     const data = await apiUploadFiles(uploadFilesArr.value);
@@ -163,11 +165,12 @@ async function submitUpload() {
     // Navigate to conversation page
     router.push(data.url);
   } catch (err: any) {
+    const { message, raw } = extractError(err);
     const status = err?.response?.status;
     if (status === 413) {
-      uploadError.value = "File too large. Maximum upload size is ~30 MB per file.";
+      uploadError.value = { message: "File too large. Maximum upload size is ~30 MB per file.", raw };
     } else {
-      uploadError.value = err?.response?.data?.error || err?.message || "Upload failed";
+      uploadError.value = { message, raw };
     }
   } finally {
     uploading.value = false;
@@ -206,7 +209,7 @@ function isUrl(text: string): boolean {
 
 async function submitUrlUpload(url: string) {
   uploading.value = true;
-  uploadError.value = "";
+  uploadError.value = { message: "" };
 
   try {
     const data = await apiUploadUrl(url.trim());
@@ -218,7 +221,8 @@ async function submitUrlUpload(url: string) {
     showUpload.value = false;
     router.push(data.url);
   } catch (err: any) {
-    uploadError.value = err?.response?.data?.error || err?.message || "Failed to load URL";
+    const { message, raw } = extractError(err);
+    uploadError.value = { message: message || "Failed to load URL", raw };
   } finally {
     uploading.value = false;
   }
@@ -270,8 +274,8 @@ async function submitQuestion() {
     await nextTick();
     scrollToBottom(true);
   } catch (err: any) {
-    const detail = err?.response?.data?.error || err?.message || "Unknown error";
-    reactiveMsg.content = `⚠️ Error: ${detail}`;
+    const { message, raw } = extractError(err);
+    reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`;
   } finally {
     asking.value = false;
   }

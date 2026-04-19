@@ -1,4 +1,4 @@
-export type ConversationStatus = "processing" | "ready" | "failed";
+export type ConversationStatus = "uploading" | "processing" | "ready" | "failed";
 export type ConversationRole = "owner" | "editor" | "viewer";
 
 export type ConversationRecord = {

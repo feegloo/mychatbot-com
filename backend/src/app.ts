@@ -52,7 +52,7 @@ export function createApp() {
         console.error(`[API ${ctx.method} ${ctx.url}] ${status}: ${message}`);
         if (status >= 500) Sentry.captureException(err);
         ctx.status = status;
-        ctx.body = { msg: `[${status}] ${message}` };
+        ctx.body = { error: message, stack: err.stack || null };
       }
       return;
     }

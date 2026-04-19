@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { config } from "../config.js";
 import { findStoredName, getStorageNamespace } from "../repositories/conversations.js";
-import { readFromGcs } from "../storage/gcs-storage.js";
+import { readFromGcs, generateSignedReadUrl } from "../storage/gcs-storage.js";
 
 export const storageRouter = new Router();
 
@@ -88,6 +88,8 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
 
   // Try exact match first, then NFC/NFD scan, then DB lookup by original_name
   let fileBuffer: Buffer | null = null;
+  let resolvedStoredName: string | null = null;
+
   try {
     await fs.access(filePath);
     fileBuffer = await fs.readFile(filePath);
@@ -98,35 +100,39 @@ storageRouter.get("/storage/:conversationId/:fileName", async (ctx) => {
       fileBuffer = await fs.readFile(filePath);
     } else {
       // File not found by name on disk — look up stored_name from DB
-      const storedName = await findStoredName(namespace, safeName);
-      if (storedName) {
-        filePath = path.join(dir, storedName);
+      resolvedStoredName = await findStoredName(namespace, safeName);
+      if (resolvedStoredName) {
+        filePath = path.join(dir, resolvedStoredName);
         try {
           await fs.access(filePath);
           fileBuffer = await fs.readFile(filePath);
         } catch {
-          // Not on disk — try GCS
+          // Not on disk — try GCS below
         }
-      }
-
-      // If still not found and GCS is configured, try reading from GCS
-      if (!fileBuffer && config.storageProvider === "gcs" && config.gcsBucket) {
-        const gcsKey = storedName
-          ? `${namespace}/${storedName}`
-          : `${namespace}/${safeName}`;
-        try {
-          fileBuffer = await readFromGcs(gcsKey);
-        } catch {
-          // Not in GCS either
-        }
-      }
-
-      if (!fileBuffer) {
-        ctx.status = 404;
-        ctx.body = { error: "File not found" };
-        return;
       }
     }
+  }
+
+  // For large files (>25 MiB) or files not on disk, redirect to GCS signed URL
+  // to avoid Cloud Run's 32 MiB response body limit
+  const MAX_PROXY_SIZE = 25 * 1024 * 1024;
+  if (config.storageProvider === "gcs" && config.gcsBucket && (!fileBuffer || fileBuffer.length > MAX_PROXY_SIZE)) {
+    const gcsKey = resolvedStoredName
+      ? `${namespace}/${resolvedStoredName}`
+      : `${namespace}/${safeName}`;
+    try {
+      const signedUrl = await generateSignedReadUrl(gcsKey);
+      ctx.redirect(signedUrl);
+      return;
+    } catch {
+      // GCS read failed — fall through to serve from disk buffer if available
+    }
+  }
+
+  if (!fileBuffer) {
+    ctx.status = 404;
+    ctx.body = { error: "File not found" };
+    return;
   }
 
   const mimeTypes: Record<string, string> = {

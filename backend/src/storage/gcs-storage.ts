@@ -109,6 +109,20 @@ export async function readFromGcs(gcsKey: string): Promise<Buffer> {
 }
 
 /**
+ * Generate a short-lived signed URL for reading a GCS file (e.g. PDF preview).
+ */
+export async function generateSignedReadUrl(gcsKey: string, contentType?: string): Promise<string> {
+  const bucket = getGcsClient().bucket(config.gcsBucket);
+  const [url] = await bucket.file(gcsKey).getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    ...(contentType ? { responseDisposition: "inline", responseType: contentType } : {}),
+  });
+  return url;
+}
+
+/**
  * Download all files for a conversation from GCS to a local directory.
  * Returns the list of local absolute paths.
  */

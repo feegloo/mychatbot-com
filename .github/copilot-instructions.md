@@ -2,8 +2,21 @@
 
 ## Purpose
 These instructions guide AI agents (like GitHub Copilot) to be productive and consistent in the ChatRAG Hybrid RAG App workspace. They summarize architecture, conventions, and key workflows, and link to detailed docs where needed.
+---
 
-see README.md for project overview and setup instructions.
+## General AI model guidelines
+- take your time, code quality is most important
+- i want you to create code as "high-performer" developer, who is careful, thoughtful, and prioritizes maintainability and readability over speed or cleverness
+- reason slowly and carefully, and try to understand the context and requirements before generating code or suggestions
+- avoid hallucinating information or making assumptions about the codebase, architecture, or requirements that aren't supported by the existing documentation or code
+- when in doubt, ask for clarification or link to relevant documentation rather than making assumptions
+- ask for input in interactive way, by asking questions or requesting more information, rather than making assumptions or generating code that may not fit the actual requirements or context
+- if you run command like ./deploy, periodically check status of process running in the background, tell me it's finished, and if it fails, try to understand the error message and reason about what might be causing it, and ask for clarification or suggest potential solutions based on the error message and your understanding of the codebase and architecture
+- check README.md for code snippets useful for debugging production logs, and create more by youself if needed, to help with debugging and understanding the system, especially for complex areas like the AI engine and vector store interactions
+- use Sentry MCP as well to check projects (I configured Sentry for both frontend and backend, so you can check error logs and performance metrics there to help with debugging and understanding the system's behavior in production
+- you should be independent and proactive in finding information and understanding the codebase, architecture, and requirements, and should not rely on me to provide all the information or context you need to be productive
+- after round of few AI Agents implementations, you can ask to run ./deploy or do it further by yourself, to see how your changes work in production, and to check logs and Sentry for any errors or issues that may arise, and use that information to further improve your understanding of the system and to guide your future implementations and contributions
+
 ---
 
 ## Architecture Overview
@@ -50,6 +63,7 @@ see README.md for project overview and setup instructions.
 ---
 
 ## Documentation Links
+- [README.md](README.md) for project overview and setup instructions.
 - [ARCHITECTURE.md](ARCHITECTURE.md): Full system architecture
 - [python/README.md](python/README.md): Python engine usage
 - [infra/cloudrun/README.md](infra/cloudrun/README.md): GCP deployment
@@ -66,3 +80,32 @@ see README.md for project overview and setup instructions.
 ## Next Steps
 - For area-specific instructions, consider adding `applyTo`-based customizations for frontend, backend, or python.
 - To extend agent behavior, see [agent-customization skill](https://github.com/features/copilot#customization) or create `/create-instruction`, `/create-agent`, or `/create-skill` files as needed.
+
+
+## Code Guidelines
+- Follow existing code style and patterns in each area (frontend, backend, python).
+- For new features, look for similar existing implementations and follow their structure.
+- When in doubt, link to documentation or ask for clarification rather than making assumptions.
+- code quality and maintainability are priorities, so prefer clear and consistent code over clever but obscure solutions.
+- minimalist and straightforward implementations are preferred, especially in the backend and python where performance and reliability are key.
+- take your time to understand the existing code and architecture before making changes, especially for complex areas like the AI engine and vector store interactions.
+- writing as much less code as possible to achieve the same functionality is often better, as long as it remains clear and maintainable.
+- always try to add or update tests when making changes, to ensure the system remains robust and to help future developers understand the intended behavior (unit, e2e, or integration tests as appropriate for the change).
+- when updating documentation, ensure it remains accurate and up-to-date with the current state of the codebase, and consider adding examples or clarifications if it can help future developers understand the system better.
+- preffer instead of lot's of comments, suitable names of variables, functions, and classes that can explain their purpose and usage
+- if you need to add comments, make sure they are clear, concise, and provide value beyond what the code itself can convey (e.g., explaining why a certain approach was taken, or any non-obvious implications of the code)
+- comment should explain edge cases, assumptions, or any important context that isn't immediately clear from the code itself, rather than stating the obvious or repeating what the code already says
+- for the frontend, follow the existing component structure and styling conventions, and prefer composition and reusability when creating new components or features over claass-based components or tightly coupled code
+- centralize error propagation, so error always "bubble up" to the top-level handler in the backend, and to a global error handler in the frontend, to ensure consistent error handling and reporting across the system
+- errors should be catched by Sentry, displayed to users in a user-friendly way, and include as much relevant context as possible to help with debugging and resolution (e.g., error messages, stack traces, relevant state or input data, etc.), but also displayed in console logs for developers to see during development and debugging with clear error
+- debug information should be logged to the console during development, but should be removed or minimized in production code to avoid cluttering logs and potentially exposing sensitive information
+- if possible, refactor code in areas you are currently implementing feature, to be more testable, by breaking down complex functions into smaller, more focused ones, and by using dependency injection or other techniques to make it easier to mock dependencies in tests
+- simplify code : start with index.ts / Component.vue, then break down into smaller files if it grows too large , like utils.ts, consts.ts, composables.ts, or other custom .ts names, extracting code from index.ts / Component.vue
+- for Vue.js - avoid nextTick() if possible, and prefer using reactive state and computed properties to manage updates and reactivity, as it can lead to cleaner and more maintainable code, and can help avoid potential issues with timing and state consistency that can arise with nextTick()
+- Vue:js - regularly extract smaller components if code is copy pasted or suits more than one component to share logic,
+- Vue.js - extract reusable "dumb" components like Button.vue, Checkbox.vue, Modal.vue, TextField.vue, etc, in separate scope, which are imported by "View" components (having business logic) 
+- preffer "style" attribute temporarly for small styling, but for larger or shared styles, consider using CSS classes or scoped styles in Vue components to keep styling organized and maintainable
+- re-adjust and reorganize CSS classes and styles as needed when implementing new features, to ensure the UI remains consistent and visually appealing, and to avoid duplication or conflicts in styles across different components or areas of the application
+- always try to imporove unit tests by properl using mocks, keeping with convention of test frameworks (Vitest, etc),
+  and write meaningful test about implementation you are contributing to codabase
+- see skill "/refactor" , like "/refactor frontend" or "/refactor all" - use it from time to time

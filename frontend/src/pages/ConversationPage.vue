@@ -24,9 +24,11 @@
       </template>
     </ConversationHeader>
 
-    <p v-if="status.status === 'failed'" style="color:#f87171; margin-bottom:16px; text-align:center; padding: 12px;">
-      Something went wrong while processing your files. Please try uploading again.
-    </p>
+    <ErrorDetail
+      v-if="status.status === 'failed'"
+      :message="'Something went wrong while processing your files. Please try uploading again.'"
+      :raw="status.errorMessage || undefined"
+    />
 
     <div class="grid" style="grid-template-columns: 1fr;">
       <section class="chat-panel">
@@ -92,6 +94,7 @@ import {
   uploadMoreFiles,
   createConversationThread,
   saveConversationToken,
+  extractError,
   type ConversationStatus,
   type ChatMessage,
 } from "../api";
@@ -101,6 +104,7 @@ import { getData, setData } from "../utils/localData";
 import { useRouter } from "vue-router";
 import ConversationHeader from "../components/ConversationHeader.vue";
 import ChatMessageItem from "../components/ChatMessage.vue";
+import ErrorDetail from "../components/ErrorDetail.vue";
 import LanguageToggle from "../components/LanguageToggle.vue";
 import { useTextSelectionSpeech } from "../composables/useTextSelectionSpeech";
 
@@ -407,7 +411,8 @@ async function handleUploadFiles(files: File[]) {
       const names = (err.response.data?.duplicates || []).join(", ");
       msgRef.resetUploadState(names ? `File ${names} already uploaded` : "File already uploaded");
     } else {
-      msgRef.resetUploadState("Upload failed");
+      const { message } = extractError(err);
+      msgRef.resetUploadState(message || "Upload failed");
     }
   }
 }
@@ -468,7 +473,8 @@ async function ask() {
       routerInstance.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } });
     } catch (err: any) {
       hasLocalError.value = true;
-      messages.value.push({ role: "assistant", content: `⚠️ Error: ${err?.response?.data?.error || err?.message || "Failed to create thread"}` });
+      const { message, raw } = extractError(err);
+      messages.value.push({ role: "assistant", content: `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>` });
     } finally {
       asking.value = false;
     }
@@ -507,8 +513,8 @@ async function ask() {
     scrollToBottom(true);
     await loadConversation();
   } catch (err: any) {
-    const detail = err?.response?.data?.error || err?.message || "Unknown error";
-    reactiveMsg.content = `⚠️ Error: ${detail}`;
+    const { message, raw } = extractError(err);
+    reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`;
     hasLocalError.value = true;
   } finally {
     asking.value = false;

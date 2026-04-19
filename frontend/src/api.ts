@@ -5,6 +5,19 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
 });
 
+/** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
+export function extractError(err: any): { message: string; raw: string } {
+  const status = err?.response?.status;
+  const data = err?.response?.data;
+  const message = data?.error || data?.msg || err?.message || "Unknown error";
+  const parts: string[] = [];
+  if (status) parts.push(`HTTP ${status}`);
+  parts.push(message);
+  if (data?.stack) parts.push(`\n${data.stack}`);
+  else if (err?.stack && !data) parts.push(`\n${err.stack}`);
+  return { message, raw: parts.join(" — ") };
+}
+
 const TOKENS_STORAGE_KEY = "conversation-token";
 
 type TokensMap = {
