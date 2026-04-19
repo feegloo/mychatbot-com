@@ -69,7 +69,7 @@ The backend spawns Python scripts as child processes for indexing and answering.
 
 - The Python engine can be developed and tested independently
 - The backend doesn't need Python bindings — just process spawning
-- Logs from each Python execution are saved to timestamped files for debugging
+- Logs from indexing and non-streaming answer script executions are saved to timestamped files for debugging, while the streaming path currently logs to stdout/stderr
 
 ---
 
@@ -140,7 +140,7 @@ def extract_pdf(path: Path) -> str:
         text = page.extract_text() or ""
         text = _reflow_pdf_text(text.strip())
         parts.append(f"# Page {page_number}\n\n{text}")
-    return "\n\n".join(parts).strip()
+    return _sanitize_text("\n\n".join(parts).strip())
 ```
 
 ### Stage 2: Structured Splitting
@@ -198,7 +198,7 @@ The prompt is **language-aware**: if the documents are in Polish, the questions 
 
 Once indexing completes, you land on the conversation page. The layout:
 
-- **Left sidebar** — lists all your conversations with status indicators (yellow pulse = processing, green = ready, red = failed)
+- **Left sidebar** — lists all your conversations with status indicators (yellow pulse = processing, red = failed)
 - **Right sidebar** — shows uploaded files as pills, suggested questions as clickable buttons, and (for owners) incoming access requests
 - **Center panel** — the chat interface with user/assistant messages
 
@@ -275,7 +275,7 @@ This prevents the LLM from seeing irrelevant context and hallucinating connectio
 
 ### 🤖 LLM Provider Flexibility
 
-The system supports both **OpenAI (GPT-4o-mini)** and **Anthropic (Claude 3.5 Haiku)**. The default is Anthropic with automatic fallback to OpenAI if the Anthropic API key isn't configured. Temperature is set to 0 for deterministic, factual responses.
+The system supports both **OpenAI** and **Anthropic (Claude 3.5 Haiku)**. The OpenAI chat model is configurable via environment settings (`OPENAI_CHAT_MODEL`); in the current backend configuration, it defaults to `gpt-4.1-mini`. The default provider is Anthropic with automatic fallback to OpenAI if the Anthropic API key isn't configured. Temperature is set to 0 for deterministic, factual responses.
 
 ```python
 def get_llm():
@@ -296,7 +296,7 @@ def get_llm():
 
 For a better UX, answers stream word-by-word using **Server-Sent Events (SSE)**:
 
-1. Frontend opens an SSE connection to `GET /stream-answer`
+1. Frontend opens an SSE connection to `GET /api/stream-answer`
 2. Backend spawns `stream_answer.py`
 3. Python iterates over `chain.stream()` and yields each token
 4. Backend relays tokens to the frontend in real-time
@@ -344,9 +344,9 @@ Owner token  = SHA-256(conversationId + ":" + salt)
 Editor token = SHA-256(conversationId + ":" + salt + ":editor")
 ```
 
-The salt is a random UUID stored in the database. Clients never see the salt — only the derived token (sent as `x-conversation-token` header). This means:
-- Tokens can be re-derived if needed (just the salt is needed)
-- No token table lookup required for validation — just re-derive and compare
+The salt is a random UUID stored in the database. Clients never see the salt — only the derived token (sent as `x-conversation-token` header). Derived tokens are stored in the `conversation_access_tokens` table and validated via DB lookup. This means:
+- Tokens are deterministically derived from the salt, so they can be re-generated if needed
+- Validation queries the `conversation_access_tokens` table by conversation ID and token
 - Owner and editor tokens are mathematically distinct
 
 ### Access Request Workflow
@@ -366,15 +366,15 @@ When someone opens a shared conversation link:
 PostgreSQL stores all metadata and conversation state:
 
 ```sql
-conversations         -- id, salt, display_name, status, collection_name
-uploaded_files        -- file metadata per conversation  
-suggested_questions   -- AI-generated starter questions
-conversation_messages -- full chat history with citations (JSONB)
-access_tokens         -- derived tokens with roles (owner/editor)
-access_requests       -- pending/approved access requests
+conversations                -- id, salt, display_name, status, vector_collection_name, storage_namespace
+uploaded_files               -- file metadata per conversation (original_name, stored_name, mime_type, size_bytes)
+suggested_questions          -- AI-generated starter questions
+conversation_messages        -- full chat history with citations_json (JSONB)
+conversation_access_tokens   -- derived tokens with roles (owner/editor)
+access_requests              -- pending/approved access requests with editor_token
 ```
 
-The `conversation_messages` table stores citations as JSONB, preserving the full structure (file name, section, page, chunk text) alongside each assistant response.
+The `conversation_messages` table stores citations as `citations_json` (JSONB), preserving the full structure (file name, section, page, chunk text) alongside each assistant response.
 
 ---
 
@@ -408,7 +408,7 @@ CMD ["node", "dist/index.js"]
 - RDS for PostgreSQL (db.t4g.micro)
 - Route 53 for DNS
 
-Both options deploy via simple scripts (`deploy-gcp.sh` / `deploy-aws.sh`) and integrate with GitHub Actions for CI/CD.
+Both options deploy via simple scripts (`deploy-gcp.sh` / `deploy-aws.sh`). GCP deployment integrates with GitHub Actions for CI/CD; AWS deploys via the CLI script.
 
 ---
 
