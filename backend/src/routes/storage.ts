@@ -176,7 +176,8 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
         ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`)
         ctx.set('X-Content-Type-Options', 'nosniff')
         ctx.set('Cache-Control', 'public, max-age=86400')
-        ctx.body = Readable.fromWeb(upstream.body as never)
+        const webReadable = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
+        ctx.body = Readable.fromWeb(webReadable)
         return
       }
 
