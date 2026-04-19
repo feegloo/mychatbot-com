@@ -50,6 +50,13 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
   - Answer: `python answer_question.py ...`
   - See [python/README.md](python/README.md) for notebook and script usage.
 
+--- 
+
+Deployment:
+
+./deploy will "hang in console" falsly waiting for process to finish, but it actually finishes and you can check GCP logs in Sentry or by running `docker-compose logs -f` to see the output of the backend and frontend containers, and to check for any errors or issues that may arise during deployment or when running the system in production. If you encounter any errors or issues, try to understand the error message and reason about what might be causing it, and ask for clarification or suggest potential solutions based on the error message and your understanding of the codebase and architecture.
+
+
 ---
 
 ## Key Conventions
