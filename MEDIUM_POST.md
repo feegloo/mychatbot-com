@@ -1,4 +1,4 @@
-# Building ChatRAG — A Production RAG App from Scratch
+# 🧠 Building ChatRAG — A Production RAG App from Scratch
 
 ## How I built a full-stack Retrieval-Augmented Generation application with Python, LangChain, ChromaDB, Vue 3, and Node.js
 
@@ -12,7 +12,7 @@ In this article, I'll walk through the architecture, the RAG pipeline, the key d
 
 ---
 
-## Architecture Overview
+## 🏗️ Architecture Overview
 
 ChatRAG is a hybrid Python + Node.js application with three main layers:
 
@@ -73,9 +73,11 @@ The backend spawns Python scripts as child processes for indexing and answering.
 
 ---
 
-## The Upload Screen
+## 📄 The Upload Screen
 
 The first thing users see is a clean drag-and-drop upload zone. You select files (or drag them in), and hit upload.
+
+![Conversation screen with uploaded files and chat](https://github.com/user-attachments/assets/1149d32c-6398-400e-a775-0e9c7cb0aa3d)
 
 **Supported file formats:**
 - **PDF** — extracted page by page with `pypdf`, with PDF text reflow to join soft-wrapped lines
@@ -96,7 +98,7 @@ The frontend saves the owner token in `localStorage` and redirects to the conver
 
 ---
 
-## The Indexing Pipeline — From Files to Vectors
+## 🔪 The Indexing Pipeline — From Files to Vectors
 
 This is where the RAG magic happens. The Python indexer takes raw files and converts them into searchable vector embeddings.
 
@@ -184,7 +186,7 @@ def upsert_chunks(collection_name, conversation_id, chunks):
     )
 ```
 
-### Stage 5: Suggested Questions
+### 💡 Stage 5: Suggested Questions
 
 After indexing, the system generates **4 starter questions** using LLM-powered question generation. It uses **stratified sampling** — taking chunks from the beginning, middle, and end of the document to cover diverse topics.
 
@@ -192,7 +194,7 @@ The prompt is **language-aware**: if the documents are in Polish, the questions 
 
 ---
 
-## The Conversation Screen
+## 💬 The Conversation Screen
 
 Once indexing completes, you land on the conversation page. The layout:
 
@@ -200,11 +202,13 @@ Once indexing completes, you land on the conversation page. The layout:
 - **Right sidebar** — shows uploaded files as pills, suggested questions as clickable buttons, and (for owners) incoming access requests
 - **Center panel** — the chat interface with user/assistant messages
 
-### Suggested Questions
+### 💡 Suggested Questions
 
 The AI-generated questions appear as clickable pills in the sidebar. Click one, and it's sent as your first question. This solves the "blank page" problem — users always know what to ask their documents.
 
-### Chat with Citations
+![Suggested questions on mobile — clickable AI-generated prompts](https://github.com/user-attachments/assets/48ac4cca-8b65-4a9d-80cf-3efa0bfc84b6)
+
+### 📚 Chat with Citations
 
 When you ask a question, the system:
 1. Embeds your question using the same OpenAI embedding model
@@ -223,7 +227,7 @@ The frontend renders citations as **tabs** — click different source tabs to se
 
 ---
 
-## The RAG Pipeline — How Answers Are Generated
+## 🤖 The RAG Pipeline — How Answers Are Generated
 
 ```
 ┌──────────┐    ┌───────────────┐    ┌─────────────────┐
@@ -257,7 +261,7 @@ The frontend renders citations as **tabs** — click different source tabs to se
               └─────────────────────────┘
 ```
 
-### Distance Thresholding
+### 🔎 Distance Thresholding
 
 Not all retrieved chunks are relevant. The system applies **adaptive distance thresholds** based on question length:
 
@@ -269,7 +273,7 @@ Not all retrieved chunks are relevant. The system applies **adaptive distance th
 
 This prevents the LLM from seeing irrelevant context and hallucinating connections.
 
-### LLM Provider Flexibility
+### 🤖 LLM Provider Flexibility
 
 The system supports both **OpenAI (GPT-4o-mini)** and **Anthropic (Claude 3.5 Haiku)**. The default is Anthropic with automatic fallback to OpenAI if the Anthropic API key isn't configured. Temperature is set to 0 for deterministic, factual responses.
 
@@ -288,7 +292,7 @@ def get_llm():
         )
 ```
 
-### Real-Time Streaming
+### ⚡ Real-Time Streaming
 
 For a better UX, answers stream word-by-word using **Server-Sent Events (SSE)**:
 
@@ -297,6 +301,8 @@ For a better UX, answers stream word-by-word using **Server-Sent Events (SSE)**:
 3. Python iterates over `chain.stream()` and yields each token
 4. Backend relays tokens to the frontend in real-time
 5. After streaming completes, citations are sent as a final event
+
+![Streaming response with typing indicator](https://github.com/user-attachments/assets/78306093-91b5-4ca9-8069-3ee3cd9e9f19)
 
 ```
 event: token
@@ -319,7 +325,7 @@ data: {}
 
 ---
 
-## Access Control & Sharing
+## 🔒 Access Control & Sharing
 
 Every conversation has a unique, shareable URL. The access model has three roles:
 
@@ -355,7 +361,7 @@ When someone opens a shared conversation link:
 
 ---
 
-## Database Schema
+## 🐘 Database Schema
 
 PostgreSQL stores all metadata and conversation state:
 
@@ -372,7 +378,7 @@ The `conversation_messages` table stores citations as JSONB, preserving the full
 
 ---
 
-## Deployment
+## 🐳 Deployment
 
 The app is containerized with a **multi-stage Dockerfile**:
 
@@ -390,7 +396,7 @@ EXPOSE 8080
 CMD ["node", "dist/index.js"]
 ```
 
-### Cloud Deployment Options
+### ☁️ Cloud Deployment Options
 
 **GCP Cloud Run** (~$7/mo for demo):
 - Auto-scales 0→3 instances
@@ -406,7 +412,7 @@ Both options deploy via simple scripts (`deploy-gcp.sh` / `deploy-aws.sh`) and i
 
 ---
 
-## Tech Stack Summary
+## 🛠️ Tech Stack Summary
 
 | Layer | Technology | Purpose |
 |---|---|---|
@@ -422,7 +428,7 @@ Both options deploy via simple scripts (`deploy-gcp.sh` / `deploy-aws.sh`) and i
 
 ---
 
-## Key Takeaways
+## 🎯 Key Takeaways
 
 **1. Two-stage text splitting is critical.** Single-chunk-per-file embeddings produce terrible retrieval results. Structured splitting (paragraph/markdown-aware) followed by token-aware chunking dramatically improved precision.
 
