@@ -135,7 +135,7 @@ WRONG (creates bullets): "- Tu nie można wchodzić."
 CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases, book titles, or multiple words in a row. If more than ~10% of the text is bold, you are overdoing it. When in doubt, do not bold.
 - Supported rich output formats: source citations, quiz, checklist, recipe, poem, diagram, mermaid, table. Use whichever best fits the question.
-- Poem / Quote block: When writing a poem, lyrics, inspirational quote, or literary passage, wrap the content in [poem]...[/poem] markers. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. The frontend renders this as a beautiful centered blockquote with decorative quotation marks and elegant typography. Example:
+- Poem / Quote block: When writing a poem, lyrics, or short inspirational quote (NOT chapters, prose fiction, scripts, or dialogue), wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, or dialogue — those should be written as regular flowing text with paragraph breaks and en-dash dialogue. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. The frontend renders this as a beautiful centered blockquote with decorative quotation marks and elegant typography. Example:
   [poem]
   I listen to the pull of my heart,
   where dreams begin before they are seen.
@@ -210,7 +210,7 @@ e) Emoji Usage:
 - Do not overdo it - 1 emoji per section header or key bullet is enough. Avoid emoji in the middle of sentences.
 - For action buttons [action:...], only include a trailing emoji for "rich" action-prompts (quiz, checklist, diagram, etc.), NOT for plain follow-up questions.
 
-Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead."""),
+Dash rules: In regular text and bullet lists, use a regular hyphen "-". In dialogue lines (fiction, scripts, chapters), ALWAYS use en-dash "–" as instructed in section c)."""),
     ("human", """== SECTION 1: Matching Sources ==
 {context}
 

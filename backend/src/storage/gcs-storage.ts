@@ -49,6 +49,46 @@ export class GcsStorageProvider implements StorageProvider {
 }
 
 /**
+ * Generate a signed URL for direct client-to-GCS upload (resumable).
+ * Returns { gcsKey, storedName, signedUrl }.
+ */
+export async function generateSignedUploadUrl(
+  namespace: string,
+  fileName: string,
+  mimeType: string
+): Promise<{ gcsKey: string; storedName: string; signedUrl: string }> {
+  const ext = path.extname(fileName);
+  const base = path.basename(fileName, ext);
+  const storedName = `${base}_${generateShortId()}${ext}`;
+  const gcsKey = `${namespace}/${storedName}`;
+
+  const bucket = getGcsClient().bucket(config.gcsBucket);
+  const blob = bucket.file(gcsKey);
+  const [signedUrl] = await blob.getSignedUrl({
+    version: "v4",
+    action: "resumable",
+    expires: Date.now() + 30 * 60 * 1000, // 30 minutes
+    contentType: mimeType,
+  });
+
+  return { gcsKey, storedName, signedUrl };
+}
+
+/**
+ * Download a GCS file to local disk so Python indexing can read it.
+ * Returns the local absolute path.
+ */
+export async function downloadGcsFileToLocal(gcsKey: string, namespace: string): Promise<string> {
+  const storedName = path.basename(gcsKey);
+  const localDir = path.join(config.storageRoot, namespace);
+  await fs.mkdir(localDir, { recursive: true });
+  const absolutePath = path.join(localDir, storedName);
+  const bucket = getGcsClient().bucket(config.gcsBucket);
+  await bucket.file(gcsKey).download({ destination: absolutePath });
+  return absolutePath;
+}
+
+/**
  * Download a file from GCS to a local path. Returns the local path.
  */
 export async function downloadFromGcs(gcsKey: string, localPath: string): Promise<string> {

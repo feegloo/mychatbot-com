@@ -103,7 +103,7 @@ def build_image_prompt(
             {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=300,
+        max_completion_tokens=300,
         temperature=0.8,
     )
 

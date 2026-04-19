@@ -3,6 +3,7 @@
 ## Purpose
 These instructions guide AI agents (like GitHub Copilot) to be productive and consistent in the ChatRAG Hybrid RAG App workspace. They summarize architecture, conventions, and key workflows, and link to detailed docs where needed.
 
+see README.md for project overview and setup instructions.
 ---
 
 ## Architecture Overview

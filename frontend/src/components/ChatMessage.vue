@@ -264,13 +264,18 @@ function renderMarkdown(content: string): string {
   let normalized = normalizeCitations(content);
 
   // Convert dialogue-style "- text" lines to "– text" (en-dash) so they render
-  // as plain prose instead of <li> bullets.  Heuristic: a line starting with
-  // "- " that is preceded by a blank line (or start-of-string) AND followed by
-  // a blank line (or end-of-string) is dialogue, not a real list item.
-  // Real bullet lists have consecutive "- " lines with single newlines between them.
+  // as plain prose instead of <li> bullets.
+  // Heuristic: A block of consecutive "- " lines preceded by a paragraph of
+  // narrative text (not another list item) is dialogue, not a real list.
+  // Also catch isolated "- text" surrounded by blank lines.
   normalized = normalized.replace(
     /(?<=^|\n\n)- (.+?)(?=\n\n|$)/g,
     '– $1'
+  );
+  // Catch consecutive dialogue lines: a block of "- " lines after a prose paragraph
+  normalized = normalized.replace(
+    /(?<=^|\n\n)((?:- .+\n?){2,})(?=\n\n|$)/g,
+    (_match, block: string) => block.replace(/^- /gm, '– ')
   );
 
   // Ensure bold-only lines (like filenames) between list items get paragraph separation

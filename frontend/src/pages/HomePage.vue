@@ -163,7 +163,12 @@ async function submitUpload() {
     // Navigate to conversation page
     router.push(data.url);
   } catch (err: any) {
-    uploadError.value = err?.response?.data?.error || err?.message || "Upload failed";
+    const status = err?.response?.status;
+    if (status === 413) {
+      uploadError.value = "File too large. Maximum upload size is ~30 MB per file.";
+    } else {
+      uploadError.value = err?.response?.data?.error || err?.message || "Upload failed";
+    }
   } finally {
     uploading.value = false;
   }

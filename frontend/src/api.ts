@@ -100,12 +100,89 @@ export type ConversationStatus = {
 };
 
 export async function uploadFiles(files: File[]) {
+  const DIRECT_UPLOAD_THRESHOLD = 30 * 1024 * 1024; // 30 MB
+  const hasLargeFile = files.some(f => f.size > DIRECT_UPLOAD_THRESHOLD);
+
+  // For large files, use direct-to-GCS upload to bypass Cloud Run's 32 MiB proxy limit
+  if (hasLargeFile) {
+    try {
+      return await uploadFilesViaSignedUrl(files);
+    } catch (err: any) {
+      // If signed-url endpoint returns 400 (not GCS), fall through to normal upload
+      if (err?.response?.status === 400) {
+        // fall through
+      } else {
+        throw err;
+      }
+    }
+  }
+
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
   const response = await api.post("/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
   return response.data as { conversationId: string; url: string; status: string; ownerPassword: string };
+}
+
+async function uploadFilesViaSignedUrl(files: File[]) {
+  // Step 1: Get signed URLs from backend (small JSON request)
+  const fileMeta = files.map(f => ({
+    name: f.name,
+    mimeType: f.type || "application/octet-stream",
+    size: f.size,
+  }));
+  const initResponse = await api.post("/upload/signed-url", { files: fileMeta });
+  const { conversationId, ownerPassword, url, signedUrls } = initResponse.data as {
+    conversationId: string;
+    ownerPassword: string;
+    url: string;
+    signedUrls: Array<{ name: string; signedUrl: string; gcsKey: string; storedName: string }>;
+  };
+
+  // Step 2: Upload each file directly to GCS using the signed resumable URL
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const { signedUrl } = signedUrls[i];
+
+    // Initiate resumable upload session
+    const sessionResponse = await fetch(signedUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "x-goog-resumable": "start",
+      },
+    });
+
+    const sessionUri = sessionResponse.headers.get("Location");
+    if (!sessionUri) throw new Error(`Failed to initiate resumable upload for ${file.name}`);
+
+    // Upload the file content to the session URI
+    await fetch(sessionUri, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
+    });
+  }
+
+  // Step 3: Tell backend files are uploaded, start indexing
+  const finalizePayload = {
+    conversationId,
+    files: signedUrls.map((s, i) => ({
+      name: s.name,
+      mimeType: files[i].type || "application/octet-stream",
+      size: files[i].size,
+      gcsKey: s.gcsKey,
+      storedName: s.storedName,
+    })),
+  };
+  await api.post("/upload/finalize", finalizePayload, {
+    headers: { "x-conversation-token": ownerPassword },
+  });
+
+  return { conversationId, url, status: "processing", ownerPassword };
 }
 
 export async function uploadUrl(url: string) {

@@ -132,9 +132,19 @@ else
   warn "  Instance $DB_INSTANCE_NAME already exists, skipping."
 fi
 
-# Create database and user
-gcloud sql databases create "$DB_NAME" --instance="$DB_INSTANCE_NAME" 2>/dev/null || true
-gcloud sql users create "$DB_USER" --instance="$DB_INSTANCE_NAME" --password="$DB_PASSWORD" 2>/dev/null || true
+# Create database and user (if they don't already exist)
+if ! gcloud sql databases describe "$DB_NAME" --instance="$DB_INSTANCE_NAME" &>/dev/null; then
+  gcloud sql databases create "$DB_NAME" --instance="$DB_INSTANCE_NAME"
+  info "  Created database $DB_NAME"
+else
+  warn "  Database $DB_NAME already exists, skipping."
+fi
+if ! gcloud sql users list --instance="$DB_INSTANCE_NAME" --format='value(name)' | grep -qx "$DB_USER"; then
+  gcloud sql users create "$DB_USER" --instance="$DB_INSTANCE_NAME" --password="$DB_PASSWORD"
+  info "  Created user $DB_USER"
+else
+  warn "  User $DB_USER already exists, skipping."
+fi
 
 # Get connection name for Cloud Run
 DB_CONNECTION_NAME=$(gcloud sql instances describe "$DB_INSTANCE_NAME" --format='value(connectionName)')
@@ -195,7 +205,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 300 \
-  --update-annotations run.googleapis.com/maxRequestBodySize=104857600 \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\
