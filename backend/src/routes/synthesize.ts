@@ -28,10 +28,10 @@ synthesizeRouter.post("/synthesize", async (ctx) => {
     return;
   }
 
-  // Cap text length to prevent abuse
-  if (text.length > 2000) {
+  // Cap text length — OpenAI gpt-4o-mini-tts supports up to 4096 chars
+  if (text.length > 4096) {
     ctx.status = 400;
-    ctx.body = { error: "Maximum 2000 characters per request" };
+    ctx.body = { error: "Maximum 4096 characters per request" };
     return;
   }
 
@@ -165,9 +165,9 @@ synthesizeRouter.post("/synthesize-with-captions", async (ctx) => {
     return;
   }
 
-  if (text.length > 2000) {
+  if (text.length > 4096) {
     ctx.status = 400;
-    ctx.body = { error: "Maximum 2000 characters per request" };
+    ctx.body = { error: "Maximum 4096 characters per request" };
     return;
   }
 

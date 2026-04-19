@@ -60,11 +60,12 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
-- Ostatnie 2 to kreatywne/kontekstowe prompty-akcje w formie: "<temat z dokumentu> - <akcja>"
+- Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 🎭")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
-- KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków — nie pisz np. "recette du pain - create recipe" tylko "recette du pain - créer la recette". Dotyczy to również nazw akcji.
+- NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
+- KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków. Dotyczy to również nazw akcji.
 
 == Wytyczne dotyczące promptów-akcji ==
 
@@ -100,7 +101,7 @@ e) Przepis 🍝 — sugeruj gdy:
 f) Rozpoznaj osobę 🔍 — sugeruj TYLKO gdy:
    - na zdjęciu widać wyraźnie osobę/twarz ludzką
    - NIE sugeruj dla zdjęć krajobrazów, zwierząt, przedmiotów
-   - format: "Kto jest kobietą/mężczyzną/osobą na zdjęciu [nazwa]? 🔍"
+   - format: "Kto jest kobietą/mężczyzną/osobą na zdjęciu nazwa_pliku? 🔍"
 
 g) Metadane EXIF 📷 — sugeruj TYLKO gdy:
    - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
@@ -227,7 +228,7 @@ af) Wygeneruj obraz 🎨 — sugeruj gdy:
    - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
    - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
    - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
-   - przykład: "wygeneruj obraz inspirowany treścią 🎨" lub "wygeneruj obraz - <temat> 🎨"
+   - przykład: "Wygeneruj obraz inspirowany treścią 🎨" lub "Wygeneruj obraz przedstawiający temat 🎨"
 
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}"""),
@@ -242,11 +243,12 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
-- Last 2 are creative/contextual action-prompts in the form: "<topic from document> - <action>"
+- Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 🎭")
   Each action-prompt MUST end with a relevant emoji
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
-- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages — do NOT write "recette du pain - create recipe", instead write "recette du pain - créer la recette". This applies to action labels, topics, and everything else.
+- Do NOT use "topic - action" format or square brackets — write natural sentences
+- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages. This applies to action labels, topics, and everything else.
 
 == Action Prompt Guidelines ==
 
@@ -283,7 +285,7 @@ e) Recipe 🍝 — suggest when:
 f) Recognize person 🔍 — suggest ONLY when:
    - image clearly shows a person/human face
    - do NOT suggest for landscapes, animals, objects
-   - format: "Who is the woman/man/person on the photo [name]? 🔍"
+   - format: "Who is the woman/man/person in filename? 🔍"
 
 g) EXIF metadata 📷 — suggest ONLY when:
    - file is an image (photo) — never for PDF or text files
@@ -410,7 +412,7 @@ af) Generate image 🎨 — suggest when:
    - photo or document has potential for visual reinterpretation
    - user might want to see an artistic visualization of the content
    - action: MUST contain exactly the phrase "generate image" in the label
-   - example: "generate image inspired by the content 🎨" or "generate image - <topic> 🎨"
+   - example: "Generate an image inspired by the content 🎨" or "Generate an image depicting topic 🎨"
 
 Uploaded files: {file_types_str}
 Document description: {description}"""),
@@ -497,12 +499,12 @@ def _append_contextual_prompts(
             if ftype == "image":
                 if has_ingredients and len(contextual) < 2:
                     if language == "pl":
-                        contextual.append(f"{short_name} - stwórz przepis 🍝")
+                        contextual.append(f"Stwórz przepis na podstawie {short_name} 🍝")
                     else:
-                        contextual.append(f"{short_name} - create recipe 🍝")
+                        contextual.append(f"Create a recipe from {short_name} 🍝")
                 if len(contextual) < 2:
                     if language == "pl":
-                        contextual.append(f"{short_name} - pokaż metadane EXIF 📷")
+                        contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")
                         if has_person and len(contextual) < 2:
                             if is_woman:
                                 contextual.append(f"Kto jest kobietą na zdjęciu {short_name}? 🔍")
@@ -511,19 +513,19 @@ def _append_contextual_prompts(
                             else:
                                 contextual.append(f"Kto jest osobą na zdjęciu {short_name}? 🔍")
                     else:
-                        contextual.append(f"{short_name} - show EXIF metadata 📷")
+                        contextual.append(f"Show EXIF metadata for {short_name} 📷")
                         if has_person and len(contextual) < 2:
                             if is_woman:
-                                contextual.append(f"Who is the woman on the photo {short_name}? 🔍")
+                                contextual.append(f"Who is the woman in {short_name}? 🔍")
                             elif is_man:
-                                contextual.append(f"Who is the man on the photo {short_name}? 🔍")
+                                contextual.append(f"Who is the man in {short_name}? 🔍")
                             else:
-                                contextual.append(f"Who is the person on the photo {short_name}? 🔍")
+                                contextual.append(f"Who is the person in {short_name}? 🔍")
             elif ftype == "pdf":
                 if language == "pl":
-                    contextual.append(f"{short_name} - pokaż metadane pliku 📄")
+                    contextual.append(f"Pokaż metadane pliku {short_name} 📄")
                 else:
-                    contextual.append(f"{short_name} - show file metadata 📄")
+                    contextual.append(f"Show file metadata for {short_name} 📄")
 
     # Fill remaining action slots with LLM-generated actions
     remaining_slots = 2 - len(contextual)

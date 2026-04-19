@@ -1,5 +1,8 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from "vue";
 import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from "../api";
+import { cleanTextForTTS } from "./useAutoRead";
+
+const TTS_INSTRUCTIONS_MAX = 4096;
 
 /**
  * Composable that enables text-to-speech on message content when the
@@ -18,6 +21,7 @@ export function useTextSelectionSpeech(
   containerRef: Ref<HTMLElement | null>,
   currentLanguage?: Ref<string>,
   welcomeMessage?: Ref<string>,
+  messages?: Ref<{ role: string; content: string }[]>,
 ) {
   const browserLang = navigator.language.split("-")[0];
   const isTouchDevice = window.matchMedia("(hover: none)").matches;
@@ -205,18 +209,41 @@ export function useTextSelectionSpeech(
     abortController = new AbortController();
 
     try {
-      // Build TTS instructions: system preamble + user question context + welcome message tone
+      // Build TTS instructions: tone preamble + recent chat context + welcome message
       const welcomeContent = welcomeMessage?.value || "";
       const parts: string[] = [
-        "You are a helpful AI assistant reading text aloud. Speak naturally, clearly, and with a warm, friendly tone.",
-        `The user asked to hear the following text: "${text.slice(0, 500)}"`,
+        "You are a helpful AI assistant reading text aloud. Speak naturally, clearly, and with a warm, friendly tone. " +
+        "Adapt your delivery to the emotional context — be caring, empathetic, supportive, patient, reassuring, " +
+        "encouraging, attentive, compassionate, gentle, understanding, and thoughtful as the content demands.",
       ];
-      if (welcomeContent) parts.push(welcomeContent);
-      const ttsInstructions = parts.join("\n\n");
+
+      // Include recent Q&A exchanges (last 3) for emotional context
+      const msgs = messages?.value || [];
+      const recentLines: string[] = [];
+      let budget = 2000;
+      for (let i = msgs.length - 1; i >= 0 && budget > 0; i--) {
+        const m = msgs[i];
+        const label = m.role === "user" ? "User asked" : "Assistant answered";
+        const snippet = cleanTextForTTS(m.content).slice(0, 300);
+        const line = `${label}: "${snippet}"`;
+        if (line.length > budget) break;
+        budget -= line.length;
+        recentLines.unshift(line);
+      }
+      if (recentLines.length > 0) {
+        parts.push("Recent conversation:\n" + recentLines.join("\n"));
+      }
+
+      if (welcomeContent) {
+        parts.push(`Document context: ${cleanTextForTTS(welcomeContent).slice(0, 600)}`);
+      }
+
+      parts.push(`The user selected this text to hear: "${text.slice(0, 400)}"`);
+      const ttsInstructions = parts.join("\n\n").slice(0, TTS_INSTRUCTIONS_MAX);
 
       // Use captions API for word-by-word playback with ghost translation
       const result = await synthesizeSpeechWithCaptions(
-        text.slice(0, 2000),
+        text.slice(0, 4096),
         currentLanguage?.value,
         browserLang,
         ttsInstructions,

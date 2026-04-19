@@ -154,7 +154,7 @@ const welcomeMessageContent = computed(() => {
 
 // Enable text-to-speech tooltip for selected text within chat messages
 // Only active when current display language differs from browser language
-useTextSelectionSpeech(chatContainer, currentLanguage, welcomeMessageContent);
+useTextSelectionSpeech(chatContainer, currentLanguage, welcomeMessageContent, messages);
 
 // Auto-read: when enabled, reads assistant responses and welcome messages aloud
 const { enabled: autoReadEnabled, toggle: toggleAutoRead, readWelcomeIfEnabled, cleanup: cleanupAutoRead } = useAutoRead(messages, asking, welcomeMessageContent);

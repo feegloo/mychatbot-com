@@ -89,7 +89,6 @@ const chatContainer = ref<HTMLDivElement | null>(null);
 
 const welcomeMessageContent = ref("");
 
-useTextSelectionSpeech(chatContainer, undefined, welcomeMessageContent);
 const loaded = ref(false);
 const fatalError = ref("");
 const hasLocalError = ref(false);
@@ -108,6 +107,8 @@ const status = ref<ConversationStatus>({
 });
 const messages = ref<ChatMessage[]>([]);
 const initialMessageCount = ref(Infinity);
+
+useTextSelectionSpeech(chatContainer, undefined, welcomeMessageContent, messages);
 
 const HOST = window.location.origin;
 const fullConversationUrl = computed(() => `${HOST}/c/${conversationId}`);
