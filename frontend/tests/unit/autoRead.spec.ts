@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildSentenceChunkSizes,
+  buildSynthesisChunks,
   cleanTextForTTS,
+  extractPoemForAutoRead,
   splitIntoSentences,
 } from "../../src/composables/useAutoRead";
 
@@ -147,5 +150,50 @@ describe("splitIntoSentences", () => {
     expect(sentences).toHaveLength(5);
     expect(sentences[0]).toBe("Stage 1 starts within seconds.");
     expect(sentences[4]).toBe("Stage 5 is maturation.");
+  });
+});
+
+describe("extractPoemForAutoRead", () => {
+  it("returns poem body when poem block exists", () => {
+    expect(
+      extractPoemForAutoRead(
+        "Intro text [poem]\nLine one\nLine two\n[/poem]\nTrailing text",
+      ),
+    ).toBe("Line one\nLine two");
+  });
+
+  it("returns null when no poem block exists", () => {
+    expect(extractPoemForAutoRead("Plain answer without poem block.")).toBeNull();
+  });
+});
+
+describe("buildSentenceChunkSizes", () => {
+  it("builds 1,2,4 progression and merges a smaller remainder", () => {
+    expect(buildSentenceChunkSizes(9)).toEqual([1, 2, 6]);
+  });
+
+  it("keeps regular powers-of-two progression when exact", () => {
+    expect(buildSentenceChunkSizes(7)).toEqual([1, 2, 4]);
+  });
+});
+
+describe("buildSynthesisChunks", () => {
+  it("splits sentence array using async chunk progression", () => {
+    const sentences = [
+      "S1.",
+      "S2.",
+      "S3.",
+      "S4.",
+      "S5.",
+      "S6.",
+      "S7.",
+      "S8.",
+      "S9.",
+    ];
+    expect(buildSynthesisChunks(sentences)).toEqual([
+      "S1.",
+      "S2. S3.",
+      "S4. S5. S6. S7. S8. S9.",
+    ]);
   });
 });

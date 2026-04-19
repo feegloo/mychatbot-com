@@ -76,25 +76,85 @@ export function splitIntoSentences(text: string): string[] {
   return matches.map((s) => s.trim()).filter((s) => s.length > 0)
 }
 
-/**
- * Build synthesis chunks from sentences:
- * - Chunk 1: sentence 1
- * - Chunk 2: sentence 2
- * - Chunk 3+: remaining sentences grouped to fit within MAX_CHUNK_LENGTH
- */
-function buildChunks(sentences: string[]): string[] {
-  if (sentences.length <= 2) return sentences
-  const chunks = [sentences[0], sentences[1]]
-  let current = ''
-  for (const s of sentences.slice(2)) {
-    if (current && (current + ' ' + s).length > MAX_CHUNK_LENGTH) {
-      chunks.push(current)
-      current = s
-    } else {
-      current = current ? current + ' ' + s : s
+export function extractPoemForAutoRead(text: string): string | null {
+  const poemMatch = text.match(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/i)
+  return poemMatch?.[1]?.trim() || null
+}
+
+export function buildSentenceChunkSizes(sentenceCount: number): number[] {
+  if (sentenceCount <= 0) return []
+  const sizes: number[] = []
+  let remaining = sentenceCount
+  let currentSize = 1
+
+  while (remaining > 0) {
+    const nextSize = Math.min(currentSize, remaining)
+    sizes.push(nextSize)
+    remaining -= nextSize
+    currentSize *= 2
+  }
+
+  if (sizes.length >= 2) {
+    const last = sizes[sizes.length - 1]
+    const previous = sizes[sizes.length - 2]
+    if (last < previous) {
+      sizes[sizes.length - 2] = previous + last
+      sizes.pop()
     }
   }
+
+  return sizes
+}
+
+function splitTextByMaxLength(text: string, maxLength = MAX_CHUNK_LENGTH): string[] {
+  if (text.length <= maxLength) return [text]
+
+  const words = text.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+
+  const chunks: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (candidate.length <= maxLength) {
+      current = candidate
+      continue
+    }
+
+    if (current) chunks.push(current)
+    if (word.length <= maxLength) {
+      current = word
+      continue
+    }
+
+    let start = 0
+    while (start < word.length) {
+      const piece = word.slice(start, start + maxLength)
+      chunks.push(piece)
+      start += maxLength
+    }
+    current = ''
+  }
+
   if (current) chunks.push(current)
+  return chunks
+}
+
+export function buildSynthesisChunks(sentences: string[]): string[] {
+  if (!sentences.length) return []
+
+  const chunkSizes = buildSentenceChunkSizes(sentences.length)
+  const chunks: string[] = []
+  let cursor = 0
+
+  for (const size of chunkSizes) {
+    const chunkText = sentences.slice(cursor, cursor + size).join(' ').trim()
+    cursor += size
+    if (!chunkText) continue
+    chunks.push(...splitTextByMaxLength(chunkText))
+  }
+
   return chunks
 }
 
@@ -152,11 +212,12 @@ export function useAutoRead(
     stop()
     aborted = false
 
-    const cleaned = cleanTextForTTS(text)
+    const poemOnlyText = extractPoemForAutoRead(text)
+    const cleaned = cleanTextForTTS(poemOnlyText ?? text)
     const sentences = splitIntoSentences(cleaned)
     if (sentences.length === 0) return
 
-    const chunks = buildChunks(sentences)
+    const chunks = buildSynthesisChunks(sentences)
     const instructions = buildTtsInstructions(messages.value, welcomeMessage?.value || '')
 
     // Fire all synthesis requests in parallel
