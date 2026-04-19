@@ -20,4 +20,12 @@ describe("renderMarkdown table wrapping", () => {
 
     expect(html).not.toContain("markdown-table-scroll");
   });
+
+  it("wraps markdown images in a horizontal scroll container", () => {
+    const html = renderMarkdown("![Generated chart](https://example.com/chart.png)");
+
+    expect(html).toContain('<span class="markdown-image-scroll"><img');
+    expect(html).toContain('src="https://example.com/chart.png"');
+    expect(html).toContain('alt="Generated chart"');
+  });
 });

@@ -196,6 +196,12 @@ export function renderMarkdown(content: string): string {
         `<div class="markdown-table-scroll"><table${attrs ?? ''}>`,
     )
     .replace(/<\/table>/g, '</table></div>')
+  // Wrap images so wide generated images can scroll horizontally while staying height-limited
+  const withScrollableImages = withScrollableTables.replace(
+    /<img([^>]*)>/g,
+    (_match, attrs: string | undefined) =>
+      `<span class="markdown-image-scroll"><img${attrs ?? ''}></span>`,
+  )
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
@@ -203,7 +209,7 @@ export function renderMarkdown(content: string): string {
     'gi',
   )
   let insideA = 0
-  return withScrollableTables.replace(
+  return withScrollableImages.replace(
     /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
     (m, openA: string, closeA: string, _otherTag: string, text: string) => {
       if (openA) {

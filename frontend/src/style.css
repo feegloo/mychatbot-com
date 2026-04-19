@@ -1092,6 +1092,23 @@ li:has(.checklist-box) {
   width: max-content;
 }
 
+.markdown-content .markdown-image-scroll {
+  display: block;
+  margin: 8px 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content .markdown-image-scroll img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: min(70vh, 420px);
+}
+
 .markdown-content th,
 .markdown-content td {
   border: 1px solid rgba(255, 255, 255, 0.1);
