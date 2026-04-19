@@ -65,7 +65,7 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
-- Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 🎭")
+- Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
@@ -81,8 +81,8 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Drugą akcję dobierz losowo z poniższej listy (quiz, oś czasu, mapa myśli itp.)
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
-   → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 🎭"
-   Przykład: "Napisz inspirowany wiersz w stylu Paula Coelho 🎭"
+   → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
+   Przykład: "Napisz inspirowany wiersz w stylu Paula Coelho 📜"
    Drugą akcję dobierz losowo z poniższej listy.
 
 3. PORADNIK / SAMOROZWÓJ / LISTA WSKAZÓWEK / WORKBOOK (produktywność, pewność siebie, nawyki, wskazówki, ćwiczenia, wyzwania, jak zrobić, samodoskonalenie):
@@ -112,7 +112,7 @@ b) Checklista ✅ — sugeruj gdy:
    - użytkownik powinien "podjąć działanie" na podstawie tekstu
    - dokument zawiera listę wymagań, zadań, rzeczy do zrobienia
 
-c) Napisz inspirowany wiersz 🎭 — sugeruj gdy:
+c) Napisz inspirowany wiersz 📜 — sugeruj gdy:
    - autor to poeta, pisarz, lub treść związana z poezją
    - dokument to zbiór cytatów, aforyzmów, wierszy
    - treść ma literacki, artystyczny charakter
@@ -312,7 +312,7 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
-- Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 🎭")
+- Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
   Each action-prompt MUST end with a relevant emoji
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
@@ -328,8 +328,8 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST use t
    Pick the second action RANDOMLY from the list below (quiz, timeline, mind map, etc.)
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
-   → MANDATORY: "Write inspired poem like [Author Full Name] 🎭"
-   Example: "Write inspired poem like Paulo Coelho 🎭"
+   → MANDATORY: "Write inspired poem like [Author Full Name] 📜"
+   Example: "Write inspired poem like Paulo Coelho 📜"
    Pick the second action RANDOMLY from the list below.
 
 3. NON-FICTION GUIDE / SELF-HELP / TIPS LIST / WORKBOOK (productivity, confidence, habits, how-to, advice, personal growth, exercises, challenges):
@@ -359,7 +359,7 @@ b) Checklist ✅ — suggest when:
    - user should "take action" based on the text
    - document contains requirements, tasks, things to do
 
-c) Write inspired poem 🎭 — suggest when:
+c) Write inspired poem 📜 — suggest when:
    - author is a poet, writer, or content relates to poetry
    - document is a collection of quotes, aphorisms, poems
    - content has a literary, artistic character
