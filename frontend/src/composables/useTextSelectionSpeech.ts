@@ -3,6 +3,7 @@ import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from
 import { buildSynthesisChunks, cleanTextForTTS, splitIntoSentences } from './useAutoRead'
 
 const TTS_INSTRUCTIONS_MAX = 4096
+const SELECTION_TTS_TEXT_MAX = 4096
 
 /**
  * Composable that enables text-to-speech on message content when the
@@ -287,7 +288,11 @@ export function useTextSelectionSpeech(
       const ttsInstructions = parts.join('\n\n').slice(0, TTS_INSTRUCTIONS_MAX)
 
       const cleaned = cleanTextForTTS(text)
-      const sentences = splitIntoSentences(cleaned)
+      const truncatedText = cleaned.slice(0, SELECTION_TTS_TEXT_MAX)
+      if (cleaned.length > SELECTION_TTS_TEXT_MAX) {
+        console.warn('Selection speech truncated to 4096 characters for safe synthesis limits')
+      }
+      const sentences = splitIntoSentences(truncatedText)
       const chunks = buildSynthesisChunks(sentences)
       if (!chunks.length) {
         resetPlaybackUi()
