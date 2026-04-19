@@ -68,7 +68,7 @@ Zasady:
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
 - Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 🎭")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
-- Często preferuj akcję: "Wygeneruj obraz dla aktualnego nastroju 🎨" (gdy nie koliduje to z obowiązkowymi akcjami)
+- Często sugeruj akcję generowania obrazu powiązaną z konkretnym tematem dokumentu (np. "Wygeneruj obraz inspirowany [temat/bohater/scena] 🎨") — dopasuj temat do treści, nie używaj ogólnikowego "aktualnego nastroju"
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
@@ -261,7 +261,7 @@ af) Wygeneruj obraz 🎨 — sugeruj gdy:
    - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
    - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
    - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
-   - przykład: "Wygeneruj obraz inspirowany treścią 🎨" lub "Wygeneruj obraz przedstawiający temat 🎨"
+   - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
 
 ag) Postaw diagnozę / diagnoza 🔬 — sugeruj gdy:
    - dokument to wyniki badań laboratoryjnych, badania krwi, panel tarczycowy, lipidogram
@@ -316,7 +316,7 @@ Rules:
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
 - Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 🎭")
   Each action-prompt MUST end with a relevant emoji
-- Frequently prefer this action prompt when possible: "Generate image for current mood 🎨" (unless a mandatory content-specific action applies)
+- Frequently suggest a subject-specific image generation action tied to the document's concrete topic/character/scene (e.g. "Generate image: dark forest with Hermione 🎨") — do NOT use the generic phrase "current mood"; make it relevant to what the document is actually about
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
@@ -510,7 +510,7 @@ af) Generate image 🎨 — suggest when:
    - photo or document has potential for visual reinterpretation
    - user might want to see an artistic visualization of the content
    - action: MUST contain exactly the phrase "generate image" in the label
-   - example: "Generate an image inspired by the content 🎨" or "Generate an image depicting topic 🎨"
+   - action MUST reference the document's specific subject, character, or scene (e.g. "Generate image: stormy sea at sunset 🎨") — do NOT use the generic phrase "current mood"; tailor it to the actual content
 
 ag) Make a diagnosis 🔬 — suggest when:
    - document is lab test results, blood tests, thyroid panel, lipid panel
@@ -563,7 +563,7 @@ Document description: {description}""",
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
             return _append_contextual_prompts(
-                questions[:5], file_names, file_types, language, welcome_message
+                questions[:5], file_names, file_types, language, welcome_message, description
             )
     except (json.JSONDecodeError, AttributeError):
         logger.warning(
@@ -573,7 +573,7 @@ Document description: {description}""",
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
     return _append_contextual_prompts(
-        questions[:5], file_names, file_types, language, welcome_message
+        questions[:5], file_names, file_types, language, welcome_message, description
     )
 
 
@@ -615,12 +615,59 @@ _LAB_TEST_PATTERN = re.compile(
 )
 
 
+def _extract_subject_phrase(
+    welcome_message: str,
+    description: str,
+    file_names: list[str] | None,
+    language: str | None,
+) -> str:
+    """Return a short subject phrase derived from the document context.
+
+    Priority order:
+    1. Markdown h1/h2 heading from welcome_message or description
+    2. First substantive (non-heading) line, truncated to ≤40 chars
+    3. Clean file name of first uploaded file
+    4. Generic fallback
+    """
+    text = (welcome_message or description or "").strip()
+
+    # 1. Heading: ## Title or # Title
+    heading_match = re.search(r"^#{1,2}\s+(.+)", text, re.MULTILINE)
+    if heading_match:
+        phrase = heading_match.group(1).strip()
+        # Strip bold markers sometimes present in headings
+        phrase = re.sub(r"\*\*(.+?)\*\*", r"\1", phrase)
+        if 3 <= len(phrase) <= 50:
+            return phrase
+        if len(phrase) > 50:
+            return phrase[:47].rstrip() + "..."
+
+    # 2. First non-empty, non-heading line
+    lines = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+    if lines:
+        candidate = lines[0]
+        # Drop leading bold/italic markers
+        candidate = re.sub(r"^\*{1,3}(.+?)\*{1,3}", r"\1", candidate)
+        if len(candidate) > 45:
+            candidate = candidate[:42].rstrip() + "..."
+        if len(candidate) >= 4:
+            return candidate
+
+    # 3. File name fallback
+    if file_names:
+        return clean_file_name(file_names[0])[:45]
+
+    # 4. Generic
+    return "tej treści" if language == "pl" else "this content"
+
+
 def _append_contextual_prompts(
     questions: list[str],
     file_names: list[str] | None,
     file_types: dict[str, str] | None,
     language: str | None,
     welcome_message: str = "",
+    description: str = "",
 ) -> list[str]:
     """Build final list: 3 normal questions + up to 2 action prompts = max 5.
 
@@ -632,10 +679,12 @@ def _append_contextual_prompts(
     # Split LLM output: first 3 are questions, rest are actions
     normal_questions = questions[:3]
     llm_actions = questions[3:5]
-    pinned_mood_prompt = (
-        "Wygeneruj obraz dla aktualnego nastroju 🎨"
+
+    subject = _extract_subject_phrase(welcome_message, description, file_names, language)
+    pinned_image_prompt = (
+        f"Wygeneruj obraz inspirowany: {subject} 🎨"
         if language == "pl"
-        else "Generate image for current mood 🎨"
+        else f"Generate image inspired by: {subject} 🎨"
     )
 
     # Build contextual action prompts (higher priority than LLM actions)
@@ -692,8 +741,8 @@ def _append_contextual_prompts(
     remaining_slots = 2 - len(contextual)
     actions = llm_actions[:remaining_slots] + contextual
 
-    # Always pin one mood-based image-generation prompt as the first welcome suggestion.
-    final = [pinned_mood_prompt] + normal_questions + actions
+    # Always pin one subject-specific image-generation prompt as the first welcome suggestion.
+    final = [pinned_image_prompt] + normal_questions + actions
 
     deduped: list[str] = []
     seen: set[str] = set()

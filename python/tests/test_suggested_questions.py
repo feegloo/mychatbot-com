@@ -1,7 +1,54 @@
-from shared.suggested_questions import _append_contextual_prompts
+from shared.suggested_questions import _append_contextual_prompts, _extract_subject_phrase
 
 
-def test_pins_mood_image_prompt_first_in_english():
+# ---------------------------------------------------------------------------
+# _extract_subject_phrase
+# ---------------------------------------------------------------------------
+
+
+def test_extract_subject_uses_markdown_heading():
+    msg = "## Joanna Chyłka — Zaginięcie\n\nPowieść kryminalna Remigiusza Mroza."
+    assert _extract_subject_phrase(msg, "", None, "pl") == "Joanna Chyłka — Zaginięcie"
+
+
+def test_extract_subject_strips_bold_from_heading():
+    msg = "## **Introduction to Tableau**\n\nLearn data visualisation."
+    assert _extract_subject_phrase(msg, "", None, "en") == "Introduction to Tableau"
+
+
+def test_extract_subject_truncates_long_heading():
+    long_title = "A" * 60
+    msg = f"## {long_title}"
+    result = _extract_subject_phrase(msg, "", None, "en")
+    assert result.endswith("...")
+    assert len(result) <= 50
+
+
+def test_extract_subject_falls_back_to_first_line():
+    msg = "This is about machine learning and neural networks."
+    result = _extract_subject_phrase(msg, "", None, "en")
+    assert "machine learning" in result
+
+
+def test_extract_subject_falls_back_to_file_name():
+    result = _extract_subject_phrase("", "", ["my_report.pdf"], "en")
+    assert "my_report" in result.lower()
+
+
+def test_extract_subject_generic_fallback_en():
+    assert _extract_subject_phrase("", "", None, "en") == "this content"
+
+
+def test_extract_subject_generic_fallback_pl():
+    assert _extract_subject_phrase("", "", None, "pl") == "tej treści"
+
+
+# ---------------------------------------------------------------------------
+# _append_contextual_prompts — pinned image prompt
+# ---------------------------------------------------------------------------
+
+
+def test_pins_subject_image_prompt_first_in_english():
     result = _append_contextual_prompts(
         questions=[
             "What is this document about?",
@@ -13,15 +60,16 @@ def test_pins_mood_image_prompt_first_in_english():
         file_names=None,
         file_types=None,
         language="en",
-        welcome_message="",
+        welcome_message="## Machine Learning Basics\n\nAn intro guide.",
     )
 
     assert len(result) == 5
-    assert result[0] == "Generate image for current mood 🎨"
-    assert result.count("Generate image for current mood 🎨") == 1
+    assert result[0] == "Generate image inspired by: Machine Learning Basics 🎨"
+    # Pinned prompt should appear exactly once
+    assert sum(1 for q in result if "Generate image inspired by:" in q) == 1
 
 
-def test_pins_mood_image_prompt_first_in_polish():
+def test_pins_subject_image_prompt_first_in_polish():
     result = _append_contextual_prompts(
         questions=[
             "O czym jest dokument?",
@@ -33,9 +81,22 @@ def test_pins_mood_image_prompt_first_in_polish():
         file_names=["foto.jpg"],
         file_types={"foto.jpg": "image"},
         language="pl",
-        welcome_message="Na zdjęciu są składniki i osoba",
+        welcome_message="## Kuchnia polska\n\nPrzepisy i tradycje.",
     )
 
     assert len(result) == 5
-    assert result[0] == "Wygeneruj obraz dla aktualnego nastroju 🎨"
-    assert result.count("Wygeneruj obraz dla aktualnego nastroju 🎨") == 1
+    assert result[0] == "Wygeneruj obraz inspirowany: Kuchnia polska 🎨"
+    assert sum(1 for q in result if "Wygeneruj obraz inspirowany:" in q) == 1
+
+
+def test_generic_fallback_when_no_context():
+    result = _append_contextual_prompts(
+        questions=[
+            "Q1", "Q2", "Q3", "Action A 🧠", "Action B 📓"
+        ],
+        file_names=None,
+        file_types=None,
+        language="en",
+        welcome_message="",
+    )
+    assert result[0] == "Generate image inspired by: this content 🎨"
