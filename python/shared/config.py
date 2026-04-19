@@ -32,11 +32,11 @@ def get_settings() -> Settings:
     llm_provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-    
+
     # Auto-fallback: if no Anthropic key but OpenAI key exists, use OpenAI
     if not anthropic_key and openai_key and llm_provider == "anthropic":
         llm_provider = "openai"
-    
+
     return Settings(
         llm_provider=llm_provider,
         openai_api_key=openai_key,

@@ -272,6 +272,27 @@ For each area:
    - Python: Integration tests for indexing → querying pipeline
 7. **Verify coverage** — run with coverage reporters and review.
 
+## Phase 7: Performance Profiling & Optimization
+
+**Goal:** Identify and optimize any new performance bottlenecks introduced during refactoring.
+
+1. **Profile** — use browser dev tools for frontend, Node.js profiler for backend, and cProfile for Python.
+2. **Identify bottlenecks** — look for slow functions, excessive re-renders,
+database query hotspots, or inefficient algorithms.
+3. **Optimize** — refactor slow code paths, add caching, optimize database queries,or adjust indexing strategies.
+4. **Verify** — re-profile after optimizations to confirm improvements.
+5. **Add performance tests** — if applicable, add tests that assert certain operations complete within a time threshold.
+6. **Monitor in production** — ensure logging includes performance metrics for key operations to catch regressions.
+7. **Document** — note any significant optimizations in code comments or documentation for future reference.
+8. **CI Performance Checks** (optional) — consider adding performance regression checks in CI for critical paths.
+9. **Communicate** — if optimizations involve trade-offs (e.g., increased memory usage for faster response), document and communicate these decisions to the team.
+10. **Iterate** — performance optimization is an ongoing process. Regularly review and profile the application as new features are added.
+11. **Stay informed** — keep up with best practices and new tools for performance optimization in your tech stack.
+12. **Balance** — remember that readability and maintainability are also important. Avoid over-optimizing at the cost of code clarity.
+13. **Celebrate** — acknowledge the hard work that goes into performance optimization and the benefits it brings to users!
+14. **Plan for future** — consider how future features might impact performance and design with scalability in mind.
+
+
 ### Commands
 
 ```bash

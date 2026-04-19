@@ -6,21 +6,21 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .chunkers import Chunk, split_into_chunks
-from .suggested_questions import suggest_questions_from_chunks
+from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
 from .describe import describe_documents
 from .lang_detect import detect_language
-from .vector_store import upsert_chunks
 from .metadata import extract_metadata_many
-from .page_worker import process_pdf_parallel, process_standalone_file, FileProcessingResult
-from .cloud_dispatch import is_cloud_mode, dispatch_page_jobs
-from .telemetry import trace_step, log_processing_event
+from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
+from .suggested_questions import suggest_questions_from_chunks
+from .telemetry import log_processing_event, trace_step
+from .vector_store import upsert_chunks
 
 logger = logging.getLogger(__name__)
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
     """Convert extracted image dicts into Chunk objects.
-    
+
     The chunk text is the vision-model description so it gets embedded
     alongside regular text chunks in the same vector space.
     """
@@ -34,25 +34,30 @@ def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
 
         page = img["page"]
         section = f"Image (page {page})" if page is not None else "Image"
-        chunks.append(Chunk(
-            chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
-            file_name=img["file_name"],
-            text=img["description"],
-            section=section,
-            page=page,
-            metadata={
-                "is_image": True,
-                "image_name": image_name,
-            },
-        ))
+        chunks.append(
+            Chunk(
+                chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
+                file_name=img["file_name"],
+                text=img["description"],
+                section=section,
+                page=page,
+                metadata={
+                    "is_image": True,
+                    "image_name": image_name,
+                },
+            )
+        )
     return chunks
 
 
 def index_documents(conversation_id: str, collection_name: str, file_paths: list[str]) -> dict:
-    logger.info(f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}")
+    logger.info(
+        f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}"
+    )
 
     log_processing_event(
-        conversation_id, ",".join(Path(fp).name for fp in file_paths),
+        conversation_id,
+        ",".join(Path(fp).name for fp in file_paths),
         "indexing_started",
         status="running",
         detail=f"{len(file_paths)} file(s)",
@@ -76,7 +81,9 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 # Always chunk text locally as fallback (cloud workers may fail).
                 logger.info(f"☁️ Cloud mode: dispatching Cloud Run Jobs for {p.name}")
                 import fitz
+
                 from .extractors import _reflow_pdf_text, _sanitize_text
+
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
 
@@ -94,12 +101,16 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                         chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
                         local_chunks.extend(chunks)
                     except Exception as e:
-                        logger.warning(f"⚠️ Local text extraction failed for page {page_idx + 1}: {e}")
+                        logger.warning(
+                            f"⚠️ Local text extraction failed for page {page_idx + 1}: {e}"
+                        )
                         page_texts.append("")
                 doc.close()
 
                 full_text = "\n\n".join(page_texts)
-                logger.info(f"📄 Extracted {len(full_text)} chars, {len(local_chunks)} local chunks for {p.name}")
+                logger.info(
+                    f"📄 Extracted {len(full_text)} chars, {len(local_chunks)} local chunks for {p.name}"
+                )
 
                 cloud_results = dispatch_page_jobs(
                     pdf_gcs_uri=file_path,
@@ -110,13 +121,17 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 )
                 # Build FileProcessingResult with local text + chunks
                 result = FileProcessingResult(
-                    file_name=p.name, file_path=file_path, total_pages=total_pages,
+                    file_name=p.name,
+                    file_path=file_path,
+                    total_pages=total_pages,
                 )
                 result.full_text = full_text
                 result.all_chunks = local_chunks
                 for cr in cloud_results:
                     if cr["status"] != "completed":
-                        result.errors.append({"page": cr["page"], "error": cr.get("error", "unknown")})
+                        result.errors.append(
+                            {"page": cr["page"], "error": cr.get("error", "unknown")}
+                        )
             else:
                 # Local mode (default): parallel threads
                 result = process_pdf_parallel(file_path, output_dir, conversation_id)
@@ -135,11 +150,13 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
 
     for fr in file_results:
         # Build extracted doc format for describe_documents compatibility
-        extracted.append({
-            "file_path": fr.file_path,
-            "file_name": fr.file_name,
-            "text": fr.full_text,
-        })
+        extracted.append(
+            {
+                "file_path": fr.file_path,
+                "file_name": fr.file_name,
+                "text": fr.full_text,
+            }
+        )
         all_chunks.extend(fr.all_chunks)
         all_images.extend(fr.all_images)
         all_errors.extend(fr.errors)
@@ -147,11 +164,13 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         # Collect per-page summaries for large-document describe strategy
         for pr in fr.page_results:
             if pr.description_summary:
-                all_page_summaries.append({
-                    "page": pr.page_number,
-                    "file_name": pr.file_name,
-                    "summary": pr.description_summary,
-                })
+                all_page_summaries.append(
+                    {
+                        "page": pr.page_number,
+                        "file_name": pr.file_name,
+                        "summary": pr.description_summary,
+                    }
+                )
 
         if detected_language is None and fr.full_text:
             detected_language = detect_language(fr.full_text[:2000])
@@ -162,7 +181,9 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         logger.info(f"🖼️  Adding {len(img_chunks)} image chunks")
         all_chunks.extend(img_chunks)
 
-    logger.info(f"✅ Processed {len(file_results)} file(s): {len(all_chunks)} chunks, {len(all_images)} images")
+    logger.info(
+        f"✅ Processed {len(file_results)} file(s): {len(all_chunks)} chunks, {len(all_images)} images"
+    )
 
     # Save raw text and page summaries to disk for follow-up answer context
     storage_dir = str(Path(file_paths[0]).parent) if file_paths else None
@@ -174,13 +195,21 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                     raw_texts[doc["file_name"]] = doc["text"]
             if raw_texts:
                 raw_text_path = Path(storage_dir) / "_raw_text.json"
-                raw_text_path.write_text(json.dumps(raw_texts, ensure_ascii=False), encoding="utf-8")
+                raw_text_path.write_text(
+                    json.dumps(raw_texts, ensure_ascii=False), encoding="utf-8"
+                )
                 total_raw = sum(len(t) for t in raw_texts.values())
-                logger.info(f"💾 Saved raw text to {raw_text_path} ({total_raw} chars, {len(raw_texts)} files)")
+                logger.info(
+                    f"💾 Saved raw text to {raw_text_path} ({total_raw} chars, {len(raw_texts)} files)"
+                )
             if all_page_summaries:
                 summaries_path = Path(storage_dir) / "_page_summaries.json"
-                summaries_path.write_text(json.dumps(all_page_summaries, ensure_ascii=False), encoding="utf-8")
-                logger.info(f"💾 Saved {len(all_page_summaries)} page summaries to {summaries_path}")
+                summaries_path.write_text(
+                    json.dumps(all_page_summaries, ensure_ascii=False), encoding="utf-8"
+                )
+                logger.info(
+                    f"💾 Saved {len(all_page_summaries)} page summaries to {summaries_path}"
+                )
         except Exception as e:
             logger.warning(f"⚠️ Failed to save raw text / page summaries: {e}")
 
@@ -188,30 +217,34 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
     logger.info(f"📦 Upserting {len(all_chunks)} chunks + generating description in parallel...")
     chunk_texts = [chunk.text for chunk in all_chunks]
 
-    with trace_step(
-        conversation_id, "*", "upsert_and_describe",
-        detail=f"{len(all_chunks)} chunks",
+    with (
+        trace_step(
+            conversation_id,
+            "*",
+            "upsert_and_describe",
+            detail=f"{len(all_chunks)} chunks",
+        ),
+        ThreadPoolExecutor(max_workers=2) as pool,
     ):
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            upsert_future = pool.submit(
-                upsert_chunks,
-                collection_name=collection_name,
-                conversation_id=conversation_id,
-                chunks=all_chunks,
-            )
-            describe_future = pool.submit(
-                describe_documents,
-                extracted,
-                all_images,
-                language=detected_language,
-                file_metadata=file_metadata,
-                page_summaries=all_page_summaries or None,
-            )
-            upsert_result = upsert_future.result()
-            welcome_message = describe_future.result()
+        upsert_future = pool.submit(
+            upsert_chunks,
+            collection_name=collection_name,
+            conversation_id=conversation_id,
+            chunks=all_chunks,
+        )
+        describe_future = pool.submit(
+            describe_documents,
+            extracted,
+            all_images,
+            language=detected_language,
+            file_metadata=file_metadata,
+            page_summaries=all_page_summaries or None,
+        )
+        upsert_result = upsert_future.result()
+        welcome_message = describe_future.result()
 
     # Now generate suggested questions with the description for contextual prompts
-    logger.info(f"💡 Generating suggested prompts (with description context)...")
+    logger.info("💡 Generating suggested prompts (with description context)...")
 
     # Determine file types for contextual prompts
     file_types = {}
@@ -235,12 +268,19 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             welcome_message=welcome_message or "",
         )
 
-    logger.info(f"✅ Indexing complete")
-    logger.info(f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions (lang={detected_language})")
-    logger.info(f"👋 Welcome message: {welcome_message[:100]}..." if welcome_message else "👋 No welcome message generated")
+    logger.info("✅ Indexing complete")
+    logger.info(
+        f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions (lang={detected_language})"
+    )
+    logger.info(
+        f"👋 Welcome message: {welcome_message[:100]}..."
+        if welcome_message
+        else "👋 No welcome message generated"
+    )
 
     log_processing_event(
-        conversation_id, ",".join(Path(fp).name for fp in file_paths),
+        conversation_id,
+        ",".join(Path(fp).name for fp in file_paths),
         "indexing_completed",
         status="completed",
         detail=(

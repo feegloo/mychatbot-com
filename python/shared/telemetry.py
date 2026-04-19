@@ -5,19 +5,19 @@ Provides decorators and context managers for:
 - Writing granular telemetry rows to the `processing_jobs` table
 - Structured logging with UTC timestamps
 """
+
 from __future__ import annotations
 
 import logging
-import os
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from typing import Generator
+from datetime import UTC, datetime
 
-import sentry_sdk
 import psycopg2
 import psycopg2.pool
+import sentry_sdk
 
 from .config import get_settings
 
@@ -46,7 +46,7 @@ def _get_db_pool() -> psycopg2.pool.ThreadedConnectionPool:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def log_processing_event(
@@ -93,8 +93,18 @@ def log_processing_event(
                                completed_at = CASE WHEN %s IN ('completed', 'failed') THEN %s ELSE completed_at END,
                                worker_id = COALESCE(%s, worker_id)
                            WHERE id = %s""",
-                        (status, step, detail, error_message, duration_ms,
-                         retry_count, status, ts, worker_id, job_id),
+                        (
+                            status,
+                            step,
+                            detail,
+                            error_message,
+                            duration_ms,
+                            retry_count,
+                            status,
+                            ts,
+                            worker_id,
+                            job_id,
+                        ),
                     )
                     conn.commit()
                     return job_id
@@ -106,9 +116,22 @@ def log_processing_event(
                             status, step, detail, error_message, duration_ms,
                             retry_count, worker_id, started_at, created_at)
                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (new_id, conversation_id, file_name, page_number, total_pages,
-                         status, step, detail, error_message, duration_ms,
-                         retry_count, worker_id, ts if status == "running" else None, ts),
+                        (
+                            new_id,
+                            conversation_id,
+                            file_name,
+                            page_number,
+                            total_pages,
+                            status,
+                            step,
+                            detail,
+                            error_message,
+                            duration_ms,
+                            retry_count,
+                            worker_id,
+                            ts if status == "running" else None,
+                            ts,
+                        ),
                     )
                     conn.commit()
                     return new_id
@@ -154,9 +177,14 @@ def trace_step(
         span.set_data("page_number", page_number)
 
     job_id = log_processing_event(
-        conversation_id, file_name, step,
-        page_number=page_number, total_pages=total_pages,
-        status="running", detail=detail, worker_id=worker_id,
+        conversation_id,
+        file_name,
+        step,
+        page_number=page_number,
+        total_pages=total_pages,
+        status="running",
+        detail=detail,
+        worker_id=worker_id,
     )
 
     start = time.monotonic()
@@ -173,10 +201,15 @@ def trace_step(
         span.finish()
 
         log_processing_event(
-            conversation_id, file_name, step,
-            page_number=page_number, total_pages=total_pages,
-            status="completed", detail=final_detail,
-            duration_ms=elapsed_ms, worker_id=worker_id,
+            conversation_id,
+            file_name,
+            step,
+            page_number=page_number,
+            total_pages=total_pages,
+            status="completed",
+            detail=final_detail,
+            duration_ms=elapsed_ms,
+            worker_id=worker_id,
             job_id=job_id,
         )
 
@@ -189,10 +222,15 @@ def trace_step(
         sentry_sdk.capture_exception(exc)
 
         log_processing_event(
-            conversation_id, file_name, step,
-            page_number=page_number, total_pages=total_pages,
-            status="failed", error_message=str(exc)[:500],
-            duration_ms=elapsed_ms, worker_id=worker_id,
+            conversation_id,
+            file_name,
+            step,
+            page_number=page_number,
+            total_pages=total_pages,
+            status="failed",
+            error_message=str(exc)[:500],
+            duration_ms=elapsed_ms,
+            worker_id=worker_id,
             job_id=job_id,
         )
         raise

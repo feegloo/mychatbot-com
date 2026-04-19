@@ -1,5 +1,5 @@
-import { query } from "../db.js";
-import { generateShortId } from "../utils/id.js";
+import { query } from '../db.js'
+import { generateShortId } from '../utils/id.js'
 import type {
   ConversationRecord,
   UploadedFileRecord,
@@ -8,8 +8,8 @@ import type {
   AccessTokenRecord,
   ConversationRole,
   ConversationMessageRecord,
-  UserFingerprintRecord
-} from "../types.js";
+  UserFingerprintRecord,
+} from '../types.js'
 
 export async function insertConversation(record: ConversationRecord) {
   await query(
@@ -24,18 +24,22 @@ export async function insertConversation(record: ConversationRecord) {
       record.indexing_mode,
       record.error_message,
       record.parent_message_id || null,
-      record.parent_conversation_id || null
-    ]
-  );
+      record.parent_conversation_id || null,
+    ],
+  )
 }
 
-export async function updateConversationStatus(id: string, status: ConversationRecord["status"], errorMessage: string | null = null) {
+export async function updateConversationStatus(
+  id: string,
+  status: ConversationRecord['status'],
+  errorMessage: string | null = null,
+) {
   await query(
     `UPDATE conversations
      SET status = $2, error_message = $3, updated_at = NOW()
      WHERE id = $1`,
-    [id, status, errorMessage]
-  );
+    [id, status, errorMessage],
+  )
 }
 
 export async function updateConversationDisplayName(id: string, displayName: string) {
@@ -43,97 +47,99 @@ export async function updateConversationDisplayName(id: string, displayName: str
     `UPDATE conversations
      SET display_name = $2, updated_at = NOW()
      WHERE id = $1`,
-    [id, displayName]
-  );
+    [id, displayName],
+  )
 }
 
-export async function getConversation(id: string, role: ConversationRole = "viewer") {
+export async function getConversation(id: string, _role: ConversationRole = 'viewer') {
   const conversationResult = await query<ConversationRecord>(
     `SELECT id, salt, display_name, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id, parent_conversation_id
      FROM conversations
      WHERE id = $1`,
-    [id]
-  );
+    [id],
+  )
 
-  const conversation = conversationResult.rows[0] || null;
+  const conversation = conversationResult.rows[0] || null
 
   // For thread conversations, fetch files from the parent conversation (via storage_namespace)
-  const fileOwner = ((conversation?.parent_message_id || conversation?.parent_conversation_id) && conversation.storage_namespace !== id)
-    ? conversation.storage_namespace
-    : id;
+  const fileOwner =
+    (conversation?.parent_message_id || conversation?.parent_conversation_id) &&
+    conversation.storage_namespace !== id
+      ? conversation.storage_namespace
+      : id
 
-  const filesResult = await query<UploadedFileRecord>(
-    `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
-     FROM uploaded_files
-     WHERE conversation_id = $1
-     ORDER BY created_at ASC`,
-    [fileOwner]
-  );
-
-  const questionsResult = await query<SuggestedQuestionRecord>(
-    `SELECT id, conversation_id, message_id, question, sort_order
-     FROM suggested_questions
-     WHERE conversation_id = $1
-     ORDER BY sort_order ASC, created_at ASC`,
-    [id]
-  );
-
-  const messagesResult = await query<ConversationMessageRecord>(
-    `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
-     FROM conversation_messages
-     WHERE conversation_id = $1
-     ORDER BY created_at ASC`,
-    [id]
-  );
-
-  // For threads, fetch the specific parent message (the one that was branched from)
-  let parentMessage: ConversationMessageRecord | null = null;
-  let parentWelcomeContents: string[] = [];
-  if (conversation?.parent_message_id && conversation.storage_namespace !== id) {
-    // Fetch the branched-from message to display as first message in thread
-    const parentMsgResult = await query<ConversationMessageRecord>(
+  // Run independent queries in parallel
+  const [filesResult, questionsResult, messagesResult, accessRequestsResult] = await Promise.all([
+    query<UploadedFileRecord>(
+      `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
+       FROM uploaded_files
+       WHERE conversation_id = $1
+       ORDER BY created_at ASC`,
+      [fileOwner],
+    ),
+    query<SuggestedQuestionRecord>(
+      `SELECT id, conversation_id, message_id, question, sort_order
+       FROM suggested_questions
+       WHERE conversation_id = $1
+       ORDER BY sort_order ASC, created_at ASC`,
+      [id],
+    ),
+    query<ConversationMessageRecord>(
       `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
        FROM conversation_messages
-       WHERE id = $1`,
-      [conversation.parent_message_id]
-    );
-    parentMessage = parentMsgResult.rows[0] || null;
-
-    // Also fetch parent's welcome message contents for RAG prompt context
-    const parentConvId = conversation.storage_namespace;
-    const parentWelcomeMsgsResult = await query<ConversationMessageRecord>(
-      `SELECT content
-       FROM conversation_messages
-       WHERE conversation_id = $1 AND role = 'assistant'
-         AND citations_json::text LIKE '%_uploadedFileNames%'
+       WHERE conversation_id = $1
        ORDER BY created_at ASC`,
-      [parentConvId]
-    );
-    parentWelcomeContents = parentWelcomeMsgsResult.rows.map(m => m.content);
-  }
+      [id],
+    ),
+    query<AccessRequestRecord>(
+      `SELECT id, conversation_id, display_name, status, editor_token
+       FROM access_requests
+       WHERE conversation_id = $1
+       ORDER BY created_at DESC`,
+      [id],
+    ),
+  ])
 
-  // For conversation-level threads (viewer branching from shared conversation),
-  // fetch parent's welcome contents for RAG prompt context
-  if (conversation?.parent_conversation_id && conversation.storage_namespace !== id) {
-    const parentConvId = conversation.storage_namespace;
-    const parentWelcomeMsgsResult = await query<ConversationMessageRecord>(
-      `SELECT content
-       FROM conversation_messages
-       WHERE conversation_id = $1 AND role = 'assistant'
-         AND citations_json::text LIKE '%_uploadedFileNames%'
-       ORDER BY created_at ASC`,
-      [parentConvId]
-    );
-    parentWelcomeContents = parentWelcomeMsgsResult.rows.map(m => m.content);
-  }
+  // For threads, fetch parent message and welcome contents in parallel
+  let parentMessage: ConversationMessageRecord | null = null
+  let parentWelcomeContents: string[] = []
+  const isThread =
+    (conversation?.parent_message_id || conversation?.parent_conversation_id) &&
+    conversation.storage_namespace !== id
 
-  const accessRequestsResult = await query<AccessRequestRecord>(
-    `SELECT id, conversation_id, display_name, status, editor_token
-     FROM access_requests
-     WHERE conversation_id = $1
-     ORDER BY created_at DESC`,
-    [id]
-  );
+  if (isThread) {
+    const parentConvId = conversation.storage_namespace
+
+    const parentQueries: Promise<any>[] = [
+      // Fetch parent's welcome message contents for RAG prompt context
+      query<ConversationMessageRecord>(
+        `SELECT content
+         FROM conversation_messages
+         WHERE conversation_id = $1 AND role = 'assistant'
+           AND citations_json::text LIKE '%_uploadedFileNames%'
+         ORDER BY created_at ASC`,
+        [parentConvId],
+      ),
+    ]
+
+    // Also fetch the branched-from message for message-level threads
+    if (conversation.parent_message_id) {
+      parentQueries.push(
+        query<ConversationMessageRecord>(
+          `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
+           FROM conversation_messages
+           WHERE id = $1`,
+          [conversation.parent_message_id],
+        ),
+      )
+    }
+
+    const parentResults = await Promise.all(parentQueries)
+    parentWelcomeContents = parentResults[0].rows.map((m: ConversationMessageRecord) => m.content)
+    if (parentResults[1]) {
+      parentMessage = parentResults[1].rows[0] || null
+    }
+  }
 
   return {
     conversation,
@@ -141,8 +147,8 @@ export async function getConversation(id: string, role: ConversationRole = "view
     suggestedQuestions: questionsResult.rows,
     messages: parentMessage ? [parentMessage, ...messagesResult.rows] : messagesResult.rows,
     parentWelcomeContents,
-    accessRequests: accessRequestsResult.rows
-  };
+    accessRequests: accessRequestsResult.rows,
+  }
 }
 
 /**
@@ -150,100 +156,126 @@ export async function getConversation(id: string, role: ConversationRole = "view
  * For threads, this points to the parent conversation's directory.
  */
 export async function getStorageNamespace(conversationId: string): Promise<string> {
-  const result = await query<Pick<ConversationRecord, "storage_namespace">>(
+  const result = await query<Pick<ConversationRecord, 'storage_namespace'>>(
     `SELECT storage_namespace FROM conversations WHERE id = $1`,
-    [conversationId]
-  );
-  return result.rows[0]?.storage_namespace || conversationId;
+    [conversationId],
+  )
+  return result.rows[0]?.storage_namespace || conversationId
 }
 
-export async function findStoredName(conversationId: string, originalName: string): Promise<string | null> {
+export async function findStoredName(
+  conversationId: string,
+  originalName: string,
+): Promise<string | null> {
   // First try the given conversation
   const result = await query<UploadedFileRecord>(
     `SELECT stored_name FROM uploaded_files
      WHERE conversation_id = $1 AND original_name = $2
      LIMIT 1`,
-    [conversationId, originalName]
-  );
-  if (result.rows[0]?.stored_name) return result.rows[0].stored_name;
+    [conversationId, originalName],
+  )
+  if (result.rows[0]?.stored_name) return result.rows[0].stored_name
 
   // For thread conversations, also check the parent conversation's files
   const convResult = await query<ConversationRecord>(
     `SELECT storage_namespace, parent_message_id FROM conversations WHERE id = $1`,
-    [conversationId]
-  );
-  const conv = convResult.rows[0];
+    [conversationId],
+  )
+  const conv = convResult.rows[0]
   if (conv?.parent_message_id && conv.storage_namespace !== conversationId) {
     const parentResult = await query<UploadedFileRecord>(
       `SELECT stored_name FROM uploaded_files
        WHERE conversation_id = $1 AND original_name = $2
        LIMIT 1`,
-      [conv.storage_namespace, originalName]
-    );
-    return parentResult.rows[0]?.stored_name ?? null;
+      [conv.storage_namespace, originalName],
+    )
+    return parentResult.rows[0]?.stored_name ?? null
   }
 
-  return null;
+  return null
 }
 
-export async function getUploadedFilesByOriginalNames(conversationId: string, originalNames: string[]) {
-  if (!originalNames.length) return [];
+export async function getUploadedFilesByOriginalNames(
+  conversationId: string,
+  originalNames: string[],
+) {
+  if (!originalNames.length) return []
   const result = await query<UploadedFileRecord>(
     `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
      FROM uploaded_files
      WHERE conversation_id = $1
        AND original_name = ANY($2::text[])
      ORDER BY created_at ASC`,
-    [conversationId, originalNames]
-  );
-  return result.rows;
+    [conversationId, originalNames],
+  )
+  return result.rows
 }
 
 export async function insertUploadedFile(file: UploadedFileRecord) {
   await query(
     `INSERT INTO uploaded_files (id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [file.id, file.conversation_id, file.original_name, file.stored_name, file.mime_type, file.size_bytes, file.storage_key]
-  );
+    [
+      file.id,
+      file.conversation_id,
+      file.original_name,
+      file.stored_name,
+      file.mime_type,
+      file.size_bytes,
+      file.storage_key,
+    ],
+  )
 }
 
-export async function updateFileMetadata(conversationId: string, originalName: string, metadata: unknown) {
+export async function updateFileMetadata(
+  conversationId: string,
+  originalName: string,
+  metadata: unknown,
+) {
   await query(
     `UPDATE uploaded_files
      SET metadata_json = $3::jsonb
      WHERE conversation_id = $1 AND original_name = $2`,
-    [conversationId, originalName, JSON.stringify(metadata)]
-  );
+    [conversationId, originalName, JSON.stringify(metadata)],
+  )
 }
 
-export async function replaceSuggestedQuestions(conversationId: string, questions: string[], messageId?: string) {
-  await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId]);
+export async function replaceSuggestedQuestions(
+  conversationId: string,
+  questions: string[],
+  messageId?: string,
+) {
+  await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId])
 
   for (const [index, question] of questions.entries()) {
     await query(
       `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
        VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-      [conversationId, messageId || null, question, index]
-    );
+      [conversationId, messageId || null, question, index],
+    )
   }
 }
 
-export async function appendSuggestedQuestions(conversationId: string, questions: string[], messageId?: string) {
+export async function appendSuggestedQuestions(
+  conversationId: string,
+  questions: string[],
+  messageId?: string,
+) {
   // Get current max sort_order
   const result = await query<{ max: number | null }>(
     `SELECT MAX(sort_order) as max FROM suggested_questions WHERE conversation_id = $1`,
-    [conversationId]
-  );
+    [conversationId],
+  )
 
-  const startIndex = (result.rows[0]?.max ?? -1) + 1;
+  const startIndex = (result.rows[0]?.max ?? -1) + 1
 
   // Add new questions without deleting old ones
   for (const [index, question] of questions.entries()) {
     await query(
       `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
        VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-      [conversationId, messageId || null, question, startIndex + index]
-    );
+      [conversationId, messageId || null, question, startIndex + index],
+    )
   }
 }
 
@@ -251,29 +283,32 @@ export async function insertAccessToken(record: AccessTokenRecord) {
   await query(
     `INSERT INTO conversation_access_tokens (token, conversation_id, role)
      VALUES ($1, $2, $3)`,
-    [record.token, record.conversation_id, record.role]
-  );
+    [record.token, record.conversation_id, record.role],
+  )
 }
 
-export async function resolveConversationRole(conversationId: string, token?: string | null): Promise<ConversationRole> {
-  if (!token) return "viewer";
+export async function resolveConversationRole(
+  conversationId: string,
+  token?: string | null,
+): Promise<ConversationRole> {
+  if (!token) return 'viewer'
 
   const result = await query<AccessTokenRecord>(
     `SELECT token, conversation_id, role
      FROM conversation_access_tokens
      WHERE conversation_id = $1 AND token = $2`,
-    [conversationId, token]
-  );
+    [conversationId, token],
+  )
 
-  return result.rows[0]?.role || "viewer";
+  return result.rows[0]?.role || 'viewer'
 }
 
 export async function createAccessRequest(record: AccessRequestRecord) {
   await query(
     `INSERT INTO access_requests (id, conversation_id, display_name, status, editor_token)
      VALUES ($1, $2, $3, $4, $5)`,
-    [record.id, record.conversation_id, record.display_name, record.status, record.editor_token]
-  );
+    [record.id, record.conversation_id, record.display_name, record.status, record.editor_token],
+  )
 }
 
 export async function getAccessRequest(conversationId: string, requestId: string) {
@@ -281,29 +316,33 @@ export async function getAccessRequest(conversationId: string, requestId: string
     `SELECT id, conversation_id, display_name, status, editor_token
      FROM access_requests
      WHERE conversation_id = $1 AND id = $2`,
-    [conversationId, requestId]
-  );
+    [conversationId, requestId],
+  )
 
-  return result.rows[0] || null;
+  return result.rows[0] || null
 }
 
-export async function approveAccessRequest(conversationId: string, requestId: string, editorToken: string) {
+export async function approveAccessRequest(
+  conversationId: string,
+  requestId: string,
+  editorToken: string,
+) {
   await query(
     `UPDATE access_requests
      SET status = 'approved', editor_token = $3, updated_at = NOW()
      WHERE conversation_id = $1 AND id = $2`,
-    [conversationId, requestId, editorToken]
-  );
+    [conversationId, requestId, editorToken],
+  )
 }
 
 export async function insertConversationMessage(params: {
-  conversationId: string;
-  role: "user" | "assistant";
-  content: string;
-  citations?: unknown;
-  userId?: number;
+  conversationId: string
+  role: 'user' | 'assistant'
+  content: string
+  citations?: unknown
+  userId?: number
 }): Promise<string> {
-  const id = generateShortId();
+  const id = generateShortId()
   await query(
     `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json, user_id)
      VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
@@ -313,10 +352,10 @@ export async function insertConversationMessage(params: {
       params.role,
       params.content,
       JSON.stringify(params.citations ?? null),
-      params.userId ?? 0
-    ]
-  );
-  return id;
+      params.userId ?? 0,
+    ],
+  )
+  return id
 }
 
 export async function getMessageById(messageId: string) {
@@ -325,56 +364,59 @@ export async function getMessageById(messageId: string) {
      FROM conversation_messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE m.id = $1`,
-    [messageId]
-  );
-  return msgResult.rows[0] || null;
+    [messageId],
+  )
+  return msgResult.rows[0] || null
 }
 
 export async function getConversationSummaries(conversationIds: string[]) {
-  if (!conversationIds.length) return [];
+  if (!conversationIds.length) return []
 
-  const placeholders = conversationIds.map((_, i) => `$${i + 1}`).join(", ");
-  const result = await query<Pick<ConversationRecord, "id" | "display_name" | "status">>(
+  const placeholders = conversationIds.map((_, i) => `$${i + 1}`).join(', ')
+  const result = await query<Pick<ConversationRecord, 'id' | 'display_name' | 'status'>>(
     `SELECT id, display_name, status
      FROM conversations
      WHERE id IN (${placeholders})
      ORDER BY updated_at DESC`,
-    conversationIds
-  );
+    conversationIds,
+  )
 
-  const fileResults = await query<Pick<UploadedFileRecord, "conversation_id" | "original_name">>(
+  const fileResults = await query<Pick<UploadedFileRecord, 'conversation_id' | 'original_name'>>(
     `SELECT conversation_id, original_name
      FROM uploaded_files
      WHERE conversation_id IN (${placeholders})
      ORDER BY created_at ASC`,
-    conversationIds
-  );
+    conversationIds,
+  )
 
-  const filesByConversation = new Map<string, string[]>();
+  const filesByConversation = new Map<string, string[]>()
   for (const row of fileResults.rows) {
-    const list = filesByConversation.get(row.conversation_id) || [];
-    list.push(row.original_name);
-    filesByConversation.set(row.conversation_id, list);
+    const list = filesByConversation.get(row.conversation_id) || []
+    list.push(row.original_name)
+    filesByConversation.set(row.conversation_id, list)
   }
 
   return result.rows.map((row) => ({
     ...row,
-    fileNames: filesByConversation.get(row.id) || []
-  }));
+    fileNames: filesByConversation.get(row.id) || [],
+  }))
 }
 
 /**
  * Resolve a browser fingerprint to a userId.
  * If fingerprint doesn't exist yet, create a new user with auto-incremented userId.
  */
-export async function resolveUserByFingerprint(fingerprint: string, userAgent?: string): Promise<number> {
+export async function resolveUserByFingerprint(
+  fingerprint: string,
+  userAgent?: string,
+): Promise<number> {
   // Try to find existing
   const existing = await query<UserFingerprintRecord>(
     `SELECT user_id FROM user_fingerprints WHERE fingerprint = $1`,
-    [fingerprint]
-  );
+    [fingerprint],
+  )
   if (existing.rows[0]) {
-    return existing.rows[0].user_id;
+    return existing.rows[0].user_id
   }
   // Insert new (SERIAL auto-increments user_id)
   const inserted = await query<UserFingerprintRecord>(
@@ -382,17 +424,17 @@ export async function resolveUserByFingerprint(fingerprint: string, userAgent?: 
      VALUES ($1, $2)
      ON CONFLICT (fingerprint) DO NOTHING
      RETURNING user_id`,
-    [fingerprint, userAgent ?? null]
-  );
+    [fingerprint, userAgent ?? null],
+  )
   if (inserted.rows[0]) {
-    return inserted.rows[0].user_id;
+    return inserted.rows[0].user_id
   }
   // Race condition: another request inserted first, re-fetch
   const refetch = await query<UserFingerprintRecord>(
     `SELECT user_id FROM user_fingerprints WHERE fingerprint = $1`,
-    [fingerprint]
-  );
-  return refetch.rows[0].user_id;
+    [fingerprint],
+  )
+  return refetch.rows[0].user_id
 }
 
 /**
@@ -408,9 +450,9 @@ export async function getThreadsForMessage(messageId: string) {
      WHERE c.parent_message_id = $1
      GROUP BY c.id
      ORDER BY c.created_at ASC`,
-    [messageId]
-  );
-  return result.rows;
+    [messageId],
+  )
+  return result.rows
 }
 
 /**
@@ -422,30 +464,32 @@ export async function getThreadReplyCount(messageId: string): Promise<number> {
      FROM conversation_messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE c.parent_message_id = $1`,
-    [messageId]
-  );
-  return parseInt(result.rows[0]?.count || "0", 10);
+    [messageId],
+  )
+  return parseInt(result.rows[0]?.count || '0', 10)
 }
 
 /**
  * Get thread reply counts for multiple parent message IDs at once.
  */
-export async function getThreadReplyCountsForMessages(messageIds: string[]): Promise<Map<string, number>> {
-  if (!messageIds.length) return new Map();
-  const placeholders = messageIds.map((_, i) => `$${i + 1}`).join(", ");
+export async function getThreadReplyCountsForMessages(
+  messageIds: string[],
+): Promise<Map<string, number>> {
+  if (!messageIds.length) return new Map()
+  const placeholders = messageIds.map((_, i) => `$${i + 1}`).join(', ')
   const result = await query<{ parent_message_id: string; count: string }>(
     `SELECT c.parent_message_id, COUNT(m.id)::text as count
      FROM conversations c
      JOIN conversation_messages m ON m.conversation_id = c.id
      WHERE c.parent_message_id IN (${placeholders})
      GROUP BY c.parent_message_id`,
-    messageIds
-  );
-  const map = new Map<string, number>();
+    messageIds,
+  )
+  const map = new Map<string, number>()
   for (const row of result.rows) {
-    map.set(row.parent_message_id, parseInt(row.count, 10));
+    map.set(row.parent_message_id, parseInt(row.count, 10))
   }
-  return map;
+  return map
 }
 
 /**
@@ -461,9 +505,9 @@ export async function getThreadsForConversation(conversationId: string) {
      WHERE c.parent_conversation_id = $1
      GROUP BY c.id
      ORDER BY c.created_at ASC`,
-    [conversationId]
-  );
-  return result.rows;
+    [conversationId],
+  )
+  return result.rows
 }
 
 /**
@@ -475,7 +519,7 @@ export async function getConversationThreadReplyCount(conversationId: string): P
      FROM conversation_messages m
      JOIN conversations c ON c.id = m.conversation_id
      WHERE c.parent_conversation_id = $1`,
-    [conversationId]
-  );
-  return parseInt(result.rows[0]?.count || "0", 10);
+    [conversationId],
+  )
+  return parseInt(result.rows[0]?.count || '0', 10)
 }

@@ -31,12 +31,17 @@ def main():
         log_output=True,
     )
 
-    print(json.dumps({
-        "conversation_id": args.conversation_id,
-        "collection_name": args.collection_name,
-        "executed_notebook": str(output_path),
-        "suggested_questions": []
-    }, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "conversation_id": args.conversation_id,
+                "collection_name": args.collection_name,
+                "executed_notebook": str(output_path),
+                "suggested_questions": [],
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

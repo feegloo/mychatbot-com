@@ -1,22 +1,22 @@
 """Tests for shared.describe – metadata formatting and prompt construction."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from shared.describe import describe_documents, _META_EXCLUDE_KEYS
-
+from shared.describe import describe_documents
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_mock_llm(text: str):
     """Return a fake LLM Runnable that captures input and returns a fixed AIMessage.
-    
+
     The returned object is a proper langchain Runnable so it works with
     ``prompt | llm | StrOutputParser()`` chaining.  The captured inputs
     are stored in ``llm.captured`` for test assertions.
@@ -51,6 +51,7 @@ SAMPLE_IMAGES = []
 # ---------------------------------------------------------------------------
 # Metadata block construction
 # ---------------------------------------------------------------------------
+
 
 class TestMetadataBlock:
     """Tests that file_metadata is correctly formatted into the prompt."""
@@ -192,7 +193,9 @@ class TestMetadataBlock:
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")
-    def test_metadata_formatting_error_is_logged_and_skipped(self, _mock_lang, mock_get_llm, caplog):
+    def test_metadata_formatting_error_is_logged_and_skipped(
+        self, _mock_lang, mock_get_llm, caplog
+    ):
         """If JSON serialization fails for one file, it should be logged and skipped."""
         mock_llm = _make_mock_llm("### Title\nOK.")
         mock_get_llm.return_value = mock_llm
@@ -233,6 +236,7 @@ class TestMetadataBlock:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestEdgeCases:
     def test_returns_empty_when_no_content(self):
         """No extracted text and no images → empty string, no LLM call."""
@@ -240,9 +244,7 @@ class TestEdgeCases:
         assert result == ""
 
     def test_returns_empty_when_text_is_blank(self):
-        result = describe_documents(
-            [{"file_name": "empty.txt", "text": "   "}], [], language="en"
-        )
+        result = describe_documents([{"file_name": "empty.txt", "text": "   "}], [], language="en")
         assert result == ""
 
     @patch("shared.describe.get_llm")

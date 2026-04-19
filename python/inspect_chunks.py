@@ -5,14 +5,15 @@ Usage:
     python inspect_chunks.py                    # all files in ../test-files
     python inspect_chunks.py path/to/file.pdf   # single file
 """
+
 from __future__ import annotations
 
 import re
 import sys
 from pathlib import Path
 
-from shared.extractors import extract_text
 from shared.chunkers import split_into_chunks
+from shared.extractors import extract_text
 
 TEST_FILES_DIR = Path(__file__).resolve().parent.parent / "test-files"
 
@@ -94,9 +95,9 @@ def chunk_quality_report(file_name: str, text: str) -> dict:
 def print_chunks_detail(file_name: str, text: str) -> None:
     """Print each chunk with boundary indicators."""
     chunks = split_into_chunks(file_name, text)
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"FILE: {file_name}  ({len(text)} chars → {len(chunks)} chunks)")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     for i, chunk in enumerate(chunks):
         ns = "✓" if starts_at_natural_boundary(chunk.text) else "✗"
         ne = "✓" if ends_at_natural_boundary(chunk.text) else "✗"
@@ -128,9 +129,9 @@ def main():
         print_chunks_detail(path.name, text)
 
     # Summary table
-    print(f"\n\n{'='*80}")
+    print(f"\n\n{'=' * 80}")
     print("SUMMARY")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"{'File':<50} {'Chunks':>6} {'Start%':>7} {'End%':>6} {'MidSent%':>9} {'AvgLen':>7}")
     print("-" * 90)
     for r in reports:

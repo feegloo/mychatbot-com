@@ -2,16 +2,68 @@
   <div class="mermaid-block" @mouseenter="hovered = true" @mouseleave="hovered = false">
     <div class="mermaid-toolbar" :class="{ visible: hovered }">
       <button v-if="mode === 'diagram'" class="mermaid-tool-btn" @click="mode = 'text'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="4 7 4 4 20 4 20 7" />
+          <line x1="9" y1="20" x2="15" y2="20" />
+          <line x1="12" y1="4" x2="12" y2="20" />
+        </svg>
         Switch to text
       </button>
       <button v-else class="mermaid-tool-btn" @click="mode = 'diagram'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+        </svg>
         Switch to diagram
       </button>
       <button class="mermaid-tool-btn" @click="copyCode">
-        <svg v-if="!copied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg
+          v-if="!copied"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <svg
+          v-else
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
         {{ copied ? 'Copied!' : 'Copy code' }}
       </button>
     </div>
@@ -26,24 +78,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
-import type mermaidType from 'mermaid';
+import { ref, onMounted, watch, nextTick } from 'vue'
+import type mermaidType from 'mermaid'
 
-const props = defineProps<{ code: string }>();
+const props = defineProps<{ code: string }>()
 
-const mode = ref<'diagram' | 'text'>('diagram');
-const copied = ref(false);
-const hovered = ref(false);
-const ready = ref(false);
-const diagramEl = ref<HTMLElement | null>(null);
-let renderCounter = 0;
+const mode = ref<'diagram' | 'text'>('diagram')
+const copied = ref(false)
+const hovered = ref(false)
+const ready = ref(false)
+const diagramEl = ref<HTMLElement | null>(null)
+let renderCounter = 0
 
-let mermaid: typeof mermaidType | null = null;
+let mermaid: typeof mermaidType | null = null
 
 async function getMermaid() {
-  if (mermaid) return mermaid;
-  const mod = await import('mermaid');
-  mermaid = mod.default;
+  if (mermaid) return mermaid
+  const mod = await import('mermaid')
+  mermaid = mod.default
   mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
@@ -59,42 +111,47 @@ async function getMermaid() {
     },
     flowchart: { htmlLabels: true, curve: 'basis' },
     securityLevel: 'strict',
-  });
-  return mermaid;
+  })
+  return mermaid
 }
 
 async function renderDiagram() {
-  if (!diagramEl.value) return;
-  ready.value = false;
+  if (!diagramEl.value) return
+  ready.value = false
   try {
-    const m = await getMermaid();
-    const id = `mermaid-${Date.now()}-${renderCounter++}`;
-    const { svg } = await m.render(id, props.code);
-    diagramEl.value.innerHTML = svg;
+    const m = await getMermaid()
+    const id = `mermaid-${Date.now()}-${renderCounter++}`
+    const { svg } = await m.render(id, props.code)
+    diagramEl.value.innerHTML = svg
     // Wait one frame so the browser paints the SVG before revealing
     requestAnimationFrame(() => {
-      ready.value = true;
-    });
+      ready.value = true
+    })
   } catch {
     // If mermaid render fails, fall back to text mode
-    mode.value = 'text';
-    ready.value = true;
+    mode.value = 'text'
+    ready.value = true
   }
 }
 
 function copyCode() {
-  navigator.clipboard.writeText(props.code);
-  copied.value = true;
-  setTimeout(() => { copied.value = false; }, 2000);
+  navigator.clipboard.writeText(props.code)
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 2000)
 }
 
 onMounted(() => {
-  renderDiagram();
-});
+  renderDiagram()
+})
 
-watch(() => props.code, () => {
-  nextTick(renderDiagram);
-});
+watch(
+  () => props.code,
+  () => {
+    nextTick(renderDiagram)
+  },
+)
 </script>
 
 <style scoped>
@@ -133,7 +190,10 @@ watch(() => props.code, () => {
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -195,11 +255,22 @@ watch(() => props.code, () => {
   animation: mermaid-pulse 1s ease-in-out infinite;
 }
 
-.mermaid-loading-dot:nth-child(2) { animation-delay: 0.15s; }
-.mermaid-loading-dot:nth-child(3) { animation-delay: 0.3s; }
+.mermaid-loading-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mermaid-loading-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 @keyframes mermaid-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1); }
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

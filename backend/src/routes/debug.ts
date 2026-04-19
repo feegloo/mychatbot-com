@@ -1,36 +1,41 @@
-import Router from "@koa/router";
-import { timingSafeEqual } from "node:crypto";
-import { query } from "../db.js";
-import { config } from "../config.js";
+import Router from '@koa/router'
+import { timingSafeEqual } from 'node:crypto'
+import { query } from '../db.js'
+import { config } from '../config.js'
 
 function safeEq(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
 }
 
-export const debugRouter = new Router();
+export const debugRouter = new Router()
 
-debugRouter.get("/debug/tables", async (ctx) => {
-  const auth = ctx.headers.authorization;
-  if (!auth || !auth.startsWith("Basic ")) {
-    ctx.status = 401;
-    ctx.body = { error: "Authentication required" };
-    return;
+debugRouter.get('/debug/tables', async (ctx) => {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
   }
-  const decoded = Buffer.from(auth.slice(6), "base64").toString();
-  const idx = decoded.indexOf(":");
-  const user = idx < 0 ? decoded : decoded.slice(0, idx);
-  const pass = idx < 0 ? "" : decoded.slice(idx + 1);
-  if (!config.debugUser || !config.debugPass || !safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
-    ctx.status = 401;
-    ctx.body = { error: "Invalid credentials" };
-    return;
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
   }
 
-  const offset = Math.max(0, parseInt(String(ctx.query.offset ?? "0"), 10) || 0);
-  const limit = 1000;
+  const offset = Math.max(0, parseInt(String(ctx.query.offset ?? '0'), 10) || 0)
+  const limit = 1000
 
   const [
     conversations,
@@ -43,21 +48,45 @@ debugRouter.get("/debug/tables", async (ctx) => {
     users,
     processingJobs,
   ] = await Promise.all([
-    query("SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.uploaded_files ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.user_fingerprints ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.conversation_access_tokens ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-    query("SELECT * FROM public.access_requests ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
+    query('SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
+    query(
+      'SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [limit, offset],
+    ),
+    query('SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
+    query('SELECT * FROM public.uploaded_files ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
+    query('SELECT * FROM public.user_fingerprints ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
+    query(
+      'SELECT * FROM public.conversation_access_tokens ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [limit, offset],
+    ),
+    query('SELECT * FROM public.access_requests ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
     query(`SELECT cm.user_id, uf.fingerprint, COUNT(*) AS message_count,
                   MIN(cm.created_at) AS first_seen, MAX(cm.created_at) AS last_seen
            FROM public.conversation_messages cm
            LEFT JOIN public.user_fingerprints uf ON uf.user_id = cm.user_id
            GROUP BY cm.user_id, uf.fingerprint
            ORDER BY message_count DESC`),
-    query("SELECT * FROM public.processing_jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset]),
-  ]);
+    query('SELECT * FROM public.processing_jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
+      limit,
+      offset,
+    ]),
+  ])
 
   ctx.body = {
     conversations: conversations.rows,
@@ -69,8 +98,8 @@ debugRouter.get("/debug/tables", async (ctx) => {
     access_requests: accessRequests.rows,
     users: users.rows,
     processing_jobs: processingJobs.rows,
-  };
-});
+  }
+})
 
 /**
  * GET /debug/processing-jobs
@@ -80,54 +109,60 @@ debugRouter.get("/debug/tables", async (ctx) => {
  * Shows all steps with timestamps, durations, errors, worker IDs.
  */
 async function handleProcessingJobs(ctx: any) {
-  const auth = ctx.headers.authorization;
-  if (!auth || !auth.startsWith("Basic ")) {
-    ctx.status = 401;
-    ctx.body = { error: "Authentication required" };
-    return;
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
   }
-  const decoded = Buffer.from(auth.slice(6), "base64").toString();
-  const idx = decoded.indexOf(":");
-  const user = idx < 0 ? decoded : decoded.slice(0, idx);
-  const pass = idx < 0 ? "" : decoded.slice(idx + 1);
-  if (!config.debugUser || !config.debugPass || !safeEq(user, config.debugUser) || !safeEq(pass, config.debugPass)) {
-    ctx.status = 401;
-    ctx.body = { error: "Invalid credentials" };
-    return;
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
   }
 
-  const conversationId = ctx.params.conversationId;
-  const limit = Math.min(parseInt(String(ctx.query.limit ?? "500"), 10) || 500, 5000);
-  const statusFilter = ctx.query.status as string | undefined;
+  const conversationId = ctx.params.conversationId
+  const limit = Math.min(parseInt(String(ctx.query.limit ?? '500'), 10) || 500, 5000)
+  const statusFilter = ctx.query.status as string | undefined
 
   let sql = `
     SELECT id, conversation_id, file_name, page_number, total_pages,
            status, step, detail, error_message, retry_count,
            duration_ms, worker_id, started_at, completed_at, created_at
     FROM processing_jobs
-  `;
-  const params: any[] = [];
-  const conditions: string[] = [];
+  `
+  const params: any[] = []
+  const conditions: string[] = []
 
   if (conversationId) {
-    conditions.push(`conversation_id = $${params.length + 1}`);
-    params.push(conversationId);
+    conditions.push(`conversation_id = $${params.length + 1}`)
+    params.push(conversationId)
   }
   if (statusFilter) {
-    conditions.push(`status = $${params.length + 1}`);
-    params.push(statusFilter);
+    conditions.push(`status = $${params.length + 1}`)
+    params.push(statusFilter)
   }
 
   if (conditions.length > 0) {
-    sql += ` WHERE ${conditions.join(" AND ")}`;
+    sql += ` WHERE ${conditions.join(' AND ')}`
   }
-  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
-  params.push(limit);
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`
+  params.push(limit)
 
-  const jobs = await query(sql, params);
+  const jobs = await query(sql, params)
 
   // Summary stats
-  const summaryResult = await query(`
+  const summaryResult = await query(
+    `
     SELECT
       status,
       COUNT(*) as count,
@@ -135,10 +170,12 @@ async function handleProcessingJobs(ctx: any) {
       MAX(duration_ms) as max_duration_ms,
       MIN(duration_ms) as min_duration_ms
     FROM processing_jobs
-    ${conversationId ? "WHERE conversation_id = $1" : ""}
+    ${conversationId ? 'WHERE conversation_id = $1' : ''}
     GROUP BY status
     ORDER BY status
-  `, conversationId ? [conversationId] : []);
+  `,
+    conversationId ? [conversationId] : [],
+  )
 
   // Recent conversations with jobs
   const recentConversations = await query(`
@@ -154,7 +191,7 @@ async function handleProcessingJobs(ctx: any) {
     GROUP BY conversation_id
     ORDER BY last_job DESC
     LIMIT 20
-  `);
+  `)
 
   ctx.body = {
     jobs: jobs.rows,
@@ -162,8 +199,8 @@ async function handleProcessingJobs(ctx: any) {
     recent_conversations: recentConversations.rows,
     total: jobs.rows.length,
     limit,
-  };
+  }
 }
 
-debugRouter.get("/debug/processing-jobs", handleProcessingJobs);
-debugRouter.get("/debug/processing-jobs/:conversationId", handleProcessingJobs);
+debugRouter.get('/debug/processing-jobs', handleProcessingJobs)
+debugRouter.get('/debug/processing-jobs/:conversationId', handleProcessingJobs)

@@ -3,24 +3,27 @@
 Keeps heavy imports (langchain, chromadb, openai) loaded in memory
 so answering questions doesn't pay the ~20s import cost each time.
 """
+
 from __future__ import annotations
 
-import json
-import logging
 import asyncio
+import logging
 import os
 import urllib.error
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent / ".env")
 
 import sentry_sdk
+
 
 def _before_send_log(log, _hint):
     if os.getenv("SENTRY_ENVIRONMENT", "dev") == "prod" and log["severity_text"] == "debug":
         return None
     return log
+
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
@@ -36,15 +39,17 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sentry_sdk import logger as sentry_logger
 
-from shared.rag import answer_with_citations
+from shared.image_gen import build_image_prompt, generate_image
 from shared.indexing import index_documents
-from shared.vector_store import collection_count
 from shared.metadata import enrich_metadata_web
-from shared.image_gen import generate_image, build_image_prompt
+from shared.rag import answer_with_citations
 from shared.telemetry import close_db_pool
-from shared.url_fetch import fetch_url, describe_url, _extract_visible_text
+from shared.url_fetch import _extract_visible_text, describe_url, fetch_url
+from shared.vector_store import collection_count
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ChatRAG Server")
@@ -60,22 +65,31 @@ async def _shutdown():
 async def _startup_checks():
     """Log configuration and verify Ollama connectivity when USE_GEMMA is enabled."""
     from shared.config import get_settings
+
     settings = get_settings()
     if settings.use_gemma:
-        logger.info(f"🟢 Gemma mode ENABLED — model={settings.gemma_model} url={settings.gemma_base_url}")
+        logger.info(
+            f"🟢 Gemma mode ENABLED — model={settings.gemma_model} url={settings.gemma_base_url}"
+        )
         try:
             import urllib.request
+
             req = urllib.request.Request(f"{settings.gemma_base_url}/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=5) as resp:
                 import json as _json
+
                 data = _json.loads(resp.read())
                 models = [m["name"] for m in data.get("models", [])]
             if models:
                 logger.info(f"🟢 Ollama available. Loaded models: {models}")
             else:
-                logger.warning(f"⚠️ Ollama is running but has no models. Pull one: docker exec chatrag-ollama ollama pull {settings.gemma_model}")
+                logger.warning(
+                    f"⚠️ Ollama is running but has no models. Pull one: docker exec chatrag-ollama ollama pull {settings.gemma_model}"
+                )
         except Exception as e:
-            logger.warning(f"⚠️ Cannot reach Ollama at {settings.gemma_base_url}: {e}. Make sure Ollama is running.")
+            logger.warning(
+                f"⚠️ Cannot reach Ollama at {settings.gemma_base_url}: {e}. Make sure Ollama is running."
+            )
     else:
         logger.info(f"🔵 Using cloud LLM provider: {settings.llm_provider}")
 
@@ -129,6 +143,7 @@ async def get_processing_jobs(conversation_id: str):
     """Get processing telemetry for a conversation (live progress view)."""
     try:
         from shared.telemetry import _get_db_pool
+
         pool = _get_db_pool()
         conn = pool.getconn()
         try:
@@ -228,7 +243,9 @@ async def answer(req: AnswerRequest):
             conversation_name=req.conversation_name,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
-        logger.info(f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'")
+        logger.info(
+            f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'"
+        )
         sentry_logger.info(
             "Answer generated for conversation {conversation_id}",
             conversation_id=req.conversation_id,
@@ -251,7 +268,7 @@ async def answer(req: AnswerRequest):
 @app.post("/enrich-metadata")
 async def enrich_metadata(req: EnrichMetadataRequest):
     """Run async web detection (Google Vision) for image files.
-    
+
     Fire-and-forget: caller doesn't need to wait for this.
     Returns enriched metadata dict {filename: {web_detection, identified_name, ...}}.
     """
@@ -276,11 +293,12 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
     ask follow-up questions about the website content.
     """
     try:
+
         def _process_url():
-            from shared.chunkers import split_into_chunks, Chunk
-            from shared.vector_store import upsert_chunks
+            from shared.chunkers import split_into_chunks
             from shared.lang_detect import detect_language
             from shared.suggested_questions import suggest_questions_from_chunks
+            from shared.vector_store import upsert_chunks
 
             # 1. Fetch HTML
             logger.info(f"🌐 Fetching URL: {req.url}")
@@ -292,7 +310,7 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
             detected_language = detect_language(visible_text[:2000])
 
             # 3. Generate description
-            logger.info(f"📝 Generating URL description...")
+            logger.info("📝 Generating URL description...")
             welcome_message = describe_url(req.url, html, language=detected_language)
 
             # 4. Chunk the visible text and index into vector store
@@ -348,6 +366,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
     4. Returns the file name (served via /api/storage/)
     """
     try:
+
         def _generate():
             # Build a detailed visual prompt from the user's request + context
             image_prompt = build_image_prompt(
@@ -375,4 +394,5 @@ async def generate_image_endpoint(req: GenerateImageRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8321)

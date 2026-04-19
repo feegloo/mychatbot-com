@@ -1,9 +1,13 @@
-import pytest
-from shared.extractors import _sanitize_text, _reflow_pdf_text, extract_plain_text, extract_json, extract_csv, extract_text
-from pathlib import Path
 import json
-import tempfile
-import os
+
+from shared.extractors import (
+    _reflow_pdf_text,
+    _sanitize_text,
+    extract_csv,
+    extract_json,
+    extract_plain_text,
+    extract_text,
+)
 
 
 class TestSanitizeText:

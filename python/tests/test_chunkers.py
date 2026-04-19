@@ -1,5 +1,4 @@
-import pytest
-from shared.chunkers import split_into_chunks, Chunk, _split_paragraphs, _has_markdown_headers
+from shared.chunkers import Chunk, _has_markdown_headers, _split_paragraphs, split_into_chunks
 
 
 class TestSplitParagraphs:

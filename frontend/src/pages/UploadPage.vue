@@ -10,93 +10,104 @@
       <div
         class="dropzone upload-dropzone"
         :class="{ dragover }"
+        style="cursor: pointer"
         @dragover.prevent="dragover = true"
         @dragleave.prevent="dragover = false"
         @drop.prevent="onDrop"
         @click="openFilePicker"
-        style="cursor: pointer"
       >
         <div class="dropzone-icon">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
+          <svg
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
         </div>
         <p><strong>Drag and drop here</strong></p>
         <p class="dropzone-hint">PDF, images, .doc, other text files</p>
-        <input ref="inputRef" type="file" multiple @change="onInputChange" style="display:none" />
+        <input ref="inputRef" type="file" multiple style="display: none" @change="onInputChange" />
       </div>
 
       <div class="upload-status-area">
-        <div class="file-list" v-if="files.length" style="margin-top: 16px">
+        <div v-if="files.length" class="file-list" style="margin-top: 16px">
           <div v-for="file in files" :key="file.name" class="file-pill">
             {{ file.name }} - {{ (file.size / 1024 / 1024).toFixed(1) }} MB
           </div>
         </div>
 
-        <p v-if="submitting" style="margin-top:12px; color:#a78bfa; text-align:center"><UploadingDots /></p>
+        <p v-if="submitting" style="margin-top: 12px; color: #a78bfa; text-align: center">
+          <UploadingDots />
+        </p>
 
-        <p v-if="error" style="color:#f87171; margin-top:12px; text-align:center">{{ error }}</p>
+        <p v-if="error" style="color: #f87171; margin-top: 12px; text-align: center">{{ error }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { uploadFiles, saveConversationToken } from "../api";
-import UploadingDots from "../components/UploadingDots.vue";
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { uploadFiles, saveConversationToken } from '../api'
+import UploadingDots from '../components/UploadingDots.vue'
 
 onMounted(() => {
-  document.title = "chatrag.app";
-});
+  document.title = 'chatrag.app'
+})
 
-const router = useRouter();
-const files = ref<File[]>([]);
-const dragover = ref(false);
-const submitting = ref(false);
-const error = ref("");
-const inputRef = ref<HTMLInputElement | null>(null);
+const router = useRouter()
+const files = ref<File[]>([])
+const dragover = ref(false)
+const submitting = ref(false)
+const error = ref('')
+const inputRef = ref<HTMLInputElement | null>(null)
 
 function openFilePicker() {
-  inputRef.value?.click();
+  inputRef.value?.click()
 }
 
 function onInputChange(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const allFiles = Array.from(target.files || []);
-  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
-  files.value = allFiles.filter(f => !f.type.startsWith('video/'));
-  if (videoFiles.length) error.value = "Video files are not supported.";
-  if (files.value.length) submit();
+  const target = event.target as HTMLInputElement
+  const allFiles = Array.from(target.files || [])
+  const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'))
+  files.value = allFiles.filter((f) => !f.type.startsWith('video/'))
+  if (videoFiles.length) error.value = 'Video files are not supported.'
+  if (files.value.length) submit()
 }
 
 function onDrop(event: DragEvent) {
-  dragover.value = false;
-  const allFiles = Array.from(event.dataTransfer?.files || []);
-  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
-  files.value = allFiles.filter(f => !f.type.startsWith('video/'));
-  if (videoFiles.length) error.value = "Video files are not supported.";
-  if (files.value.length) submit();
+  dragover.value = false
+  const allFiles = Array.from(event.dataTransfer?.files || [])
+  const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'))
+  files.value = allFiles.filter((f) => !f.type.startsWith('video/'))
+  if (videoFiles.length) error.value = 'Video files are not supported.'
+  if (files.value.length) submit()
 }
 
 async function submit() {
-  submitting.value = true;
-  error.value = "";
+  submitting.value = true
+  error.value = ''
 
   try {
-    const data = await uploadFiles(files.value);
+    const data = await uploadFiles(files.value)
     // Save owner password (persistent token) for this conversation
     if (data.ownerPassword) {
-      saveConversationToken(data.conversationId, data.ownerPassword);
+      saveConversationToken(data.conversationId, data.ownerPassword)
     }
-    router.push(data.url);
+    router.push(data.url)
   } catch (err: any) {
-    error.value = err?.response?.data?.error || err?.message || "Upload failed";
+    error.value = err?.response?.data?.error || err?.message || 'Upload failed'
   } finally {
-    submitting.value = false;
+    submitting.value = false
   }
 }
 </script>
@@ -162,7 +173,9 @@ async function submit() {
   color: #7c3aed;
   margin-bottom: 8px;
   opacity: 0.7;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 
 .upload-dropzone p {

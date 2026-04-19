@@ -1,5 +1,13 @@
 <template>
-  <span class="uploading-dots">Uploading<span class="dot" v-for="i in 3" :key="i" :style="{ animationDelay: `${(i - 1) * 0.3}s` }">.</span></span>
+  <span class="uploading-dots"
+    >Uploading<span
+      v-for="i in 3"
+      :key="i"
+      class="dot"
+      :style="{ animationDelay: `${(i - 1) * 0.3}s` }"
+      >.</span
+    ></span
+  >
 </template>
 
 <style scoped>
@@ -11,8 +19,17 @@
   animation: dotPulse 1.2s infinite;
 }
 @keyframes dotPulse {
-  0%, 20% { opacity: 0; }
-  30%, 70% { opacity: 1; }
-  80%, 100% { opacity: 0; }
+  0%,
+  20% {
+    opacity: 0;
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    opacity: 0;
+  }
 }
 </style>

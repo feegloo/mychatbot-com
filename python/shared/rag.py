@@ -3,17 +3,15 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 from pathlib import Path
 from typing import Any
 
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from .config import get_settings
 from .vector_store import query_chunks
-
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +27,15 @@ _SEED_OPTIONS = [365, 742, 158, 2901, 4417, 5830, 6193, 7764, 8529, 9046]
 
 # Patterns that trigger quiz mode
 _QUIZ_PATTERNS = re.compile(
-    r'\b(quiz|kwiz|test|egzamin)\b',
+    r"\b(quiz|kwiz|test|egzamin)\b",
     re.IGNORECASE,
 )
 
-QUIZ_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
+QUIZ_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
 
 If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
@@ -58,8 +59,11 @@ Rules:
 - The quiz JSON must be valid JSON on a single line after [quiz:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
-- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question)."""),
-    ("human", """Raw document text (original file content - use for quiz questions):
+- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).""",
+        ),
+        (
+            "human",
+            """Raw document text (original file content - use for quiz questions):
     {raw_text}
 
     Page summaries (overview of each page):
@@ -75,12 +79,17 @@ Rules:
     {question}
 
     Retrieved context (most relevant chunks):
-    {context}"""),
-])
+    {context}""",
+        ),
+    ]
+)
 
 
-ANSWER_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a helpful AI chatbot assistant. Answer the user's question accurately, prioritizing the context provided below as your PRIMARY source of truth.
+ANSWER_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a helpful AI chatbot assistant. Answer the user's question accurately, prioritizing the context provided below as your PRIMARY source of truth.
 
 == USER QUESTION ==
 "{question}"
@@ -197,21 +206,35 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - If a source has a high similarity score (close to 1.0), it is highly relevant - prioritize it. Lower scores mean weaker matches.
 
 d) Action Buttons:
-- Output follow-up suggestions as action markers: [action:Label]. The label MUST include the main topic and be at least 4 words long. Place them at the very end of your answer, after all content.
+- Output follow-up suggestions as action markers: [action:Label]. Place them at the very end of your answer, after all content.
 - ALWAYS generate EXACTLY 3 follow-up action buttons after your answer (never more than 3).
-- Each label should be concise (max 10 words), include the topic, and be written in the SAME language as your answer.
+- Each label MUST be written in the SAME language as your answer.
 - IMPORTANT: The 3 buttons MUST follow this pattern:
   * 2 plain follow-up questions about the topic — NO emoji at the end
   * Maximum 1 "rich" action-prompt (quiz, checklist, diagram, summary, comparison table, generate image, etc.) — this one MUST end with a relevant emoji
   If no rich action fits the context, generate 3 plain questions (all without emoji).
 - When suggesting "generate image", the label MUST contain the exact phrase "generate image" (in English) or "wygeneruj obraz" (in Polish). This triggers the image generation API.
-- Example: [action:What were Socrates' main teachings?] [action:How did Socrates influence Plato?] [action:Socrates quotes - create diagram 🖼️]
+
+- BREVITY — SMART INSIGHT LABELS (CRITICAL):
+  * Each label should be 5–7 words. Aim for 5–6. Never exceed 10 words.
+  * Write them as a "smart insight" — a sharp, specific angle that reveals something non-obvious.
+  * Think of them as clickbait-free headlines: short, precise, intriguing.
+  * BAD (vague/generic): "What are the main themes in this document?"
+  * BAD (rephrased obvious): "How does the composition create balance?"
+  * GOOD (smart insight): "Why does asymmetry feel stable here?"
+  * GOOD (sharp angle): "Hidden tension in the color palette?"
+  * GOOD (unexpected connection): "How lighting contradicts the pose?"
+  * Each word must earn its place — cut filler words like "about", "regarding", "in terms of".
+
 - DEEP-DIVE DIRECTION: Each follow-up question should push the conversation DEEPER into expert territory. Think like a curious expert who wants to uncover non-obvious insights, counter-intuitive connections, or practical "insider knowledge" hidden in the content. Ask the kind of question that makes the user think "I wouldn't have thought to ask that, but now I really want to know."
-  * Go beyond surface-level summaries - ask about underlying mechanisms, edge cases, trade-offs, historical context, or real-world implications.
+  * Go beyond surface-level summaries — ask about underlying mechanisms, edge cases, trade-offs, historical context, or real-world implications.
   * Frame questions that connect ideas across different parts of the document in unexpected ways.
   * Prefer "why" and "how" questions over "what" questions. Prefer questions that reveal hidden patterns, surprising contrasts, or actionable takeaways.
-  * NEVER rephrase or rehash information already covered in the current answer or previous conversation. Each suggestion must open a genuinely NEW angle.
-- PREVIOUS SUGGESTIONS: A list of all previously shown suggested questions and action buttons is provided in SECTION 5c below. You MUST NOT repeat or closely rephrase any of them. Generate fresh, progressively deeper questions that build on what was already explored.
+  * NEVER rephrase or rehash information already covered in the current answer or previous conversation. Each suggestion must open a genuinely NEW angle — not a synonym or restatement.
+
+- PREVIOUS SUGGESTIONS: SECTION 5c below lists ALL previously shown suggested prompts grouped by the Q&A exchange they followed. Study the full list carefully. You MUST NOT repeat, rephrase, or closely mirror ANY of them. Generate fresh, progressively deeper questions that explore territory none of the previous prompts touched.
+
+- Example: [action:What were Socrates' main teachings?] [action:How did Socrates influence Plato?] [action:Socrates quotes - create diagram 🖼️]
 
 e) Emoji Usage:
 - Use emojis naturally throughout your answers to make them more engaging, fun, and scannable.
@@ -229,8 +252,11 @@ e) Emoji Usage:
 - Do not overdo it - 1 emoji per section header or key bullet is enough. Avoid emoji in the middle of sentences.
 - For action buttons [action:...], only include a trailing emoji for "rich" action-prompts (quiz, checklist, diagram, etc.), NOT for plain follow-up questions.
 
-Dash rules: In regular text and bullet lists, use a regular hyphen "-". In dialogue lines (fiction, scripts, chapters), ALWAYS use en-dash "–" as instructed in section c)."""),
-    ("human", """== SECTION 1: Matching Sources ==
+Dash rules: In regular text and bullet lists, use a regular hyphen "-". In dialogue lines (fiction, scripts, chapters), ALWAYS use en-dash "–" as instructed in section c).""",
+        ),
+        (
+            "human",
+            """== SECTION 1: Matching Sources ==
 {context}
 
 --
@@ -273,8 +299,14 @@ Use this full history to:
 
 --
 
-== SECTION 5c: Previously Suggested Questions ==
-Below are ALL suggested questions and action buttons that were already shown to the user in this conversation. Do NOT repeat or closely rephrase ANY of these when generating your [action:...] buttons. Generate fresh, progressively deeper expert-level questions instead.
+== SECTION 5c: Previously Suggested Prompts (with conversation flow) ==
+Below is a log of ALL suggested prompts already shown to the user, grouped by the Q&A exchange they appeared after. Prompts use the [action:Label] syntax — the same format you must output.
+
+Rules:
+- NEVER repeat or closely rephrase ANY prompt listed here.
+- Study which angles were already explored and generate FRESH directions that go deeper.
+- Each new [action:] must open a genuinely unexplored angle — not a synonym or restatement.
+
 {previous_suggested_questions}
 
 --
@@ -282,9 +314,12 @@ Below are ALL suggested questions and action buttons that were already shown to 
 == SECTION 6: Start Answering ==
 You have all the context above. Now answer the following question thoroughly with inline [source:N] citations:
 "{question}"
-"""),
-])
-    
+""",
+        ),
+    ]
+)
+
+
 def build_context(rows: list[dict]) -> str:
     if not rows:
         return "(no matching sources found)"
@@ -299,28 +334,31 @@ def build_context(rows: list[dict]) -> str:
         if row.get("section"):
             label += f" | Section: {row['section']}"
         label += f" | Similarity: {similarity:.2f}"
-        parts.append(f"{label}\n\"{row['text']}\"")
+        parts.append(f'{label}\n"{row["text"]}"')
     return "\n\n--\n\n".join(parts)
 
 
 def get_llm() -> Any:
     """Get LLM instance based on configured provider (cached).
-    
+
     When USE_GEMMA=true, uses local Ollama Gemma 4 model.
     Otherwise falls back to OpenAI / Anthropic cloud models.
     Raises ValueError if required API key is missing or Ollama is unreachable.
     """
     global _llm_instance, _llm_provider_key
     settings = get_settings()
-    
+
     # Gemma overrides all other provider settings when enabled
     if settings.use_gemma:
         cache_key = f"gemma:{settings.gemma_model}:{settings.gemma_base_url}"
         if _llm_instance is not None and _llm_provider_key == cache_key:
             return _llm_instance
-        
+
         from langchain_ollama import ChatOllama
-        logger.info(f"🤖 Using local Gemma model via Ollama: {settings.gemma_model} at {settings.gemma_base_url}")
+
+        logger.info(
+            f"🤖 Using local Gemma model via Ollama: {settings.gemma_model} at {settings.gemma_base_url}"
+        )
         _llm_instance = ChatOllama(
             model=settings.gemma_model,
             base_url=settings.gemma_base_url,
@@ -338,7 +376,7 @@ def get_llm() -> Any:
             seed = random.choice(_SEED_OPTIONS)
             return _llm_instance.bind(seed=seed)
         return _llm_instance
-    
+
     if settings.llm_provider == "anthropic":
         if not settings.anthropic_api_key:
             raise ValueError(
@@ -346,6 +384,7 @@ def get_llm() -> Any:
                 "or set LLM_PROVIDER=openai with OPENAI_API_KEY"
             )
         from langchain_anthropic import ChatAnthropic
+
         logger.info(f"🤖 Using Anthropic Claude model: {settings.anthropic_chat_model}")
         _llm_instance = ChatAnthropic(
             model=settings.anthropic_chat_model,
@@ -357,14 +396,16 @@ def get_llm() -> Any:
             raise ValueError(
                 "OpenAI API key not configured. Set OPENAI_API_KEY environment variable"
             )
-        logger.info(f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})")
+        logger.info(
+            f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})"
+        )
         _llm_instance = ChatOpenAI(
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
             temperature=1,
             reasoning_effort=settings.openai_reasoning_effort,
         )
-    
+
     _llm_provider_key = cache_key
     # Bind a random seed to OpenAI calls to vary responses for repeated prompts
     if settings.llm_provider not in ("anthropic",) and not settings.use_gemma:
@@ -392,18 +433,20 @@ def _build_citations(rows: list[dict]) -> list[dict]:
 
 def _strip_orphan_source_tags(answer: str, citation_count: int) -> str:
     """Remove [source:N] tags that reference non-existent citations."""
+
     def _replace(m: re.Match) -> str:
         nums = m.group(1)
         valid = [n.strip() for n in nums.split(",") if int(n.strip()) <= citation_count]
         if not valid:
             return ""
         return "[source:" + ",".join(valid) + "]"
-    return re.sub(r'\[source:\s*(\d+(?:,\s*\d+)*)\]', _replace, answer)
+
+    return re.sub(r"\[source:\s*(\d+(?:,\s*\d+)*)\]", _replace, answer)
 
 
 # Patterns that trigger EXIF metadata display
 _EXIF_PATTERNS = re.compile(
-    r'(show exif|exif metadata|pokaż metadane exif|pokaż exif|metadane exif)',
+    r"(show exif|exif metadata|pokaż metadane exif|pokaż exif|metadane exif)",
     re.IGNORECASE,
 )
 
@@ -454,7 +497,12 @@ def _handle_exif(
             ("Copyright", meta.get("copyright")),
             ("Artist", meta.get("artist")),
             ("Description", meta.get("description")),
-            ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
+            (
+                "GPS",
+                f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}"
+                if meta.get("gps_latitude")
+                else None,
+            ),
         ]
         has_exif = False
         for label, value in fields:
@@ -475,20 +523,20 @@ def _handle_exif(
 
 # Patterns that trigger recognition mode (Vision API)
 _RECOGNIZE_PATTERNS = re.compile(
-    r'\b(recognize|rozpoznaj|identify|identyfikuj)\b.*\b(name|person|osob|face|twarz|imi)',
+    r"\b(recognize|rozpoznaj|identify|identyfikuj)\b.*\b(name|person|osob|face|twarz|imi)",
     re.IGNORECASE,
 )
 
 # Simpler pattern: the suggested prompt format itself
 _RECOGNIZE_PROMPT_PATTERN = re.compile(
-    r'(recognize person name|rozpoznaj osob)',
+    r"(recognize person name|rozpoznaj osob)",
     re.IGNORECASE,
 )
 
 # Natural question format: "Who is the woman/man/person on the photo?"
 _RECOGNIZE_QUESTION_PATTERN = re.compile(
-    r'(who is the (woman|man|person|girl|boy|lady|guy)|'
-    r'kto jest (kobiet|mężczyzn|osob|dziewczyn|chłopak|pani))',
+    r"(who is the (woman|man|person|girl|boy|lady|guy)|"
+    r"kto jest (kobiet|mężczyzn|osob|dziewczyn|chłopak|pani))",
     re.IGNORECASE,
 )
 
@@ -498,7 +546,9 @@ def _is_recognize_request(question: str) -> bool:
     m2 = _RECOGNIZE_PROMPT_PATTERN.search(question)
     m3 = _RECOGNIZE_QUESTION_PATTERN.search(question)
     is_match = bool(m1 or m2 or m3)
-    logger.info(f"🔍 _is_recognize_request('{question[:80]}'): {is_match} (pattern1={bool(m1)}, pattern2={bool(m2)}, pattern3={bool(m3)})")
+    logger.info(
+        f"🔍 _is_recognize_request('{question[:80]}'): {is_match} (pattern1={bool(m1)}, pattern2={bool(m2)}, pattern3={bool(m3)})"
+    )
     return is_match
 
 
@@ -509,7 +559,7 @@ def _handle_recognize(
     welcome_messages: list[str] | None,
 ) -> dict | None:
     """Handle 'recognize person name' by calling Vision API + LLM identification.
-    
+
     Returns {"answer": ..., "citations": []} or None if not applicable.
     """
     if not image_file_paths:
@@ -534,10 +584,14 @@ def _handle_recognize(
 
     if not enrichment:
         # Vision API returned nothing — fall back to normal RAG
-        logger.info("🔍 Vision API returned no results (empty enrichment dict), falling back to normal RAG")
+        logger.info(
+            "🔍 Vision API returned no results (empty enrichment dict), falling back to normal RAG"
+        )
         return None
-    
-    logger.info(f"🔍 Enrichment result keys per file: { {k: list(v.keys()) for k, v in enrichment.items()} }")
+
+    logger.info(
+        f"🔍 Enrichment result keys per file: { {k: list(v.keys()) for k, v in enrichment.items()} }"
+    )
 
     # Build a human-readable answer from the identification results
     parts = []
@@ -553,11 +607,15 @@ def _handle_recognize(
         if identified_name:
             search_url = "https://www.google.com/search?q=" + identified_name.replace(" ", "+")
             # search_url = "https://babepedia.com/babe/" + identified_name.replace(" ", "_")
-            parts.append(f"**[{identified_name}]({search_url})** (confidence: {confidence}, category: {category})")
+            parts.append(
+                f"**[{identified_name}]({search_url})** (confidence: {confidence}, category: {category})"
+            )
             if reasoning:
                 parts.append(f"- {reasoning}")
         elif labels:
-            parts.append(f"Could not identify a specific name, but the image matches: {', '.join(labels)}")
+            parts.append(
+                f"Could not identify a specific name, but the image matches: {', '.join(labels)}"
+            )
         else:
             parts.append("Could not identify the person from the available sources.")
 
@@ -590,16 +648,63 @@ def _format_welcome_messages(welcome_messages: list[str] | None) -> str:
     return "\n\n".join(parts)
 
 
-def _format_previous_suggested_questions(questions: list[str] | None) -> str:
-    """Format all previously shown suggested questions/action buttons for the prompt."""
+def _format_previous_suggested_questions(
+    questions: list[str] | None,
+    chat_history: list[dict] | None = None,
+) -> str:
+    """Format previously shown suggested questions grouped with the Q&A exchanges they followed.
+
+    Output shows the conversation flow so the model sees which prompts appeared
+    after each exchange and can avoid repeating them.
+    """
     if not questions:
         return "(none - this is the first interaction)"
-    return "\n".join(f"- {q}" for q in questions)
+
+    if not chat_history:
+        return "\n".join(f"- {q}" for q in questions)
+
+    import re
+
+    action_re = re.compile(r"\[action:\s*([^\]]+)\]")
+
+    # Extract [action:] labels per assistant message, paired with the preceding user question
+    exchanges: list[dict] = []
+    current_user_q: str | None = None
+    for msg in chat_history:
+        if msg.get("role") == "user":
+            current_user_q = msg.get("content", "")
+        elif msg.get("role") == "assistant" and current_user_q is not None:
+            actions = [m.group(1).strip() for m in action_re.finditer(msg.get("content", ""))]
+            if actions:
+                exchanges.append({"question": current_user_q, "actions": actions})
+            current_user_q = None
+
+    all_exchange_actions: set[str] = set()
+    for ex in exchanges:
+        all_exchange_actions.update(ex["actions"])
+
+    # Prompts not found as [action:] in any assistant message = initial upload prompts
+    initial_prompts = [q for q in questions if q not in all_exchange_actions]
+
+    parts: list[str] = []
+    if initial_prompts:
+        parts.append("After file upload (initial suggested prompts):")
+        for q in initial_prompts:
+            parts.append(f"  - {q}")
+
+    for ex in exchanges:
+        q_preview = ex["question"][:120]
+        parts.append(f'\nAfter user asked: "{q_preview}"')
+        parts.append("Suggested prompts shown (using [action:] syntax):")
+        for a in ex["actions"]:
+            parts.append(f"  - [action:{a}]")
+
+    return "\n".join(parts) if parts else "(none - this is the first interaction)"
 
 
 def _format_chat_history(chat_history: list[dict] | None) -> str:
     """Format the full conversation history into a structured string for the prompt.
-    
+
     Each message is labeled with role (User Question / Assistant Answer) and
     timestamp when available, so the model can clearly distinguish exchanges.
     """
@@ -702,7 +807,7 @@ def _extract_matched_pages(storage_dir: str | None, rows: list[dict]) -> str:
             return "(matched sources have no page numbers)"
 
         # Parse raw text per file using '# Page N' headers as delimiters
-        _page_header_re = re.compile(r'^# Page (\d+)$', re.MULTILINE)
+        _page_header_re = re.compile(r"^# Page (\d+)$", re.MULTILINE)
         parts: list[str] = []
         for fname, pages_needed in needed.items():
             raw = data.get(fname, "")
@@ -723,7 +828,7 @@ def _extract_matched_pages(storage_dir: str | None, rows: list[dict]) -> str:
             for page_num in sorted(pages_needed):
                 text = page_texts.get(page_num)
                 if text:
-                    parts.append(f"[Full Page {page_num} of {fname}]\n\"{text}\"")
+                    parts.append(f'[Full Page {page_num} of {fname}]\n"{text}"')
 
         if not parts:
             return "(could not extract full page text)"
@@ -754,13 +859,23 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
             fields = [
                 ("Camera", camera),
                 ("Date taken", meta.get("date_taken")),
-                ("Dimensions", f"{meta.get('image_width')}x{meta.get('image_height')}" if meta.get("image_width") else None),
+                (
+                    "Dimensions",
+                    f"{meta.get('image_width')}x{meta.get('image_height')}"
+                    if meta.get("image_width")
+                    else None,
+                ),
                 ("ISO", meta.get("iso")),
                 ("Exposure", meta.get("exposure_time")),
                 ("F-number", meta.get("f_number")),
                 ("Focal length", meta.get("focal_length")),
                 ("Lens", meta.get("lens_model")),
-                ("GPS", f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}" if meta.get("gps_latitude") else None),
+                (
+                    "GPS",
+                    f"{meta.get('gps_latitude')}, {meta.get('gps_longitude')}"
+                    if meta.get("gps_latitude")
+                    else None,
+                ),
                 ("Software", meta.get("software")),
                 ("Copyright", meta.get("copyright")),
                 ("Artist", meta.get("artist")),
@@ -780,9 +895,22 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None, previous_suggested_questions: list[str] | None = None, conversation_name: str | None = None) -> dict:
+def answer_with_citations(
+    collection_name: str,
+    conversation_id: str,
+    question: str,
+    top_k: int = 10,
+    chat_history: list[dict] | None = None,
+    welcome_messages: list[str] | None = None,
+    image_file_paths: list[str] | None = None,
+    file_metadata: dict[str, dict] | None = None,
+    storage_dir: str | None = None,
+    previous_suggested_questions: list[str] | None = None,
+    conversation_name: str | None = None,
+) -> dict:
     import sentry_sdk
     from sentry_sdk import logger as sentry_logger
+
     logger.info(f"❓ Answering question: {question[:100]}...")
 
     with sentry_sdk.start_span(op="rag.answer", name=f"answer: {question[:60]}") as rag_span:
@@ -796,11 +924,15 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
                 return result
 
         # Check for "recognize person name" intent - triggers Vision API
-        logger.info(f"🔍 Checking recognize intent: image_file_paths={'present, count=' + str(len(image_file_paths)) if image_file_paths else 'None'}")
+        logger.info(
+            f"🔍 Checking recognize intent: image_file_paths={'present, count=' + str(len(image_file_paths)) if image_file_paths else 'None'}"
+        )
         if _is_recognize_request(question) and image_file_paths:
             result = _handle_recognize(question, image_file_paths, file_metadata, welcome_messages)
             if result:
-                logger.info(f"🔍 Recognition returned answer ({len(result.get('answer', ''))} chars)")
+                logger.info(
+                    f"🔍 Recognition returned answer ({len(result.get('answer', ''))} chars)"
+                )
                 return result
             logger.info("🔍 _handle_recognize returned None, continuing to normal RAG")
 
@@ -834,7 +966,9 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
-        prev_questions_str = _format_previous_suggested_questions(previous_suggested_questions)
+        prev_questions_str = _format_previous_suggested_questions(
+            previous_suggested_questions, chat_history
+        )
 
         prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         chain = prompt | llm
@@ -868,7 +1002,9 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         rendered_prompt = "\n\n---MSG---\n\n".join(
             f"[{m.type}]\n{m.content}" for m in rendered_messages
         )
-        logger.info(f"📋 [FULL PROMPT] conversation={conversation_id} length={len(rendered_prompt)} chars")
+        logger.info(
+            f"📋 [FULL PROMPT] conversation={conversation_id} length={len(rendered_prompt)} chars"
+        )
         logger.info(f"📋 [FULL PROMPT]\n{rendered_prompt}")
 
         # Send the rendered prompt to Sentry with full text as attachment
@@ -888,7 +1024,9 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
                 level="info",
             )
 
-        logger.info(f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)...")
+        logger.info(
+            f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)..."
+        )
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
             ai_message = chain.invoke(prompt_vars)
         answer = ai_message.content
@@ -900,16 +1038,22 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         logger.info(f"📝 [Q&A LOG] answer={answer[:500]}")
 
         # Log prompt cache metrics if available
-        usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get("usage", {})
+        usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get(
+            "usage", {}
+        )
         if usage:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
             prompt_tokens = usage.get("prompt_tokens", 0)
             completion_tokens = usage.get("completion_tokens", 0)
             if cached:
-                logger.info(f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached*100//prompt_tokens}%)")
+                logger.info(
+                    f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached * 100 // prompt_tokens}%)"
+                )
             else:
                 logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
-            logger.info(f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}")
+            logger.info(
+                f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}"
+            )
 
             sentry_logger.info(
                 "LLM invocation completed for conversation {conversation_id}",

@@ -7,21 +7,24 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from shared.extractors import (
-    _extract_and_save_images,
-    _describe_one,
-    _describe_image,
-    extract_pdf_images,
     _NUM_THREADS,
     MIN_IMAGE_SIZE,
-    MIN_IMAGE_DIM,
+    _describe_image,
+    _describe_one,
+    _extract_and_save_images,
+    extract_pdf_images,
 )
 
-TEST_PDF = Path(__file__).resolve().parent.parent.parent / "test-files" / "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf"
+TEST_PDF = (
+    Path(__file__).resolve().parent.parent.parent
+    / "test-files"
+    / "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf"
+)
 
 
 @pytest.fixture
@@ -36,16 +39,18 @@ def _ensure_output_dir(output_dir):
 
 # ── Sanity checks ───────────────────────────────────────────────────
 
+
 def test_test_pdf_exists():
     assert TEST_PDF.exists(), f"Test PDF not found: {TEST_PDF}"
 
 
 def test_num_threads_uses_all_cores():
     expected = os.cpu_count() * 2
-    assert _NUM_THREADS == expected
+    assert expected == _NUM_THREADS
 
 
 # ── Image extraction (CPU-bound, no API) ────────────────────────────
+
 
 class TestExtractAndSaveImages:
     def test_extracts_images_from_real_pdf(self, output_dir):
@@ -95,6 +100,7 @@ class TestExtractAndSaveImages:
 
 
 # ── Description pipeline (mocked API) ───────────────────────────────
+
 
 class TestDescribeOne:
     @patch("shared.extractors._describe_image", return_value="A photo of scar tissue.")
@@ -155,6 +161,7 @@ class TestExtractPdfImages:
     def test_empty_pdf_returns_empty(self, tmp_path, output_dir):
         """A PDF with no images should return empty list."""
         import fitz
+
         doc = fitz.open()
         page = doc.new_page()
         # Insert only text, no images
@@ -169,11 +176,14 @@ class TestExtractPdfImages:
 
 # ── Prompt quality ───────────────────────────────────────────────────
 
+
 class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
     def test_max_completion_tokens_is_150(self, mock_openai_cls, mock_settings):
-        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-5.4-mini")
+        mock_settings.return_value = MagicMock(
+            openai_api_key="test", openai_chat_model="gpt-5.4-mini"
+        )
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
@@ -188,7 +198,9 @@ class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
     def test_prompt_is_concise(self, mock_openai_cls, mock_settings):
-        mock_settings.return_value = MagicMock(openai_api_key="test", openai_chat_model="gpt-5.4-mini")
+        mock_settings.return_value = MagicMock(
+            openai_api_key="test", openai_chat_model="gpt-5.4-mini"
+        )
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(

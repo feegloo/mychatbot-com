@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import base64
-import csv
 import json
 import logging
 import os
 import re
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterable, List
 
 import docx2txt
 import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
@@ -21,40 +20,38 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 
-TEXT_EXTENSIONS = {
-    ".txt", ".md", ".csv", ".json", ".html", ".htm", ".xml", ".yaml", ".yml", ".rtf"
-}
+TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".html", ".htm", ".xml", ".yaml", ".yml", ".rtf"}
 
-IMAGE_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"
-}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"}
 
 
 # Strip storage uniqueness suffix from filenames for display.
 # Mirrors frontend cleanFileName: UUID prefix and 16-char base62 suffix.
-_UUID_PREFIX_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_', re.IGNORECASE)
-_SHORT_ID_SUFFIX_RE = re.compile(r'_[0-9A-Za-z]{16}(\.[^.]+)$')
-_SHORT_ID_SUFFIX_NO_EXT_RE = re.compile(r'_[0-9A-Za-z]{16}$')
+_UUID_PREFIX_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_", re.IGNORECASE
+)
+_SHORT_ID_SUFFIX_RE = re.compile(r"_[0-9A-Za-z]{16}(\.[^.]+)$")
+_SHORT_ID_SUFFIX_NO_EXT_RE = re.compile(r"_[0-9A-Za-z]{16}$")
 
 
 def clean_file_name(name: str) -> str:
     """Remove storage ID prefix/suffix from a filename for user-facing display."""
-    name = _UUID_PREFIX_RE.sub('', name)
-    result = _SHORT_ID_SUFFIX_RE.sub(r'\1', name)
+    name = _UUID_PREFIX_RE.sub("", name)
+    result = _SHORT_ID_SUFFIX_RE.sub(r"\1", name)
     if result == name:
-        result = _SHORT_ID_SUFFIX_NO_EXT_RE.sub('', name)
+        result = _SHORT_ID_SUFFIX_NO_EXT_RE.sub("", name)
     return result
 
 
 def _sanitize_text(text: str) -> str:
     """Remove problematic characters that cause issues in JSON/database.
-    
+
     - Removes null characters (\x00)
     - Removes other control characters except newlines and tabs
     - Normalizes whitespace
     """
     # Remove null characters and other problematic control chars
-    text = ''.join(char for char in text if char == '\n' or char == '\t' or ord(char) >= 32)
+    text = "".join(char for char in text if char == "\n" or char == "\t" or ord(char) >= 32)
     return text
 
 
@@ -77,7 +74,7 @@ def _reflow_pdf_text(raw: str) -> str:
 
 def extract_pdf(path: Path) -> str:
     reader = PdfReader(str(path))
-    parts: List[str] = []
+    parts: list[str] = []
     for page_number, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
         text = _reflow_pdf_text(text.strip())
@@ -89,7 +86,7 @@ def extract_pdf(path: Path) -> str:
 # ── PDF image extraction ───────────────────────────────────────────
 
 MIN_IMAGE_SIZE = 5_000  # Skip tiny images (icons, bullets) under 5 KB
-MIN_IMAGE_DIM = 50      # Skip images smaller than 50px in either dimension
+MIN_IMAGE_DIM = 50  # Skip images smaller than 50px in either dimension
 
 
 # Thread count: use 2× CPU cores (hyper-threading) for IO-bound tasks
@@ -114,7 +111,10 @@ def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
             {
                 "role": "user",
                 "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": "auto"}},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": "auto"},
+                    },
                 ],
             },
         ],
@@ -177,15 +177,19 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
                 pix.save(str(image_path))
 
             png_bytes = image_path.read_bytes()
-            logger.info(f"🖼️  Extracted image: {image_name} ({width}x{height}, {len(image_bytes)} bytes)")
+            logger.info(
+                f"🖼️  Extracted image: {image_name} ({width}x{height}, {len(image_bytes)} bytes)"
+            )
 
-            saved.append({
-                "image_path": str(image_path),
-                "image_name": image_name,
-                "file_name": pdf_path.name,
-                "png_bytes": png_bytes,
-                "page": page_idx + 1,
-            })
+            saved.append(
+                {
+                    "image_path": str(image_path),
+                    "image_name": image_name,
+                    "file_name": pdf_path.name,
+                    "png_bytes": png_bytes,
+                    "page": page_idx + 1,
+                }
+            )
 
     doc.close()
     return saved
@@ -240,7 +244,7 @@ def extract_docx(path: Path) -> str:
 
 def extract_spreadsheet(path: Path) -> str:
     excel_file = pd.ExcelFile(path)
-    sections: List[str] = []
+    sections: list[str] = []
     for sheet_name in excel_file.sheet_names:
         df = excel_file.parse(sheet_name)
         sections.append(f"# Sheet: {sheet_name}\n\n{df.fillna('').to_csv(index=False)}")
@@ -324,30 +328,36 @@ def extract_many(paths: Iterable[str]) -> list[dict]:
         # Standalone image files: describe with vision and add as image entry
         if suffix in IMAGE_EXTENSIONS:
             text = extract_text(file_path)
-            documents.append({
-                "file_path": file_path,
-                "file_name": p.name,
-                "text": text,
-            })
+            documents.append(
+                {
+                    "file_path": file_path,
+                    "file_name": p.name,
+                    "text": text,
+                }
+            )
             # Also register as an image so the thumbnail shows in citations
             output_dir = p.parent
             image_name = p.name
-            all_images.append({
-                "image_path": str(p),
-                "image_name": image_name,
-                "file_name": p.name,
-                "description": text,
-                "page": None,
-            })
+            all_images.append(
+                {
+                    "image_path": str(p),
+                    "image_name": image_name,
+                    "file_name": p.name,
+                    "description": text,
+                    "page": None,
+                }
+            )
             logger.info(f"\U0001f5bc\ufe0f  Processed standalone image: {p.name}")
             continue
 
         text = extract_text(file_path)
-        documents.append({
-            "file_path": file_path,
-            "file_name": p.name,
-            "text": text,
-        })
+        documents.append(
+            {
+                "file_path": file_path,
+                "file_name": p.name,
+                "text": text,
+            }
+        )
         # Extract images from PDFs
         if suffix == ".pdf":
             output_dir = p.parent

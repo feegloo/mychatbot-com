@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 # Disable chromadb's posthog telemetry before importing —
 # avoids "capture() takes 1 positional argument but 3 were given" errors
@@ -14,8 +15,8 @@ import sentry_sdk
 from chromadb.config import Settings as ChromaSettings
 from openai import OpenAI
 
-from .config import get_settings
 from .chunkers import Chunk
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ _chroma_client = None
 _openai_client = None
 
 EMBED_BATCH_SIZE = 2048  # OpenAI API limit per request
-EMBED_MAX_WORKERS = 4    # Parallel embedding requests for very large batches
+EMBED_MAX_WORKERS = 4  # Parallel embedding requests for very large batches
 CHROMA_BATCH_SIZE = 5000  # Chroma add() limit is ~5461
 
 
@@ -45,11 +46,17 @@ def get_client():
             settings=no_telemetry,
         )
     elif settings.chroma_mode == "http":
-        _chroma_client = chromadb.HttpClient(host=settings.chroma_http_host.replace("http://", "").replace("https://", "").split(":")[0],
-                                   port=int(settings.chroma_http_host.rsplit(":", 1)[-1]),
-                                   settings=no_telemetry)
+        _chroma_client = chromadb.HttpClient(
+            host=settings.chroma_http_host.replace("http://", "")
+            .replace("https://", "")
+            .split(":")[0],
+            port=int(settings.chroma_http_host.rsplit(":", 1)[-1]),
+            settings=no_telemetry,
+        )
     else:
-        _chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_dir, settings=no_telemetry)
+        _chroma_client = chromadb.PersistentClient(
+            path=settings.chroma_persist_dir, settings=no_telemetry
+        )
     return _chroma_client
 
 
@@ -78,7 +85,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 model=settings.openai_embedding_model,
                 input=texts,
             )
-            tokens_used = getattr(response, 'usage', None)
+            tokens_used = getattr(response, "usage", None)
             if tokens_used:
                 span.set_data("total_tokens", tokens_used.total_tokens)
                 logger.info(f"⚡ Embedded {len(texts)} texts, {tokens_used.total_tokens} tokens")
@@ -87,7 +94,9 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
         # For very large batches, split and parallelize
         all_vectors: list[list[float] | None] = [None] * len(texts)
-        batches = [(i, texts[i:i + EMBED_BATCH_SIZE]) for i in range(0, len(texts), EMBED_BATCH_SIZE)]
+        batches = [
+            (i, texts[i : i + EMBED_BATCH_SIZE]) for i in range(0, len(texts), EMBED_BATCH_SIZE)
+        ]
         total_tokens = 0
 
         def _embed_batch(start_idx: int, batch: list[str]):
@@ -96,7 +105,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 model=settings.openai_embedding_model,
                 input=batch,
             )
-            usage = getattr(resp, 'usage', None)
+            usage = getattr(resp, "usage", None)
             if usage:
                 total_tokens += usage.total_tokens
             sorted_data = sorted(resp.data, key=lambda x: x.index)
@@ -110,8 +119,16 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 f.result()
 
         span.set_data("total_tokens", total_tokens)
-        logger.info(f"⚡ Embedded {len(texts)} texts in {len(batches)} batches, {total_tokens} tokens")
+        logger.info(
+            f"⚡ Embedded {len(texts)} texts in {len(batches)} batches, {total_tokens} tokens"
+        )
         return all_vectors
+
+
+@lru_cache(maxsize=128)
+def _embed_single_cached(text: str) -> tuple[float, ...]:
+    """Cache embedding for a single text (used for repeated query lookups)."""
+    return tuple(embed_texts([text])[0])
 
 
 def collection_count(collection_name: str) -> int:
@@ -135,9 +152,11 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     docs = [chunk.text for chunk in chunks]
 
     logger.info(f"⚡ Embedding {len(docs)} chunks...")
-    with sentry_sdk.start_span(op="processing.create_embeddings", name=f"create embeddings for {len(docs)} chunks"):
+    with sentry_sdk.start_span(
+        op="processing.create_embeddings", name=f"create embeddings for {len(docs)} chunks"
+    ):
         vectors = embed_texts(docs)
-    logger.info(f"✅ Embedding complete")
+    logger.info("✅ Embedding complete")
 
     metadatas = []
     for chunk in chunks:
@@ -166,16 +185,24 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     }
 
 
-def query_chunks(collection_name: str, conversation_id: str, question: str, top_k: int = 4, max_distance: float = 1.3) -> list[dict]:
+def query_chunks(
+    collection_name: str,
+    conversation_id: str,
+    question: str,
+    top_k: int = 4,
+    max_distance: float = 1.3,
+) -> list[dict]:
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
 
     # Check if collection has any data
     if collection.count() == 0:
-        logger.warning(f"⚠️ Collection {collection_name} is empty — Chroma data may have been lost (ephemeral storage)")
+        logger.warning(
+            f"⚠️ Collection {collection_name} is empty — Chroma data may have been lost (ephemeral storage)"
+        )
         return []
 
-    query_vector = embed_texts([question])[0]
+    query_vector = list(_embed_single_cached(question))
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=top_k,
@@ -194,17 +221,19 @@ def query_chunks(collection_name: str, conversation_id: str, question: str, top_
         # similarity = 1 - distance/2 (approx), so threshold 0.7 similarity ~ distance <= 0.3
         if distance > max_distance:
             # continue
-        # Only include if similarity >= threshold (i.e., distance <= 0.3)
-        # if distance > (1 - similarity_threshold):
+            # Only include if similarity >= threshold (i.e., distance <= 0.3)
+            # if distance > (1 - similarity_threshold):
             continue
-        rows.append({
-            "chunk_id": chunk_id,
-            "text": document,
-            "file_name": metadata.get("file_name", "Unknown file"),
-            "section": metadata.get("section") or None,
-            "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
-            "distance": distance,
-            "metadata": metadata,
-            "image_name": metadata.get("image_name") or None,
-        })
+        rows.append(
+            {
+                "chunk_id": chunk_id,
+                "text": document,
+                "file_name": metadata.get("file_name", "Unknown file"),
+                "section": metadata.get("section") or None,
+                "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
+                "distance": distance,
+                "metadata": metadata,
+                "image_name": metadata.get("image_name") or None,
+            }
+        )
     return rows

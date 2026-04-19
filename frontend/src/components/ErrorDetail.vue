@@ -1,5 +1,5 @@
 <template>
-  <div class="error-detail" v-if="message">
+  <div v-if="message" class="error-detail">
     <p class="error-summary">{{ message }}</p>
     <div v-if="raw && raw !== message" class="error-raw-wrapper">
       <button class="error-toggle" @click="expanded = !expanded">
@@ -11,14 +11,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref } from 'vue'
 
 defineProps<{
-  message: string;
-  raw?: string;
-}>();
+  message: string
+  raw?: string
+}>()
 
-const expanded = ref(false);
+const expanded = ref(false)
 </script>
 
 <style scoped>

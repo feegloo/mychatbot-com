@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from .rag import get_llm
-from .lang_detect import detect_language
 from .extractors import clean_file_name
+from .lang_detect import detect_language
+from .rag import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,17 @@ def _fallback_from_metadata(
 
 
 # Keys to always exclude from the metadata block shown to the model
-_META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_bytes", "exif", "web_detection", "identification", "producer", "creator"}
+_META_EXCLUDE_KEYS = {
+    "file_name",
+    "file_created",
+    "file_modified",
+    "file_size_bytes",
+    "exif",
+    "web_detection",
+    "identification",
+    "producer",
+    "creator",
+}
 
 # ── Token budget for the describe prompt ─────────────────────────────
 # Model context windows: gpt-4.1-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
@@ -79,7 +88,7 @@ def _build_page_summary_block(page_summaries: list[dict]) -> str:
 
 def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
     """Summarize a large chunk of text into a dense condensed summary.
-    
+
     Used in the 2-pass strategy for very large documents: each half of the
     document is summarized separately, then combined with raw text from the
     beginning for the final welcome message prompt.
@@ -104,10 +113,12 @@ def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
             "Write concisely but completely — this summary will be the only source of information about this part of the document."
         )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_msg),
-        ("human", f"Document section ({chunk_label}):\n\n{{text}}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_msg),
+            ("human", f"Document section ({chunk_label}):\n\n{{text}}"),
+        ]
+    )
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
@@ -191,20 +202,24 @@ def describe_documents(
                 full_text = doc.get("text") or ""
                 if len(full_text) > per_doc:
                     remaining_texts.append(full_text[per_doc:])
-            
+
             if remaining_texts:
                 all_remaining = "\n\n---\n\n".join(remaining_texts)
                 midpoint = len(all_remaining) // 2
-                
+
                 # Cap each half to avoid sending too much to the summarizer
                 max_half = 80_000
                 first_half = all_remaining[:midpoint][-max_half:]
                 second_half = all_remaining[midpoint:][:max_half]
-                
+
                 # Summarize each half
-                summary_1 = _summarize_text_chunk(first_half, "first half (middle pages)", early_lang)
-                summary_2 = _summarize_text_chunk(second_half, "second half (final pages)", early_lang)
-                
+                summary_1 = _summarize_text_chunk(
+                    first_half, "first half (middle pages)", early_lang
+                )
+                summary_2 = _summarize_text_chunk(
+                    second_half, "second half (final pages)", early_lang
+                )
+
                 two_pass_summary = f"[Condensed summary of middle pages]\n{summary_1}\n\n[Condensed summary of final pages]\n{summary_2}"
                 two_pass_summary = two_pass_summary[:summary_pass_budget]
                 logger.info(f"📝 2-pass summaries combined: {len(two_pass_summary)} chars")
@@ -258,7 +273,9 @@ def describe_documents(
             try:
                 useful = {k: v for k, v in meta.items() if k not in _META_EXCLUDE_KEYS and v}
                 if useful:
-                    meta_parts.append(f"[{fname}]\n{json.dumps(useful, ensure_ascii=False, default=str)}")
+                    meta_parts.append(
+                        f"[{fname}]\n{json.dumps(useful, ensure_ascii=False, default=str)}"
+                    )
             except Exception as e:
                 logger.warning(f"⚠️ Failed to format metadata for {fname}: {e}")
         if meta_parts:
@@ -272,8 +289,11 @@ def describe_documents(
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
 
     if language == "pl":
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """Tworzysz wiadomość powitalną, którą zobaczy użytkownik zaraz po przesłaniu pliku.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Tworzysz wiadomość powitalną, którą zobaczy użytkownik zaraz po przesłaniu pliku.
 Ta wiadomość będzie czytana przez zwykłego człowieka — powinna brzmieć naturalnie i pomocnie.
 
 KLUCZOWA ZASADA: Wciel się w rolę eksperta z dziedziny, której dotyczy przesłany dokument. Rozpoznaj kontekst i przyjmij odpowiednią perspektywę:
@@ -324,12 +344,17 @@ Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak auto
 Bądź zwięzły — to ma być szybka analiza, nie rozprawka.
 NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
 Od czasu do czasu użyj profesjonalnych emoji, żeby wiadomość była bardziej żywa i łatwa do przeskanowania (np. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, "inne fajne, lekkie, nieofensywne emoji"). Nie przesadzaj — jedno-dwa na sekcję wystarczą. Nigdy nie używaj dziecinnych lub nieprofesjonalnych emoji (💩, 🤡, 😜 itp.).
-Odpowiadaj po polsku."""),
-            ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
-        ])
+Odpowiadaj po polsku.""",
+                ),
+                ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
+            ]
+        )
     else:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are writing a welcome message that a human user will see right after uploading a file.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """You are writing a welcome message that a human user will see right after uploading a file.
 This message will be read by a real person — it should sound natural, friendly, and helpful.
 
 KEY RULE: Adopt the role of an expert from the field the uploaded document belongs to. Identify the context and take on the appropriate perspective:
@@ -380,16 +405,22 @@ Write like a human briefly telling another human what this document is about —
 Be concise — this is a quick analysis, not an essay.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
-Reply in the same language as the content."""),
-            ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
-        ])
+Reply in the same language as the content.""",
+                ),
+                ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
+            ]
+        )
 
     # Build the metadata section — only include if we have actual metadata
     metadata_section = ""
     if metadata_block:
-        metadata_section = f"\n\n=====\nFile metadata (from EXIF / PDF info):\n{metadata_block}\n====="
+        metadata_section = (
+            f"\n\n=====\nFile metadata (from EXIF / PDF info):\n{metadata_block}\n====="
+        )
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke({"file_list": file_list, "content": combined, "metadata_section": metadata_section})
+    result = chain.invoke(
+        {"file_list": file_list, "content": combined, "metadata_section": metadata_section}
+    )
     return result.strip()

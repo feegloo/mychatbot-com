@@ -3,6 +3,7 @@
 Generates images from text descriptions and saves them to the conversation's
 storage directory so they can be served via the existing /api/storage/ route.
 """
+
 from __future__ import annotations
 
 import logging

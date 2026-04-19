@@ -1,17 +1,25 @@
 :root {
-  font-family: 'Lato', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Lato',
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #e2e8f0;
   background: #0b0f1a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-svg[aria-roledescription="error"] { display: none !important; }
+svg[aria-roledescription='error'] {
+  display: none !important;
+}
 
 /* Hide temporary mermaid render containers appended to body */
-body > [id^="dmermaid"] {
+body > [id^='dmermaid'] {
   position: absolute !important;
   width: 0 !important;
   height: 0 !important;
@@ -20,12 +28,20 @@ body > [id^="dmermaid"] {
 }
 
 /* Fix mobile double-tap: disable double-tap-to-zoom on interactive elements */
-button, [role="button"], a, .dropzone, input, textarea, select {
+button,
+[role='button'],
+a,
+.dropzone,
+input,
+textarea,
+select {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
   overflow: hidden;
 }
@@ -45,9 +61,14 @@ body {
   flex-direction: column;
 }
 
-a { color: #c4b5fd; text-decoration: none; }
+a {
+  color: #c4b5fd;
+  text-decoration: none;
+}
 @media (hover: hover) {
-  a:hover { color: #a5b4fc; }
+  a:hover {
+    color: #a5b4fc;
+  }
 }
 
 /* ── App layout with sidebar ── */
@@ -83,7 +104,9 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 12px;
   gap: 8px;
   overflow: hidden;
-  transition: width 0.12s ease, padding 0.12s ease;
+  transition:
+    width 0.12s ease,
+    padding 0.12s ease;
 }
 
 .conv-nav-new {
@@ -96,7 +119,11 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 600;
-  transition: opacity 0.15s, transform 0.15s, padding 0.12s ease, border-radius 0.12s ease;
+  transition:
+    opacity 0.15s,
+    transform 0.15s,
+    padding 0.12s ease,
+    border-radius 0.12s ease;
   position: relative;
   overflow: hidden;
 }
@@ -190,8 +217,15 @@ a { color: #c4b5fd; text-decoration: none; }
 }
 
 @keyframes dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.75); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
 }
 
 .conv-nav-empty {
@@ -291,14 +325,21 @@ a { color: #c4b5fd; text-decoration: none; }
     pointer-events: none;
     margin-top: 0;
     gap: 0;
-    transition: opacity 0.08s ease, flex 0.12s ease, margin-top 0.12s ease, gap 0.12s ease;
+    transition:
+      opacity 0.08s ease,
+      flex 0.12s ease,
+      margin-top 0.12s ease,
+      gap 0.12s ease;
   }
   .conv-nav.collapsed .donate-widget {
     opacity: 0;
     pointer-events: none;
     max-height: 0;
     padding: 0;
-    transition: opacity 0.08s ease, max-height 0.12s ease, padding 0.12s ease;
+    transition:
+      opacity 0.08s ease,
+      max-height 0.12s ease,
+      padding 0.12s ease;
   }
 
   /* Collapsed conversation indicators */
@@ -312,14 +353,20 @@ a { color: #c4b5fd; text-decoration: none; }
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.08s ease, max-height 0.1s ease, padding 0.1s ease;
+    transition:
+      opacity 0.08s ease,
+      max-height 0.1s ease,
+      padding 0.1s ease;
   }
   .conv-nav.collapsed .conv-nav-collapsed-hint {
     max-height: 200px;
     padding: 8px 0;
     opacity: 1;
     pointer-events: auto;
-    transition: opacity 0.12s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
+    transition:
+      opacity 0.12s ease 0.06s,
+      max-height 0.12s ease,
+      padding 0.12s ease;
   }
   .conv-nav.collapsed .conv-nav-bottom {
     display: block;
@@ -366,7 +413,10 @@ a { color: #c4b5fd; text-decoration: none; }
   flex-shrink: 0;
   max-height: 200px;
   overflow: visible;
-  transition: opacity 0.15s ease 0.06s, max-height 0.12s ease, padding 0.12s ease;
+  transition:
+    opacity 0.15s ease 0.06s,
+    max-height 0.12s ease,
+    padding 0.12s ease;
 }
 
 .donate-thanks {
@@ -379,8 +429,14 @@ a { color: #c4b5fd; text-decoration: none; }
 }
 
 @keyframes donate-fade-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .donate-methods {
@@ -409,7 +465,10 @@ a { color: #c4b5fd; text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, transform 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    transform 0.15s,
+    border-color 0.15s;
   scroll-snap-align: start;
   color: #e2e8f0;
   padding: 0;
@@ -505,7 +564,11 @@ a { color: #c4b5fd; text-decoration: none; }
   padding: 36px;
   text-align: center;
   background: rgba(167, 139, 250, 0.04);
-  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
   color: #94a3b8;
   cursor: pointer;
 }
@@ -528,7 +591,9 @@ a { color: #c4b5fd; text-decoration: none; }
   background: rgba(167, 139, 250, 0.08);
 }
 
-.dropzone p { margin: 6px 0; }
+.dropzone p {
+  margin: 6px 0;
+}
 
 .dropzone.dragover {
   border-color: #c4b5fd;
@@ -636,7 +701,10 @@ a { color: #c4b5fd; text-decoration: none; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
   padding: 0;
 }
 
@@ -732,7 +800,6 @@ a { color: #c4b5fd; text-decoration: none; }
     margin-left: 130px;
   }
 }
-
 
 .message {
   border-radius: 18px;
@@ -837,7 +904,7 @@ a { color: #c4b5fd; text-decoration: none; }
   margin-left: -20px;
 }
 
-.markdown-content li input[type="checkbox"] {
+.markdown-content li input[type='checkbox'] {
   accent-color: #22c55e;
   width: 15px;
   height: 15px;
@@ -927,7 +994,11 @@ li:has(.checklist-box) {
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    opacity 0.15s;
   font-family: inherit;
   white-space: nowrap;
   opacity: 0;
@@ -984,9 +1055,15 @@ li:has(.checklist-box) {
   letter-spacing: normal;
 }
 
-.markdown-content h1 { font-size: 24px; }
-.markdown-content h2 { font-size: 20px; }
-.markdown-content h3 { font-size: 15px; }
+.markdown-content h1 {
+  font-size: 24px;
+}
+.markdown-content h2 {
+  font-size: 20px;
+}
+.markdown-content h3 {
+  font-size: 15px;
+}
 
 .markdown-content a {
   color: #a78bfa;
@@ -1043,8 +1120,16 @@ li:has(.checklist-box) {
 }
 
 @keyframes typing-bounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
-  40% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 textarea.big-input {
@@ -1190,8 +1275,6 @@ textarea.big-input {
   gap: 8px;
 }
 
-
-
 .header {
   display: flex;
   align-items: center;
@@ -1252,7 +1335,9 @@ textarea.big-input {
   font-family: inherit;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   color: #f1f5f9;
   font-weight: 600;
 }
@@ -1311,7 +1396,7 @@ h1, h2, h3 {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 99;
     opacity: 0;
     pointer-events: none;
@@ -1432,7 +1517,9 @@ h1, h2, h3 {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .indexing-bar {
@@ -1517,30 +1604,20 @@ h1, h2, h3 {
   z-index: 10000;
   pointer-events: auto;
   opacity: 0;
-  transform: translateY(6px) scale(0.85);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-/* On mobile, animate from below (tooltip appears below text) */
-@media (hover: none) {
-  .speech-tooltip {
-    transform: translateY(-6px) scale(0.85);
-  }
-  .speech-tooltip-visible {
-    transform: translateY(0) scale(1);
-  }
-  .speech-tooltip-hiding {
-    transform: translateY(-6px) scale(0.85);
-  }
+  transform: translateX(-10px) scale(0.9);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
 .speech-tooltip-visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateX(0) scale(1);
 }
 
 .speech-tooltip-hiding {
   opacity: 0;
-  transform: translateY(6px) scale(0.85);
+  transform: translateX(10px) scale(0.9);
 }
 
 .speech-tooltip-btn {
@@ -1556,8 +1633,13 @@ h1, h2, h3 {
   cursor: pointer;
   padding: 0;
   backdrop-filter: blur(8px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(167, 139, 250, 0.15);
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(167, 139, 250, 0.15);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
 }
 
 @media (hover: hover) {
@@ -1603,7 +1685,10 @@ h1, h2, h3 {
   pointer-events: none;
   background: rgba(196, 181, 253, 0.12);
   border-radius: 3px;
-  transition: left 0.06s, top 0.06s, width 0.06s;
+  transition:
+    left 0.06s,
+    top 0.06s,
+    width 0.06s;
 }
 
 /* ── Caption highlight (active word during TTS playback) ── */
@@ -1615,7 +1700,9 @@ h1, h2, h3 {
   border-radius: 3px;
   opacity: 0;
   transform: translateY(4px);
-  transition: opacity 0.13s ease, transform 0.13s ease;
+  transition:
+    opacity 0.13s ease,
+    transform 0.13s ease;
 }
 .speech-caption-highlight.caption-active {
   opacity: 1;
@@ -1633,7 +1720,9 @@ h1, h2, h3 {
   white-space: nowrap;
   opacity: 0;
   transform: translateY(4px);
-  transition: opacity 0.13s ease, transform 0.13s ease;
+  transition:
+    opacity 0.13s ease,
+    transform 0.13s ease;
 }
 .speech-caption-ghost.caption-active {
   opacity: 1;

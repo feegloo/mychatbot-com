@@ -85,6 +85,12 @@ CREATE INDEX IF NOT EXISTS idx_access_requests_conversation_id
 CREATE INDEX IF NOT EXISTS idx_conversation_messages_conversation_id
   ON conversation_messages(conversation_id, created_at);
 
+CREATE INDEX IF NOT EXISTS idx_conversations_parent_conversation_id
+  ON conversations(parent_conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_parent_message_id
+  ON conversations(parent_message_id);
+
 CREATE INDEX IF NOT EXISTS idx_user_fingerprints_fingerprint
   ON user_fingerprints(fingerprint);
 

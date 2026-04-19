@@ -3,23 +3,23 @@
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <!-- Mobile close bar above content -->
       <div v-if="isMobile" class="source-modal-close-bar" @click="$emit('close')">
-        <button
-          v-if="isPdf"
-          class="source-modal-open-pdf"
-          @click.stop="openFullPdf"
-        >Open PDF</button>
+        <button v-if="isPdf" class="source-modal-open-pdf" @click.stop="openFullPdf">
+          Open PDF
+        </button>
         <button class="source-modal-close-bar-x">&times;</button>
       </div>
 
       <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
-        <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">&times;</button>
+        <button class="source-modal-close source-modal-close--desktop" @click="$emit('close')">
+          &times;
+        </button>
 
         <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
         <PdfPageViewer
           v-if="isPdf"
           :url="pdfBaseUrl"
           :page="citation.page ?? 1"
-          :highlightText="citation.text"
+          :highlight-text="citation.text"
         />
 
         <!-- Source text quote (non-PDF only) -->
@@ -33,44 +33,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
-import { getStorageUrl } from "../api";
-import { cleanFileName, linkify } from "../utils/text";
-const PdfPageViewer = defineAsyncComponent(() => import("./PdfPageViewer.vue"));
+import { computed, defineAsyncComponent } from 'vue'
+import { getStorageUrl } from '../api'
+import { cleanFileName, linkify } from '../utils/text'
+const PdfPageViewer = defineAsyncComponent(() => import('./PdfPageViewer.vue'))
 
 const props = defineProps<{
-  visible: boolean;
+  visible: boolean
   citation: {
-    fileName: string;
-    chunkId: string;
-    text: string;
-    section?: string;
-    page?: number | null;
-    imageName?: string;
-  };
-  conversationId: string;
-}>();
+    fileName: string
+    chunkId: string
+    text: string
+    section?: string
+    page?: number | null
+    imageName?: string
+  }
+  conversationId: string
+}>()
 
 defineEmits<{
-  close: [];
-}>();
+  close: []
+}>()
 
-const displayFileName = computed(() => cleanFileName(props.citation.fileName));
+const displayFileName = computed(() => cleanFileName(props.citation.fileName))
 
-const isPdf = computed(() =>
-  props.citation.fileName.toLowerCase().endsWith(".pdf")
-);
+const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
 
-const isMobile = computed(() =>
-  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-);
+const isMobile = computed(() => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
 
-const pdfBaseUrl = computed(() =>
-  getStorageUrl(props.conversationId, props.citation.fileName)
-);
+const pdfBaseUrl = computed(() => getStorageUrl(props.conversationId, props.citation.fileName))
 
 function openFullPdf() {
-  window.open(pdfBaseUrl.value, "_blank", "noopener");
+  window.open(pdfBaseUrl.value, '_blank', 'noopener')
 }
 </script>
 

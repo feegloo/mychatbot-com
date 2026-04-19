@@ -10,6 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
     "docker:init": "cat sql/schema.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag && cat sql/migration.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag"
   },
   "dependencies": {
@@ -20,18 +23,18 @@
     "@koa/router": "^14.0.0",
     "@sentry/node": "^10.49.0",
     "dotenv": "^16.4.7",
-    "is-generator-function": "^1.1.0",
     "koa": "^3.2.0",
     "koa-bodyparser": "^4.4.1",
     "koa-send": "^5.0.1",
     "koa-static": "^5.0.0",
-    "mime-types": "^2.1.35",
     "pg": "^8.14.1",
+    "pino": "^10.3.1",
     "stripe": "^22.0.2",
     "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/koa": "^2.15.0",
     "@types/koa__cors": "^5.0.0",
     "@types/koa__multer": "^2.0.8",
@@ -39,13 +42,16 @@
     "@types/koa-bodyparser": "^4.3.12",
     "@types/koa-send": "^4.1.6",
     "@types/koa-static": "^4.0.4",
-    "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.10",
     "@types/pg": "^8.11.11",
     "@types/supertest": "^6.0.3",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
     "supertest": "^7.1.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^3.0.9"
   }
 }

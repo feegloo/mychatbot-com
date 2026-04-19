@@ -1,9 +1,8 @@
 """Extract file metadata (EXIF, PDF info, basic file stats) + reverse image search."""
+
 from __future__ import annotations
 
-import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -46,14 +45,14 @@ def _parse_gps_coord(coord: tuple, ref: str) -> float | None:
 
 def extract_image_metadata(file_path: str, web_search: bool = False) -> dict:
     """Extract EXIF and basic metadata from an image file.
-    
+
     Args:
         file_path: Path to the image file.
         web_search: If True, also run Google Vision reverse image search.
                     Should only be enabled for standalone uploaded images.
     """
     from PIL import Image
-    from PIL.ExifTags import TAGS, GPSTAGS
+    from PIL.ExifTags import GPSTAGS, TAGS
 
     p = Path(file_path)
     metadata: dict[str, Any] = {
@@ -140,7 +139,7 @@ def extract_image_metadata(file_path: str, web_search: bool = False) -> dict:
         return metadata
 
     try:
-        from .image_search import reverse_image_search, identify_from_web_results
+        from .image_search import identify_from_web_results, reverse_image_search
 
         web_results = reverse_image_search(file_path)
         if web_results:
@@ -225,7 +224,7 @@ def extract_metadata(file_path: str, web_search: bool = False) -> dict:
 
 def extract_metadata_many(file_paths: list[str]) -> dict[str, dict]:
     """Extract metadata for multiple files. Returns {filename: metadata_dict}.
-    
+
     Only extracts local metadata (EXIF, PDF info, file stats).
     Does NOT call external APIs — use enrich_metadata_web() separately for that.
     """
@@ -248,17 +247,17 @@ def enrich_metadata_web(
     welcome_message: str = "",
 ) -> dict[str, dict]:
     """Run Google Vision reverse image search + LLM identification for image files.
-    
+
     Combines three sources for the final "recognize person name" LLM call:
       1. EXIF metadata (already extracted, passed in)
       2. AI description / welcome message (already generated, passed in)
       3. Google Vision web detection (fetched here)
-    
+
     Returns {filename: enrichment_dict} with keys like
     web_detection, identified_name, identification.
     Returns empty dict if no images.
     """
-    from .image_search import reverse_image_search, identify_from_web_results
+    from .image_search import identify_from_web_results, reverse_image_search
 
     image_paths = [fp for fp in file_paths if Path(fp).suffix.lower() in IMAGE_EXTENSIONS]
     logger.info(

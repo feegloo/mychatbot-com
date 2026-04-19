@@ -11,14 +11,14 @@
 
 <script setup lang="ts">
 defineProps<{
-  visible: boolean;
-  src: string;
-  alt?: string;
-}>();
+  visible: boolean
+  src: string
+  alt?: string
+}>()
 
 defineEmits<{
-  close: [];
-}>();
+  close: []
+}>()
 </script>
 
 <style scoped>

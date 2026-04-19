@@ -6,16 +6,18 @@
       <div class="shared-header">
         <span class="shared-label">Shared answer</span>
         <span v-if="message.displayName" class="shared-conv-name">{{ message.displayName }}</span>
-        <router-link v-if="isOwner" :to="`/c/${message.conversationId}`" class="shared-open-link">Open full conversation →</router-link>
+        <router-link v-if="isOwner" :to="`/c/${message.conversationId}`" class="shared-open-link"
+          >Open full conversation →</router-link
+        >
       </div>
       <div class="shared-message-container">
         <ChatMessageItem
           :msg="message"
           :asking="false"
-          :conversationId="message.conversationId"
-          :isWelcome="sharedIsWelcome"
+          :conversation-id="message.conversationId"
+          :is-welcome="sharedIsWelcome"
           :files="sharedFiles"
-          :noAnimation="true"
+          :no-animation="true"
           @select-question="replyText = $event; startThread()"
         />
       </div>
@@ -23,13 +25,30 @@
       <!-- Thread replies section -->
       <div v-if="threads.length" class="threads-section">
         <div class="threads-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          {{ totalReplies }} {{ totalReplies === 1 ? 'reply' : 'replies' }} in {{ threads.length }} {{ threads.length === 1 ? 'thread' : 'threads' }}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {{ totalReplies }} {{ totalReplies === 1 ? 'reply' : 'replies' }} in {{ threads.length }}
+          {{ threads.length === 1 ? 'thread' : 'threads' }}
         </div>
         <div v-for="thread in threads" :key="thread.conversationId" class="thread-bubble">
           <router-link :to="`/c/${thread.conversationId}`" class="thread-link">
-            <span class="thread-user">{{ thread.lastUserId === getUserId() ? 'YOU' : `user${thread.lastUserId}` }}</span>
-            <span class="thread-count">{{ thread.messageCount }} {{ thread.messageCount === 1 ? 'message' : 'messages' }}</span>
+            <span class="thread-user">{{
+              thread.lastUserId === getUserId() ? 'YOU' : `user${thread.lastUserId}`
+            }}</span>
+            <span class="thread-count"
+              >{{ thread.messageCount }}
+              {{ thread.messageCount === 1 ? 'message' : 'messages' }}</span
+            >
             <span class="thread-arrow">→</span>
           </router-link>
         </div>
@@ -39,8 +58,8 @@
       <div class="thread-reply-bar">
         <textarea
           ref="replyInput"
-          class="thread-reply-textarea"
           v-model="replyText"
+          class="thread-reply-textarea"
           placeholder="Reply to start a new thread..."
           rows="1"
           @input="autoResize"
@@ -51,7 +70,9 @@
           :disabled="creatingThread || !replyText.trim()"
           @click="startThread"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
         </button>
       </div>
     </template>
@@ -59,76 +80,86 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from "vue";
-import { useRouter } from "vue-router";
-import { getSharedMessage, getMessageThreads, createThread, saveConversationToken, getConversationToken, type SharedMessage, type ThreadSummary } from "../api";
-import { getUserId } from "../utils/fingerprint";
-import ChatMessageItem from "../components/ChatMessage.vue";
+import { onMounted, ref, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  getSharedMessage,
+  getMessageThreads,
+  createThread,
+  saveConversationToken,
+  getConversationToken,
+  type SharedMessage,
+  type ThreadSummary,
+} from '../api'
+import { getUserId } from '../utils/fingerprint'
+import ChatMessageItem from '../components/ChatMessage.vue'
 
-const props = defineProps<{ messageId: string }>();
-const router = useRouter();
+const props = defineProps<{ messageId: string }>()
+const router = useRouter()
 
-const message = ref<SharedMessage | null>(null);
-const loading = ref(true);
-const error = ref("");
-const threads = ref<ThreadSummary[]>([]);
-const replyText = ref("");
-const replyInput = ref<HTMLTextAreaElement | null>(null);
-const creatingThread = ref(false);
+const message = ref<SharedMessage | null>(null)
+const loading = ref(true)
+const error = ref('')
+const threads = ref<ThreadSummary[]>([])
+const replyText = ref('')
+const replyInput = ref<HTMLTextAreaElement | null>(null)
+const creatingThread = ref(false)
 
-const totalReplies = computed(() => threads.value.reduce((sum, t) => sum + t.messageCount, 0));
-const sharedIsWelcome = computed(() => !!message.value?.uploadedFileNames?.length);
-const isOwner = computed(() => !!message.value?.conversationId && !!getConversationToken(message.value.conversationId));
-const sharedFiles = computed(() => message.value?.files);
+const totalReplies = computed(() => threads.value.reduce((sum, t) => sum + t.messageCount, 0))
+const sharedIsWelcome = computed(() => !!message.value?.uploadedFileNames?.length)
+const isOwner = computed(
+  () => !!message.value?.conversationId && !!getConversationToken(message.value.conversationId),
+)
+const sharedFiles = computed(() => message.value?.files)
 
 async function load() {
-  loading.value = true;
-  error.value = "";
+  loading.value = true
+  error.value = ''
   try {
     const [msg, threadData] = await Promise.all([
       getSharedMessage(props.messageId),
-      getMessageThreads(props.messageId)
-    ]);
-    message.value = msg;
-    threads.value = threadData.threads;
-    document.title = `${msg.displayName || "Shared answer"} | chatrag.app`;
+      getMessageThreads(props.messageId),
+    ])
+    message.value = msg
+    threads.value = threadData.threads
+    document.title = `${msg.displayName || 'Shared answer'} | chatrag.app`
   } catch {
-    error.value = "Message not found";
+    error.value = 'Message not found'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 async function startThread() {
-  if (!replyText.value.trim() || creatingThread.value) return;
-  const userId = getUserId();
+  if (!replyText.value.trim() || creatingThread.value) return
+  const userId = getUserId()
   if (!userId) {
-    error.value = "Could not identify your browser. Please reload.";
-    return;
+    error.value = 'Could not identify your browser. Please reload.'
+    return
   }
-  creatingThread.value = true;
-  const pendingQuestion = replyText.value.trim();
+  creatingThread.value = true
+  const pendingQuestion = replyText.value.trim()
   try {
-    const result = await createThread(props.messageId, userId);
+    const result = await createThread(props.messageId, userId)
     // Save the owner token so user can continue chatting
-    saveConversationToken(result.conversationId, result.ownerPassword);
+    saveConversationToken(result.conversationId, result.ownerPassword)
     // Navigate to the new thread conversation with the pending question
-    router.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } });
+    router.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } })
   } catch (err: any) {
-    error.value = err?.response?.data?.error || "Failed to create thread";
+    error.value = err?.response?.data?.error || 'Failed to create thread'
   } finally {
-    creatingThread.value = false;
+    creatingThread.value = false
   }
 }
 
 function autoResize(e: Event) {
-  const el = e.target as HTMLTextAreaElement;
-  el.style.height = "auto";
-  el.style.height = el.scrollHeight + "px";
+  const el = e.target as HTMLTextAreaElement
+  el.style.height = 'auto'
+  el.style.height = el.scrollHeight + 'px'
 }
 
-onMounted(load);
-watch(() => props.messageId, load);
+onMounted(load)
+watch(() => props.messageId, load)
 </script>
 
 <style scoped>

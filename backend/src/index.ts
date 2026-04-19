@@ -1,9 +1,9 @@
-import "./instrument.js";
-import { createApp } from "./app.js";
-import { config } from "./config.js";
+import './instrument.js'
+import { createApp } from './app.js'
+import { config } from './config.js'
 
-const app = createApp();
+const app = createApp()
 
 app.listen(config.port, () => {
-  console.log(`Backend listening on http://localhost:${config.port}`);
-});
+  console.log(`Backend listening on http://localhost:${config.port}`)
+})

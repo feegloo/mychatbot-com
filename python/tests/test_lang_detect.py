@@ -1,4 +1,3 @@
-import pytest
 from shared.lang_detect import detect_language
 
 

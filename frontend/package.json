@@ -10,7 +10,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
@@ -29,6 +32,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.52.0",
     "@sentry/vite-plugin": "^5.2.0",
     "@types/dompurify": "^3.0.5",
@@ -36,8 +40,13 @@
     "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/ui": "^1.0.0",
     "@vue/test-utils": "^2.4.1",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.8.0",
     "happy-dom": "^12.10.3",
+    "prettier": "^3.8.3",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.58.2",
     "vite": "^6.2.1",
     "vitest": "^1.0.0",
     "vue-tsc": "^2.2.8"

@@ -14,15 +14,13 @@ Set environment variables:
   WORKER_REGION=europe-west1     # GCP region
   GCP_PROJECT_ID=chatbotqa-app   # GCP project
 """
+
 from __future__ import annotations
 
-import json
 import logging
 import os
 import subprocess
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -56,17 +54,23 @@ def dispatch_page_jobs(
 
     # Dispatch all pages in parallel (gcloud calls are IO-bound)
     def _dispatch_one(page_idx: int) -> dict:
-        env_overrides = ",".join([
-            f"WORKER_PDF_PATH={pdf_gcs_uri}",
-            f"WORKER_PAGE_IDX={page_idx}",
-            f"WORKER_TOTAL_PAGES={total_pages}",
-            f"WORKER_OUTPUT_DIR={output_dir}",
-            f"WORKER_CONVERSATION_ID={conversation_id}",
-            f"WORKER_COLLECTION_NAME={collection_name}",
-        ])
+        env_overrides = ",".join(
+            [
+                f"WORKER_PDF_PATH={pdf_gcs_uri}",
+                f"WORKER_PAGE_IDX={page_idx}",
+                f"WORKER_TOTAL_PAGES={total_pages}",
+                f"WORKER_OUTPUT_DIR={output_dir}",
+                f"WORKER_CONVERSATION_ID={conversation_id}",
+                f"WORKER_COLLECTION_NAME={collection_name}",
+            ]
+        )
 
         cmd = [
-            "gcloud", "run", "jobs", "execute", job_name,
+            "gcloud",
+            "run",
+            "jobs",
+            "execute",
+            job_name,
             f"--region={region}",
             f"--project={project}",
             f"--update-env-vars={env_overrides}",
@@ -78,7 +82,10 @@ def dispatch_page_jobs(
         logger.info(f"☁️ Dispatching page {page_idx + 1}/{total_pages}")
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=600,
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,
             )
             if proc.returncode == 0:
                 return {
@@ -108,10 +115,7 @@ def dispatch_page_jobs(
     # Use ThreadPool to dispatch gcloud commands concurrently
     max_concurrent = min(total_pages, 20)  # Cap concurrent dispatches
     with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
-        futures = {
-            pool.submit(_dispatch_one, idx): idx
-            for idx in range(total_pages)
-        }
+        futures = {pool.submit(_dispatch_one, idx): idx for idx in range(total_pages)}
         for future in as_completed(futures):
             results.append(future.result())
 

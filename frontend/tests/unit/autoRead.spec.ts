@@ -85,6 +85,11 @@ describe("cleanTextForTTS", () => {
     expect(cleanTextForTTS("Hello   \n\n   world")).toBe("Hello world");
   });
 
+  it("removes mermaid code blocks", () => {
+    const input = "Here is a diagram:\n\n```mermaid\ngraph TD\n  A-->B\n  B-->C\n```\n\nAs shown above.";
+    expect(cleanTextForTTS(input)).toBe("Here is a diagram: As shown above.");
+  });
+
   it("handles complex mixed content", () => {
     const input =
       "## Stage 1: **Haemostasis** 🩸\n\nThis starts [source:8] within seconds. [action:Learn more about healing]\n\n[quiz:{\"title\":\"test\"}]";

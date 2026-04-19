@@ -1,4 +1,3 @@
-import pytest
 from shared.extractors import clean_file_name
 
 
@@ -19,7 +18,9 @@ class TestCleanFileName:
         assert clean_file_name("") == ""
 
     def test_only_strips_first_uuid_prefix(self):
-        result = clean_file_name("550e8400-e29b-41d4-a716-446655440000_550e8400-e29b-41d4-a716-446655440001_file.txt")
+        result = clean_file_name(
+            "550e8400-e29b-41d4-a716-446655440000_550e8400-e29b-41d4-a716-446655440001_file.txt"
+        )
         assert result == "550e8400-e29b-41d4-a716-446655440001_file.txt"
 
     def test_strips_both_uuid_prefix_and_short_id_suffix(self):
@@ -40,4 +41,7 @@ class TestCleanFileName:
 
     def test_long_filename_with_hash_suffix(self):
         """Filenames like '2732x4096_50df03347243cf3f645f088f03bc546c.jpg' should keep the hash (32 chars, not 16)."""
-        assert clean_file_name("2732x4096_50df03347243cf3f645f088f03bc546c.jpg") == "2732x4096_50df03347243cf3f645f088f03bc546c.jpg"
+        assert (
+            clean_file_name("2732x4096_50df03347243cf3f645f088f03bc546c.jpg")
+            == "2732x4096_50df03347243cf3f645f088f03bc546c.jpg"
+        )

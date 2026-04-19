@@ -12,6 +12,7 @@ locally as a fallback (507 chunks). The page errors are NOT caused by the
 PDF parsing itself — fitz/pypdf handle this file correctly. The errors come
 from cloud worker failures (Cloud Run Job dispatch/execution failures).
 """
+
 import tempfile
 from pathlib import Path
 
@@ -19,10 +20,14 @@ import fitz
 import pytest
 from pypdf import PdfReader
 
-from shared.extractors import extract_pdf, _reflow_pdf_text, _sanitize_text
-from shared.chunkers import split_into_chunks, Chunk
+from shared.chunkers import Chunk, split_into_chunks
+from shared.extractors import _reflow_pdf_text, _sanitize_text, extract_pdf
 
-PDF_PATH = Path(__file__).resolve().parent.parent.parent / "test-files" / "Mroz-Remigiusz-Joanna-Chylka-02-Zaginiecie.pdf"
+PDF_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "test-files"
+    / "Mroz-Remigiusz-Joanna-Chylka-02-Zaginiecie.pdf"
+)
 
 pytestmark = pytest.mark.skipif(
     not PDF_PATH.exists(),
@@ -57,7 +62,7 @@ class TestFitzTextExtraction:
         for i in range(5):
             page = self.doc[i]
             raw = page.get_text() or ""
-            assert len(raw.strip()) == 0, f"Page {i+1} expected empty, got {len(raw)} chars"
+            assert len(raw.strip()) == 0, f"Page {i + 1} expected empty, got {len(raw)} chars"
 
     def test_page_6_has_latin_motto(self):
         """Page 6 contains the Latin motto."""

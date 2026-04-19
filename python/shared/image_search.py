@@ -4,6 +4,7 @@ Uses the official google-cloud-vision client library with Application
 Default Credentials (ADC).  Set GOOGLE_APPLICATION_CREDENTIALS in .env
 pointing to the JSON credentials file.
 """
+
 from __future__ import annotations
 
 import json
@@ -42,7 +43,9 @@ def reverse_image_search(image_path: str) -> dict | None:
     logger.info(f"🔍 reverse_image_search called for: {image_path}")
     if not _credentials_available():
         creds_env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
-        logger.info(f"⏭️  GOOGLE_APPLICATION_CREDENTIALS not set or file missing (env='{creds_env}'), skipping reverse image search")
+        logger.info(
+            f"⏭️  GOOGLE_APPLICATION_CREDENTIALS not set or file missing (env='{creds_env}'), skipping reverse image search"
+        )
         return None
 
     p = Path(image_path)
@@ -92,21 +95,13 @@ def reverse_image_search(image_path: str) -> dict | None:
     ]
 
     # Full matching images
-    result["full_matching_images"] = [
-        {"url": m.url}
-        for m in web.full_matching_images[:5]
-    ]
+    result["full_matching_images"] = [{"url": m.url} for m in web.full_matching_images[:5]]
 
     # Visually similar images
-    result["visually_similar_images"] = [
-        {"url": s.url}
-        for s in web.visually_similar_images[:5]
-    ]
+    result["visually_similar_images"] = [{"url": s.url} for s in web.visually_similar_images[:5]]
 
     # Best guess labels
-    result["best_guess_labels"] = [
-        lb.label for lb in web.best_guess_labels if lb.label
-    ]
+    result["best_guess_labels"] = [lb.label for lb in web.best_guess_labels if lb.label]
 
     logger.info(
         f"🔍 Web detection: {len(result['web_entities'])} entities, "
@@ -133,6 +128,7 @@ def identify_from_web_results(
     Returns None if no meaningful identification could be made.
     """
     from openai import OpenAI
+
     from .config import get_settings
 
     logger.info(
@@ -151,9 +147,19 @@ def identify_from_web_results(
     # 1. EXIF metadata context
     if exif_metadata:
         exif_lines = []
-        for key in ("camera_make", "camera_model", "date_taken", "gps_latitude",
-                     "gps_longitude", "gps_altitude", "artist", "copyright",
-                     "description", "software", "lens_model"):
+        for key in (
+            "camera_make",
+            "camera_model",
+            "date_taken",
+            "gps_latitude",
+            "gps_longitude",
+            "gps_altitude",
+            "artist",
+            "copyright",
+            "description",
+            "software",
+            "lens_model",
+        ):
             if key in exif_metadata:
                 exif_lines.append(f"- {key}: {exif_metadata[key]}")
         if exif_lines:
@@ -173,11 +179,13 @@ def identify_from_web_results(
             context_parts.append(f"Best guess labels: {', '.join(labels)}")
         if entities:
             entity_strs = [f"- {e['description']} (score: {e['score']})" for e in entities[:8]]
-            context_parts.append(f"Web entities found:\n" + "\n".join(entity_strs))
+            context_parts.append("Web entities found:\n" + "\n".join(entity_strs))
         if pages:
-            page_strs = [f"- {pg['page_title']} ({pg['url']})" for pg in pages[:5] if pg['page_title']]
+            page_strs = [
+                f"- {pg['page_title']} ({pg['url']})" for pg in pages[:5] if pg["page_title"]
+            ]
             if page_strs:
-                context_parts.append(f"Pages with matching image:\n" + "\n".join(page_strs))
+                context_parts.append("Pages with matching image:\n" + "\n".join(page_strs))
 
     if not context_parts:
         return None
@@ -205,7 +213,10 @@ If the results are too ambiguous or there's not enough evidence, respond with:
             model=settings.openai_chat_model,
             max_completion_tokens=200,
             messages=[
-                {"role": "system", "content": "You are an image identification assistant. Analyze web search results to identify people, places, or subjects. Be precise and honest about confidence levels."},
+                {
+                    "role": "system",
+                    "content": "You are an image identification assistant. Analyze web search results to identify people, places, or subjects. Be precise and honest about confidence levels.",
+                },
                 {"role": "user", "content": prompt},
             ],
         )
@@ -213,9 +224,13 @@ If the results are too ambiguous or there's not enough evidence, respond with:
         logger.info(f"🤖 LLM raw response: {text[:500]}")
         result = json.loads(text)
         if result.get("identified_name"):
-            logger.info(f"🎯 Identified: {result['identified_name']} ({result.get('confidence', '?')})")
+            logger.info(
+                f"🎯 Identified: {result['identified_name']} ({result.get('confidence', '?')})"
+            )
         else:
-            logger.info(f"🎯 No identification - confidence={result.get('confidence')}, reasoning={result.get('reasoning', '')}")
+            logger.info(
+                f"🎯 No identification - confidence={result.get('confidence')}, reasoning={result.get('reasoning', '')}"
+            )
         return result
     except json.JSONDecodeError as e:
         logger.warning(f"⚠️  LLM returned invalid JSON: {e}. Raw text: {text[:500]}")

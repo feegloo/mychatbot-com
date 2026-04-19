@@ -13,33 +13,30 @@ Supports two execution modes:
 
 Each page worker reports telemetry to processing_jobs via shared.telemetry.
 """
+
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import fitz  # PyMuPDF
 
 from .chunkers import Chunk, split_into_chunks
 from .extractors import (
-    _describe_image,
-    _sanitize_text,
-    _reflow_pdf_text,
-    MIN_IMAGE_SIZE,
-    MIN_IMAGE_DIM,
     IMAGE_EXTENSIONS,
-    _MIME_TYPES,
+    MIN_IMAGE_DIM,
+    MIN_IMAGE_SIZE,
+    _describe_image,
+    _reflow_pdf_text,
+    _sanitize_text,
     extract_text,
 )
-from .telemetry import trace_step, log_processing_event
-from .vector_store import embed_texts
+from .telemetry import log_processing_event, trace_step
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +49,7 @@ _IMAGE_WORKERS = (os.cpu_count() or 2) * 2
 @dataclass
 class PageResult:
     """Result of processing a single page."""
+
     page_number: int
     file_name: str
     chunks: list[Chunk] = field(default_factory=list)
@@ -65,6 +63,7 @@ class PageResult:
 @dataclass
 class FileProcessingResult:
     """Aggregated result of processing all pages in a file."""
+
     file_name: str
     file_path: str
     total_pages: int
@@ -126,18 +125,22 @@ def _extract_page_images(
             pix.save(str(image_path))
 
         png_bytes = image_path.read_bytes()
-        saved.append({
-            "image_path": str(image_path),
-            "image_name": image_name,
-            "file_name": pdf_stem + ".pdf",
-            "png_bytes": png_bytes,
-            "page": page_idx + 1,
-        })
+        saved.append(
+            {
+                "image_path": str(image_path),
+                "image_name": image_name,
+                "file_name": pdf_stem + ".pdf",
+                "png_bytes": png_bytes,
+                "page": page_idx + 1,
+            }
+        )
 
     return saved
 
 
-def _describe_images_parallel(images: list[dict], conversation_id: str, file_name: str) -> list[dict]:
+def _describe_images_parallel(
+    images: list[dict], conversation_id: str, file_name: str
+) -> list[dict]:
     """Describe a batch of images in parallel using Vision API."""
     if not images:
         return []
@@ -147,7 +150,9 @@ def _describe_images_parallel(images: list[dict], conversation_id: str, file_nam
     def _describe_one(item: dict) -> dict:
         try:
             with trace_step(
-                conversation_id, file_name, "describe_image",
+                conversation_id,
+                file_name,
+                "describe_image",
                 page_number=item["page"],
                 detail=f"image={item['image_name']} size={len(item['png_bytes'])} bytes",
             ):
@@ -196,8 +201,11 @@ def process_pdf_page(
 
         # Step 1: Extract text
         with trace_step(
-            conversation_id, file_name, "extract_page_text",
-            page_number=page_num, total_pages=total_pages,
+            conversation_id,
+            file_name,
+            "extract_page_text",
+            page_number=page_num,
+            total_pages=total_pages,
             worker_id=worker_id,
         ) as ctx:
             page_text = _extract_page_text(doc, page_idx)
@@ -206,12 +214,19 @@ def process_pdf_page(
 
         # Step 2: Extract images from page
         with trace_step(
-            conversation_id, file_name, "extract_page_images",
-            page_number=page_num, total_pages=total_pages,
+            conversation_id,
+            file_name,
+            "extract_page_images",
+            page_number=page_num,
+            total_pages=total_pages,
             worker_id=worker_id,
         ) as ctx:
             raw_images = _extract_page_images(
-                doc, page_idx, Path(output_dir), p.stem, seen_xrefs,
+                doc,
+                page_idx,
+                Path(output_dir),
+                p.stem,
+                seen_xrefs,
             )
             ctx["detail"] = f"{len(raw_images)} images found"
 
@@ -220,8 +235,11 @@ def process_pdf_page(
         # Step 3: Describe images (parallel API calls)
         if raw_images:
             with trace_step(
-                conversation_id, file_name, "describe_page_images",
-                page_number=page_num, total_pages=total_pages,
+                conversation_id,
+                file_name,
+                "describe_page_images",
+                page_number=page_num,
+                total_pages=total_pages,
                 detail=f"{len(raw_images)} images",
                 worker_id=worker_id,
             ):
@@ -230,8 +248,11 @@ def process_pdf_page(
 
         # Step 4: Chunk the page text
         with trace_step(
-            conversation_id, file_name, "chunk_page_text",
-            page_number=page_num, total_pages=total_pages,
+            conversation_id,
+            file_name,
+            "chunk_page_text",
+            page_number=page_num,
+            total_pages=total_pages,
             worker_id=worker_id,
         ) as ctx:
             chunks = split_into_chunks(file_name, page_text, page_num=page_num)
@@ -248,9 +269,13 @@ def process_pdf_page(
         result.error = str(e)[:500]
         logger.error(f"❌ Page {page_num} of {file_name} failed: {e}")
         log_processing_event(
-            conversation_id, file_name, "page_processing",
-            page_number=page_num, total_pages=total_pages,
-            status="failed", error_message=str(e)[:500],
+            conversation_id,
+            file_name,
+            "page_processing",
+            page_number=page_num,
+            total_pages=total_pages,
+            status="failed",
+            error_message=str(e)[:500],
             worker_id=worker_id,
         )
 
@@ -277,7 +302,9 @@ def process_pdf_parallel(
     logger.info(f"📄 Processing {file_name}: {total_pages} pages with {_PAGE_WORKERS} workers")
 
     with trace_step(
-        conversation_id, file_name, "file_processing_started",
+        conversation_id,
+        file_name,
+        "file_processing_started",
         total_pages=total_pages,
         detail=f"{total_pages} pages, {_PAGE_WORKERS} workers",
     ):
@@ -301,8 +328,13 @@ def process_pdf_parallel(
         for page_idx in range(total_pages):
             future = pool.submit(
                 process_pdf_page,
-                pdf_path, page_idx, total_pages, output_dir,
-                conversation_id, seen_xrefs, worker_id,
+                pdf_path,
+                page_idx,
+                total_pages,
+                output_dir,
+                conversation_id,
+                seen_xrefs,
+                worker_id,
             )
             futures[future] = page_idx
 
@@ -325,14 +357,23 @@ def process_pdf_parallel(
         logger.info(f"🔄 Retrying {len(failed_pages)} failed pages...")
         for page_idx in failed_pages:
             log_processing_event(
-                conversation_id, file_name, "page_retry",
-                page_number=page_idx + 1, total_pages=total_pages,
-                status="retrying", detail=f"retry 1 of {max_retries}",
+                conversation_id,
+                file_name,
+                "page_retry",
+                page_number=page_idx + 1,
+                total_pages=total_pages,
+                status="retrying",
+                detail=f"retry 1 of {max_retries}",
             )
             try:
                 result = process_pdf_page(
-                    pdf_path, page_idx, total_pages, output_dir,
-                    conversation_id, seen_xrefs, worker_id,
+                    pdf_path,
+                    page_idx,
+                    total_pages,
+                    output_dir,
+                    conversation_id,
+                    seen_xrefs,
+                    worker_id,
                 )
                 if not result.error:
                     page_results[page_idx] = result
@@ -349,15 +390,19 @@ def process_pdf_parallel(
             file_result.all_images.extend(pr.images)
             file_result.full_text += pr.text + "\n\n"
         else:
-            file_result.errors.append({
-                "page": pr.page_number,
-                "error": pr.error,
-            })
+            file_result.errors.append(
+                {
+                    "page": pr.page_number,
+                    "error": pr.error,
+                }
+            )
 
     # Log summary
     succeeded = sum(1 for r in file_result.page_results if not r.error)
     log_processing_event(
-        conversation_id, file_name, "file_processing_completed",
+        conversation_id,
+        file_name,
+        "file_processing_completed",
         total_pages=total_pages,
         status="completed",
         detail=(
@@ -387,7 +432,9 @@ def process_standalone_file(
     )
 
     with trace_step(
-        conversation_id, file_name, "file_processing_started",
+        conversation_id,
+        file_name,
+        "file_processing_started",
         detail=f"type={suffix}",
     ):
         pass
@@ -395,7 +442,9 @@ def process_standalone_file(
     try:
         # Extract text (includes image description for image files)
         with trace_step(
-            conversation_id, file_name, "extract_text",
+            conversation_id,
+            file_name,
+            "extract_text",
             detail=f"type={suffix}",
         ) as ctx:
             text = extract_text(file_path)
@@ -404,17 +453,21 @@ def process_standalone_file(
 
         # For images, also register as image entry
         if suffix in IMAGE_EXTENSIONS:
-            file_result.all_images.append({
-                "image_path": str(p),
-                "image_name": p.name,
-                "file_name": p.name,
-                "description": text,
-                "page": None,
-            })
+            file_result.all_images.append(
+                {
+                    "image_path": str(p),
+                    "image_name": p.name,
+                    "file_name": p.name,
+                    "description": text,
+                    "page": None,
+                }
+            )
 
         # Chunk text
         with trace_step(
-            conversation_id, file_name, "chunk_text",
+            conversation_id,
+            file_name,
+            "chunk_text",
             detail=f"type={suffix}",
         ) as ctx:
             chunks = split_into_chunks(file_name, text)
@@ -422,20 +475,27 @@ def process_standalone_file(
             ctx["detail"] = f"{len(chunks)} chunks"
 
         page_result = PageResult(
-            page_number=1, file_name=file_name,
-            chunks=chunks, text=text,
+            page_number=1,
+            file_name=file_name,
+            chunks=chunks,
+            text=text,
         )
         file_result.page_results.append(page_result)
 
     except Exception as e:
         file_result.errors.append({"page": 1, "error": str(e)[:500]})
         log_processing_event(
-            conversation_id, file_name, "file_processing",
-            status="failed", error_message=str(e)[:500],
+            conversation_id,
+            file_name,
+            "file_processing",
+            status="failed",
+            error_message=str(e)[:500],
         )
 
     log_processing_event(
-        conversation_id, file_name, "file_processing_completed",
+        conversation_id,
+        file_name,
+        "file_processing_completed",
         status="completed",
         detail=f"{len(file_result.all_chunks)} chunks, {len(file_result.all_images)} images",
     )

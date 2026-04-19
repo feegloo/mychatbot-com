@@ -4,8 +4,15 @@
       <h2>Login required</h2>
       <form @submit.prevent="doLogin">
         <input v-model="username" type="text" placeholder="Username" autocomplete="username" />
-        <input v-model="password" type="password" placeholder="Password" autocomplete="current-password" />
-        <button type="submit" :disabled="loginLoading">{{ loginLoading ? 'Logging in…' : 'Login' }}</button>
+        <input
+          v-model="password"
+          type="password"
+          placeholder="Password"
+          autocomplete="current-password"
+        />
+        <button type="submit" :disabled="loginLoading">
+          {{ loginLoading ? 'Logging in…' : 'Login' }}
+        </button>
       </form>
       <p v-if="loginError" class="error">{{ loginError }}</p>
     </div>
@@ -26,7 +33,12 @@
           </button>
         </div>
         <div class="view-toggle">
-          <button :class="{ active: view === 'json' }" @click="view = view === 'json' ? 'formatted' : 'json'">{{ view === 'json' ? 'Table' : 'JSON' }}</button>
+          <button
+            :class="{ active: view === 'json' }"
+            @click="view = view === 'json' ? 'formatted' : 'json'"
+          >
+            {{ view === 'json' ? 'Table' : 'JSON' }}
+          </button>
         </div>
       </div>
 
@@ -38,7 +50,7 @@
         </template>
 
         <template v-else>
-          <div class="table-wrapper" v-if="data[activeTable].length">
+          <div v-if="data[activeTable].length" class="table-wrapper">
             <table>
               <thead>
                 <tr>
@@ -53,7 +65,12 @@
                       :class="{ expanded: isCellExpanded(i, col) }"
                       :title="isCellExpanded(i, col) ? '' : String(row[col] ?? '')"
                       @click="toggleCell(i, col, row[col])"
-                    >{{ isCellExpanded(i, col) ? expandedCellContent(row[col]) : formatCell(row[col]) }}</span>
+                      >{{
+                        isCellExpanded(i, col)
+                          ? expandedCellContent(row[col])
+                          : formatCell(row[col])
+                      }}</span
+                    >
                   </td>
                 </tr>
               </tbody>
@@ -73,23 +90,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { getDebugTables } from "../api";
+import { ref, computed, watch } from 'vue'
+import { getDebugTables } from '../api'
 
-type Tables = Awaited<ReturnType<typeof getDebugTables>>;
+type Tables = Awaited<ReturnType<typeof getDebugTables>>
 
-const authenticated = ref(false);
-const username = ref("");
-const password = ref("");
-const loginLoading = ref(false);
-const loginError = ref("");
+const authenticated = ref(false)
+const username = ref('')
+const password = ref('')
+const loginLoading = ref(false)
+const loginError = ref('')
 
-const loading = ref(true);
-const error = ref("");
-const view = ref<"formatted" | "json">("formatted");
-const activeTable = ref<keyof Tables>("conversations");
-const loadingMore = ref(false);
-const currentOffset = ref(0);
+const loading = ref(true)
+const error = ref('')
+const view = ref<'formatted' | 'json'>('formatted')
+const activeTable = ref<keyof Tables>('conversations')
+const loadingMore = ref(false)
+const currentOffset = ref(0)
 const data = ref<Tables>({
   conversations: [],
   conversation_messages: [],
@@ -99,114 +116,133 @@ const data = ref<Tables>({
   conversation_access_tokens: [],
   access_requests: [],
   users: [],
-});
+})
 
-const expandedCells = ref<Set<string>>(new Set());
+const expandedCells = ref<Set<string>>(new Set())
 
 watch(activeTable, () => {
-  expandedCells.value = new Set();
-});
+  expandedCells.value = new Set()
+})
 
-const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[]);
+const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[])
 
 function columns(table: keyof Tables) {
-  const rows = data.value[table];
-  if (!rows.length) return [];
-  return Object.keys(rows[0]);
+  const rows = data.value[table]
+  if (!rows.length) return []
+  return Object.keys(rows[0])
 }
 
 function cellKey(row: number, col: string) {
-  return `${row}:${col}`;
+  return `${row}:${col}`
 }
 
 function isCellExpanded(row: number, col: string) {
-  return expandedCells.value.has(cellKey(row, col));
+  return expandedCells.value.has(cellKey(row, col))
 }
 
 function toggleCell(row: number, col: string, _value: unknown) {
-  const key = cellKey(row, col);
-  const next = new Set(expandedCells.value);
+  const key = cellKey(row, col)
+  const next = new Set(expandedCells.value)
   if (next.has(key)) {
-    next.delete(key);
+    next.delete(key)
   } else {
-    next.add(key);
+    next.add(key)
   }
-  expandedCells.value = next;
+  expandedCells.value = next
 }
 
 function isJsonString(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-    try { JSON.parse(trimmed); return true; } catch { return false; }
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      JSON.parse(trimmed)
+      return true
+    } catch {
+      return false
+    }
   }
-  return false;
+  return false
 }
 
 function expandedCellContent(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  const s = String(value);
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'object') return JSON.stringify(value, null, 2)
+  const s = String(value)
   if (isJsonString(s)) {
-    try { return JSON.stringify(JSON.parse(s), null, 2); } catch { /* fall through */ }
+    try {
+      return JSON.stringify(JSON.parse(s), null, 2)
+    } catch {
+      /* fall through */
+    }
   }
-  return s;
+  return s
 }
 
 function formatCell(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "object") return JSON.stringify(value);
-  const s = String(value);
-  return s.length > 120 ? s.slice(0, 120) + "…" : s;
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'object') return JSON.stringify(value)
+  const s = String(value)
+  return s.length > 120 ? s.slice(0, 120) + '…' : s
 }
 
 // "users" is an aggregate query, not paginated
 const paginatedTables: (keyof Tables)[] = [
-  "conversations", "conversation_messages", "suggested_questions",
-  "uploaded_files", "user_fingerprints", "conversation_access_tokens", "access_requests",
-];
+  'conversations',
+  'conversation_messages',
+  'suggested_questions',
+  'uploaded_files',
+  'user_fingerprints',
+  'conversation_access_tokens',
+  'access_requests',
+]
 
 const canLoadMore = computed(() => {
-  if (activeTable.value === "users") return false;
+  if (activeTable.value === 'users') return false
   // Show button if the last fetch returned a full page (1000) for this table
-  return data.value[activeTable.value].length > 0 && data.value[activeTable.value].length % 1000 === 0;
-});
+  return (
+    data.value[activeTable.value].length > 0 && data.value[activeTable.value].length % 1000 === 0
+  )
+})
 
 async function loadMore() {
-  loadingMore.value = true;
+  loadingMore.value = true
   try {
-    const nextOffset = currentOffset.value + 1000;
-    const more = await getDebugTables(username.value, password.value, nextOffset);
-    currentOffset.value = nextOffset;
+    const nextOffset = currentOffset.value + 1000
+    const more = await getDebugTables(username.value, password.value, nextOffset)
+    currentOffset.value = nextOffset
     for (const table of paginatedTables) {
       if (more[table].length) {
-        data.value[table] = [...data.value[table], ...more[table]];
+        data.value[table] = [...data.value[table], ...more[table]]
       }
     }
     // Always replace aggregate data
-    data.value.users = more.users;
+    data.value.users = more.users
   } catch (e: any) {
-    error.value = e?.message || "Failed to load more";
+    error.value = e?.message || 'Failed to load more'
   } finally {
-    loadingMore.value = false;
+    loadingMore.value = false
   }
 }
 
 async function doLogin() {
-  loginLoading.value = true;
-  loginError.value = "";
+  loginLoading.value = true
+  loginError.value = ''
   try {
-    data.value = await getDebugTables(username.value, password.value);
-    authenticated.value = true;
-    loading.value = false;
+    data.value = await getDebugTables(username.value, password.value)
+    authenticated.value = true
+    loading.value = false
   } catch (e: any) {
     if (e?.response?.status === 401) {
-      loginError.value = "Invalid credentials";
+      loginError.value = 'Invalid credentials'
     } else {
-      loginError.value = e?.message || "Failed to load";
+      loginError.value = e?.message || 'Failed to load'
     }
   } finally {
-    loginLoading.value = false;
+    loginLoading.value = false
   }
 }
 </script>
@@ -216,7 +252,10 @@ async function doLogin() {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
@@ -342,7 +381,8 @@ table {
   border-collapse: collapse;
   font-size: 0.8rem;
 }
-th, td {
+th,
+td {
   padding: 6px 10px;
   text-align: left;
   border-bottom: 1px solid #1e293b;

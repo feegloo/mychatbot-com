@@ -1,872 +1,940 @@
 <template>
   <div class="message-row" :class="msg.role">
     <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
-    <strong>{{ senderLabel }}</strong>
-    <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
-      <AppButton
-        v-if="isFirstMessage && canUpload"
-        class="msg-action-btn"
-        title="Upload more files"
-        @click="uploadInput?.click()"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload more files
-      </AppButton>
-      <AppButton
-        class="msg-action-btn"
-        :title="shareCopied ? 'Link copied!' : 'Share this answer'"
-        @click="shareMessage"
-      >
-        <svg v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        {{ shareCopied ? 'Link copied!' : 'Share' }}
-      </AppButton>
-      <AppButton
-        v-if="hasRichContent"
-        class="msg-action-btn"
-        title="Download PDF"
-        @click="downloadMessagePdf"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        PDF
-      </AppButton>      
-      <input ref="uploadInput" type="file" multiple @change="onUploadFilesChange" style="display:none" />
-    </div>
-    <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
-      <span></span><span></span><span></span>
-    </div>
+      <strong>{{ senderLabel }}</strong>
+      <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
+        <AppButton
+          v-if="isFirstMessage && canUpload"
+          class="msg-action-btn"
+          title="Upload more files"
+          @click="uploadInput?.click()"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Upload more files
+        </AppButton>
+        <AppButton
+          class="msg-action-btn"
+          :title="shareCopied ? 'Link copied!' : 'Share this answer'"
+          @click="shareMessage"
+        >
+          <svg
+            v-if="!shareCopied"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          <svg
+            v-else
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          {{ shareCopied ? 'Link copied!' : 'Share' }}
+        </AppButton>
+        <AppButton
+          v-if="hasRichContent"
+          class="msg-action-btn"
+          title="Download PDF"
+          @click="downloadMessagePdf"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          PDF
+        </AppButton>
+        <input
+          ref="uploadInput"
+          type="file"
+          multiple
+          style="display: none"
+          @change="onUploadFilesChange"
+        />
+      </div>
+      <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
+        <span></span><span></span><span></span>
+      </div>
 
-    <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
-    <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
-      <div class="welcome-left-col">
-        <div ref="messageContentEl" class="message-content-wrap" :class="{ 'animate-in': animateIn }">
+      <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
+      <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
+        <div class="welcome-left-col">
+          <div
+            ref="messageContentEl"
+            class="message-content-wrap"
+            :class="{ 'animate-in': animateIn }"
+          >
+            <div v-for="(part, pi) in contentParts" :key="pi">
+              <div
+                v-if="part.type === 'text'"
+                ref="contentEls"
+                class="markdown-content"
+                @click="onContentClick"
+                v-html="part.html"
+              ></div>
+              <QuizBlock
+                v-else-if="part.type === 'quiz'"
+                :quiz="part.quiz"
+                :message-id="msg.id"
+                :quiz-index="part.quizIndex"
+                :conversation-name="conversationName"
+                :file-name="fileName"
+              />
+              <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+            </div>
+          </div>
+
+          <!-- Mobile-only: small file thumbnails (old layout) -->
+          <div class="welcome-file-previews-mobile">
+            <div
+              v-for="file in files"
+              :key="file.id"
+              class="file-preview-card"
+              @click="openFilePreview(file)"
+            >
+              <div v-if="isImageFile(file)" class="file-preview-thumb">
+                <img :src="getFileUrl(file)" :alt="file.originalName" loading="lazy" />
+              </div>
+              <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
+                <object
+                  :data="getFileUrl(file) + '#page=1&view=FitH'"
+                  type="application/pdf"
+                  class="pdf-mini-object"
+                >
+                  <div class="pdf-fallback-icon">
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                  </div>
+                </object>
+                <div class="pdf-click-overlay"></div>
+              </div>
+              <div v-else class="file-preview-thumb text-thumb">
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              </div>
+              <span class="file-preview-name">{{ file.originalName }}</span>
+            </div>
+          </div>
+
+          <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
+            <AppButton
+              v-for="q in suggestedQuestions"
+              :key="q"
+              class="question-pill"
+              @click="$emit('select-question', q)"
+            >
+              {{ q }}
+            </AppButton>
+          </div>
+
+          <div
+            v-if="isFirstMessage && canUpload && (selectedUploadFiles.length || uploadError)"
+            class="welcome-upload-row"
+          >
+            <template v-if="selectedUploadFiles.length">
+              <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{
+                file.name
+              }}</span>
+              <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
+            </template>
+            <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
+          </div>
+        </div>
+
+        <!-- Desktop-only: large preview in right column (carousel if 2+ files) -->
+        <div class="welcome-right-col" @click="openFilePreview(currentPreviewFile!)">
+          <!-- Left arrow (only if multiple files) -->
+          <button
+            v-if="hasMultipleFiles"
+            class="carousel-arrow carousel-arrow-left"
+            title="Previous file"
+            @click="prevPreviewFile($event)"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <div v-if="isImageFile(currentPreviewFile!)" class="welcome-preview-large">
+            <img
+              :src="getFileUrl(currentPreviewFile!)"
+              :alt="currentPreviewFile!.originalName"
+              loading="lazy"
+            />
+          </div>
+          <div
+            v-else-if="isPdfFile(currentPreviewFile!)"
+            class="welcome-preview-large pdf-preview-large"
+          >
+            <object
+              :data="getFileUrl(currentPreviewFile!) + '#page=1&view=FitH'"
+              type="application/pdf"
+              class="pdf-large-object"
+            >
+              <div class="pdf-fallback-icon-large">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span class="pdf-fallback-label">{{ currentPreviewFile!.originalName }}</span>
+              </div>
+            </object>
+            <div class="pdf-click-overlay"></div>
+          </div>
+          <div v-else class="welcome-preview-large text-preview-large">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <span class="text-fallback-label">{{ currentPreviewFile!.originalName }}</span>
+          </div>
+
+          <!-- Right arrow (only if multiple files) -->
+          <button
+            v-if="hasMultipleFiles"
+            class="carousel-arrow carousel-arrow-right"
+            title="Next file"
+            @click="nextPreviewFile($event)"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+
+          <span class="welcome-preview-name">{{ currentPreviewFile!.originalName }}</span>
+          <!-- File counter dots -->
+          <div v-if="hasMultipleFiles" class="carousel-dots">
+            <span
+              v-for="(_, i) in files"
+              :key="i"
+              class="carousel-dot"
+              :class="{ active: i === previewFileIndex }"
+            ></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regular assistant content -->
+      <template v-else-if="msg.role === 'assistant'">
+        <div
+          ref="messageContentEl"
+          class="message-content-wrap"
+          :class="{ 'animate-in': animateIn }"
+        >
           <div v-for="(part, pi) in contentParts" :key="pi">
-            <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
-            <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
+            <div
+              v-if="part.type === 'text'"
+              ref="contentEls"
+              class="markdown-content"
+              @click="onContentClick"
+              v-html="part.html"
+            ></div>
+            <QuizBlock
+              v-else-if="part.type === 'quiz'"
+              :quiz="part.quiz"
+              :message-id="msg.id"
+              :quiz-index="part.quizIndex"
+              :conversation-name="conversationName"
+              :file-name="fileName"
+            />
             <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
           </div>
         </div>
-
-        <!-- Mobile-only: small file thumbnails (old layout) -->
-        <div class="welcome-file-previews-mobile">
-          <div
-            v-for="file in files"
-            :key="file.id"
-            class="file-preview-card"
-            @click="openFilePreview(file)"
-          >
-            <div v-if="isImageFile(file)" class="file-preview-thumb">
-              <img :src="getFileUrl(file)" :alt="file.originalName" loading="lazy" />
-            </div>
-            <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
-              <object
-                :data="getFileUrl(file) + '#page=1&view=FitH'"
-                type="application/pdf"
-                class="pdf-mini-object"
-              >
-                <div class="pdf-fallback-icon">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                </div>
-              </object>
-              <div class="pdf-click-overlay"></div>
-            </div>
-            <div v-else class="file-preview-thumb text-thumb">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-            <span class="file-preview-name">{{ file.originalName }}</span>
-          </div>
-        </div>
-
-        <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
-          <AppButton v-for="q in suggestedQuestions" :key="q" class="question-pill" @click="$emit('select-question', q)">
-            {{ q }}
-          </AppButton>
-        </div>
-
-        <div v-if="isFirstMessage && canUpload && (selectedUploadFiles.length || uploadError)" class="welcome-upload-row">
-          <template v-if="selectedUploadFiles.length">
-            <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
-            <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
-          </template>
-          <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
-        </div>
-      </div>
-
-      <!-- Desktop-only: large preview in right column (carousel if 2+ files) -->
-      <div class="welcome-right-col" @click="openFilePreview(currentPreviewFile!)">
-        <!-- Left arrow (only if multiple files) -->
-        <button v-if="hasMultipleFiles" class="carousel-arrow carousel-arrow-left" @click="prevPreviewFile($event)" title="Previous file">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-
-        <div v-if="isImageFile(currentPreviewFile!)" class="welcome-preview-large">
-          <img :src="getFileUrl(currentPreviewFile!)" :alt="currentPreviewFile!.originalName" loading="lazy" />
-        </div>
-        <div v-else-if="isPdfFile(currentPreviewFile!)" class="welcome-preview-large pdf-preview-large">
-          <object
-            :data="getFileUrl(currentPreviewFile!) + '#page=1&view=FitH'"
-            type="application/pdf"
-            class="pdf-large-object"
-          >
-            <div class="pdf-fallback-icon-large">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span class="pdf-fallback-label">{{ currentPreviewFile!.originalName }}</span>
-            </div>
-          </object>
-          <div class="pdf-click-overlay"></div>
-        </div>
-        <div v-else class="welcome-preview-large text-preview-large">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span class="text-fallback-label">{{ currentPreviewFile!.originalName }}</span>
-        </div>
-
-        <!-- Right arrow (only if multiple files) -->
-        <button v-if="hasMultipleFiles" class="carousel-arrow carousel-arrow-right" @click="nextPreviewFile($event)" title="Next file">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-
-        <span class="welcome-preview-name">{{ currentPreviewFile!.originalName }}</span>
-        <!-- File counter dots -->
-        <div v-if="hasMultipleFiles" class="carousel-dots">
-          <span v-for="(_, i) in files" :key="i" class="carousel-dot" :class="{ active: i === previewFileIndex }"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Regular assistant content -->
-    <template v-else-if="msg.role === 'assistant'">
-      <div ref="messageContentEl" class="message-content-wrap" :class="{ 'animate-in': animateIn }">
-      <div v-for="(part, pi) in contentParts" :key="pi">
-        <div v-if="part.type === 'text'" ref="contentEls" class="markdown-content" @click="onContentClick" v-html="part.html"></div>
-        <QuizBlock v-else-if="part.type === 'quiz'" :quiz="part.quiz" :messageId="msg.id" :quizIndex="part.quizIndex" :conversationName="conversationName" :fileName="fileName" />
-        <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
-      </div>
-      </div>
-    </template>
-    <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
-
-    <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
-    <div v-if="isWelcome && !welcomeHasFiles && suggestedQuestions?.length" class="welcome-suggested-questions">
-      <AppButton
-        v-for="q in suggestedQuestions"
-        :key="q"
-        class="question-pill"
-        @click="$emit('select-question', q)"
-      >
-        {{ q }}
-      </AppButton>
-    </div>
-
-    <!-- Upload files button (first message only, non-2-col fallback) -->
-    <div v-if="isFirstMessage && canUpload && !welcomeHasFiles && (selectedUploadFiles.length || uploadError)" class="welcome-upload-row">
-      <template v-if="selectedUploadFiles.length">
-        <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{ file.name }}</span>
-        <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
       </template>
-      <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
-    </div>
+      <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
 
-    <!-- Inline image thumbnails from citations -->
-    <div v-if="imageCitations.length" class="citation-images">
+      <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
       <div
-        v-for="(img, idx) in imageCitations"
-        :key="idx"
-        class="citation-image-thumb"
-        @click="openImage(img)"
+        v-if="isWelcome && !welcomeHasFiles && suggestedQuestions?.length"
+        class="welcome-suggested-questions"
       >
-        <img :src="img.url" :alt="img.section || 'Image'" loading="lazy" />
-        <span class="citation-image-label">{{ img.section || 'Image' }}</span>
+        <AppButton
+          v-for="q in suggestedQuestions"
+          :key="q"
+          class="question-pill"
+          @click="$emit('select-question', q)"
+        >
+          {{ q }}
+        </AppButton>
       </div>
+
+      <!-- Upload files button (first message only, non-2-col fallback) -->
+      <div
+        v-if="
+          isFirstMessage &&
+          canUpload &&
+          !welcomeHasFiles &&
+          (selectedUploadFiles.length || uploadError)
+        "
+        class="welcome-upload-row"
+      >
+        <template v-if="selectedUploadFiles.length">
+          <span v-for="file in selectedUploadFiles" :key="file.name" class="upload-file-name">{{
+            file.name
+          }}</span>
+          <span v-if="uploadingFiles" class="upload-file-status"><UploadingDots /></span>
+        </template>
+        <span v-if="uploadError" class="upload-error">{{ uploadError }}</span>
+      </div>
+
+      <!-- Inline image thumbnails from citations -->
+      <div v-if="imageCitations.length" class="citation-images">
+        <div
+          v-for="(img, idx) in imageCitations"
+          :key="idx"
+          class="citation-image-thumb"
+          @click="openImage(img)"
+        >
+          <img :src="img.url" :alt="img.section || 'Image'" loading="lazy" />
+          <span class="citation-image-label">{{ img.section || 'Image' }}</span>
+        </div>
+      </div>
+
+      <!-- Thread reply indicator (Slack-style) -->
+      <div
+        v-if="msg.threadReplyCount"
+        class="thread-indicator"
+        @click="$emit('view-threads', msg.id!)"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="thread-count"
+          >{{ msg.threadReplyCount }} {{ msg.threadReplyCount === 1 ? 'reply' : 'replies' }}</span
+        >
+      </div>
+
+      <ImageModal :visible="modalOpen" :src="modalSrc" :alt="modalAlt" @close="modalOpen = false" />
+
+      <SourcePreviewModal
+        v-if="previewCitation"
+        :visible="previewOpen"
+        :citation="previewCitation"
+        :conversation-id="effectiveStorageId"
+        @close="previewOpen = false"
+      />
     </div>
-
-    <!-- Thread reply indicator (Slack-style) -->
-    <div v-if="msg.threadReplyCount" class="thread-indicator" @click="$emit('view-threads', msg.id!)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <span class="thread-count">{{ msg.threadReplyCount }} {{ msg.threadReplyCount === 1 ? 'reply' : 'replies' }}</span>
-    </div>
-
-
-
-    <ImageModal
-      :visible="modalOpen"
-      :src="modalSrc"
-      :alt="modalAlt"
-      @close="modalOpen = false"
-    />
-
-    <SourcePreviewModal
-      v-if="previewCitation"
-      :visible="previewOpen"
-      :citation="previewCitation"
-      :conversationId="effectiveStorageId"
-      @close="previewOpen = false"
-    />
-  </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onBeforeUnmount, onMounted } from "vue";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
-import { createTooltip, destroyTooltip } from "floating-vue";
-import type { ChatMessage, ConversationStatus } from "../api";
-import { getStorageUrl } from "../api";
-import { getUserId } from "../utils/fingerprint";
-import ImageModal from "./ImageModal.vue";
-import SourcePreviewModal from "./SourcePreviewModal.vue";
-import AppButton from "./AppButton.vue";
-import { defineAsyncComponent } from "vue";
-const QuizBlock = defineAsyncComponent(() => import("./QuizBlock.vue"));
-const MermaidBlock = defineAsyncComponent(() => import("./MermaidBlock.vue"));
-import type { QuizData } from "./QuizBlock.vue";
-import { getData, setData } from "../utils/localData";
-import UploadingDots from "./UploadingDots.vue";
-import hljs from "highlight.js";
-import "highlight.js/styles/github-dark-dimmed.min.css";
-import katex from "katex";
-import "katex/dist/katex.min.css";
-
-marked.use({
-  breaks: true,
-  gfm: true,
-  renderer: {
-    code({ text, lang }: { text: string; lang?: string }) {
-      let highlighted: string;
-      if (lang && hljs.getLanguage(lang)) {
-        highlighted = hljs.highlight(text, { language: lang }).value;
-      } else {
-        highlighted = hljs.highlightAuto(text).value;
-      }
-      const langClass = lang ? ` language-${lang}` : '';
-      return `<pre><code class="hljs${langClass}">${highlighted}</code></pre>`;
-    },
-  },
-});
-
-function normalizeCitations(text: string): string {
-  // Convert bare [N] references to [source:N] format
-  // Handles [1][2][3], [1,2,3,4], [1, 2, 3], etc.
-  // First: comma-separated like [1,2,3,4] or [1, 2, 3, 4]
-  text = text.replace(
-    /\[(\d+(?:\s*,\s*\d+)+)\]/g,
-    (_, nums) => nums.split(/\s*,\s*/).map((n: string) => `[source:${n.trim()}]`).join('')
-  );
-  // Then: bare single [N] (not already [source:N])
-  text = text.replace(
-    /(?<!source:)(?<!\w)\[(\d+)\](?!\()/g,
-    (_, n) => `[source:${n}]`
-  );
-  return text;
-}
-
-function renderMarkdown(content: string): string {
-  let normalized = normalizeCitations(content);
-
-  // Convert dialogue-style "- text" lines to "– text" (en-dash) so they render
-  // as plain prose instead of <li> bullets.
-  // Heuristic: A block of consecutive "- " lines preceded by a paragraph of
-  // narrative text (not another list item) is dialogue, not a real list.
-  // Also catch isolated "- text" surrounded by blank lines.
-  normalized = normalized.replace(
-    /(?<=^|\n\n)- (.+?)(?=\n\n|$)/g,
-    '– $1'
-  );
-  // Catch consecutive dialogue lines: a block of "- " lines after a prose paragraph
-  normalized = normalized.replace(
-    /(?<=^|\n\n)((?:- .+\n?){2,})(?=\n\n|$)/g,
-    (_match, block: string) => block.replace(/^- /gm, '– ')
-  );
-
-  // Ensure bold-only lines (like filenames) between list items get paragraph separation
-  normalized = normalized.replace(
-    /^([ \t]*[\*\-\+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[\*\-\+] )/gm,
-    '$1\n\n$2\n\n$3'
-  );
-  // Protect LaTeX blocks from marked's processing (underscores, asterisks, etc.)
-  const mathPlaceholders: { tex: string; display: boolean }[] = [];
-  const mathToken = (idx: number) => `\x02MATH${idx}\x02`;
-  // Display math $$...$$ first (greedy match avoids nesting issues)
-  normalized = normalized.replace(/\$\$([^$]+?)\$\$/g, (_, tex) => {
-    const i = mathPlaceholders.length;
-    mathPlaceholders.push({ tex, display: true });
-    return mathToken(i);
-  });
-  // Inline math $...$ (not preceded/followed by word chars, not currency like $10)
-  normalized = normalized.replace(/(?<!\w)\$([^\s$][^$\n]*?[^\s$])\$(?!\w)/g, (_, tex) => {
-    const i = mathPlaceholders.length;
-    mathPlaceholders.push({ tex, display: false });
-    return mathToken(i);
-  });
-  // Also catch single-char inline math like $x$
-  normalized = normalized.replace(/(?<!\w)\$([^\s$])\$(?!\w)/g, (_, tex) => {
-    const i = mathPlaceholders.length;
-    mathPlaceholders.push({ tex, display: false });
-    return mathToken(i);
-  });
-  // Protect [poem]...[/poem] blocks from marked processing
-  const poemPlaceholders: string[] = [];
-  const poemToken = (idx: number) => `\x03POEM${idx}\x03`;
-  normalized = normalized.replace(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi, (_, body) => {
-    const i = poemPlaceholders.length;
-    poemPlaceholders.push(body.trim());
-    return poemToken(i);
-  });
-  // Protect [action:Label] markers from marked (which may interpret
-  // square-bracket sequences as reference links and drop or re-encode them,
-  // causing the post-DOMPurify regex replacements to miss).
-  const actionPlaceholders: string[] = [];
-  const actionToken = (idx: number) => `\x01ACTION${idx}\x01`;
-  normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label) => {
-    const i = actionPlaceholders.length;
-    actionPlaceholders.push(label.trim());
-    return actionToken(i);
-  });
-
-  const rawHtml = marked.parse(normalized, { async: false }) as string;
-  // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
-  // Use flexible regex to handle any attribute order from marked
-  const withChecklists = rawHtml
-    .replace(/<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*checked=""[^>]*\/?>/gi,
-      '<span class="checklist-box checked" role="checkbox" tabindex="0"></span>')
-    .replace(/<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*\/?>/gi,
-      '<span class="checklist-box" role="checkbox" tabindex="0"></span>');
-  const sanitized = DOMPurify.sanitize(withChecklists);
-  // Restore LaTeX blocks and render with KaTeX
-  const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
-    const idx = parseInt(idxStr, 10);
-    const { tex, display } = mathPlaceholders[idx];
-    try { return katex.renderToString(tex, { displayMode: display, throwOnError: false }); }
-    catch { return display ? `$$${tex}$$` : `$${tex}$`; }
-  });
-  // Restore [poem] blocks as styled blockquote with decorative quotes
-  const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
-    const idx = parseInt(idxStr, 10);
-    const lines = poemPlaceholders[idx].split('\n').map(l => l.trim()).filter(Boolean);
-    const body = lines.join('<br>');
-    return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`;
-  });
-  // Replace ++underline++ markers with <u> tags
-  const withUnderline = withPoems.replace(
-    /\+\+([^+]+)\+\+/g,
-    '<u>$1</u>'
-  );
-  // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
-  const allowedColors = new Set(['green','red','amber','blue','purple','pink','cyan','orange','lime','rose']);
-  const withColors = withUnderline.replace(
-    /\[c:(\w+)\](.*?)\[\/c\]/g,
-    (_, color, text) => allowedColors.has(color)
-      ? `<span class="text-color-${color}">${text}</span>`
-      : text
-  );
-  // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  const withSources = withColors.replace(
-    /\[source:\s*(\d+(?:,\s*\d+)*)\]/g,
-    (_, nums) =>
-      nums.split(/,\s*/).map((n: string) =>
-        `<button class="inline-source-btn" data-source-idx="${parseInt(n, 10)}">` +
-        `<span class="inline-source-icon">↑</span>${n.trim()}</button>`
-      ).join('')
-  );
-  // Restore [action:Label] placeholders as clickable action buttons
-  const withActions = withSources.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr) => {
-    const label = actionPlaceholders[parseInt(idxStr, 10)];
-    return `<button class="action-btn" data-action="${label}">${label}</button>`;
-  });
-  // Wrap consecutive action buttons in an inline container (like welcome message pills)
-  const withActionsWrapped = withActions.replace(
-    /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
-    '<span class="action-btns-row">$1</span>'
-  );
-  // Add target="_blank" to all <a> tags that don't already have it
-  const withTargetBlank = withActionsWrapped.replace(
-    /<a (?![^>]*target=)/gi,
-    '<a target="_blank" rel="noopener noreferrer" '
-  );
-  // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
-  const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai';
-  const bareDomain = new RegExp(
-    `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"'\u201C\u201D\u2018\u2019\u00AB\u00BB.,;:!?)\\]]*)?`,
-    'gi'
-  );
-  let insideA = 0;
-  return withTargetBlank.replace(
-    /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
-    (m, openA: string, closeA: string, _otherTag: string, text: string) => {
-      if (openA) { insideA++; return m; }
-      if (closeA) { insideA = Math.max(0, insideA - 1); return m; }
-      if (text && insideA === 0) {
-        return text.replace(bareDomain, (url: string, domain: string, path: string) => {
-          const href = `https://${domain}${path || ''}`;
-          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">${url}</a>`;
-        });
-      }
-      return m;
-    }
-  );
-}
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
+import { createTooltip, destroyTooltip } from 'floating-vue'
+import type { ChatMessage, ConversationStatus } from '../api'
+import { getStorageUrl } from '../api'
+import { getUserId } from '../utils/fingerprint'
+import { renderMarkdown } from '../utils/markdown'
+import ImageModal from './ImageModal.vue'
+import SourcePreviewModal from './SourcePreviewModal.vue'
+import AppButton from './AppButton.vue'
+import { defineAsyncComponent } from 'vue'
+const QuizBlock = defineAsyncComponent(() => import('./QuizBlock.vue'))
+const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
+import type { QuizData } from './QuizBlock.vue'
+import { getData, setData } from '../utils/localData'
+import UploadingDots from './UploadingDots.vue'
 
 const props = defineProps<{
-  msg: ChatMessage;
-  asking: boolean;
-  conversationId: string;
-  storageConversationId?: string;
-  isWelcome?: boolean;
-  isFirstMessage?: boolean;
-  canUpload?: boolean;
-  files?: ConversationStatus["files"];
-  suggestedQuestions?: string[];
-  conversationName?: string;
-  fileName?: string;
-  isThread?: boolean;
-  noAnimation?: boolean;
-}>();
+  msg: ChatMessage
+  asking: boolean
+  conversationId: string
+  storageConversationId?: string
+  isWelcome?: boolean
+  isFirstMessage?: boolean
+  canUpload?: boolean
+  files?: ConversationStatus['files']
+  suggestedQuestions?: string[]
+  conversationName?: string
+  fileName?: string
+  isThread?: boolean
+  noAnimation?: boolean
+}>()
 
-const animateIn = ref(!props.noAnimation);
-onMounted(() => { if (animateIn.value) setTimeout(() => { animateIn.value = false; }, 400); });
+const animateIn = ref(!props.noAnimation)
+onMounted(() => {
+  if (animateIn.value)
+    setTimeout(() => {
+      animateIn.value = false
+    }, 400)
+})
 
 // Use storageConversationId for file URLs (for threads, points to parent's storage)
-const effectiveStorageId = computed(() => props.storageConversationId || props.conversationId);
+const effectiveStorageId = computed(() => props.storageConversationId || props.conversationId)
 
 const emit = defineEmits<{
-  'select-question': [question: string];
-  'upload-files': [files: File[]];
-  'view-threads': [messageId: string];
-}>();
+  'select-question': [question: string]
+  'upload-files': [files: File[]]
+  'view-threads': [messageId: string]
+}>()
 
 const senderLabel = computed(() => {
-  if (props.msg.role === "assistant") return "Assistant";
+  if (props.msg.role === 'assistant') return 'Assistant'
   // In thread conversations, show "userN" for other users
   if (props.isThread && props.msg.userId) {
-    const myId = getUserId();
-    if (myId !== null && props.msg.userId === myId) return "You";
-    return `user${props.msg.userId}`;
+    const myId = getUserId()
+    if (myId !== null && props.msg.userId === myId) return 'You'
+    return `user${props.msg.userId}`
   }
-  return "You";
-});
+  return 'You'
+})
 
 // Upload files state (for first message inline upload)
-const uploadInput = ref<HTMLInputElement | null>(null);
-const selectedUploadFiles = ref<File[]>([]);
-const uploadingFiles = ref(false);
-const uploadError = ref("");
+const uploadInput = ref<HTMLInputElement | null>(null)
+const selectedUploadFiles = ref<File[]>([])
+const uploadingFiles = ref(false)
+const uploadError = ref('')
 
-const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0);
+const welcomeHasFiles = computed(() => props.isWelcome && (props.files?.length ?? 0) > 0)
 
 // File carousel for right-column preview (when 2+ files uploaded)
-const previewFileIndex = ref(0);
-const hasMultipleFiles = computed(() => (props.files?.length ?? 0) > 1);
-const currentPreviewFile = computed(() => props.files?.[previewFileIndex.value] ?? props.files?.[0]);
+const previewFileIndex = ref(0)
+const hasMultipleFiles = computed(() => (props.files?.length ?? 0) > 1)
+const currentPreviewFile = computed(() => props.files?.[previewFileIndex.value] ?? props.files?.[0])
 
 function nextPreviewFile(event: Event) {
-  event.stopPropagation();
-  if (!props.files?.length) return;
-  previewFileIndex.value = (previewFileIndex.value + 1) % props.files.length;
+  event.stopPropagation()
+  if (!props.files?.length) return
+  previewFileIndex.value = (previewFileIndex.value + 1) % props.files.length
 }
 
 function prevPreviewFile(event: Event) {
-  event.stopPropagation();
-  if (!props.files?.length) return;
-  previewFileIndex.value = (previewFileIndex.value - 1 + props.files.length) % props.files.length;
+  event.stopPropagation()
+  if (!props.files?.length) return
+  previewFileIndex.value = (previewFileIndex.value - 1 + props.files.length) % props.files.length
 }
 
 function onUploadFilesChange(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const allFiles = Array.from(target.files || []);
-  const videoFiles = allFiles.filter(f => f.type.startsWith('video/'));
-  const validFiles = allFiles.filter(f => !f.type.startsWith('video/'));
+  const target = event.target as HTMLInputElement
+  const allFiles = Array.from(target.files || [])
+  const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'))
+  const validFiles = allFiles.filter((f) => !f.type.startsWith('video/'))
   if (videoFiles.length) {
-    uploadError.value = "Video files are not supported.";
+    uploadError.value = 'Video files are not supported.'
   } else {
-    uploadError.value = "";
+    uploadError.value = ''
   }
-  selectedUploadFiles.value = validFiles;
+  selectedUploadFiles.value = validFiles
   if (validFiles.length) {
-    doUploadFiles();
+    doUploadFiles()
   }
 }
 
 function doUploadFiles() {
-  if (!selectedUploadFiles.value.length) return;
-  emit('upload-files', selectedUploadFiles.value);
+  if (!selectedUploadFiles.value.length) return
+  emit('upload-files', selectedUploadFiles.value)
 }
 
 function resetUploadState(error?: string) {
-  selectedUploadFiles.value = [];
-  uploadingFiles.value = false;
-  uploadError.value = error || "";
-  if (uploadInput.value) uploadInput.value.value = "";
+  selectedUploadFiles.value = []
+  uploadingFiles.value = false
+  uploadError.value = error || ''
+  if (uploadInput.value) uploadInput.value.value = ''
 }
 
 // Share message
-const shareCopied = ref(false);
+const shareCopied = ref(false)
 function shareMessage() {
   if (props.msg.id) {
-    const url = `${window.location.origin}/m/${props.msg.id}`;
-    navigator.clipboard.writeText(url);
+    const url = `${window.location.origin}/m/${props.msg.id}`
+    navigator.clipboard.writeText(url)
   } else {
-    const url = `${window.location.origin}/c/${props.conversationId}`;
-    navigator.clipboard.writeText(url);
+    const url = `${window.location.origin}/c/${props.conversationId}`
+    navigator.clipboard.writeText(url)
   }
-  shareCopied.value = true;
-  setTimeout(() => { shareCopied.value = false; }, 2000);
+  shareCopied.value = true
+  setTimeout(() => {
+    shareCopied.value = false
+  }, 2000)
 }
 
 function setUploading(val: boolean) {
-  uploadingFiles.value = val;
+  uploadingFiles.value = val
 }
 
-defineExpose({ resetUploadState, setUploading });
+defineExpose({ resetUploadState, setUploading })
 
-const renderedContent = computed(() => renderMarkdown(props.msg.content));
+const renderedContent = computed(() => renderMarkdown(props.msg.content))
 
-const messageContentEl = ref<HTMLElement | null>(null);
+const messageContentEl = ref<HTMLElement | null>(null)
 
 /** Show PDF download button for all assistant messages with content,
  *  except those with quiz blocks (they have their own PDF button). */
 const hasRichContent = computed(() => {
-  if (props.msg.role !== "assistant" || !props.msg.content) return false;
-  const parts = contentParts.value;
-  if (parts.some((p) => p.type === "quiz")) return false;
-  return true;
-});
+  if (props.msg.role !== 'assistant' || !props.msg.content) return false
+  const parts = contentParts.value
+  if (parts.some((p) => p.type === 'quiz')) return false
+  return true
+})
 
 async function downloadMessagePdf() {
-  const title = props.conversationName || "chatrag";
+  const title = props.conversationName || 'chatrag'
 
   // Patch markdown with current checklist checked states from the DOM
-  let md = props.msg.content;
-  const boxes: boolean[] = [];
+  let md = props.msg.content
+  const boxes: boolean[] = []
   for (const el of contentEls.value ?? []) {
     el.querySelectorAll('.checklist-box').forEach((box) => {
-      boxes.push(box.classList.contains('checked'));
-    });
+      boxes.push(box.classList.contains('checked'))
+    })
   }
   if (boxes.length) {
-    let idx = 0;
+    let idx = 0
     md = md.replace(/^(\s*[-*+]\s+\[)([ xX])(\]\s+)/gm, (match, before, check, after) => {
       if (idx < boxes.length) {
-        const checked = boxes[idx++];
-        return `${before}${checked ? 'x' : ' '}${after}`;
+        const checked = boxes[idx++]
+        return `${before}${checked ? 'x' : ' '}${after}`
       }
-      return match;
-    });
+      return match
+    })
   }
 
-  const { printContentAsPdf } = await import("../utils/printPdf");
-  await printContentAsPdf(md, title);
+  const { printContentAsPdf } = await import('../utils/printPdf')
+  await printContentAsPdf(md, title)
 }
 
 type ContentPart =
   | { type: 'text'; html: string }
   | { type: 'quiz'; quiz: QuizData; quizIndex: number }
-  | { type: 'mermaid'; code: string };
+  | { type: 'mermaid'; code: string }
 
 // Mermaid diagram detection regex: ```mermaid ... ```
-const mermaidBlockRe = /```mermaid\s*\n([\s\S]*?)```/g;
+const mermaidBlockRe = /```mermaid\s*\n([\s\S]*?)```/g
 
 /** Split a text chunk into interleaved text and mermaid parts */
 function splitMermaid(text: string): ContentPart[] {
-  const result: ContentPart[] = [];
-  let lastIdx = 0;
+  const result: ContentPart[] = []
+  let lastIdx = 0
   for (const m of text.matchAll(mermaidBlockRe)) {
-    const before = text.slice(lastIdx, m.index);
-    if (before.trim()) result.push({ type: 'text', html: renderMarkdown(before) });
-    result.push({ type: 'mermaid', code: m[1].trim() });
-    lastIdx = m.index! + m[0].length;
+    const before = text.slice(lastIdx, m.index)
+    if (before.trim()) result.push({ type: 'text', html: renderMarkdown(before) })
+    result.push({ type: 'mermaid', code: m[1].trim() })
+    lastIdx = m.index! + m[0].length
   }
-  const after = text.slice(lastIdx);
-  if (after.trim()) result.push({ type: 'text', html: renderMarkdown(after) });
-  return result;
+  const after = text.slice(lastIdx)
+  if (after.trim()) result.push({ type: 'text', html: renderMarkdown(after) })
+  return result
 }
 
 const contentParts = computed<ContentPart[]>(() => {
-  const content = props.msg.content;
-  const parts: ContentPart[] = [];
-  const marker = '[quiz:';
-  let lastIndex = 0;
-  let searchFrom = 0;
-  let quizCounter = 0;
+  const content = props.msg.content
+  const parts: ContentPart[] = []
+  const marker = '[quiz:'
+  let lastIndex = 0
+  let searchFrom = 0
+  let quizCounter = 0
 
   while (searchFrom < content.length) {
-    const start = content.indexOf(marker, searchFrom);
-    if (start === -1) break;
+    const start = content.indexOf(marker, searchFrom)
+    if (start === -1) break
 
-    const jsonStart = start + marker.length;
+    const jsonStart = start + marker.length
     // Find matching closing brace by counting braces
-    let depth = 0;
-    let jsonEnd = -1;
+    let depth = 0
+    let jsonEnd = -1
     for (let i = jsonStart; i < content.length; i++) {
-      if (content[i] === '{') depth++;
+      if (content[i] === '{') depth++
       else if (content[i] === '}') {
-        depth--;
+        depth--
         if (depth === 0) {
           // Expect ] after the closing brace (allow optional whitespace)
-          let j = i + 1;
-          while (j < content.length && /\s/.test(content[j])) j++;
+          let j = i + 1
+          while (j < content.length && /\s/.test(content[j])) j++
           if (j < content.length && content[j] === ']') {
-            jsonEnd = j; // points to ']'
+            jsonEnd = j // points to ']'
           }
-          break;
+          break
         }
       }
     }
 
     if (jsonEnd === -1) {
-      searchFrom = start + marker.length;
-      continue;
+      searchFrom = start + marker.length
+      continue
     }
 
     // Text before quiz (may contain mermaid blocks)
-    const textBefore = content.slice(lastIndex, start);
+    const textBefore = content.slice(lastIndex, start)
     if (textBefore.trim()) {
-      parts.push(...splitMermaid(textBefore));
+      parts.push(...splitMermaid(textBefore))
     }
 
     // Parse quiz JSON — strip [source:N] citations that break JSON validity
-    const jsonStr = content.slice(jsonStart, jsonEnd)
-      .replace(/\[source:\s*\d+\]/g, '');
+    const jsonStr = content.slice(jsonStart, jsonEnd).replace(/\[source:\s*\d+\]/g, '')
     try {
-      const quizData = JSON.parse(jsonStr) as QuizData;
+      const quizData = JSON.parse(jsonStr) as QuizData
       if (quizData.title && Array.isArray(quizData.questions)) {
         // Normalize correct field to always be an array
         for (const q of quizData.questions) {
           if (!Array.isArray(q.correct)) {
-            q.correct = [q.correct as unknown as number];
+            q.correct = [q.correct as unknown as number]
           }
         }
         // Default multiple to true if not specified (backward compat)
         if (typeof quizData.multiple !== 'boolean') {
-          quizData.multiple = quizData.questions.some(q => q.correct.length > 1);
+          quizData.multiple = quizData.questions.some((q) => q.correct.length > 1)
         }
-        parts.push({ type: 'quiz', quiz: quizData, quizIndex: quizCounter++ });
+        parts.push({ type: 'quiz', quiz: quizData, quizIndex: quizCounter++ })
       } else {
-        parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)));
+        parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)))
       }
     } catch {
-      parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)));
+      parts.push(...splitMermaid(content.slice(start, jsonEnd + 1)))
     }
 
-    lastIndex = jsonEnd + 1;
-    searchFrom = lastIndex;
+    lastIndex = jsonEnd + 1
+    searchFrom = lastIndex
   }
 
   // Remaining text after last quiz block (or all text if no quiz)
-  const remaining = content.slice(lastIndex);
+  const remaining = content.slice(lastIndex)
   if (remaining.trim()) {
-    parts.push(...splitMermaid(remaining));
+    parts.push(...splitMermaid(remaining))
   }
 
   // If no parts at all, add empty text
   if (!parts.length) {
-    parts.push({ type: 'text', html: renderMarkdown(content) });
+    parts.push({ type: 'text', html: renderMarkdown(content) })
   }
 
-  return parts;
-});
+  return parts
+})
 
 // Source preview modal state
-const previewOpen = ref(false);
-const previewCitation = ref<{ fileName: string; chunkId: string; text: string; section?: string; page?: number | null; imageName?: string }>();
+const previewOpen = ref(false)
+const previewCitation = ref<{
+  fileName: string
+  chunkId: string
+  text: string
+  section?: string
+  page?: number | null
+  imageName?: string
+}>()
 
 // Tooltip management for inline source buttons
-const contentEls = ref<HTMLElement[]>([]);
-const tooltipElements: HTMLElement[] = [];
-const MAX_TOOLTIP_LENGTH = 600;
+const contentEls = ref<HTMLElement[]>([])
+const tooltipElements: HTMLElement[] = []
+const MAX_TOOLTIP_LENGTH = 600
 
 function truncateText(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen) + '…';
+  if (text.length <= maxLen) return text
+  return text.slice(0, maxLen) + '…'
 }
 
 function setupTooltips() {
-  cleanupTooltips();
-  if (!contentEls.value?.length) return;
+  cleanupTooltips()
+  if (!contentEls.value?.length) return
   for (const el of contentEls.value) {
-    const buttons = el.querySelectorAll<HTMLElement>('.inline-source-btn');
+    const buttons = el.querySelectorAll<HTMLElement>('.inline-source-btn')
     buttons.forEach((btn) => {
-      const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1;
-      const citation = props.msg.citations?.[idx];
-      if (!citation?.text) return;
-      createTooltip(btn, {
-        content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
-        delay: { show: 1000, hide: 0 },
-        themes: ['tooltip'],
-      }, false);
-      tooltipElements.push(btn);
-    });
+      const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1
+      const citation = props.msg.citations?.[idx]
+      if (!citation?.text) return
+      createTooltip(
+        btn,
+        {
+          content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
+          delay: { show: 1000, hide: 0 },
+          themes: ['tooltip'],
+        },
+        false,
+      )
+      tooltipElements.push(btn)
+    })
   }
 }
 
 function cleanupTooltips() {
   tooltipElements.forEach((el) => {
-    try { destroyTooltip(el); } catch {}
-  });
-  tooltipElements.length = 0;
+    try {
+      destroyTooltip(el)
+    } catch {}
+  })
+  tooltipElements.length = 0
 }
 
 function injectCodeCopyButtons() {
-  if (!contentEls.value?.length) return;
+  if (!contentEls.value?.length) return
   for (const el of contentEls.value) {
-    const pres = el.querySelectorAll<HTMLPreElement>('pre');
+    const pres = el.querySelectorAll<HTMLPreElement>('pre')
     pres.forEach((pre) => {
-      if (pre.querySelector('.code-copy-btn')) return;
+      if (pre.querySelector('.code-copy-btn')) return
       // Wrap pre in a relative container
-      const wrapper = document.createElement('div');
-      wrapper.className = 'code-block-wrapper';
-      pre.parentNode!.insertBefore(wrapper, pre);
-      wrapper.appendChild(pre);
+      const wrapper = document.createElement('div')
+      wrapper.className = 'code-block-wrapper'
+      pre.parentNode!.insertBefore(wrapper, pre)
+      wrapper.appendChild(pre)
 
-      const btn = document.createElement('button');
-      btn.className = 'code-copy-btn';
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`;
+      const btn = document.createElement('button')
+      btn.className = 'code-copy-btn'
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`
       btn.addEventListener('click', () => {
-        const code = pre.querySelector('code');
-        navigator.clipboard.writeText(code?.textContent || pre.textContent || '');
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        const code = pre.querySelector('code')
+        navigator.clipboard.writeText(code?.textContent || pre.textContent || '')
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!`
         setTimeout(() => {
-          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`;
-        }, 2000);
-      });
-      wrapper.appendChild(btn);
-    });
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy text`
+        }, 2000)
+      })
+      wrapper.appendChild(btn)
+    })
   }
 }
 
-watch(contentParts, () => {
-  nextTick(() => {
-    setupTooltips();
-    restoreChecklistState();
-    injectCodeCopyButtons();
-  });
-}, { immediate: true });
+let postProcessTimer: ReturnType<typeof setTimeout> | null = null
 
-onBeforeUnmount(cleanupTooltips);
+watch(
+  contentParts,
+  () => {
+    if (postProcessTimer) clearTimeout(postProcessTimer)
+    postProcessTimer = setTimeout(() => {
+      setupTooltips()
+      restoreChecklistState()
+      injectCodeCopyButtons()
+    }, 150)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  cleanupTooltips()
+  if (postProcessTimer) clearTimeout(postProcessTimer)
+})
 
 function saveChecklistState() {
-  if (!props.msg.id) return;
-  const states: boolean[] = [];
+  if (!props.msg.id) return
+  const states: boolean[] = []
   for (const el of contentEls.value ?? []) {
     el.querySelectorAll('.checklist-box').forEach((box) => {
-      states.push(box.classList.contains('checked'));
-    });
+      states.push(box.classList.contains('checked'))
+    })
   }
   if (states.length) {
-    setData(`checklist:${props.msg.id}`, states);
+    setData(`checklist:${props.msg.id}`, states)
   }
 }
 
 function restoreChecklistState() {
-  if (!props.msg.id) return;
+  if (!props.msg.id) return
   try {
-    const states = getData<boolean[]>(`checklist:${props.msg.id}`);
-    if (!states) return;
-    let idx = 0;
+    const states = getData<boolean[]>(`checklist:${props.msg.id}`)
+    if (!states) return
+    let idx = 0
     for (const el of contentEls.value ?? []) {
       el.querySelectorAll('.checklist-box').forEach((box) => {
-        if (idx < states.length && states[idx]) box.classList.add('checked');
-        idx++;
-      });
+        if (idx < states.length && states[idx]) box.classList.add('checked')
+        idx++
+      })
     }
-  } catch { /* ignore corrupt data */ }
+  } catch {
+    /* ignore corrupt data */
+  }
 }
 
 function onContentClick(e: MouseEvent) {
   // Handle source citation clicks (higher priority than checklist)
-  const btn = (e.target as HTMLElement).closest(".inline-source-btn") as HTMLElement | null;
+  const btn = (e.target as HTMLElement).closest('.inline-source-btn') as HTMLElement | null
   if (btn) {
-    const idx = parseInt(btn.dataset.sourceIdx || "0", 10) - 1; // 1-based to 0-based
+    const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1 // 1-based to 0-based
     if (props.msg.citations && props.msg.citations[idx]) {
-      previewCitation.value = props.msg.citations[idx] as any;
-      previewOpen.value = true;
+      previewCitation.value = props.msg.citations[idx] as any
+      previewOpen.value = true
     }
-    return;
+    return
   }
 
   // Handle action button clicks
-  const actionBtn = (e.target as HTMLElement).closest(".action-btn") as HTMLElement | null;
+  const actionBtn = (e.target as HTMLElement).closest('.action-btn') as HTMLElement | null
   if (actionBtn) {
-    const action = actionBtn.dataset.action;
+    const action = actionBtn.dataset.action
     if (action) {
-      emit('select-question', action);
+      emit('select-question', action)
     }
-    return;
+    return
   }
 
   // Handle checklist checkbox clicks (clicking the box or anywhere on the row)
-  const checkBox = (e.target as HTMLElement).closest(".checklist-box") as HTMLElement | null;
+  const checkBox = (e.target as HTMLElement).closest('.checklist-box') as HTMLElement | null
   if (checkBox) {
-    checkBox.classList.toggle("checked");
-    saveChecklistState();
-    return;
+    checkBox.classList.toggle('checked')
+    saveChecklistState()
+    return
   }
-  const li = (e.target as HTMLElement).closest("li") as HTMLElement | null;
-  if (li && li.querySelector(".checklist-box")) {
-    li.querySelector(".checklist-box")!.classList.toggle("checked");
-    saveChecklistState();
-    return;
+  const li = (e.target as HTMLElement).closest('li') as HTMLElement | null
+  if (li && li.querySelector('.checklist-box')) {
+    li.querySelector('.checklist-box')!.classList.toggle('checked')
+    saveChecklistState()
+    return
   }
 }
 
 // Image modal state
-const modalOpen = ref(false);
-const modalSrc = ref("");
-const modalAlt = ref("");
+const modalOpen = ref(false)
+const modalSrc = ref('')
+const modalAlt = ref('')
 
-type ImageCitationInfo = { url: string; section?: string; imageName: string };
+type ImageCitationInfo = { url: string; section?: string; imageName: string }
 
 function resolveImageCitation(citation: any): ImageCitationInfo {
   return {
     url: getStorageUrl(effectiveStorageId.value, citation.imageName),
     section: citation.section,
     imageName: citation.imageName,
-  };
+  }
 }
 
 const imageCitations = computed<ImageCitationInfo[]>(() => {
-  if (!props.msg.citations) return [];
-  return props.msg.citations
-    .filter((c) => c.imageName)
-    .map((c) => resolveImageCitation(c));
-});
+  if (!props.msg.citations) return []
+  return props.msg.citations.filter((c) => c.imageName).map((c) => resolveImageCitation(c))
+})
 
 function openImage(img: ImageCitationInfo) {
-  modalSrc.value = img.url;
-  modalAlt.value = img.section || "Image";
-  modalOpen.value = true;
+  modalSrc.value = img.url
+  modalAlt.value = img.section || 'Image'
+  modalOpen.value = true
 }
 
 // Welcome message file preview helpers
-type FileInfo = ConversationStatus["files"][number];
+type FileInfo = ConversationStatus['files'][number]
 
 function isImageFile(file: FileInfo) {
-  return file.mimeType.startsWith("image/");
+  return file.mimeType.startsWith('image/')
 }
 
 function isPdfFile(file: FileInfo) {
-  return file.mimeType === "application/pdf";
+  return file.mimeType === 'application/pdf'
 }
 
 function getFileUrl(file: FileInfo) {
-  return getStorageUrl(effectiveStorageId.value, file.originalName);
+  return getStorageUrl(effectiveStorageId.value, file.originalName)
 }
 
 function openFilePreview(file: FileInfo) {
   if (isImageFile(file)) {
-    modalSrc.value = getFileUrl(file);
-    modalAlt.value = file.originalName;
-    modalOpen.value = true;
+    modalSrc.value = getFileUrl(file)
+    modalAlt.value = file.originalName
+    modalOpen.value = true
   } else if (isPdfFile(file)) {
     previewCitation.value = {
       fileName: file.originalName,
-      chunkId: "",
-      text: "",
+      chunkId: '',
+      text: '',
       page: 1,
-    };
-    previewOpen.value = true;
+    }
+    previewOpen.value = true
   } else {
     // For text files, open in a new tab
-    window.open(getFileUrl(file), "_blank");
+    window.open(getFileUrl(file), '_blank')
   }
 }
 </script>
@@ -902,7 +970,10 @@ function openFilePreview(file: FileInfo) {
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   font-family: inherit;
 }
 
@@ -950,7 +1021,9 @@ function openFilePreview(file: FileInfo) {
   cursor: pointer;
   vertical-align: super;
   line-height: 1.4;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   font-family: inherit;
 }
 
@@ -978,7 +1051,9 @@ function openFilePreview(file: FileInfo) {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #334155;
-  transition: border-color 0.15s, transform 0.15s;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
   max-width: 140px;
 }
 
@@ -1056,7 +1131,10 @@ function openFilePreview(file: FileInfo) {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
-  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    background 0.15s;
   width: 120px;
   flex-shrink: 0;
 }
@@ -1135,7 +1213,9 @@ function openFilePreview(file: FileInfo) {
   border-radius: 0;
   border: 1px solid transparent;
   /* background: rgba(255, 255, 255, 0.04); */
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
   overflow: hidden;
 }
 
@@ -1246,7 +1326,9 @@ function openFilePreview(file: FileInfo) {
   justify-content: center;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s, background 0.15s;
+  transition:
+    opacity 0.2s,
+    background 0.15s;
   padding: 0;
 }
 
@@ -1395,16 +1477,36 @@ function openFilePreview(file: FileInfo) {
 }
 
 /* Colored text markers */
-:deep(.text-color-green) { color: #86efac; }
-:deep(.text-color-red) { color: #fca5a5; }
-:deep(.text-color-amber) { color: #fcd34d; }
-:deep(.text-color-blue) { color: #93c5fd; }
-:deep(.text-color-purple) { color: #c4b5fd; }
-:deep(.text-color-pink) { color: #f9a8d4; }
-:deep(.text-color-cyan) { color: #67e8f9; }
-:deep(.text-color-orange) { color: #fdba74; }
-:deep(.text-color-lime) { color: #bef264; }
-:deep(.text-color-rose) { color: #fda4af; }
+:deep(.text-color-green) {
+  color: #86efac;
+}
+:deep(.text-color-red) {
+  color: #fca5a5;
+}
+:deep(.text-color-amber) {
+  color: #fcd34d;
+}
+:deep(.text-color-blue) {
+  color: #93c5fd;
+}
+:deep(.text-color-purple) {
+  color: #c4b5fd;
+}
+:deep(.text-color-pink) {
+  color: #f9a8d4;
+}
+:deep(.text-color-cyan) {
+  color: #67e8f9;
+}
+:deep(.text-color-orange) {
+  color: #fdba74;
+}
+:deep(.text-color-lime) {
+  color: #bef264;
+}
+:deep(.text-color-rose) {
+  color: #fda4af;
+}
 
 :deep(.action-btn) {
   position: relative;
@@ -1506,7 +1608,9 @@ function openFilePreview(file: FileInfo) {
   background: rgba(167, 139, 250, 0.08);
   border: 1px solid rgba(167, 139, 250, 0.15);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   color: #a78bfa;
   font-size: 12px;
   font-weight: 500;
@@ -1532,8 +1636,14 @@ function openFilePreview(file: FileInfo) {
 
 /* Fade-in from top for new assistant messages */
 @keyframes msg-fade-in-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .message.assistant .message-content-wrap.animate-in {
@@ -1542,8 +1652,12 @@ function openFilePreview(file: FileInfo) {
 
 /* Reveal from left-to-right for new user messages */
 @keyframes msg-reveal-user-ltr {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0 0 0 0); }
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .message.user .user-text.animate-in {

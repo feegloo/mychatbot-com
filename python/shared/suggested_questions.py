@@ -6,9 +6,9 @@ import logging
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from .rag import get_llm
-from .lang_detect import detect_language
 from .extractors import clean_file_name
+from .lang_detect import detect_language
+from .rag import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,11 @@ def suggest_questions_from_chunks(
         _file_types_str = ", ".join(f"{n} ({file_types.get(n, 'unknown')})" for n in file_names)
 
     if language == "pl":
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """Wygeneruj DOKŁADNIE 5 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Wygeneruj DOKŁADNIE 5 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
 
 Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
@@ -231,12 +234,17 @@ af) Wygeneruj obraz 🎨 — sugeruj gdy:
    - przykład: "Wygeneruj obraz inspirowany treścią 🎨" lub "Wygeneruj obraz przedstawiający temat 🎨"
 
 Przesłane pliki: {file_types_str}
-Opis dokumentu: {description}"""),
-            ("human", "{content}"),
-        ])
+Opis dokumentu: {description}""",
+                ),
+                ("human", "{content}"),
+            ]
+        )
     else:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """Generate EXACTLY 5 suggested prompts for the user based on the following uploaded content.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Generate EXACTLY 5 suggested prompts for the user based on the following uploaded content.
 
 Reply with ONLY valid JSON (no markdown, no ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
@@ -415,50 +423,60 @@ af) Generate image 🎨 — suggest when:
    - example: "Generate an image inspired by the content 🎨" or "Generate an image depicting topic 🎨"
 
 Uploaded files: {file_types_str}
-Document description: {description}"""),
-            ("human", "{content}"),
-        ])
+Document description: {description}""",
+                ),
+                ("human", "{content}"),
+            ]
+        )
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    response = chain.invoke({"content": sample, "description": description, "file_types_str": _file_types_str})
+    response = chain.invoke(
+        {"content": sample, "description": description, "file_types_str": _file_types_str}
+    )
 
     # Parse JSON response
     try:
         parsed = json.loads(response.strip())
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
-            return _append_contextual_prompts(questions[:5], file_names, file_types, language, welcome_message)
+            return _append_contextual_prompts(
+                questions[:5], file_names, file_types, language, welcome_message
+            )
     except (json.JSONDecodeError, AttributeError):
-        logger.warning(f"Failed to parse JSON from suggested questions response, falling back to line parsing")
+        logger.warning(
+            "Failed to parse JSON from suggested questions response, falling back to line parsing"
+        )
 
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
-    return _append_contextual_prompts(questions[:5], file_names, file_types, language, welcome_message)
+    return _append_contextual_prompts(
+        questions[:5], file_names, file_types, language, welcome_message
+    )
 
 
 import re
 
 _PERSON_PATTERN = re.compile(
-    r'\b(person|people|man|woman|portrait|face|selfie|human|'
-    r'osoba|osoby|mężczyzna|kobieta|twarz|portret|człowiek|ludzie|'
-    r'depicts? a|shows? a|presents? a|przedstawia)\b',
+    r"\b(person|people|man|woman|portrait|face|selfie|human|"
+    r"osoba|osoby|mężczyzna|kobieta|twarz|portret|człowiek|ludzie|"
+    r"depicts? a|shows? a|presents? a|przedstawia)\b",
     re.IGNORECASE,
 )
 
 _WOMAN_PATTERN = re.compile(
-    r'\b(woman|girl|female|lady|kobieta|dziewczyna|pani)\b',
+    r"\b(woman|girl|female|lady|kobieta|dziewczyna|pani)\b",
     re.IGNORECASE,
 )
 
 _MAN_PATTERN = re.compile(
-    r'\b(man|boy|male|gentleman|mężczyzna|chłopak|pan)\b',
+    r"\b(man|boy|male|gentleman|mężczyzna|chłopak|pan)\b",
     re.IGNORECASE,
 )
 
 _INGREDIENT_PATTERN = re.compile(
-    r'\b(ingredient|ingredients|składnik|składniki|skład|composition|'
-    r'contains|zawiera|nutrition|wartości odżywcze|product label|etykiet)\b',
+    r"\b(ingredient|ingredients|składnik|składniki|skład|composition|"
+    r"contains|zawiera|nutrition|wartości odżywcze|product label|etykiet)\b",
     re.IGNORECASE,
 )
 
@@ -471,7 +489,7 @@ def _append_contextual_prompts(
     welcome_message: str = "",
 ) -> list[str]:
     """Build final list: 3 normal questions + up to 2 action prompts = max 5.
-    
+
     Contextual action prompts (EXIF, recognize, file metadata) take priority
     over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.

@@ -19,9 +19,7 @@
         <span v-else-if="conv.status === 'failed'" class="conv-nav-dot failed"></span>
       </router-link>
 
-      <p v-if="!conversations.length && !loading" class="conv-nav-empty">
-        No conversations yet
-      </p>
+      <p v-if="!conversations.length && !loading" class="conv-nav-empty">No conversations yet</p>
     </div>
 
     <div class="conv-nav-collapsed-hint">
@@ -31,18 +29,44 @@
         class="conv-nav-mini-item"
         :class="{ active: conv.conversationId === currentId }"
       ></div>
-      <span v-if="conversations.length > 5" class="conv-nav-mini-more">+{{ conversations.length - 5 }}</span>
+      <span v-if="conversations.length > 5" class="conv-nav-mini-more"
+        >+{{ conversations.length - 5 }}</span
+      >
     </div>
 
     <div class="conv-nav-bottom">
-      <button class="conv-nav-collapse-btn" @click.stop="$emit('toggle-collapse'); $emit('navigate')" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button
+        class="conv-nav-collapse-btn"
+        :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
+        @click.stop="$emit('toggle-collapse'); $emit('navigate')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline v-if="!collapsed" points="15 18 9 12 15 6" />
           <polyline v-else points="9 18 15 12 9 6" />
         </svg>
       </button>
       <DonateWidget />
-      <svg class="conv-nav-expand-arrow" @click.stop="$emit('toggle-collapse')" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg
+        class="conv-nav-expand-arrow"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        @click.stop="$emit('toggle-collapse')"
+      >
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </div>
@@ -50,92 +74,90 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { listMyConversations, type ConversationSummary } from "../api";
-import { cleanFileName } from "../utils/text";
-import DonateWidget from "./DonateWidget.vue";
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { listMyConversations, type ConversationSummary } from '../api'
+import { cleanFileName } from '../utils/text'
+import DonateWidget from './DonateWidget.vue'
 
-const props = defineProps<{ collapsed: boolean }>();
-const emit = defineEmits<{ navigate: [], 'toggle-collapse': [] }>();
+const props = defineProps<{ collapsed: boolean }>()
+const emit = defineEmits<{ navigate: []; 'toggle-collapse': [] }>()
 
 function onNavClick(e: MouseEvent) {
   if (props.collapsed) {
-    e.preventDefault();
-    emit('toggle-collapse');
+    e.preventDefault()
+    emit('toggle-collapse')
   }
 }
 
 function convLabel(conv: ConversationSummary): string {
-  if (conv.displayName) return conv.displayName;
+  if (conv.displayName) return conv.displayName
   if (conv.fileNames?.length) {
-    return conv.fileNames.map(cleanFileName).join(", ");
+    return conv.fileNames.map(cleanFileName).join(', ')
   }
-  return `Conversation ${conv.conversationId.slice(0, 8)}…`;
+  return `Conversation ${conv.conversationId.slice(0, 8)}…`
 }
 
-const route = useRoute();
-const conversations = ref<ConversationSummary[]>([]);
-const loading = ref(false);
-const currentId = ref("");
-let pollHandle: number | undefined;
+const route = useRoute()
+const conversations = ref<ConversationSummary[]>([])
+const loading = ref(false)
+const currentId = ref('')
+let pollHandle: number | undefined
 
 function hasProcessing() {
-  return conversations.value.some(c => c.status === "processing");
+  return conversations.value.some((c) => c.status === 'processing')
 }
 
 function startPolling() {
-  stopPolling();
+  stopPolling()
   pollHandle = window.setInterval(async () => {
-    await load();
-    if (!hasProcessing()) stopPolling();
-  }, 1500);
+    await load()
+    if (!hasProcessing()) stopPolling()
+  }, 1500)
 }
 
 function stopPolling() {
   if (pollHandle !== undefined) {
-    clearInterval(pollHandle);
-    pollHandle = undefined;
+    clearInterval(pollHandle)
+    pollHandle = undefined
   }
 }
 
 async function load() {
-  loading.value = true;
+  loading.value = true
   try {
-    conversations.value = await listMyConversations();
+    conversations.value = await listMyConversations()
     if (hasProcessing() && pollHandle === undefined) {
-      startPolling();
+      startPolling()
     }
   } catch {
     // silently fail – sidebar is non-critical
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 watch(
   () => route.params.conversationId,
   (id) => {
-    currentId.value = (id as string) || "";
+    currentId.value = (id as string) || ''
   },
-  { immediate: true }
-);
+  { immediate: true },
+)
 
 // Reload list when navigating to a new conversation (e.g. after upload)
 watch(
   () => route.path,
-  () => load()
-);
+  () => load(),
+)
 
 onMounted(() => {
-  load();
-  window.addEventListener('conversation-updated', load);
-});
+  load()
+  window.addEventListener('conversation-updated', load)
+})
 
 onUnmounted(() => {
-  stopPolling();
-  window.removeEventListener('conversation-updated', load);
-});
-
-onMounted(load);
+  stopPolling()
+  window.removeEventListener('conversation-updated', load)
+})
 </script>

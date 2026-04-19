@@ -18,6 +18,7 @@ Flow:
 
 Libraries are pre-loaded in the Docker image (no cold-start penalty for imports).
 """
+
 from __future__ import annotations
 
 import json
@@ -28,14 +29,17 @@ import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent / ".env")
 
 import sentry_sdk
+
 
 def _before_send_log(log, _hint):
     if os.getenv("SENTRY_ENVIRONMENT", "dev") == "prod" and log["severity_text"] == "debug":
         return None
     return log
+
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
@@ -47,13 +51,16 @@ sentry_sdk.init(
     before_send_log=_before_send_log,
 )
 
-from shared.page_worker import process_pdf_page
-from shared.vector_store import upsert_chunks
-from shared.chunkers import Chunk
-from shared.telemetry import log_processing_event, close_db_pool
 from sentry_sdk import logger as sentry_logger
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+from shared.chunkers import Chunk
+from shared.page_worker import process_pdf_page
+from shared.telemetry import close_db_pool, log_processing_event
+from shared.vector_store import upsert_chunks
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -65,17 +72,19 @@ def _image_chunks(images: list[dict]) -> list[Chunk]:
         image_name = abs_path.name
         page = img["page"]
         section = f"Image (page {page})" if page is not None else "Image"
-        chunks.append(Chunk(
-            chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
-            file_name=img["file_name"],
-            text=img["description"],
-            section=section,
-            page=page,
-            metadata={
-                "is_image": True,
-                "image_name": image_name,
-            },
-        ))
+        chunks.append(
+            Chunk(
+                chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
+                file_name=img["file_name"],
+                text=img["description"],
+                section=section,
+                page=page,
+                metadata={
+                    "is_image": True,
+                    "image_name": image_name,
+                },
+            )
+        )
     return chunks
 
 
@@ -111,6 +120,7 @@ def main():
     local_pdf = pdf_path
     if pdf_path.startswith("gs://"):
         from google.cloud import storage as gcs
+
         client = gcs.Client()
         bucket_name = pdf_path.split("/")[2]
         blob_path = "/".join(pdf_path.split("/")[3:])
@@ -124,8 +134,13 @@ def main():
 
     try:
         result = process_pdf_page(
-            local_pdf, page_idx, total_pages, output_dir,
-            conversation_id, seen_xrefs, worker_id,
+            local_pdf,
+            page_idx,
+            total_pages,
+            output_dir,
+            conversation_id,
+            seen_xrefs,
+            worker_id,
         )
 
         if result.error:
@@ -146,8 +161,11 @@ def main():
             )
 
         log_processing_event(
-            conversation_id, result.file_name, "worker_completed",
-            page_number=page_idx + 1, total_pages=total_pages,
+            conversation_id,
+            result.file_name,
+            "worker_completed",
+            page_number=page_idx + 1,
+            total_pages=total_pages,
             status="completed",
             detail=f"{len(result.chunks)} text chunks, {len(result.images)} images, {result.duration_ms}ms",
             worker_id=worker_id,
@@ -186,9 +204,13 @@ def main():
             },
         )
         log_processing_event(
-            conversation_id, Path(pdf_path).name, "worker_failed",
-            page_number=page_idx + 1, total_pages=total_pages,
-            status="failed", error_message=str(e)[:500],
+            conversation_id,
+            Path(pdf_path).name,
+            "worker_failed",
+            page_number=page_idx + 1,
+            total_pages=total_pages,
+            status="failed",
+            error_message=str(e)[:500],
             worker_id=worker_id,
         )
         logger.exception(f"❌ Worker crashed: {e}")

@@ -3,6 +3,7 @@
 Runs against files in ../test-files/.  If that directory is missing the tests
 are skipped so CI doesn't break without the fixture data.
 """
+
 from __future__ import annotations
 
 import re
@@ -10,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from shared.extractors import extract_text
 from shared.chunkers import split_into_chunks
+from shared.extractors import extract_text
 
 TEST_FILES_DIR = Path(__file__).resolve().parent.parent.parent / "test-files"
 
@@ -78,9 +79,7 @@ class TestChunkingRealFiles:
         text = extract_text(str(path))
         chunks = split_into_chunks(path.name, text)
         for c in chunks:
-            assert len(c.text) <= 2000, (
-                f"{c.chunk_id}: {len(c.text)} chars exceeds 2000 limit"
-            )
+            assert len(c.text) <= 2000, f"{c.chunk_id}: {len(c.text)} chars exceeds 2000 limit"
 
     def test_no_text_lost(self, path: Path):
         """All extracted text should appear in at least one chunk."""
@@ -105,8 +104,7 @@ class TestChunkingRealFiles:
         natural = sum(1 for c in chunks if _starts_at_natural_boundary(c.text))
         pct = natural / len(chunks)
         assert pct >= 0.40, (
-            f"Only {pct:.0%} of chunks start at natural boundaries "
-            f"({natural}/{len(chunks)})"
+            f"Only {pct:.0%} of chunks start at natural boundaries ({natural}/{len(chunks)})"
         )
 
     def test_low_mid_sentence_starts(self, path: Path):
@@ -119,9 +117,7 @@ class TestChunkingRealFiles:
             return
         mid = sum(1 for c in chunks if _starts_mid_sentence(c.text))
         pct = mid / len(chunks)
-        assert pct <= 0.50, (
-            f"{pct:.0%} of chunks start mid-sentence ({mid}/{len(chunks)})"
-        )
+        assert pct <= 0.50, f"{pct:.0%} of chunks start mid-sentence ({mid}/{len(chunks)})"
 
     def test_unique_chunk_ids(self, path: Path):
         text = extract_text(str(path))
@@ -170,7 +166,5 @@ class TestOverallChunkQuality:
     def test_no_very_tiny_chunks(self):
         """No chunk should be under 20 characters (likely a splitting artifact)."""
         for c in self.all_chunks:
-            clean = c.text.strip().lstrip('\ufeff')
-            assert len(clean) >= 3, (
-                f"Tiny chunk {c.chunk_id}: {c.text.strip()!r}"
-            )
+            clean = c.text.strip().lstrip("\ufeff")
+            assert len(clean) >= 3, f"Tiny chunk {c.chunk_id}: {c.text.strip()!r}"

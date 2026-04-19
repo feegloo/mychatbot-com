@@ -2,188 +2,221 @@
   <div ref="rootEl" class="pdf-page-viewer" @wheel.passive="onWheel">
     <div v-if="loading" class="pdf-page-loading">Loading…</div>
     <div v-if="error" class="pdf-page-error">{{ error }}</div>
-    <div
-      ref="pagesContainer"
-      v-show="!loading && !error"
-      class="pdf-pages-container"
-    >
+    <div v-show="!loading && !error" ref="pagesContainer" class="pdf-pages-container">
       <div
         v-for="pg in renderedPages"
         :key="pg"
-        :ref="el => setPageRef(pg, el as HTMLElement)"
+        :ref="(el) => setPageRef(pg, el as HTMLElement)"
         class="pdf-page-wrapper"
         :data-page="pg"
       >
-        <canvas :ref="el => setCanvasRef(pg, el as HTMLCanvasElement)" class="pdf-page-canvas" />
-        <div :ref="el => setTextRef(pg, el as HTMLElement)" class="textLayer" />
+        <canvas :ref="(el) => setCanvasRef(pg, el as HTMLCanvasElement)" class="pdf-page-canvas" />
+        <div :ref="(el) => setTextRef(pg, el as HTMLElement)" class="textLayer" />
       </div>
     </div>
     <!-- Toolbar -->
     <div class="pdf-toolbar">
-      <button class="pdf-tool-btn" @click="goToPrevPage" :disabled="currentPage <= 1">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
       </button>
       <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button class="pdf-tool-btn" @click="goToNextPage" :disabled="currentPage >= totalPages">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
       </button>
       <span class="pdf-toolbar-sep"></span>
-      <button class="pdf-tool-btn" @click="zoomOut" :disabled="scale <= 0.5">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button class="pdf-tool-btn" :disabled="scale <= 0.5" @click="zoomOut">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
       </button>
       <span class="pdf-zoom-info">{{ Math.round(scale * 100) }}%</span>
-      <button class="pdf-tool-btn" @click="zoomIn" :disabled="scale >= 3">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button class="pdf-tool-btn" :disabled="scale >= 3" @click="zoomIn">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from "vue";
-import { getDocument, GlobalWorkerOptions, TextLayer } from "pdfjs-dist";
-import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
+import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist'
+import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 
-GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
-).href;
+GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href
 
 const props = withDefaults(
   defineProps<{
-    url: string;
-    page?: number;
-    highlightText?: string;
+    url: string
+    page?: number
+    highlightText?: string
   }>(),
-  { page: 1, highlightText: "" }
-);
+  { page: 1, highlightText: '' },
+)
 
-const rootEl = ref<HTMLElement | null>(null);
-const pagesContainer = ref<HTMLElement | null>(null);
-const loading = ref(true);
-const error = ref("");
-const totalPages = ref(0);
-const currentPage = ref(1);
-const scale = ref(1);
+const rootEl = ref<HTMLElement | null>(null)
+const pagesContainer = ref<HTMLElement | null>(null)
+const loading = ref(true)
+const error = ref('')
+const totalPages = ref(0)
+const currentPage = ref(1)
+const scale = ref(1)
 
-const canvasRefs = new Map<number, HTMLCanvasElement>();
-const textRefs = new Map<number, HTMLElement>();
-const pageRefs = new Map<number, HTMLElement>();
-const pageProxies = new Map<number, PDFPageProxy>();
+const canvasRefs = new Map<number, HTMLCanvasElement>()
+const textRefs = new Map<number, HTMLElement>()
+const pageRefs = new Map<number, HTMLElement>()
+const pageProxies = new Map<number, PDFPageProxy>()
 
-let pdfDoc: PDFDocumentProxy | null = null;
-let highlightDone = false;
+let pdfDoc: PDFDocumentProxy | null = null
+let highlightDone = false
 
 // Render a window of pages around the current one for smooth scrolling
-const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const BUFFER = isMobileDevice ? 0 : 1;
+const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+const BUFFER = isMobileDevice ? 0 : 1
 const renderedPages = computed(() => {
-  const pages: number[] = [];
-  const start = Math.max(1, currentPage.value - BUFFER);
-  const end = Math.min(totalPages.value, currentPage.value + BUFFER);
-  for (let i = start; i <= end; i++) pages.push(i);
-  return pages;
-});
+  const pages: number[] = []
+  const start = Math.max(1, currentPage.value - BUFFER)
+  const end = Math.min(totalPages.value, currentPage.value + BUFFER)
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
 
 function setCanvasRef(pg: number, el: HTMLCanvasElement | null) {
-  if (el) canvasRefs.set(pg, el); else canvasRefs.delete(pg);
+  if (el) canvasRefs.set(pg, el)
+  else canvasRefs.delete(pg)
 }
 function setTextRef(pg: number, el: HTMLElement | null) {
-  if (el) textRefs.set(pg, el); else textRefs.delete(pg);
+  if (el) textRefs.set(pg, el)
+  else textRefs.delete(pg)
 }
 function setPageRef(pg: number, el: HTMLElement | null) {
-  if (el) pageRefs.set(pg, el); else pageRefs.delete(pg);
+  if (el) pageRefs.set(pg, el)
+  else pageRefs.delete(pg)
 }
 
 async function loadPdf() {
   try {
-    const task = getDocument(props.url);
-    pdfDoc = await task.promise;
-    totalPages.value = pdfDoc.numPages;
-    currentPage.value = Math.min(Math.max(props.page, 1), pdfDoc.numPages);
-    loading.value = false;
+    const task = getDocument(props.url)
+    pdfDoc = await task.promise
+    totalPages.value = pdfDoc.numPages
+    currentPage.value = Math.min(Math.max(props.page, 1), pdfDoc.numPages)
+    loading.value = false
 
-    await nextTick();
+    await nextTick()
     try {
-      await renderVisiblePages();
+      await renderVisiblePages()
     } catch (renderErr) {
-      console.warn("PDF render failed (pages still navigable):", renderErr);
+      console.warn('PDF render failed (pages still navigable):', renderErr)
     }
   } catch (err) {
-    console.error("PDF load failed:", err);
-    error.value = "Could not load PDF";
-    loading.value = false;
+    console.error('PDF load failed:', err)
+    error.value = 'Could not load PDF'
+    loading.value = false
   }
 }
 
 async function getPageProxy(pageNum: number): Promise<PDFPageProxy> {
-  if (pageProxies.has(pageNum)) return pageProxies.get(pageNum)!;
-  const page = await pdfDoc!.getPage(pageNum);
-  pageProxies.set(pageNum, page);
-  return page;
+  if (pageProxies.has(pageNum)) return pageProxies.get(pageNum)!
+  const page = await pdfDoc!.getPage(pageNum)
+  pageProxies.set(pageNum, page)
+  return page
 }
 
 async function renderPage(pageNum: number) {
-  const canvas = canvasRefs.get(pageNum);
-  const textDiv = textRefs.get(pageNum);
-  if (!canvas || !textDiv || !pdfDoc) return;
+  const canvas = canvasRefs.get(pageNum)
+  const textDiv = textRefs.get(pageNum)
+  if (!canvas || !textDiv || !pdfDoc) return
 
   // Skip if already rendered at this scale
-  const scaleKey = `rendered-${scale.value}`;
-  if (canvas.dataset.scaleKey === scaleKey) return;
-  canvas.dataset.scaleKey = scaleKey;
+  const scaleKey = `rendered-${scale.value}`
+  if (canvas.dataset.scaleKey === scaleKey) return
+  canvas.dataset.scaleKey = scaleKey
 
-  const page = await getPageProxy(pageNum);
+  const page = await getPageProxy(pageNum)
 
-  const containerWidth = rootEl.value?.clientWidth || 600;
-  const unscaledVp = page.getViewport({ scale: 1 });
-  const baseScale = (containerWidth - 24) / unscaledVp.width; // 12px padding each side
-  const effectiveScale = baseScale * scale.value;
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
-  const viewport = page.getViewport({ scale: effectiveScale * dpr });
-  const displayViewport = page.getViewport({ scale: effectiveScale });
+  const containerWidth = rootEl.value?.clientWidth || 600
+  const unscaledVp = page.getViewport({ scale: 1 })
+  const baseScale = (containerWidth - 24) / unscaledVp.width // 12px padding each side
+  const effectiveScale = baseScale * scale.value
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)
+  const viewport = page.getViewport({ scale: effectiveScale * dpr })
+  const displayViewport = page.getViewport({ scale: effectiveScale })
 
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  canvas.style.width = displayViewport.width + "px";
-  canvas.style.height = displayViewport.height + "px";
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  canvas.style.width = displayViewport.width + 'px'
+  canvas.style.height = displayViewport.height + 'px'
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
 
-  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  await page.render({ canvas, canvasContext: ctx, viewport }).promise
 
   // Text layer
-  textDiv.innerHTML = "";
-  textDiv.style.width = displayViewport.width + "px";
-  textDiv.style.height = displayViewport.height + "px";
+  textDiv.innerHTML = ''
+  textDiv.style.width = displayViewport.width + 'px'
+  textDiv.style.height = displayViewport.height + 'px'
 
   // Set the CSS variable for text scaling
-  const scaleFactor = displayViewport.scale;
-  textDiv.style.setProperty("--total-scale-factor", String(scaleFactor));
+  const scaleFactor = displayViewport.scale
+  textDiv.style.setProperty('--total-scale-factor', String(scaleFactor))
 
-  const textContent = await page.getTextContent();
+  const textContent = await page.getTextContent()
   const textLayer = new TextLayer({
     textContentSource: textContent,
     container: textDiv,
     viewport: displayViewport,
-  });
-  await textLayer.render();
+  })
+  await textLayer.render()
 
   // Highlight matching text on the target page
   if (pageNum === currentPage.value && props.highlightText && !highlightDone) {
-    await nextTick();
-    highlightTextInLayer(textDiv);
+    await nextTick()
+    highlightTextInLayer(textDiv)
   }
 }
 
 async function renderVisiblePages() {
   for (const pg of renderedPages.value) {
     try {
-      await renderPage(pg);
+      await renderPage(pg)
     } catch (err) {
-      console.warn(`PDF page ${pg} render failed:`, err);
+      console.warn(`PDF page ${pg} render failed:`, err)
     }
   }
 }
@@ -191,13 +224,13 @@ async function renderVisiblePages() {
 /** Normalize text for fuzzy comparison */
 function normalizeText(s: string): string {
   return s
-    .replace(/[\r\n]+/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .replace(/[""]/g, '"')
     .replace(/['']/g, "'")
-    .replace(/[–—]/g, "-")
+    .replace(/[–—]/g, '-')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
 }
 
 /**
@@ -205,37 +238,37 @@ function normalizeText(s: string): string {
  * and apply highlight styling + scroll into view.
  */
 function highlightTextInLayer(textDiv: HTMLElement) {
-  const sourceText = normalizeText(props.highlightText);
-  if (!sourceText || sourceText.length < 10) return;
+  const sourceText = normalizeText(props.highlightText)
+  if (!sourceText || sourceText.length < 10) return
 
-  const spans = Array.from(textDiv.querySelectorAll("span")) as HTMLElement[];
-  if (!spans.length) return;
+  const spans = Array.from(textDiv.querySelectorAll('span')) as HTMLElement[]
+  if (!spans.length) return
 
   // Build a concatenated string of all span texts with position map
-  const items: { span: HTMLElement; start: number; text: string }[] = [];
-  let concat = "";
+  const items: { span: HTMLElement; start: number; text: string }[] = []
+  let concat = ''
   for (const span of spans) {
-    const text = span.textContent || "";
-    items.push({ span, start: concat.length, text });
-    concat += normalizeText(text) + " ";
+    const text = span.textContent || ''
+    items.push({ span, start: concat.length, text })
+    concat += normalizeText(text) + ' '
   }
-  const fullText = concat.trimEnd();
+  const fullText = concat.trimEnd()
 
   // Find the best matching substring using progressive word matching
-  const sourceWords = sourceText.split(/\s+/);
+  const sourceWords = sourceText.split(/\s+/)
   // Take first N words to search for start position
-  const searchPrefix = sourceWords.slice(0, Math.min(8, sourceWords.length)).join(" ");
-  const startIdx = fullText.indexOf(searchPrefix);
+  const searchPrefix = sourceWords.slice(0, Math.min(8, sourceWords.length)).join(' ')
+  const startIdx = fullText.indexOf(searchPrefix)
   if (startIdx === -1) {
     // Try shorter prefix
-    const shortPrefix = sourceWords.slice(0, Math.min(4, sourceWords.length)).join(" ");
-    const shortIdx = fullText.indexOf(shortPrefix);
-    if (shortIdx === -1) return;
-    applyHighlight(items, shortIdx, shortIdx + sourceText.length, fullText);
-    return;
+    const shortPrefix = sourceWords.slice(0, Math.min(4, sourceWords.length)).join(' ')
+    const shortIdx = fullText.indexOf(shortPrefix)
+    if (shortIdx === -1) return
+    applyHighlight(items, shortIdx, shortIdx + sourceText.length, fullText)
+    return
   }
 
-  applyHighlight(items, startIdx, startIdx + sourceText.length, fullText);
+  applyHighlight(items, startIdx, startIdx + sourceText.length, fullText)
 }
 
 function applyHighlight(
@@ -245,124 +278,124 @@ function applyHighlight(
   fullText: string,
 ) {
   // Clamp matchEnd to actual text length
-  const effectiveEnd = Math.min(matchEnd, fullText.length);
-  let firstHighlighted: HTMLElement | null = null;
+  const effectiveEnd = Math.min(matchEnd, fullText.length)
+  let firstHighlighted: HTMLElement | null = null
 
   for (const item of items) {
-    const spanEnd = item.start + normalizeText(item.text).length;
+    const spanEnd = item.start + normalizeText(item.text).length
     // Check if this span overlaps the matched range
     if (spanEnd > matchStart && item.start < effectiveEnd) {
-      item.span.classList.add("pdf-highlight");
-      if (!firstHighlighted) firstHighlighted = item.span;
+      item.span.classList.add('pdf-highlight')
+      if (!firstHighlighted) firstHighlighted = item.span
     }
   }
 
-  highlightDone = true;
+  highlightDone = true
 
   // Scroll to highlighted text
   if (firstHighlighted) {
     requestAnimationFrame(() => {
-      const container = pagesContainer.value;
-      if (!container || !firstHighlighted) return;
-      const containerRect = container.getBoundingClientRect();
-      const highlightRect = firstHighlighted.getBoundingClientRect();
+      const container = pagesContainer.value
+      if (!container || !firstHighlighted) return
+      const containerRect = container.getBoundingClientRect()
+      const highlightRect = firstHighlighted.getBoundingClientRect()
       // Scroll so highlight is ~30% from the top of the viewer
-      const targetOffset = highlightRect.top - containerRect.top - container.clientHeight * 0.3;
-      container.scrollTop = Math.max(0, container.scrollTop + targetOffset);
-    });
+      const targetOffset = highlightRect.top - containerRect.top - container.clientHeight * 0.3
+      container.scrollTop = Math.max(0, container.scrollTop + targetOffset)
+    })
   }
 }
 
 function goToPrevPage() {
   if (currentPage.value > 1) {
-    currentPage.value--;
-    highlightDone = false;
-    onPageChange();
+    currentPage.value--
+    highlightDone = false
+    onPageChange()
   }
 }
 
 function goToNextPage() {
   if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-    highlightDone = false;
-    onPageChange();
+    currentPage.value++
+    highlightDone = false
+    onPageChange()
   }
 }
 
 async function onPageChange() {
-  await nextTick();
+  await nextTick()
   // Reset canvas scale keys for re-render
   for (const canvas of canvasRefs.values()) {
-    canvas.dataset.scaleKey = "";
+    canvas.dataset.scaleKey = ''
   }
-  await renderVisiblePages();
+  await renderVisiblePages()
   // Scroll to top of the current page
-  const pageEl = pageRefs.get(currentPage.value);
+  const pageEl = pageRefs.get(currentPage.value)
   if (pageEl && pagesContainer.value) {
-    pageEl.scrollIntoView({ block: "start", behavior: "instant" });
+    pageEl.scrollIntoView({ block: 'start', behavior: 'instant' })
   }
 }
 
 function zoomIn() {
-  if (scale.value >= 3) return;
-  scale.value = Math.round((scale.value + 0.25) * 100) / 100;
-  reRender();
+  if (scale.value >= 3) return
+  scale.value = Math.round((scale.value + 0.25) * 100) / 100
+  reRender()
 }
 
 function zoomOut() {
-  if (scale.value <= 0.5) return;
-  scale.value = Math.round((scale.value - 0.25) * 100) / 100;
-  reRender();
+  if (scale.value <= 0.5) return
+  scale.value = Math.round((scale.value - 0.25) * 100) / 100
+  reRender()
 }
 
 async function reRender() {
   // Clear scale keys to force re-render
   for (const canvas of canvasRefs.values()) {
-    canvas.dataset.scaleKey = "";
+    canvas.dataset.scaleKey = ''
   }
-  await nextTick();
-  await renderVisiblePages();
+  await nextTick()
+  await renderVisiblePages()
 }
 
 function onWheel(e: WheelEvent) {
   if (e.ctrlKey || e.metaKey) {
-    e.preventDefault();
-    if (e.deltaY < 0) zoomIn();
-    else zoomOut();
+    e.preventDefault()
+    if (e.deltaY < 0) zoomIn()
+    else zoomOut()
   }
 }
 
 // Watch for scroll to detect page changes
 function onScroll() {
-  if (!pagesContainer.value) return;
-  const container = pagesContainer.value;
-  const containerTop = container.scrollTop + container.clientHeight * 0.4;
+  if (!pagesContainer.value) return
+  const container = pagesContainer.value
+  const containerTop = container.scrollTop + container.clientHeight * 0.4
   for (const [pg, el] of pageRefs.entries()) {
     if (el.offsetTop <= containerTop && el.offsetTop + el.offsetHeight > containerTop) {
       if (pg !== currentPage.value) {
-        currentPage.value = pg;
+        currentPage.value = pg
       }
-      break;
+      break
     }
   }
 }
 
 onMounted(() => {
-  loadPdf();
-  pagesContainer.value?.addEventListener("scroll", onScroll, { passive: true });
-});
+  loadPdf()
+  pagesContainer.value?.addEventListener('scroll', onScroll, { passive: true })
+})
 
 onBeforeUnmount(() => {
-  pagesContainer.value?.removeEventListener("scroll", onScroll);
-  pdfDoc?.destroy();
-  pageProxies.clear();
-});
+  pagesContainer.value?.removeEventListener('scroll', onScroll)
+  pdfDoc?.destroy()
+  pageProxies.clear()
+})
 
 // Re-render when rendered pages change (due to page navigation)
 watch(renderedPages, async () => {
-  await nextTick();
-  await renderVisiblePages();
-});
+  await nextTick()
+  await renderVisiblePages()
+})
 </script>
 
 <style>
@@ -376,8 +409,8 @@ watch(renderedPages, async () => {
   opacity: 1;
   line-height: 1;
   -webkit-text-size-adjust: none;
-     -moz-text-size-adjust: none;
-          text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
   forced-color-adjust: none;
   z-index: 2;
 }
@@ -437,7 +470,6 @@ watch(renderedPages, async () => {
   gap: 0;
   padding: 0;
 }
-
 
 .pdf-page-wrapper {
   position: relative;

@@ -4,20 +4,19 @@ Currently uses urllib for fetching raw HTML.
 TODO: In future, use Playwright to render page with a real browser engine
 for ~2s before capturing the fully-rendered DOM.
 """
+
 from __future__ import annotations
 
-import json
 import logging
-import re
-import urllib.request
 import urllib.error
+import urllib.request
 from html.parser import HTMLParser
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from .rag import get_llm
 from .lang_detect import detect_language
+from .rag import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +85,11 @@ def describe_url(url: str, html: str, language: str | None = None) -> str:
     html_truncated = html[:_MAX_HTML_CHARS]
 
     if language == "pl":
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """Twoim zadaniem jest opisanie strony internetowej na podstawie jej kodu HTML.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Twoim zadaniem jest opisanie strony internetowej na podstawie jej kodu HTML.
 Przeanalizuj strukturę HTML i treść, aby zrozumieć co znajduje się na stronie.
 
 Twoja odpowiedź MUSI składać się z trzech części:
@@ -103,12 +105,20 @@ Skup się na TREŚCI strony, nie na kodzie HTML.
 Pisz jak człowiek opisujący stronę innemu człowiekowi.
 Bądź zwięzły. NIE pytaj użytkownika o nic.
 Używaj profesjonalnych emoji (🌐, 📰, 🛒, 📊, 💡, 🔍) oszczędnie.
-Odpowiadaj po polsku."""),
-            ("human", "Cel: opisz co znajduje się na stronie internetowej na podstawie HTML\nURL: {url}\n\nHTML:\n{html}"),
-        ])
+Odpowiadaj po polsku.""",
+                ),
+                (
+                    "human",
+                    "Cel: opisz co znajduje się na stronie internetowej na podstawie HTML\nURL: {url}\n\nHTML:\n{html}",
+                ),
+            ]
+        )
     else:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """Your task is to describe a website by inspecting its HTML code.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Your task is to describe a website by inspecting its HTML code.
 Analyze the HTML structure and content to understand what is on the page.
 
 Your response MUST have three parts:
@@ -124,9 +134,14 @@ Focus on the CONTENT of the page, not the HTML code itself.
 Write like a human describing a website to another human.
 Be concise. Do NOT ask the user anything.
 Use professional emoji (🌐, 📰, 🛒, 📊, 💡, 🔍) sparingly.
-Reply in the same language as the page content."""),
-            ("human", "Goal: describe what is on website by inspecting HTML\nURL: {url}\n\nHTML:\n{html}"),
-        ])
+Reply in the same language as the page content.""",
+                ),
+                (
+                    "human",
+                    "Goal: describe what is on website by inspecting HTML\nURL: {url}\n\nHTML:\n{html}",
+                ),
+            ]
+        )
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
