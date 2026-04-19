@@ -13,6 +13,12 @@ select = [
   "LOG",  # flake8-logging
 ]
 
+[lint.per-file-ignores]
+"shared/rag.py" = ["E501"]
+"shared/describe.py" = ["E501"]
+"shared/suggested_questions.py" = ["E501"]
+"LangChain_Project_dev.ipynb" = ["E501"]
+
 [lint.isort]
 known-first-party = ["shared"]
 

@@ -90,7 +90,9 @@ def log_processing_event(
                            SET status = %s, step = %s, detail = %s,
                                error_message = %s, duration_ms = %s,
                                retry_count = %s,
-                               completed_at = CASE WHEN %s IN ('completed', 'failed') THEN %s ELSE completed_at END,
+                               completed_at = CASE
+                                   WHEN %s IN ('completed', 'failed')
+                                   THEN %s ELSE completed_at END,
                                worker_id = COALESCE(%s, worker_id)
                            WHERE id = %s""",
                         (

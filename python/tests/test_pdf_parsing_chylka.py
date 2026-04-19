@@ -223,7 +223,7 @@ class TestPageProcessingPipeline:
         errors: list[tuple[int, str]] = []
         total_chunks = 0
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory():
             for page_idx in range(len(doc)):
                 page_num = page_idx + 1
                 try:
@@ -266,7 +266,7 @@ class TestPageProcessingPipeline:
             try:
                 doc = fitz.open(str(PDF_PATH))
                 page = doc[page_idx]
-                raw = page.get_text() or ""
+                page.get_text() or ""
                 _ = page.get_images(full=True)
                 doc.close()
             except Exception as e:

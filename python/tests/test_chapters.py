@@ -176,7 +176,7 @@ class TestChapterDetectionMocked:
         mock_doc.get_toc.return_value = []
 
         mock_pages = []
-        for i in range(10):
+        for _i in range(10):
             page = MagicMock()
             page.get_text.return_value = "Just regular text without chapter markers"
             mock_pages.append(page)

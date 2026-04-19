@@ -1,6 +1,6 @@
 """Tests for token-aware chat history truncation in _format_chat_history."""
 
-from shared.rag import _count_tokens, _format_chat_history, _MAX_CHAT_HISTORY_TOKENS
+from shared.rag import _MAX_CHAT_HISTORY_TOKENS, _count_tokens, _format_chat_history
 
 
 def _make_msg(role: str, content: str, timestamp: str = "") -> dict:

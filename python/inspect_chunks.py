@@ -21,7 +21,10 @@ TEST_FILES_DIR = Path(__file__).resolve().parent.parent / "test-files"
 
 
 def starts_at_natural_boundary(text: str) -> bool:
-    """Check if a chunk begins at a natural boundary (header, bullet, numbered item, paragraph start)."""
+    """Check if a chunk begins at a natural boundary.
+
+    (header, bullet, numbered item, paragraph start).
+    """
     stripped = text.lstrip("\n")
     if not stripped:
         return True
@@ -36,9 +39,7 @@ def starts_at_natural_boundary(text: str) -> bool:
     if re.match(r"^[-*•]\s", first_line):
         return True
     # Begins with uppercase letter or digit (new sentence / paragraph)
-    if re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9]", first_line):
-        return True
-    return False
+    return bool(re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9]", first_line))
 
 
 def ends_at_natural_boundary(text: str) -> bool:
@@ -51,9 +52,7 @@ def ends_at_natural_boundary(text: str) -> bool:
     if last_char in ".!?:;…)\"'":
         return True
     # Ends with a blank line before stripping
-    if text.rstrip(" ").endswith("\n\n"):
-        return True
-    return False
+    return bool(text.rstrip(" ").endswith("\n\n"))
 
 
 def has_mid_sentence_break(text: str) -> bool:
@@ -62,9 +61,7 @@ def has_mid_sentence_break(text: str) -> bool:
     if not stripped:
         return False
     # Starts with lowercase letter (likely mid-sentence)
-    if re.match(r"^[a-ząćęłńóśźż]", stripped):
-        return True
-    return False
+    return bool(re.match(r"^[a-ząćęłńóśźż]", stripped))
 
 
 def chunk_quality_report(file_name: str, text: str) -> dict:

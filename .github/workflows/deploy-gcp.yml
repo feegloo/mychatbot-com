@@ -3,7 +3,7 @@ name: Deploy to GCP Cloud Run
 on:
   push:
     branches:
-      - master #TODO: main
+      - main #TODO: main
 
 env:
   REGION: europe-west1
@@ -60,11 +60,34 @@ jobs:
             --subnet default \
             --vpc-egress private-ranges-only \
             --port 8080 \
-            --memory 1Gi \
-            --cpu 1 \
+            --memory 4Gi \
+            --cpu 4 \
             --min-instances 0 \
             --max-instances 3 \
-            --timeout 300
+            --timeout 300 \
+            --update-env-vars "\
+          NODE_ENV=production,\
+          DATABASE_URL=${{ secrets.DATABASE_URL }},\
+          CHROMA_MODE=local,\
+          ANONYMIZED_TELEMETRY=False,\
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
+          STORAGE_PROVIDER=gcs,\
+          GCS_BUCKET=${{ secrets.GCS_BUCKET }},\
+          FRONTEND_DIST_PATH=/app/frontend/dist,\
+          PYTHON_BIN=/app/python/.venv/bin/python3,\
+          PYTHON_PROJECT_ROOT=/app/python,\
+          PYTHON_SERVER_URL=http://localhost:8321,\
+          USE_GEMMA=false,\
+          GEMMA_MODEL=gemma4,\
+          GEMMA_BASE_URL=http://localhost:11434,\
+          DEBUG_USER=${{ secrets.DEBUG_USER }},\
+          DEBUG_PASS=${{ secrets.DEBUG_PASS }},\
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},\
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }},\
+          WORKER_MODE=cloud_run,\
+          WORKER_JOB_NAME=chatrag-worker,\
+          WORKER_REGION=europe-west1,\
+          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Get service URL
         run: |

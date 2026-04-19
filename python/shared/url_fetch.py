@@ -97,9 +97,13 @@ Twoja odpowiedź MUSI składać się z trzech części:
 1. **Tytuł** (pierwsza linia): Nazwa strony/serwisu i krótki opis.
    Sformatuj jako nagłówek Markdown: ## Tytuł tutaj
 
-2. **Opis** (po tytule): 2-4 zdania opisujące zawartość strony. Wymień najważniejsze sekcje, artykuły, tematy, produkty lub usługi widoczne na stronie. Używaj **pogrubienia** dla kluczowych elementów.
+2. **Opis** (po tytule): 2-4 zdania opisujące zawartość strony.
+Wymień najważniejsze sekcje, artykuły, tematy, produkty lub usługi
+widoczne na stronie. Używaj **pogrubienia** dla kluczowych elementów.
 
-3. **Ekspercki wgląd** (po opisie): 2-3 zdania z obserwacjami na temat strony — np. typ strony (portal, sklep, blog, landing page), główny cel, docelowa grupa odbiorców, jakość treści.
+3. **Ekspercki wgląd** (po opisie): 2-3 zdania z obserwacjami
+na temat strony — np. typ strony (portal, sklep, blog,
+landing page), główny cel, docelowa grupa odbiorców, jakość treści.
 
 Skup się na TREŚCI strony, nie na kodzie HTML.
 Pisz jak człowiek opisujący stronę innemu człowiekowi.
@@ -109,7 +113,9 @@ Odpowiadaj po polsku.""",
                 ),
                 (
                     "human",
-                    "Cel: opisz co znajduje się na stronie internetowej na podstawie HTML\nURL: {url}\n\nHTML:\n{html}",
+                    "Cel: opisz co znajduje się na stronie "
+                    "internetowej na podstawie HTML\n"
+                    "URL: {url}\n\nHTML:\n{html}",
                 ),
             ]
         )
@@ -126,9 +132,15 @@ Your response MUST have three parts:
 1. **Title** (first line): The website/service name and a short description.
    Format as a Markdown heading: ## Title here
 
-2. **Description** (after the title): 2-4 sentences describing the page content. Mention the most important sections, articles, topics, products, or services visible on the page. Use **bold** for key elements.
+2. **Description** (after the title): 2-4 sentences describing
+the page content. Mention the most important sections, articles,
+topics, products, or services visible on the page.
+Use **bold** for key elements.
 
-3. **Expert insight** (after the description): 2-3 sentences with observations about the page — e.g. the type of site (portal, e-commerce, blog, landing page), main purpose, target audience, content quality.
+3. **Expert insight** (after the description): 2-3 sentences
+with observations about the page — e.g. the type of site
+(portal, e-commerce, blog, landing page), main purpose,
+target audience, content quality.
 
 Focus on the CONTENT of the page, not the HTML code itself.
 Write like a human describing a website to another human.
@@ -138,7 +150,8 @@ Reply in the same language as the page content.""",
                 ),
                 (
                     "human",
-                    "Goal: describe what is on website by inspecting HTML\nURL: {url}\n\nHTML:\n{html}",
+                    "Goal: describe what is on website by "
+                    "inspecting HTML\nURL: {url}\n\nHTML:\n{html}",
                 ),
             ]
         )

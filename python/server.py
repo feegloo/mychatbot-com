@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-import sentry_sdk
+import sentry_sdk  # noqa: E402
 
 
 def _before_send_log(log, _hint):
@@ -35,17 +35,17 @@ sentry_sdk.init(
     before_send_log=_before_send_log,
 )
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from sentry_sdk import logger as sentry_logger
+from fastapi import FastAPI, HTTPException  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+from sentry_sdk import logger as sentry_logger  # noqa: E402
 
-from shared.image_gen import build_image_prompt, generate_image
-from shared.indexing import index_documents
-from shared.metadata import enrich_metadata_web
-from shared.rag import answer_with_citations
-from shared.telemetry import close_db_pool
-from shared.url_fetch import _extract_visible_text, describe_url, fetch_url
-from shared.vector_store import collection_count
+from shared.image_gen import build_image_prompt, generate_image  # noqa: E402
+from shared.indexing import index_documents  # noqa: E402
+from shared.metadata import enrich_metadata_web  # noqa: E402
+from shared.rag import answer_with_citations  # noqa: E402
+from shared.telemetry import close_db_pool  # noqa: E402
+from shared.url_fetch import _extract_visible_text, describe_url, fetch_url  # noqa: E402
+from shared.vector_store import collection_count  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -84,11 +84,13 @@ async def _startup_checks():
                 logger.info(f"🟢 Ollama available. Loaded models: {models}")
             else:
                 logger.warning(
-                    f"⚠️ Ollama is running but has no models. Pull one: docker exec chatrag-ollama ollama pull {settings.gemma_model}"
+                    f"⚠️ Ollama is running but has no models. "
+                    f"Pull one: docker exec chatrag-ollama ollama pull {settings.gemma_model}"
                 )
         except Exception as e:
             logger.warning(
-                f"⚠️ Cannot reach Ollama at {settings.gemma_base_url}: {e}. Make sure Ollama is running."
+                f"⚠️ Cannot reach Ollama at {settings.gemma_base_url}: {e}. "
+                f"Make sure Ollama is running."
             )
     else:
         logger.info(f"🔵 Using cloud LLM provider: {settings.llm_provider}")
@@ -158,7 +160,7 @@ async def get_processing_jobs(conversation_id: str):
                     (conversation_id,),
                 )
                 columns = [desc[0] for desc in cur.description]
-                rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+                rows = [dict(zip(columns, row, strict=False)) for row in cur.fetchall()]
                 # Convert datetime objects to ISO strings
                 for row in rows:
                     for key in ("started_at", "completed_at", "created_at"):
@@ -207,7 +209,7 @@ async def index(req: IndexRequest):
             attributes={"error": str(e)[:500]},
         )
         logger.exception("Error indexing documents")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/answer")
@@ -244,7 +246,9 @@ async def answer(req: AnswerRequest):
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(
-            f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'"
+            f"📤 /answer response: "
+            f"{len(result.get('answer', ''))} chars, "
+            f"preview='{answer_preview}'"
         )
         sentry_logger.info(
             "Answer generated for conversation {conversation_id}",
@@ -262,7 +266,7 @@ async def answer(req: AnswerRequest):
             attributes={"error": str(e)[:500]},
         )
         logger.exception("Error answering question")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/enrich-metadata")
@@ -350,10 +354,10 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
         return result
     except urllib.error.URLError as e:
         logger.exception(f"Failed to fetch URL: {req.url}")
-        raise HTTPException(status_code=422, detail=f"Could not fetch URL: {e.reason}")
+        raise HTTPException(status_code=422, detail=f"Could not fetch URL: {e.reason}") from e
     except Exception as e:
         logger.exception(f"Error describing URL: {req.url}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/generate-image")
@@ -389,7 +393,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
         return result
     except Exception as e:
         logger.exception("Error generating image")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 if __name__ == "__main__":

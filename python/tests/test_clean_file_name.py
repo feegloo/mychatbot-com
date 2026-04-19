@@ -40,7 +40,8 @@ class TestCleanFileName:
         assert clean_file_name("wallhaven-289e1g_B2p2jEVxhjrYZkvh.jpg") == "wallhaven-289e1g.jpg"
 
     def test_long_filename_with_hash_suffix(self):
-        """Filenames like '2732x4096_50df03347243cf3f645f088f03bc546c.jpg' should keep the hash (32 chars, not 16)."""
+        """Filenames like '2732x4096_...cf3f645f088f03bc546c.jpg'
+        should keep the hash (32 chars, not 16)."""
         assert (
             clean_file_name("2732x4096_50df03347243cf3f645f088f03bc546c.jpg")
             == "2732x4096_50df03347243cf3f645f088f03bc546c.jpg"

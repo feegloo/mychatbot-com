@@ -1,6 +1,6 @@
 """Tests for embedding cache in vector_store module."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from shared.vector_store import _embed_single_cached
 

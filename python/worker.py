@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-import sentry_sdk
+import sentry_sdk  # noqa: E402
 
 
 def _before_send_log(log, _hint):
@@ -51,12 +51,12 @@ sentry_sdk.init(
     before_send_log=_before_send_log,
 )
 
-from sentry_sdk import logger as sentry_logger
+from sentry_sdk import logger as sentry_logger  # noqa: E402
 
-from shared.chunkers import Chunk
-from shared.page_worker import process_pdf_page
-from shared.telemetry import close_db_pool, log_processing_event
-from shared.vector_store import upsert_chunks
+from shared.chunkers import Chunk  # noqa: E402
+from shared.page_worker import process_pdf_page  # noqa: E402
+from shared.telemetry import close_db_pool, log_processing_event  # noqa: E402
+from shared.vector_store import upsert_chunks  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -167,7 +167,10 @@ def main():
             page_number=page_idx + 1,
             total_pages=total_pages,
             status="completed",
-            detail=f"{len(result.chunks)} text chunks, {len(result.images)} images, {result.duration_ms}ms",
+            detail=(
+                f"{len(result.chunks)} text chunks, "
+                f"{len(result.images)} images, {result.duration_ms}ms"
+            ),
             worker_id=worker_id,
         )
 

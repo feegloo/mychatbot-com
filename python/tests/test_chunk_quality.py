@@ -31,9 +31,7 @@ def _starts_at_natural_boundary(text: str) -> bool:
         return True
     if re.match(r"^[-*•\uf0b7]\s", first_line):
         return True
-    if re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9]", first_line):
-        return True
-    return False
+    return bool(re.match(r"^[A-ZĄĆĘŁŃÓŚŹŻ0-9]", first_line))
 
 
 def _starts_mid_sentence(text: str) -> bool:

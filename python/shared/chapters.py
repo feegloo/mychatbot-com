@@ -71,10 +71,7 @@ def detect_chapters_from_toc(pdf_path: str) -> list[ChapterInfo]:
     # Compute end_page for each chapter (page before next chapter starts, or last page)
     chapters: list[ChapterInfo] = []
     for i, (number, title, start_page) in enumerate(raw_chapters):
-        if i + 1 < len(raw_chapters):
-            end_page = raw_chapters[i + 1][2] - 1
-        else:
-            end_page = total_pages
+        end_page = raw_chapters[i + 1][2] - 1 if i + 1 < len(raw_chapters) else total_pages
         chapters.append(
             ChapterInfo(
                 number=number,
@@ -120,10 +117,7 @@ def detect_chapters_from_text(pdf_path: str) -> list[ChapterInfo]:
 
     chapters: list[ChapterInfo] = []
     for i, (number, title, start_page) in enumerate(raw_chapters):
-        if i + 1 < len(raw_chapters):
-            end_page = raw_chapters[i + 1][2] - 1
-        else:
-            end_page = total_pages
+        end_page = raw_chapters[i + 1][2] - 1 if i + 1 < len(raw_chapters) else total_pages
         chapters.append(
             ChapterInfo(
                 number=number,

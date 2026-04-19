@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -572,8 +573,6 @@ Document description: {description}""",
         questions[:5], file_names, file_types, language, welcome_message
     )
 
-
-import re
 
 _PERSON_PATTERN = re.compile(
     r"\b(person|people|man|woman|portrait|face|selfie|human|"

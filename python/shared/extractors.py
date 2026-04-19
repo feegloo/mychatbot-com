@@ -106,7 +106,13 @@ def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
         messages=[
             {
                 "role": "system",
-                "content": "Describe what you see in this image in detail. Include: what objects/people/scenes are shown, any visible text or captions, colors, layout, and mood. Be factual and specific. 3-5 sentences.",
+                "content": (
+                    "Describe what you see in this image in "
+                    "detail. Include: what objects/people/scenes "
+                    "are shown, any visible text or captions, "
+                    "colors, layout, and mood. Be factual and "
+                    "specific. 3-5 sentences."
+                ),
             },
             {
                 "role": "user",

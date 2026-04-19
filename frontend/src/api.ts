@@ -67,10 +67,11 @@ export async function listMyConversations(): Promise<ConversationSummary[]> {
   const response = await api.post('/conversations/batch', { conversationIds: ids })
   const conversations = (response.data as { conversations: ConversationSummary[] }).conversations
 
-  // Remove stale tokens for conversations that no longer exist in the DB
+  // Remove stale tokens for conversations that no longer exist in the DB.
+  // Skip cleanup if server returned nothing — likely a transient backend/DB failure.
   const returnedIds = new Set(conversations.map((c) => c.conversationId))
   const staleIds = ids.filter((id) => !returnedIds.has(id))
-  if (staleIds.length) {
+  if (staleIds.length && returnedIds.size > 0) {
     const updated = getTokensMap()
     for (const id of staleIds) delete updated[id]
     saveTokensMap(updated)

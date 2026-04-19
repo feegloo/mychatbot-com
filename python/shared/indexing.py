@@ -114,7 +114,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
 
                 full_text = "\n\n".join(page_texts)
                 logger.info(
-                    f"📄 Extracted {len(full_text)} chars, {len(local_chunks)} local chunks for {p.name}"
+                    f"📄 Extracted {len(full_text)} chars, "
+                    f"{len(local_chunks)} local chunks for {p.name}"
                 )
 
                 cloud_results = dispatch_page_jobs(
@@ -187,7 +188,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         all_chunks.extend(img_chunks)
 
     logger.info(
-        f"✅ Processed {len(file_results)} file(s): {len(all_chunks)} chunks, {len(all_images)} images"
+        f"✅ Processed {len(file_results)} file(s): "
+        f"{len(all_chunks)} chunks, {len(all_images)} images"
     )
 
     # ── Chapter detection ────────────────────────────────────────────
@@ -233,7 +235,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 )
                 total_raw = sum(len(t) for t in raw_texts.values())
                 logger.info(
-                    f"💾 Saved raw text to {raw_text_path} ({total_raw} chars, {len(raw_texts)} files)"
+                    f"💾 Saved raw text to {raw_text_path} "
+                    f"({total_raw} chars, {len(raw_texts)} files)"
                 )
             if all_page_summaries:
                 summaries_path = Path(storage_dir) / "_page_summaries.json"
@@ -311,7 +314,9 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
 
     logger.info("✅ Indexing complete")
     logger.info(
-        f"💡 Generated {len(suggested_questions) if suggested_questions else 0} suggested questions (lang={detected_language})"
+        f"💡 Generated "
+        f"{len(suggested_questions) if suggested_questions else 0} "
+        f"suggested questions (lang={detected_language})"
     )
     logger.info(
         f"👋 Welcome message: {welcome_message[:100]}..."

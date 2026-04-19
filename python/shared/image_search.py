@@ -44,7 +44,9 @@ def reverse_image_search(image_path: str) -> dict | None:
     if not _credentials_available():
         creds_env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
         logger.info(
-            f"⏭️  GOOGLE_APPLICATION_CREDENTIALS not set or file missing (env='{creds_env}'), skipping reverse image search"
+            f"⏭️  GOOGLE_APPLICATION_CREDENTIALS not set "
+            f"or file missing (env='{creds_env}'), "
+            f"skipping reverse image search"
         )
         return None
 
@@ -201,10 +203,14 @@ Available context:
 {combined_context}
 
 Respond with ONLY valid JSON (no markdown). Format:
-{{"identified_name": "Full Name or Subject", "confidence": "high/medium/low", "category": "person/place/artwork/product/other", "reasoning": "brief explanation"}}
+{{"identified_name": "Full Name or Subject",
+"confidence": "high/medium/low",
+"category": "person/place/artwork/product/other",
+"reasoning": "brief explanation"}}
 
 If the results are too ambiguous or there's not enough evidence, respond with:
-{{"identified_name": null, "confidence": "low", "category": "unknown", "reasoning": "explanation"}}"""
+{{"identified_name": null, "confidence": "low",
+"category": "unknown", "reasoning": "explanation"}}"""
 
     try:
         logger.info(f"🤖 Calling OpenAI {settings.openai_chat_model} for identification...")
@@ -215,7 +221,12 @@ If the results are too ambiguous or there's not enough evidence, respond with:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an image identification assistant. Analyze web search results to identify people, places, or subjects. Be precise and honest about confidence levels.",
+                    "content": (
+                        "You are an image identification assistant. "
+                        "Analyze web search results to identify "
+                        "people, places, or subjects. Be precise "
+                        "and honest about confidence levels."
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -229,7 +240,9 @@ If the results are too ambiguous or there's not enough evidence, respond with:
             )
         else:
             logger.info(
-                f"🎯 No identification - confidence={result.get('confidence')}, reasoning={result.get('reasoning', '')}"
+                f"🎯 No identification - "
+                f"confidence={result.get('confidence')}, "
+                f"reasoning={result.get('reasoning', '')}"
             )
         return result
     except json.JSONDecodeError as e:
