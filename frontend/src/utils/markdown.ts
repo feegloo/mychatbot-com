@@ -64,7 +64,7 @@ export function renderMarkdown(content: string): string {
 
   // Ensure bold-only lines (like filenames) between list items get paragraph separation
   normalized = normalized.replace(
-    /^([ \t]*[\*\-\+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[\*\-\+] )/gm,
+    /^([ \t]*[*\-+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[*\-+] )/gm,
     '$1\n\n$2\n\n$3',
   )
   // Protect LaTeX blocks from marked's processing (underscores, asterisks, etc.)
@@ -121,6 +121,7 @@ export function renderMarkdown(content: string): string {
     )
   const sanitized = DOMPurify.sanitize(withChecklists)
   // Restore LaTeX blocks and render with KaTeX
+  // eslint-disable-next-line no-control-regex
   const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const { tex, display } = mathPlaceholders[idx]
@@ -131,6 +132,7 @@ export function renderMarkdown(content: string): string {
     }
   })
   // Restore [poem] blocks as styled blockquote with decorative quotes
+  // eslint-disable-next-line no-control-regex
   const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const lines = poemPlaceholders[idx]
@@ -171,6 +173,7 @@ export function renderMarkdown(content: string): string {
       .join(''),
   )
   // Restore [action:Label] placeholders as clickable action buttons
+  // eslint-disable-next-line no-control-regex
   const withActions = withSources.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr) => {
     const label = actionPlaceholders[parseInt(idxStr, 10)]
     return `<button class="action-btn" data-action="${label}">${label}</button>`

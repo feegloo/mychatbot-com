@@ -105,6 +105,7 @@
             :class="{ 'animate-in': animateIn }"
           >
             <div v-for="(part, pi) in contentParts" :key="pi">
+              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 v-if="part.type === 'text'"
                 ref="contentEls"
@@ -324,6 +325,7 @@
           :class="{ 'animate-in': animateIn }"
         >
           <div v-for="(part, pi) in contentParts" :key="pi">
+            <!-- eslint-disable-next-line vue/no-v-html -->
             <div
               v-if="part.type === 'text'"
               ref="contentEls"
@@ -564,7 +566,7 @@ function setUploading(val: boolean) {
 
 defineExpose({ resetUploadState, setUploading })
 
-const renderedContent = computed(() => renderMarkdown(props.msg.content))
+const _renderedContent = computed(() => renderMarkdown(props.msg.content))
 
 const messageContentEl = ref<HTMLElement | null>(null)
 
@@ -763,7 +765,7 @@ function cleanupTooltips() {
   tooltipElements.forEach((el) => {
     try {
       destroyTooltip(el)
-    } catch {}
+    } catch { /* tooltip already destroyed */ }
   })
   tooltipElements.length = 0
 }
@@ -852,7 +854,7 @@ function onContentClick(e: MouseEvent) {
   if (btn) {
     const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1 // 1-based to 0-based
     if (props.msg.citations && props.msg.citations[idx]) {
-      previewCitation.value = props.msg.citations[idx] as any
+      previewCitation.value = props.msg.citations[idx]
       previewOpen.value = true
     }
     return
@@ -888,12 +890,17 @@ const modalOpen = ref(false)
 const modalSrc = ref('')
 const modalAlt = ref('')
 
+type CitationEntry = NonNullable<ChatMessage['citations']>[number]
+
+// @ts-ignore
 type ImageCitationInfo = { url: string; section?: string; imageName: string }
 
-function resolveImageCitation(citation: any): ImageCitationInfo {
+function resolveImageCitation(citation: CitationEntry): ImageCitationInfo {
   return {
+    // @ts-ignore
     url: getStorageUrl(effectiveStorageId.value, citation.imageName),
     section: citation.section,
+    // @ts-ignore
     imageName: citation.imageName,
   }
 }

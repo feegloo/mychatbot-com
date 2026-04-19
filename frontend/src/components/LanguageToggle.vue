@@ -351,7 +351,7 @@ async function translateTo(targetLang: string) {
 
   // Translating to a new target language
   // If currently showing a translation, restore first then translate
-  const sourceLang = currentLang.value
+  const _sourceLang = currentLang.value
   translating.value = true
   try {
     // If we're in a translated state, restore originals first

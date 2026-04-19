@@ -1,0 +1,80 @@
+
+/Users/olek/Downloads/chatrag-app/frontend/src/api.ts
+    4:3  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  315:3  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+/Users/olek/Downloads/chatrag-app/frontend/src/components/ChatMessage.vue
+  114:17  warning  'v-html' directive can lead to XSS attack              vue/no-v-html
+  334:15  warning  'v-html' directive can lead to XSS attack              vue/no-v-html
+  569:7   error    '_renderedContent' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/components/ConversationHeader.vue
+  145:10  error  '_onFilesChange' is defined but never used  @typescript-eslint/no-unused-vars
+  151:16  error  '_uploadFiles' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/components/DonateWidget.vue
+  39:7  error  '_route' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/components/LanguageToggle.vue
+  354:9  error  '_sourceLang' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/components/SourcePreviewModal.vue
+  59:7  error  '_displayFileName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/composables/useTextSelectionSpeech.ts
+  28:9  error  '_isTouchDevice' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  38:9  error  '_lastWordRange' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/src/env.d.ts
+  6:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/pages/DebugTablesPage.vue
+  238:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/pages/EmbedPage.vue
+  187:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  246:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/pages/HomePage.vue
+  188:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  247:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  300:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/pages/SharedMessagePage.vue
+  148:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/pages/UploadPage.vue
+  107:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/src/utils/printPdf.ts
+  450:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  454:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/tests/unit/languageToggle.spec.ts
+  114:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  140:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  145:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  175:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  205:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  255:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  278:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  284:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  285:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  337:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  351:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  360:29  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  366:13  error    '_wrapper' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  414:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  428:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  444:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  459:32  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+/Users/olek/Downloads/chatrag-app/frontend/tests/unit/pdfFonts.spec.ts
+  6:9  error  '_fakeBase64' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/olek/Downloads/chatrag-app/frontend/tests/unit/printPdf.spec.ts
+  14:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:8   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 43 problems (12 errors, 31 warnings)
+

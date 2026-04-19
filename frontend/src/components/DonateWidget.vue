@@ -12,6 +12,7 @@
         :title="m.label"
         @click="handleMethodClick(m)"
       >
+        <!-- eslint-disable-next-line vue/no-v-html -->
         <span class="donate-bubble-icon" v-html="m.icon"></span>
       </button>
     </div>
@@ -28,14 +29,14 @@ import { loadStripe, type Stripe, type PaymentRequest } from '@stripe/stripe-js'
 import axios from 'axios'
 
 const api = axios.create({
-  // @ts-ignore
+
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
 })
 
-// @ts-ignore
 const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
 
-const route = useRoute()
+
+
 const thankYou = ref(false)
 const showMethods = ref(false)
 const hasApplePay = ref(false)

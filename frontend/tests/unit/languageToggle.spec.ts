@@ -363,7 +363,7 @@ describe("LanguageToggle", () => {
     it("skips user-only messages for detection", async () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
 
-      const wrapper = mount(LanguageToggle, {
+      const _wrapper = mount(LanguageToggle, {
         props: { messages: makeMessages(["This is a user message, long enough to detect language."], "user") },
       });
       await flushPromises();

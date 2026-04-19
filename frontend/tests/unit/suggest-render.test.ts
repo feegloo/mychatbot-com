@@ -21,6 +21,7 @@ function renderMarkdownWithPlaceholders(content: string): string {
   const sanitized = DOMPurify.sanitize(rawHtml);
 
   // Restore action placeholders
+  // eslint-disable-next-line no-control-regex
   let result = sanitized.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr: string) => {
     const label = actionPlaceholders[parseInt(idxStr, 10)];
     return `<button class="action-btn" data-action="${label}">${label}</button>`;

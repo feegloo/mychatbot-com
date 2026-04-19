@@ -151,6 +151,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
+import { AxiosError } from 'axios'
 import {
   askQuestion,
   generateImage,
@@ -494,9 +495,9 @@ async function handleUploadFiles(files: File[]) {
     await uploadMoreFiles(conversationId, files)
     msgRef.resetUploadState()
     await onReload()
-  } catch (err: any) {
-    if (err.response?.status === 409) {
-      const names = (err.response.data?.duplicates || []).join(', ')
+  } catch (err: unknown) {
+    if (err instanceof AxiosError && err.response?.status === 409) {
+      const names = ((err.response.data as Record<string, unknown>)?.duplicates as string[] || []).join(', ')
       msgRef.resetUploadState(names ? `File ${names} already uploaded` : 'File already uploaded')
     } else {
       const { message } = extractError(err)
@@ -559,7 +560,7 @@ async function ask() {
       const result = await createConversationThread(conversationId, userId)
       saveConversationToken(result.conversationId, result.ownerPassword)
       routerInstance.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } })
-    } catch (err: any) {
+    } catch (err: unknown) {
       hasLocalError.value = true
       const { message, raw } = extractError(err)
       messages.value.push({
@@ -605,7 +606,7 @@ async function ask() {
     await nextTick()
     scrollToBottom(true)
     await loadConversation()
-  } catch (err: any) {
+  } catch (err: unknown) {
     const { message, raw } = extractError(err)
     reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
     hasLocalError.value = true

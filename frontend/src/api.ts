@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 const api = axios.create({
   // @ts-ignore
@@ -6,15 +6,17 @@ const api = axios.create({
 })
 
 /** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
-export function extractError(err: any): { message: string; raw: string } {
-  const status = err?.response?.status
-  const data = err?.response?.data
-  const message = data?.error || data?.msg || err?.message || 'Unknown error'
+export function extractError(err: unknown): { message: string; raw: string } {
+  const e = err as Record<string, unknown> | undefined
+  const resp = (e?.response ?? {}) as Record<string, unknown>
+  const status = resp.status as number | undefined
+  const data = resp.data as Record<string, string> | undefined
+  const message = data?.error || data?.msg || (e?.message as string) || 'Unknown error'
   const parts: string[] = []
   if (status) parts.push(`HTTP ${status}`)
   parts.push(message)
   if (data?.stack) parts.push(`\n${data.stack}`)
-  else if (err?.stack && !data) parts.push(`\n${err.stack}`)
+  else if (e?.stack && !data) parts.push(`\n${e.stack}`)
   return { message, raw: parts.join(' — ') }
 }
 
@@ -118,7 +120,7 @@ export type ConversationStatus = {
     originalName: string
     mimeType: string
     sizeBytes: number
-    metadata?: any
+    metadata?: Record<string, unknown>
   }>
   messages: ChatMessage[]
   suggestedQuestions: string[]
@@ -138,9 +140,9 @@ export async function uploadFiles(files: File[]) {
   if (hasLargeFile) {
     try {
       return await uploadFilesViaSignedUrl(files)
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If signed-url endpoint returns 400 (not GCS), fall through to normal upload
-      if (err?.response?.status === 400) {
+      if (err instanceof AxiosError && err.response?.status === 400) {
         // fall through
       } else {
         throw err

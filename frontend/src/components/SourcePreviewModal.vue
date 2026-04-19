@@ -25,6 +25,7 @@
         <!-- Source text quote (non-PDF only) -->
         <div v-if="!isPdf" class="source-modal-quote">
           <div class="source-modal-quote-label">Source text</div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
           <div class="source-modal-quote-text" v-html="linkify(citation.text)" />
         </div>
       </div>
@@ -55,7 +56,7 @@ defineEmits<{
   close: []
 }>()
 
-const displayFileName = computed(() => cleanFileName(props.citation.fileName))
+const _displayFileName = computed(() => cleanFileName(props.citation.fileName))
 
 const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
 

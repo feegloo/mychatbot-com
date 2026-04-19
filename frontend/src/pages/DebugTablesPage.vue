@@ -221,8 +221,8 @@ async function loadMore() {
     }
     // Always replace aggregate data
     data.value.users = more.users
-  } catch (e: any) {
-    error.value = e?.message || 'Failed to load more'
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to load more'
   } finally {
     loadingMore.value = false
   }
@@ -236,10 +236,15 @@ async function doLogin() {
     authenticated.value = true
     loading.value = false
   } catch (e: any) {
-    if (e?.response?.status === 401) {
-      loginError.value = 'Invalid credentials'
+    if (e instanceof Error && 'response' in e) {
+      const resp = (e as { response?: { status?: number } }).response
+      if (resp?.status === 401) {
+        loginError.value = 'Invalid credentials'
+      } else {
+        loginError.value = e.message || 'Failed to load'
+      }
     } else {
-      loginError.value = e?.message || 'Failed to load'
+      loginError.value = e instanceof Error ? e.message : 'Failed to load'
     }
   } finally {
     loginLoading.value = false

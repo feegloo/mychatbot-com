@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { AxiosError } from 'axios'
 import { renameConversation, uploadMoreFiles, type ConversationStatus } from '../api'
 
 const props = defineProps<{
@@ -141,13 +142,13 @@ async function saveRename() {
   emit('renamed', trimmed)
 }
 
-function onFilesChange(event: Event) {
+function _onFilesChange(event: Event) {
   const target = event.target as HTMLInputElement
   selectedFiles.value = Array.from(target.files || [])
   uploadError.value = ''
 }
 
-async function uploadFiles() {
+async function _uploadFiles() {
   if (!selectedFiles.value.length) return
   uploading.value = true
   uploadError.value = ''
@@ -156,9 +157,9 @@ async function uploadFiles() {
     selectedFiles.value = []
     if (fileInput.value) fileInput.value.value = ''
     emit('reload')
-  } catch (err: any) {
-    if (err.response?.status === 409) {
-      const names = (err.response.data?.duplicates || []).join(', ')
+  } catch (err: unknown) {
+    if (err instanceof AxiosError && err.response?.status === 409) {
+      const names = ((err.response.data as Record<string, unknown>)?.duplicates as string[] || []).join(', ')
       uploadError.value = names ? `File ${names} already uploaded` : 'File already uploaded'
       selectedFiles.value = []
       if (fileInput.value) fileInput.value.value = ''

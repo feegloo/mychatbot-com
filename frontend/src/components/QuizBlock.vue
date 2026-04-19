@@ -439,10 +439,12 @@ async function downloadPdf() {
     const wmX = pw - 12 - totalWidth
     const wmY = ph - 8
     doc.setTextColor(0, 0, 0)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     doc.setGState(new (doc as any).GState({ opacity: 0.35 }))
     doc.text(prefix, wmX, wmY)
     doc.setTextColor(70, 130, 220)
     doc.textWithLink(link, wmX + prefixWidth, wmY, { url: 'https://chatrag.app' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     doc.setGState(new (doc as any).GState({ opacity: 1 }))
   }
 

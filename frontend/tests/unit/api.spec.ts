@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock import.meta.env before importing api module
 vi.stubGlobal("import", { meta: { env: { VITE_API_BASE_URL: "http://localhost:3000/api" } } });

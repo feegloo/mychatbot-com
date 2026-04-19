@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 
 // Reset module state between tests by using dynamic imports
 describe('pdfFonts', () => {
-  const fakeBase64 = 'AAAA'; // minimal valid base64
+  const _fakeBase64 = 'AAAA'; // minimal valid base64
 
   beforeEach(() => {
     vi.restoreAllMocks();
