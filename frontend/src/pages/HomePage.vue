@@ -3,7 +3,7 @@
     <!-- Logo + tagline -->
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
-      <p class="home-subtitle">Upload your files (securely encrypted 🔒) <br/>Ask <strong>learning AI Agent chatbot</strong> with semantic search & RAG<br/> <span style="font-size: 12px; padding-top: 2px">Generate checklist ✅ quiz 🧠 recipe 🍝 poem, PDF, share answers</span></p>
+      <p class="home-subtitle">Upload your files (privately & securely encrypted 🔒) <br/>Ask & study with learning<strong> AI Agent chatbot</strong>, use semantic search & RAG<br/> <span style="font-size: 12px; padding-top: 4px">Generate checklist ✅ quiz 🧠 recipe 🍝 book chapter, poem, PDF, share answers</span></p>
     </div>
 
     <!-- Upload section (fades out after upload starts processing) -->
