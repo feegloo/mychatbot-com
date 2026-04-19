@@ -71,7 +71,6 @@
 
     <!-- Chat messages (appears after first question) -->
     <div v-if="messages.length" ref="chatContainer" class="chat-log home-chat-log">
-      <div style="flex: 1"></div>
       <ChatMessageItem
         v-for="(msg, index) in messages"
         :key="index"

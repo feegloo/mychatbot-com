@@ -84,7 +84,6 @@
             padding-bottom: 12px;
           "
         >
-          <div style="flex: 1"></div>
           <ChatMessageItem
             v-for="(msg, index) in messages"
             :key="msg.id || index"

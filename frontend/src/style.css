@@ -800,7 +800,7 @@ a {
     margin-left: 80px;
   }
 
-  .message-row.assistant:first-of-type {
+  .chat-log .message-row.assistant:first-of-type {
     margin-left: 0px;
   }
 }

@@ -43,7 +43,6 @@
       </div>
 
       <div ref="chatContainer" class="embed-chat-log">
-        <div style="flex: 1"></div>
         <ChatMessageItem
           v-for="(msg, index) in messages"
           :key="msg.id || index"
