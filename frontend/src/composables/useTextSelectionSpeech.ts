@@ -205,9 +205,14 @@ export function useTextSelectionSpeech(
     abortController = new AbortController();
 
     try {
-      // Pass welcome message content as TTS instructions so the model
-      // adjusts tone/style to match the conversation context
-      const ttsInstructions = welcomeMessage?.value || undefined;
+      // Build TTS instructions: system preamble + user question context + welcome message tone
+      const welcomeContent = welcomeMessage?.value || "";
+      const parts: string[] = [
+        "You are a helpful AI assistant reading text aloud. Speak naturally, clearly, and with a warm, friendly tone.",
+        `The user asked to hear the following text: "${text.slice(0, 500)}"`,
+      ];
+      if (welcomeContent) parts.push(welcomeContent);
+      const ttsInstructions = parts.join("\n\n");
 
       // Use captions API for word-by-word playback with ghost translation
       const result = await synthesizeSpeechWithCaptions(

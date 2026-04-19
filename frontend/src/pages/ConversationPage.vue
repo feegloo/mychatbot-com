@@ -22,6 +22,17 @@
           @lang-changed="currentLanguage = $event"
         />
       </template>
+      <template #auto-read-toggle>
+        <button
+          class="auto-read-btn"
+          :class="{ active: autoReadEnabled }"
+          :title="autoReadEnabled ? 'Disable auto-read' : 'Enable auto-read'"
+          @click="toggleAutoRead"
+        >
+          <svg v-if="autoReadEnabled" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+      </template>
     </ConversationHeader>
 
     <ErrorDetail
@@ -107,6 +118,7 @@ import ChatMessageItem from "../components/ChatMessage.vue";
 import ErrorDetail from "../components/ErrorDetail.vue";
 import LanguageToggle from "../components/LanguageToggle.vue";
 import { useTextSelectionSpeech } from "../composables/useTextSelectionSpeech";
+import { useAutoRead } from "../composables/useAutoRead";
 
 const props = defineProps<{ conversationId: string }>();
 
@@ -127,6 +139,10 @@ const welcomeMessageContent = computed(() => {
 // Enable text-to-speech tooltip for selected text within chat messages
 // Only active when current display language differs from browser language
 useTextSelectionSpeech(chatContainer, currentLanguage, welcomeMessageContent);
+
+// Auto-read: when enabled, reads assistant responses and welcome messages aloud
+const { enabled: autoReadEnabled, toggle: toggleAutoRead, readWelcomeIfEnabled, cleanup: cleanupAutoRead } = useAutoRead(messages, asking, welcomeMessageContent);
+
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null);
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null);
 const loaded = ref(false);
@@ -569,6 +585,19 @@ function onChatScroll() {
 
 let prevMessageCount = 0;
 const conversationReady = ref(false);
+
+// Auto-read welcome message when conversation first becomes ready
+let welcomeReadTriggered = false;
+watch(
+  () => status.value.status,
+  (newStatus) => {
+    if (newStatus === "ready" && !welcomeReadTriggered && messages.value.length > 0) {
+      welcomeReadTriggered = true;
+      readWelcomeIfEnabled();
+    }
+  },
+);
+
 watch(() => messages.value.length, async (newLen) => {
   if (conversationReady.value && newLen > prevMessageCount) {
     await nextTick();
@@ -617,5 +646,6 @@ onUnmounted(() => {
   }
   chatContainer.value?.removeEventListener('scroll', onChatScroll);
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+  cleanupAutoRead();
 });
 </script>

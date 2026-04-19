@@ -55,7 +55,7 @@ synthesizeRouter.post("/synthesize", async (ctx) => {
     const ttsPayload: Record<string, unknown> = {
       model: "gpt-4o-mini-tts",
       input,
-      voice: "nova",
+      voice: "shimmer",
       response_format: "mp3",
     };
     if (instructions) ttsPayload.instructions = instructions;
@@ -183,7 +183,7 @@ synthesizeRouter.post("/synthesize-with-captions", async (ctx) => {
     const ttsPayload: Record<string, unknown> = {
       model: "gpt-4o-mini-tts",
       input: text,
-      voice: "nova",
+      voice: "shimmer",
       response_format: "mp3",
     };
     if (instructions) ttsPayload.instructions = instructions;

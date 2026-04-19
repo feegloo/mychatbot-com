@@ -290,8 +290,10 @@ Pisz z perspektywy tego eksperta — nie jako AI, ale jako kompetentna osoba, kt
 
 Twoja odpowiedź MUSI składać się z trzech części:
 
-1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, autor/źródło i rok jeśli znane.
-   Sformatuj jako nagłówek Markdown: ## Tytuł tutaj
+1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, a po myślniku autor jeśli znany (lub "Nieznany autor" gdy brak danych).
+   Sformatuj jako nagłówek Markdown: ## Tytuł dokumentu - Imię Nazwisko Autora
+   Na przykład: ## Przewodnik po bliznach - Amanda Keyes
+   Jeśli autor nie jest znany z treści ani metadanych, napisz: ## Tytuł dokumentu - Nieznany autor
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
 
 2. **Opis** (po tytule): 2-4 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
@@ -343,8 +345,10 @@ Write from that expert's perspective — not as an AI, but as a competent person
 
 Your response MUST have three parts:
 
-1. **Title** (first line): A short summary of the uploaded file — its title, author/source, and year if known.
-   Format as a Markdown heading: ## Title here
+1. **Title** (first line): The document title followed by a dash and the author name (or "Unknown author" if not available).
+   Format as a Markdown heading: ## Document Title - Author Name
+   For example: ## Ultimate Guide To Scar Treatments - Amanda Keyes
+   If the author is not known from the content or metadata, write: ## Document Title - Unknown author
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
 
 2. **Description** (after the title): 2-4 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** for key terms.
