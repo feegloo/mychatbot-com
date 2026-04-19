@@ -130,6 +130,22 @@ const chatContainer = ref<HTMLDivElement | null>(null);
 
 const currentLanguage = ref("");
 
+const status = ref<ConversationStatus>({
+  conversationId,
+  displayName: null,
+  status: "processing",
+  role: "viewer",
+  parentMessageId: null,
+  parentConversationId: null,
+  files: [],
+  messages: [],
+  suggestedQuestions: [],
+  accessRequests: []
+});
+const messages = ref<ChatMessage[]>([]);
+const initialMessageCount = ref(Infinity);
+const hasLocalError = ref(false);
+
 // Welcome message content used as TTS tone instructions
 const welcomeMessageContent = computed(() => {
   const idx = messages.value.findIndex((_, i) => isUploadMessage(i));
@@ -234,22 +250,6 @@ function onRestored(newTranslations: Map<number, string>) {
     originalSuggestedQuestions.value.clear();
   }
 }
-
-const status = ref<ConversationStatus>({
-  conversationId,
-  displayName: null,
-  status: "processing",
-  role: "viewer",
-  parentMessageId: null,
-  parentConversationId: null,
-  files: [],
-  messages: [],
-  suggestedQuestions: [],
-  accessRequests: []
-});
-const messages = ref<ChatMessage[]>([]);
-const initialMessageCount = ref(Infinity);
-const hasLocalError = ref(false);
 
 // Viewer mode: when a viewer opens a shared conversation, show a hello message and let them reply
 const isViewer = computed(() => status.value.role === "viewer" && !status.value.parentMessageId && !status.value.parentConversationId);

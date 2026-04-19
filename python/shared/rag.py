@@ -767,6 +767,7 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
 
 def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None, previous_suggested_questions: list[str] | None = None, conversation_name: str | None = None) -> dict:
     import sentry_sdk
+    from sentry_sdk import logger as sentry_logger
     logger.info(f"❓ Answering question: {question[:100]}...")
 
     with sentry_sdk.start_span(op="rag.answer", name=f"answer: {question[:60]}") as rag_span:
@@ -855,18 +856,22 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
         logger.info(f"📋 [FULL PROMPT] conversation={conversation_id} length={len(rendered_prompt)} chars")
         logger.info(f"📋 [FULL PROMPT]\n{rendered_prompt}")
 
-        # Send the rendered prompt to Sentry as a debug message
-        sentry_sdk.capture_message(
-            f"LLM prompt for conversation {conversation_id}",
-            level="info",
-            extras={
-                "conversation_id": conversation_id,
-                "question": question,
-                "prompt_length": len(rendered_prompt),
-                "prompt": rendered_prompt[:100_000],  # cap at 100K to avoid Sentry limits
-                "mode": "quiz" if is_quiz else "answer",
-            },
-        )
+        # Send the rendered prompt to Sentry with full text as attachment
+        # (breadcrumbs get [Filtered] by data scrubbing, attachments don't)
+        with sentry_sdk.push_scope() as scope:
+            scope.set_extra("conversation_id", conversation_id)
+            scope.set_extra("question", question)
+            scope.set_extra("prompt_length", len(rendered_prompt))
+            scope.set_extra("mode", "quiz" if is_quiz else "answer")
+            scope.add_attachment(
+                bytes=rendered_prompt.encode("utf-8"),
+                filename=f"prompt_{conversation_id}.txt",
+                content_type="text/plain",
+            )
+            sentry_sdk.capture_message(
+                f"LLM prompt for conversation {conversation_id}",
+                level="info",
+            )
 
         logger.info(f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)...")
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
@@ -890,6 +895,21 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
             else:
                 logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
             logger.info(f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}")
+
+            sentry_logger.info(
+                "LLM invocation completed for conversation {conversation_id}",
+                conversation_id=conversation_id,
+                attributes={
+                    "model": model_name,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": prompt_tokens + completion_tokens,
+                    "cached_tokens": cached,
+                    "answer_length": len(answer),
+                    "chunk_count": len(rows),
+                    "is_quiz": is_quiz,
+                },
+            )
 
             rag_span.set_data("model", model_name)
             rag_span.set_data("prompt_tokens", prompt_tokens)

@@ -1,6 +1,7 @@
 import Router from "@koa/router";
 import path from "node:path";
 import { z } from "zod";
+import * as Sentry from "@sentry/node";
 import { getConversation, insertConversationMessage, resolveConversationRole } from "../repositories/conversations.js";
 import { answerQuestion } from "../python/answering.js";
 import { ensureCollectionIndexed } from "../python/reindex.js";
@@ -80,6 +81,14 @@ askRouter.post("/ask", async (ctx) => {
     console.log(`[ask] imageFilePaths=${JSON.stringify(imageFilePaths)}`);
   }
 
+  Sentry.logger.info(Sentry.logger.fmt`Ask request for conversation ${conversationId}`, {
+    conversation_id: conversationId,
+    question_length: question.length,
+    image_file_count: imageFilePaths.length,
+    metadata_keys: Object.keys(fileMetadata).join(",") || "none",
+    collection_name: data.conversation.vector_collection_name,
+  });
+
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace);
 
   // Collect all previously shown suggested questions:
@@ -114,6 +123,12 @@ askRouter.post("/ask", async (ctx) => {
     answer: result.stdout,
     citations: []
   };
+
+  Sentry.logger.info(Sentry.logger.fmt`Answer generated for conversation ${conversationId}`, {
+    conversation_id: conversationId,
+    answer_length: (payload.answer || "").length,
+    citation_count: Array.isArray(payload.citations) ? payload.citations.length : 0,
+  });
 
   const assistantMsgId = await insertConversationMessage({
     conversationId,

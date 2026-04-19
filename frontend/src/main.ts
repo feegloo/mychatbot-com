@@ -17,13 +17,24 @@ Sentry.init({
   ],
   sendDefaultPii: true,
   tracesSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-});
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 1.0,  enableLogs: true,
+  beforeSendLog: (log) => {
+    if (import.meta.env.MODE === "production" && log.level === "debug") {
+      return null;
+    }
+    return log;
+  },});
 
-// Lazy-load the replay integration after initial render
+// Lazy-load the replay integration — only captures sessions with errors
 Sentry.lazyLoadIntegration("replayIntegration").then((replay) => {
-  Sentry.addIntegration(replay());
+  Sentry.addIntegration(
+    replay({
+      maskAllText: false,
+      blockAllMedia: false,
+      networkDetailAllowUrls: [window.location.origin],
+    }),
+  );
 });
 
 app.use(router).use(FloatingVue).mount("#app");

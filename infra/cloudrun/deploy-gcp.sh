@@ -178,6 +178,9 @@ info "Step 6/9: Building Docker image..."
 gcloud auth configure-docker --quiet
 docker build \
   --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+  --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
+  --build-arg SENTRY_ORG="${SENTRY_ORG}" \
+  --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
   -t "${IMAGE}:latest" .
 
 # ── Step 7: Push to GCR ─────────────────────────────────────────────────────

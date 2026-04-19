@@ -17,15 +17,24 @@ load_dotenv(Path(__file__).parent / ".env")
 
 import sentry_sdk
 
+def _before_send_log(log, _hint):
+    if os.getenv("SENTRY_ENVIRONMENT", "dev") == "prod" and log["severity_text"] == "debug":
+        return None
+    return log
+
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     environment=os.getenv("SENTRY_ENVIRONMENT", "dev"),
     send_default_pii=True,
     traces_sample_rate=1.0,
+    max_value_length=8192,
+    enable_logs=True,
+    before_send_log=_before_send_log,
 )
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from sentry_sdk import logger as sentry_logger
 
 from shared.rag import answer_with_citations
 from shared.indexing import index_documents
@@ -159,14 +168,29 @@ async def get_collection_count(collection_name: str):
 @app.post("/index")
 async def index(req: IndexRequest):
     try:
+        sentry_logger.info(
+            "Indexing documents for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+            collection_name=req.collection_name,
+            file_count=len(req.file_paths),
+        )
         result = await asyncio.to_thread(
             index_documents,
             conversation_id=req.conversation_id,
             collection_name=req.collection_name,
             file_paths=req.file_paths,
         )
+        sentry_logger.info(
+            "Indexing completed for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+        )
         return result
     except Exception as e:
+        sentry_logger.error(
+            "Indexing failed for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+            attributes={"error": str(e)[:500]},
+        )
         logger.exception("Error indexing documents")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -174,6 +198,16 @@ async def index(req: IndexRequest):
 @app.post("/answer")
 async def answer(req: AnswerRequest):
     try:
+        sentry_logger.info(
+            "Answering question for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+            attributes={
+                "question_length": len(req.question),
+                "has_image_files": bool(req.image_file_paths),
+                "welcome_messages_count": len(req.welcome_messages) if req.welcome_messages else 0,
+                "collection_name": req.collection_name,
+            },
+        )
         logger.info(
             f"📥 /answer request: question='{req.question[:100]}' "
             f"image_file_paths={req.image_file_paths} "
@@ -195,8 +229,21 @@ async def answer(req: AnswerRequest):
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'")
+        sentry_logger.info(
+            "Answer generated for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+            attributes={
+                "answer_length": len(result.get("answer", "")),
+                "citation_count": len(result.get("citations", [])),
+            },
+        )
         return result
     except Exception as e:
+        sentry_logger.error(
+            "Answer failed for conversation {conversation_id}",
+            conversation_id=req.conversation_id,
+            attributes={"error": str(e)[:500]},
+        )
         logger.exception("Error answering question")
         raise HTTPException(status_code=500, detail=str(e))
 

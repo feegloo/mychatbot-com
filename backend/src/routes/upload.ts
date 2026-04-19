@@ -2,6 +2,7 @@ import Router from "@koa/router";
 import multer from "@koa/multer";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
+import * as Sentry from "@sentry/node";
 import { generateShortId } from "../utils/id.js";
 import { createStorageProvider } from "../storage/index.js";
 import { insertConversation, insertUploadedFile, replaceSuggestedQuestions, updateConversationStatus, insertAccessToken, insertConversationMessage, updateFileMetadata, resolveConversationRole } from "../repositories/conversations.js";
@@ -93,6 +94,12 @@ uploadRouter.post("/upload", upload.array("files"), async (ctx) => {
     mode: (config.pythonIndexingMode === "notebook" ? "notebook" : "script")
   })
     .then(async (result) => {
+      Sentry.logger.info(Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`, {
+        conversation_id: conversationId,
+        file_count: files.length,
+        suggested_questions_count: (result.parsedJson?.suggested_questions || []).length,
+        has_welcome_message: !!(result.parsedJson?.welcome_message),
+      });
       const suggestedQuestions = result.parsedJson?.suggested_questions || [];
       const welcomeMessage = result.parsedJson?.welcome_message || "";
       const fileMetadata = result.parsedJson?.file_metadata || {};

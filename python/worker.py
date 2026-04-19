@@ -32,17 +32,26 @@ load_dotenv(Path(__file__).parent / ".env")
 
 import sentry_sdk
 
+def _before_send_log(log, _hint):
+    if os.getenv("SENTRY_ENVIRONMENT", "dev") == "prod" and log["severity_text"] == "debug":
+        return None
+    return log
+
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     environment=os.getenv("SENTRY_ENVIRONMENT", "dev"),
     send_default_pii=True,
     traces_sample_rate=1.0,
+    max_value_length=8192,
+    enable_logs=True,
+    before_send_log=_before_send_log,
 )
 
 from shared.page_worker import process_pdf_page
 from shared.vector_store import upsert_chunks
 from shared.chunkers import Chunk
 from shared.telemetry import log_processing_event, close_db_pool
+from sentry_sdk import logger as sentry_logger
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -84,6 +93,17 @@ def main():
 
     worker_id = f"cloudrun-{uuid.uuid4().hex[:8]}"
     logger.info(f"🚀 Worker {worker_id} starting: page {page_idx + 1}/{total_pages} of {pdf_path}")
+    sentry_logger.info(
+        "Worker started for conversation {conversation_id}",
+        conversation_id=conversation_id,
+        attributes={
+            "worker_id": worker_id,
+            "page_idx": page_idx,
+            "total_pages": total_pages,
+            "pdf_path": pdf_path,
+            "collection_name": collection_name,
+        },
+    )
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -141,10 +161,30 @@ def main():
             "duration_ms": result.duration_ms,
             "worker_id": worker_id,
         }
+        sentry_logger.info(
+            "Worker completed for conversation {conversation_id}",
+            conversation_id=conversation_id,
+            attributes={
+                "worker_id": worker_id,
+                "page_idx": page_idx,
+                "chunk_count": len(all_chunks),
+                "image_count": len(result.images),
+                "duration_ms": result.duration_ms,
+            },
+        )
         print(json.dumps(output))
 
     except Exception as e:
         sentry_sdk.capture_exception(e)
+        sentry_logger.fatal(
+            "Worker crashed for conversation {conversation_id}",
+            conversation_id=conversation_id,
+            attributes={
+                "worker_id": worker_id,
+                "page_idx": page_idx,
+                "error": str(e)[:500],
+            },
+        )
         log_processing_event(
             conversation_id, Path(pdf_path).name, "worker_failed",
             page_number=page_idx + 1, total_pages=total_pages,

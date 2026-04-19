@@ -8,6 +8,13 @@ COPY frontend/ ./
 # Stripe publishable key is a public client-side key, not a secret
 ARG VITE_STRIPE_PUBLISHABLE_KEY
 ENV VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
+# Sentry source map upload (build-time only, not embedded in client bundle)
+ARG SENTRY_AUTH_TOKEN
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+ENV SENTRY_ORG=${SENTRY_ORG}
+ENV SENTRY_PROJECT=${SENTRY_PROJECT}
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN echo "=== vue-tsc type-check ===" && npx vue-tsc --noEmit 2>&1 || echo "=== vue-tsc had errors (non-fatal) ==="
