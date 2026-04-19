@@ -262,6 +262,17 @@ function normalizeCitations(text: string): string {
 
 function renderMarkdown(content: string): string {
   let normalized = normalizeCitations(content);
+
+  // Convert dialogue-style "- text" lines to "– text" (en-dash) so they render
+  // as plain prose instead of <li> bullets.  Heuristic: a line starting with
+  // "- " that is preceded by a blank line (or start-of-string) AND followed by
+  // a blank line (or end-of-string) is dialogue, not a real list item.
+  // Real bullet lists have consecutive "- " lines with single newlines between them.
+  normalized = normalized.replace(
+    /(?<=^|\n\n)- (.+?)(?=\n\n|$)/g,
+    '– $1'
+  );
+
   // Ensure bold-only lines (like filenames) between list items get paragraph separation
   normalized = normalized.replace(
     /^([ \t]*[\*\-\+] .+)\n(\*\*[^*\n]+\*\*)\n([ \t]*[\*\-\+] )/gm,

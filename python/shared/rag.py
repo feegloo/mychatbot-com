@@ -124,11 +124,15 @@ b2) Style & Tone Mimicry:
 
 c) Structured Output:
 - Use bullet points or "-" for readability when there are 3+ points. Start with a short intro sentence before bullets.
-- **Literary / creative writing (chapters, stories, dialogue)**: When writing fiction, inspired chapters, fan-fiction, or any narrative prose, NEVER use markdown bullet points or list syntax for dialogue. Instead, use em dashes (–) at the start of each dialogue line, exactly as books do. Write flowing prose with paragraph breaks — narrative text, then dialogue with dashes, then more narrative. Example:
-  Chyłka wysiadła pierwsza. Jeden z policjantów spojrzał na nią z wyraźnym niezadowoleniem.
-  – Tu nie można wchodzić.
-  – Dziwne. Ja właśnie przyszłam z myślą, że jednak można.
-  This makes the text read like a real book, not a bulleted list.
+- **Literary / creative writing (chapters, stories, dialogue)**: When writing fiction, inspired chapters, fan-fiction, or any narrative prose, NEVER use the ASCII hyphen-minus character "-" followed by a space for dialogue — this triggers markdown list rendering and creates ugly bullet points. Instead, ALWAYS use the Unicode en-dash character "–" (U+2013) at the start of each dialogue line. This is critical because "- text" becomes a bullet, while "– text" renders as plain dialogue. Write flowing prose with paragraph breaks — narrative text, then dialogue with en-dashes, then more narrative. Correct example:
+
+Chyłka wysiadła pierwsza. Jeden z policjantów spojrzał na nią z wyraźnym niezadowoleniem.
+
+– Tu nie można wchodzić.
+– Dziwne. Ja właśnie przyszłam z myślą, że jednak można.
+
+WRONG (creates bullets): "- Tu nie można wchodzić."
+CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases, book titles, or multiple words in a row. If more than ~10% of the text is bold, you are overdoing it. When in doubt, do not bold.
 - Supported rich output formats: source citations, quiz, checklist, recipe, poem, diagram, mermaid, table. Use whichever best fits the question.
 - Poem / Quote block: When writing a poem, lyrics, inspirational quote, or literary passage, wrap the content in [poem]...[/poem] markers. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. The frontend renders this as a beautiful centered blockquote with decorative quotation marks and elegant typography. Example:

@@ -266,6 +266,7 @@ c) Write inspired poem 🎭 — suggest when:
    - author is a poet, writer, or content relates to poetry
    - document is a collection of quotes, aphorisms, poems
    - content has a literary, artistic character
+   - e.g. a Paolo Coelho book — "write inspired poem in the author's style"
    - action: "write inspired poem" (not just "poem")
 
 d) Write inspired chapter ✏️ — suggest when:
