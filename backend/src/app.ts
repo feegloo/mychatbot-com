@@ -90,6 +90,12 @@ export function createApp() {
 
     app.use(async (ctx) => {
       if (ctx.path.startsWith('/api')) return
+      // Don't serve index.html for missing static assets — return 404 instead
+      const ext = path.extname(ctx.path)
+      if (ext && ext !== '.html') {
+        ctx.status = 404
+        return
+      }
       await send(ctx, 'index.html', { root: path.resolve(config.frontendDistPath) })
     })
   }

@@ -231,6 +231,7 @@ def query_chunks(
                 "file_name": metadata.get("file_name", "Unknown file"),
                 "section": metadata.get("section") or None,
                 "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
+                "chapter_number": metadata.get("chapter_number") or None,
                 "distance": distance,
                 "metadata": metadata,
                 "image_name": metadata.get("image_name") or None,

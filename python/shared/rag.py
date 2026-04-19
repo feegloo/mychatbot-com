@@ -10,6 +10,7 @@ from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
+from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
 from .vector_store import query_chunks
 
@@ -101,6 +102,7 @@ Sections provided:
 2. Answer Guidelines (tone, structured output, citation rules)
 3. Welcome Page Description (short summary of each uploaded file)
 4. Full Pages of Matched Sources (complete page text for pages where matches were found)
+4a. Chapter Context (full text of the most relevant chapter, if the document has chapters)
 5. EXIF Metadata (image file metadata, if available)
 5a. Conversation Context (conversation name and unique ID)
 5b. Full Chat History (ALL previous user questions and your answers, with timestamps)
@@ -150,6 +152,32 @@ a2) Name-drop specifics — brands, products, people:
 b) Expert Insight:
 - When the content is domain-specific (medical, legal, financial, technical), adopt the perspective of a domain expert.
 - Provide actionable analysis, not just facts.
+
+b-med) Lab Test Diagnosis (CRITICAL — when user asks for "diagnosis" or "diagnoza" based on lab results):
+When the uploaded content is laboratory test results (blood tests, thyroid panel, lipid panel, CBC, etc.) and the user asks you to "make a diagnosis", "postaw diagnozę", or similar:
+- Adopt the persona of an experienced **internist / diagnostician** reviewing the results with the patient.
+- Structure your answer as a COMPREHENSIVE medical analysis:
+
+  1. **Patient Overview** — age, sex (from PESEL or metadata), test date, laboratory name
+  2. **Results Summary Table** — present ALL test values in a markdown table with columns: Test Name | Result | Reference Range | Status (✅ normal, ⚠️ borderline, 🔴 abnormal)
+  3. **Abnormal / Borderline Findings** — for each value outside reference range, explain:
+     - What this marker measures and why it matters
+     - Possible causes (most common first)
+     - Clinical significance in context of other results
+  4. **Cross-Correlations** — connect related markers that together tell a story:
+     - e.g. low WBC + low neutrophils → possible viral infection, medication side effect, or autoimmune
+     - e.g. suboptimal vitamin D + low magnesium → absorption issues, supplementation advice
+     - e.g. TSH + FT3 + FT4 together → thyroid function assessment
+     - e.g. cholesterol + LDL + HDL + triglycerides → cardiovascular risk profile
+     - e.g. ferritin + iron + hemoglobin → iron status assessment
+  5. **Overall Assessment** — a 2-3 sentence clinical impression synthesizing all findings
+  6. **Recommended Next Steps** — specific actions: which specialist to see, which tests to repeat or add, lifestyle changes, supplementation suggestions with dosages where appropriate
+
+- Use precise medical terminology but explain it in parentheses for the patient
+- Reference specific values with units: "Homocysteine at **7.04 µmol/l** is in the safe range (<10)"
+- Common lab markers to know: morphology (CBC: WBC, RBC, HGB, HCT, MCV, MCH, MCHC, PLT, RDW), lipid panel (total cholesterol, HDL, LDL, triglycerides, non-HDL), thyroid panel (TSH, FT3, FT4, ATPO, ATG), iron status (iron, ferritin), vitamins (D3/25-OH-D, B12, folic acid), inflammation (CRP/hs-CRP, ESR/OB), glucose, magnesium, homocysteine, D-dimers, estradiol, creatinine, bilirubin, ALT/AST, HbA1c
+- ALWAYS add a disclaimer at the end: this is an AI-assisted analysis for informational purposes — always consult a licensed physician for definitive diagnosis and treatment
+- This is one of the LONGEST allowed response types — be thorough, the user expects a complete analysis
 
 b2) Style & Tone Mimicry (THIS IS YOUR #1 PRIORITY):
 - **This is the single most important rule for your voice.** Before you write a single word, study the source material's style, tone, rhythm, and personality. Then BECOME that voice.
@@ -320,6 +348,12 @@ Below is the full text of pages where matching sources were found. Each block is
 
 --
 
+== SECTION 4a: Chapter Context (if available) ==
+Below is the full text of the chapter that the most relevant matching sources belong to. This provides broader narrative and structural context beyond individual pages. If this section is empty, the document has no detectable chapter structure.
+{chapter_context}
+
+--
+
 == SECTION 5: EXIF Metadata ==
 {exif_metadata}
 
@@ -378,6 +412,8 @@ def build_context(rows: list[dict]) -> str:
         label = f"[Source {i}] File: {row['file_name']}"
         if row.get("page") is not None:
             label += f" (Page {row['page']})"
+        if row.get("chapter_number") is not None:
+            label += f" (Chapter {row['chapter_number']})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
         label += f" | Similarity: {similarity:.2f}"
@@ -749,11 +785,36 @@ def _format_previous_suggested_questions(
     return "\n".join(parts) if parts else "(none - this is the first interaction)"
 
 
+# Token budget for chat history section — keeps room for system prompt, sources,
+# matched pages, chapter context, etc.  30k tokens ≈ ~120k chars, which leaves
+# plenty of headroom in both 200k (Claude Haiku) and 1M (GPT-4.1) context windows.
+_MAX_CHAT_HISTORY_TOKENS = 30_000
+
+# Separator used between formatted messages in chat history
+_HISTORY_SEP = "\n\n---\n\n"
+
+# Lazy-loaded tiktoken encoder (cl100k_base works well for both OpenAI and Anthropic)
+_tiktoken_enc = None
+
+
+def _count_tokens(text: str) -> int:
+    """Estimate token count using tiktoken cl100k_base encoding."""
+    global _tiktoken_enc
+    if _tiktoken_enc is None:
+        import tiktoken
+
+        _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+    return len(_tiktoken_enc.encode(text, disallowed_special=()))
+
+
 def _format_chat_history(chat_history: list[dict] | None) -> str:
     """Format the full conversation history into a structured string for the prompt.
 
     Each message is labeled with role (User Question / Assistant Answer) and
     timestamp when available, so the model can clearly distinguish exchanges.
+
+    When total tokens exceed _MAX_CHAT_HISTORY_TOKENS, the oldest exchanges
+    are dropped (keeping the most recent ones) to stay within budget.
     """
     if not chat_history:
         return "(no previous conversation)"
@@ -778,7 +839,30 @@ def _format_chat_history(chat_history: list[dict] | None) -> str:
             content = content[:3000] + "\n... (truncated)"
 
         parts.append(f"{label}\n{content}")
-    return "\n\n---\n\n".join(parts)
+
+    # Token-aware truncation: drop oldest exchanges when history exceeds budget.
+    # We work backwards (most recent first) and keep exchanges that fit.
+    total_tokens = _count_tokens(_HISTORY_SEP.join(parts))
+    if total_tokens > _MAX_CHAT_HISTORY_TOKENS:
+        kept: list[str] = []
+        running_tokens = 0
+        for part in reversed(parts):
+            part_tokens = _count_tokens(part) + _count_tokens(_HISTORY_SEP)
+            if running_tokens + part_tokens > _MAX_CHAT_HISTORY_TOKENS:
+                break
+            kept.append(part)
+            running_tokens += part_tokens
+        kept.reverse()
+        dropped = len(parts) - len(kept)
+        logger.warning(
+            f"✂️ Chat history truncated: dropped {dropped} oldest messages "
+            f"({total_tokens} tokens → ~{running_tokens} tokens, "
+            f"budget={_MAX_CHAT_HISTORY_TOKENS})"
+        )
+        prefix = f"[... {dropped} earlier messages omitted to fit context window ...]\n\n"
+        return prefix + _HISTORY_SEP.join(kept)
+
+    return _HISTORY_SEP.join(parts)
 
 
 def _load_raw_text_legacy(storage_dir: str | None) -> str:
@@ -890,6 +974,114 @@ def _extract_matched_pages(storage_dir: str | None, rows: list[dict]) -> str:
         return "(error extracting page text)"
 
 
+# Max chars of chapter context to include in answer prompts.
+_CHAPTER_CONTEXT_MAX_CHARS = 60_000
+
+
+def _extract_chapter_context(storage_dir: str | None, rows: list[dict]) -> str:
+    """Extract full chapter text for the most relevant matching chapter.
+
+    Finds the chapter that appears most frequently in the top matching chunks,
+    then returns all pages of that chapter in order. This gives the model
+    broader narrative/structural context beyond individual matched pages.
+    """
+    if not storage_dir or not rows:
+        return ""
+    try:
+        # Load chapter data
+        chapters_path = Path(storage_dir) / "_chapters.json"
+        if not chapters_path.exists():
+            return ""
+        chapters_data: dict[str, list[dict]] = json.loads(
+            chapters_path.read_text(encoding="utf-8")
+        )
+        if not chapters_data:
+            return ""
+
+        # Load raw text for page extraction
+        raw_path = Path(storage_dir) / "_raw_text.json"
+        if not raw_path.exists():
+            return ""
+        raw_data: dict[str, str] = json.loads(raw_path.read_text(encoding="utf-8"))
+
+        # Count chapter occurrences across matching chunks (weighted by rank)
+        chapter_scores: dict[tuple[str, int], float] = {}  # (file_name, chapter_nr) -> score
+        for rank, row in enumerate(rows):
+            chapter_nr = row.get("chapter_number")
+            fname = row.get("file_name", "")
+            if chapter_nr is None or not fname:
+                continue
+            key = (fname, chapter_nr)
+            # Higher-ranked matches (lower index) get more weight
+            weight = 1.0 / (rank + 1)
+            chapter_scores[key] = chapter_scores.get(key, 0.0) + weight
+
+        if not chapter_scores:
+            return ""
+
+        # Pick the highest-scoring chapter
+        best_key = max(chapter_scores, key=chapter_scores.get)
+        best_fname, best_chapter_nr = best_key
+
+        # Find chapter info
+        file_chapters = chapters_data.get(best_fname, [])
+        chapters = chapters_from_serializable(file_chapters)
+        target_chapter: ChapterInfo | None = None
+        for ch in chapters:
+            if ch.number == best_chapter_nr:
+                target_chapter = ch
+                break
+
+        if not target_chapter:
+            return ""
+
+        # Extract all pages of the chapter from raw text
+        raw = raw_data.get(best_fname, "")
+        if not raw:
+            return ""
+
+        _page_header_re = re.compile(r"^# Page (\d+)$", re.MULTILINE)
+        headers = list(_page_header_re.finditer(raw))
+        if not headers:
+            return ""
+
+        page_texts: dict[int, str] = {}
+        for idx, match in enumerate(headers):
+            page_num = int(match.group(1))
+            start = match.start()
+            end = headers[idx + 1].start() if idx + 1 < len(headers) else len(raw)
+            page_texts[page_num] = raw[start:end].strip()
+
+        # Collect pages in the chapter range
+        parts: list[str] = []
+        for page_num in range(target_chapter.start_page, target_chapter.end_page + 1):
+            text = page_texts.get(page_num)
+            if text:
+                parts.append(text)
+
+        if not parts:
+            return ""
+
+        combined = "\n\n".join(parts)
+        if len(combined) > _CHAPTER_CONTEXT_MAX_CHARS:
+            combined = combined[:_CHAPTER_CONTEXT_MAX_CHARS] + "\n\n[... chapter truncated]"
+
+        header = (
+            f'[Full Chapter {target_chapter.number}: "{target_chapter.title}" '
+            f"of {best_fname}, pages {target_chapter.start_page}-{target_chapter.end_page}]"
+        )
+        result = f"{header}\n\n{combined}"
+        logger.info(
+            f"📖 Extracted chapter {target_chapter.number} ({target_chapter.title}) "
+            f"from {best_fname}: pages {target_chapter.start_page}-{target_chapter.end_page}, "
+            f"{len(result)} chars"
+        )
+        return result
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to extract chapter context: {e}")
+        return ""
+
+
 def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     """Format EXIF metadata for all files into a prompt section."""
     if not file_metadata:
@@ -998,6 +1190,9 @@ def answer_with_citations(
         # Extract full page text only for pages referenced by matching chunks
         matched_pages = _extract_matched_pages(storage_dir, rows)
 
+        # Extract full chapter context for the most relevant chapter
+        chapter_context = _extract_chapter_context(storage_dir, rows)
+
         # Format EXIF / file metadata for the prompt
         exif_str = _format_exif_for_prompt(file_metadata)
 
@@ -1038,6 +1233,7 @@ def answer_with_citations(
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,
                 "matched_pages": matched_pages,
+                "chapter_context": chapter_context or "(no chapter structure detected)",
                 "exif_metadata": exif_str,
                 "previous_suggested_questions": prev_questions_str,
                 "conversation_name": conv_name,

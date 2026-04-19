@@ -797,7 +797,11 @@ a {
 
 @media (min-width: 769px) {
   .message-row.assistant {
-    margin-left: 130px;
+    margin-left: 80px;
+  }
+
+  .message-row.assistant:first-of-type {
+    margin-left: 0px;
   }
 }
 

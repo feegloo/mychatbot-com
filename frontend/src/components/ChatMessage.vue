@@ -599,8 +599,13 @@ async function downloadMessagePdf() {
     })
   }
 
-  const { printContentAsPdf } = await import('../utils/printPdf')
-  await printContentAsPdf(md, title)
+  try {
+    const { printContentAsPdf } = await import('../utils/printPdf')
+    await printContentAsPdf(md, title)
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    alert('PDF generation failed. Please reload the page and try again.')
+  }
 }
 
 type ContentPart =
@@ -744,7 +749,7 @@ function setupTooltips() {
         btn,
         {
           content: truncateText(citation.text, MAX_TOOLTIP_LENGTH),
-          delay: { show: 1000, hide: 0 },
+          delay: { show: 500, hide: 0 },
           themes: ['tooltip'],
         },
         false,

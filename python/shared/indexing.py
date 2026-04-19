@@ -5,6 +5,11 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from .chapters import (
+    build_page_to_chapter_map,
+    chapters_to_serializable,
+    detect_chapters,
+)
 from .chunkers import Chunk, split_into_chunks
 from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
 from .describe import describe_documents
@@ -185,6 +190,34 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         f"✅ Processed {len(file_results)} file(s): {len(all_chunks)} chunks, {len(all_images)} images"
     )
 
+    # ── Chapter detection ────────────────────────────────────────────
+    # Detect chapters in PDFs and enrich chunk metadata with chapter_number
+    all_chapters: dict[str, list[dict]] = {}  # file_name -> chapters (serializable)
+    page_to_chapter_maps: dict[str, dict[int, int]] = {}  # file_name -> {page: chapter_nr}
+    for file_path in file_paths:
+        p = Path(file_path)
+        if p.suffix.lower() == ".pdf":
+            chapters = detect_chapters(file_path)
+            if chapters:
+                all_chapters[p.name] = chapters_to_serializable(chapters)
+                page_to_chapter_maps[p.name] = build_page_to_chapter_map(chapters)
+                logger.info(
+                    f"📖 {p.name}: {len(chapters)} chapters detected, "
+                    f"pages mapped: {len(page_to_chapter_maps[p.name])}"
+                )
+
+    # Enrich chunks with chapter_number metadata
+    if page_to_chapter_maps:
+        enriched_count = 0
+        for chunk in all_chunks:
+            page_map = page_to_chapter_maps.get(chunk.file_name)
+            if page_map and chunk.page is not None:
+                chapter_nr = page_map.get(chunk.page)
+                if chapter_nr is not None:
+                    chunk.metadata["chapter_number"] = chapter_nr
+                    enriched_count += 1
+        logger.info(f"📖 Enriched {enriched_count}/{len(all_chunks)} chunks with chapter_number")
+
     # Save raw text and page summaries to disk for follow-up answer context
     storage_dir = str(Path(file_paths[0]).parent) if file_paths else None
     if storage_dir:
@@ -209,6 +242,14 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 )
                 logger.info(
                     f"💾 Saved {len(all_page_summaries)} page summaries to {summaries_path}"
+                )
+            if all_chapters:
+                chapters_path = Path(storage_dir) / "_chapters.json"
+                chapters_path.write_text(
+                    json.dumps(all_chapters, ensure_ascii=False), encoding="utf-8"
+                )
+                logger.info(
+                    f"💾 Saved chapter data for {len(all_chapters)} file(s) to {chapters_path}"
                 )
         except Exception as e:
             logger.warning(f"⚠️ Failed to save raw text / page summaries: {e}")

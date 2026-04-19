@@ -71,6 +71,22 @@ Zasady:
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
 - KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków. Dotyczy to również nazw akcji.
 
+== OBOWIĄZKOWE AKCJE DLA KONKRETNYCH TYPÓW TREŚCI ==
+Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć danej akcji jako jednej z dwóch:
+
+1. POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, horror itp.):
+   → OBOWIĄZKOWO: "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
+   Przykład: "Napisz inspirowany rozdział w stylu Remigiusza Mroza ✏️"
+   Drugą akcję dobierz losowo z poniższej listy (quiz, oś czasu, mapa myśli itp.)
+
+2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
+   → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 🎭"
+   Przykład: "Napisz inspirowany wiersz w stylu Paula Coelho 🎭"
+   Drugą akcję dobierz losowo z poniższej listy.
+
+3. Jeśli treść NIE pasuje do powyższych — dobierz obie akcje LOSOWO z poniższej listy.
+   NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
+
 == Wytyczne dotyczące promptów-akcji ==
 
 Wybierz akcje które NAJLEPIEJ pasują do charakteru treści. Bądź kreatywny i kontekstowy:
@@ -234,6 +250,13 @@ af) Wygeneruj obraz 🎨 — sugeruj gdy:
    - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
    - przykład: "Wygeneruj obraz inspirowany treścią 🎨" lub "Wygeneruj obraz przedstawiający temat 🎨"
 
+ag) Postaw diagnozę / diagnoza 🔬 — sugeruj gdy:
+   - dokument to wyniki badań laboratoryjnych, badania krwi, panel tarczycowy, lipidogram
+   - treść zawiera wartości takie jak: morfologia, hemoglobina, leukocyty, cholesterol, glukoza, TSH, FT3, FT4, ferrytyna, witamina D, witamina B12, homocysteina, magnez, żelazo, CRP, D-dimery, kreatynina, bilirubina, ALAT, ASPAT, HbA1c, kwas foliowy, estradiol, testosteron itp.
+   - plik wygląda jak sprawozdanie z badań z laboratorium (ALAB, Diagnostyka, Synevo itp.)
+   - akcja: "Postaw diagnozę na podstawie wyników 🔬"
+   - UWAGA: to ma WYSOKI PRIORYTET — jeśli treść to wyniki badań, ta akcja MUSI być jedną z dwóch
+
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}""",
                 ),
@@ -259,6 +282,22 @@ Rules:
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
 - CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages. This applies to action labels, topics, and everything else.
+
+== MANDATORY ACTIONS FOR SPECIFIC CONTENT TYPES ==
+These rules have the HIGHEST PRIORITY — if the content matches, you MUST use that action as one of the two:
+
+1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
+   → MANDATORY: "Write inspired chapter like [Author Full Name] ✏️"
+   Example: "Write inspired chapter like Stephen King ✏️"
+   Pick the second action RANDOMLY from the list below (quiz, timeline, mind map, etc.)
+
+2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
+   → MANDATORY: "Write inspired poem like [Author Full Name] 🎭"
+   Example: "Write inspired poem like Paulo Coelho 🎭"
+   Pick the second action RANDOMLY from the list below.
+
+3. If the content does NOT match the above — pick BOTH actions RANDOMLY from the list below.
+   Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
 
@@ -424,6 +463,13 @@ af) Generate image 🎨 — suggest when:
    - action: MUST contain exactly the phrase "generate image" in the label
    - example: "Generate an image inspired by the content 🎨" or "Generate an image depicting topic 🎨"
 
+ag) Make a diagnosis 🔬 — suggest when:
+   - document is lab test results, blood tests, thyroid panel, lipid panel
+   - content contains values like: CBC, hemoglobin, WBC, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, vitamin B12, homocysteine, magnesium, iron, CRP, D-dimers, creatinine, bilirubin, ALT, AST, HbA1c, folic acid, estradiol, testosterone, etc.
+   - file looks like a laboratory report
+   - action: "Make a diagnosis based on results 🔬"
+   - NOTE: this has HIGH PRIORITY — if the content is lab results, this action MUST be one of the two
+
 Uploaded files: {file_types_str}
 Document description: {description}""",
                 ),
@@ -482,6 +528,20 @@ _INGREDIENT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_LAB_TEST_PATTERN = re.compile(
+    r"\b(morfologia|hemoglobina|leukocyty|erytrocyty|hematokryt|płytki krwi|"
+    r"cholesterol|triglicerydy|glukoza|kreatynina|bilirubina|ferrytyna|"
+    r"witamina D|witamina B12|25\(OH\)D|TSH|FT3|FT4|ATPO|ATG|homocysteina|"
+    r"kwas foliowy|magnez w surowicy|żelazo w surowicy|CRP|D-dimery|"
+    r"estradiol|testosteron|insulina|HbA1c|ALAT|ASPAT|GGT|mocznik|"
+    r"blood count|CBC|hemoglobin|WBC|RBC|hematocrit|platelet|"
+    r"vitamin D|vitamin B12|folic acid|ferritin|creatinine|bilirubin|"
+    r"triglyceride|glucose|magnesium|iron.*serum|thyroid|cortisol|"
+    r"lab.{0,5}result|blood.{0,5}test|wynik.{0,5}bada[nń]|sprawozdanie z bada[nń]|"
+    r"zakres referencyjny|reference range|laboratorium|laboratory)\b",
+    re.IGNORECASE,
+)
+
 
 def _append_contextual_prompts(
     questions: list[str],
@@ -508,6 +568,7 @@ def _append_contextual_prompts(
         is_woman = bool(_WOMAN_PATTERN.search(welcome_message))
         is_man = bool(_MAN_PATTERN.search(welcome_message))
         has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
+        has_lab_tests = bool(_LAB_TEST_PATTERN.search(welcome_message))
 
         for name in file_names:
             if len(contextual) >= 2:
@@ -541,11 +602,14 @@ def _append_contextual_prompts(
                                 contextual.append(f"Who is the man in {short_name}? 🔍")
                             else:
                                 contextual.append(f"Who is the person in {short_name}? 🔍")
-            elif ftype == "pdf":
-                if language == "pl":
-                    contextual.append(f"Pokaż metadane pliku {short_name} 📄")
-                else:
-                    contextual.append(f"Show file metadata for {short_name} 📄")
+            # PDF metadata prompt removed — LLM-generated creative actions are more valuable
+
+    # Lab test / blood test results → diagnosis prompt (highest priority)
+    if has_lab_tests and len(contextual) < 2:
+        if language == "pl":
+            contextual.insert(0, "Postaw diagnozę na podstawie wyników 🔬")
+        else:
+            contextual.insert(0, "Make a diagnosis based on results 🔬")
 
     # Fill remaining action slots with LLM-generated actions
     remaining_slots = 2 - len(contextual)

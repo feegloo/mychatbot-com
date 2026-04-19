@@ -4,10 +4,10 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your files (privately & securely encrypted 🔒) <br />Prompt & study with
+        Upload your files (privately & securely encrypted 🔒) and share answers<br />Prompt & study with
         learning<strong> AI Agent chatbot</strong>, use semantic search & RAG<br />
         <span style="font-size: 12px; padding-top: 4px"
-          >Generate checklist ✅ quiz 🧠 recipe 🍝 book chapter 📖 poem 📜 PDF 📄 share answers</span
+          >Generate checklist ✅ quiz 🧠 recipe 🍝 book chapter 📖 poem 📜 PDF 📄 and more!</span
         >
       </p>
     </div>
