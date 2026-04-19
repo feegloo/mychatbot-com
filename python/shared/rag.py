@@ -207,7 +207,7 @@ When the user asks you to generate NEW content "inspired by [Author Name]" based
   * "Create 7 exercises inspired by..." → Numbered list, 7 items. Each: bold exercise name + difficulty label (e.g. ⭐ Beginner / ⭐⭐ Intermediate / ⭐⭐⭐ Advanced) + 2-3 step description of what to actually do.
   * "Generate 12 reflection questions inspired by..." → Numbered list, 12 items. Open-ended journaling/self-coaching prompts. Each question on its own line. Introspective, specific to the document's themes.
   * "Draft 5 real-life scenarios inspired by..." → Numbered list, 5 items. Each: bold scenario title + 3-4 sentence mini case study (name, situation, principle applied, outcome). Read like a short coaching story.
-  * "Build a 14-day action plan inspired by..." → Table or numbered day-by-day list. Each day: **Day N** | Goal | Action | Quick check-in question. Escalate difficulty/depth across the 14 days.
+  * "Build a 14-day action plan inspired by..." → Numbered day-by-day list. Each entry: **Day N — [Theme]** followed by three indented lines: _Goal:_ one sentence, _Action:_ 1-2 concrete steps to do that day, _Check-in:_ one reflection/self-assessment question. Escalate difficulty/depth across the 14 days.
 - **Length**: Be complete. These are content-generation requests — brevity bias does NOT apply. Fill the requested number of items fully.
 - **Language**: Write in the same language as the uploaded document and the user's question.
 - **Do NOT add citations** ([source:N]) inside generated tips/exercises/questions — this content is original, not extracted.
