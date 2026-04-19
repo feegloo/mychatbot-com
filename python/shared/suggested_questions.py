@@ -67,6 +67,7 @@ Zasady:
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
 - Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 🎭")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
+- Często preferuj akcję: "Wygeneruj obraz dla aktualnego nastroju 🎨" (gdy nie koliduje to z obowiązkowymi akcjami)
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
@@ -314,6 +315,7 @@ Rules:
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
 - Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 🎭")
   Each action-prompt MUST end with a relevant emoji
+- Frequently prefer this action prompt when possible: "Generate image for current mood 🎨" (unless a mandatory content-specific action applies)
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
@@ -629,15 +631,20 @@ def _append_contextual_prompts(
     # Split LLM output: first 3 are questions, rest are actions
     normal_questions = questions[:3]
     llm_actions = questions[3:5]
+    pinned_mood_prompt = (
+        "Wygeneruj obraz dla aktualnego nastroju 🎨"
+        if language == "pl"
+        else "Generate image for current mood 🎨"
+    )
 
     # Build contextual action prompts (higher priority than LLM actions)
     contextual: list[str] = []
+    has_lab_tests = bool(_LAB_TEST_PATTERN.search(welcome_message))
     if file_names and file_types:
         has_person = bool(_PERSON_PATTERN.search(welcome_message))
         is_woman = bool(_WOMAN_PATTERN.search(welcome_message))
         is_man = bool(_MAN_PATTERN.search(welcome_message))
         has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
-        has_lab_tests = bool(_LAB_TEST_PATTERN.search(welcome_message))
 
         for name in file_names:
             if len(contextual) >= 2:
@@ -684,4 +691,17 @@ def _append_contextual_prompts(
     remaining_slots = 2 - len(contextual)
     actions = llm_actions[:remaining_slots] + contextual
 
-    return normal_questions + actions
+    # Always pin one mood-based image-generation prompt as the first welcome suggestion.
+    final = [pinned_mood_prompt] + normal_questions + actions
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for question in final:
+        key = question.strip().lower()
+        if key and key not in seen:
+            deduped.append(question)
+            seen.add(key)
+        if len(deduped) >= 5:
+            break
+
+    return deduped
