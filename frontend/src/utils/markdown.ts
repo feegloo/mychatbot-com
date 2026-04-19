@@ -185,6 +185,10 @@ export function renderMarkdown(content: string): string {
     /<a (?![^>]*target=)/gi,
     '<a target="_blank" rel="noopener noreferrer" ',
   )
+  // Wrap tables so wide markdown tables can scroll horizontally on narrow screens
+  const withScrollableTables = withTargetBlank
+    .replace(/<table>/g, '<div class="markdown-table-scroll"><table>')
+    .replace(/<\/table>/g, '</table></div>')
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
@@ -192,7 +196,7 @@ export function renderMarkdown(content: string): string {
     'gi',
   )
   let insideA = 0
-  return withTargetBlank.replace(
+  return withScrollableTables.replace(
     /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
     (m, openA: string, closeA: string, _otherTag: string, text: string) => {
       if (openA) {
