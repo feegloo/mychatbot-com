@@ -289,7 +289,10 @@ export function useTextSelectionSpeech(
       const cleaned = cleanTextForTTS(text)
       const sentences = splitIntoSentences(cleaned)
       const chunks = buildSynthesisChunks(sentences)
-      if (!chunks.length) return
+      if (!chunks.length) {
+        resetPlaybackUi()
+        return
+      }
 
       const isSingleChunk = chunks.length === 1
 
