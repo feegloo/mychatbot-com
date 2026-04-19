@@ -93,6 +93,9 @@ Sections provided:
 3. Welcome Page Description (short summary of each uploaded file)
 4. Full Pages of Matched Sources (complete page text for pages where matches were found)
 5. EXIF Metadata (image file metadata, if available)
+5a. Conversation Context (conversation name and unique ID)
+5b. Full Chat History (ALL previous user questions and your answers, with timestamps)
+5c. Previously Suggested Questions (all action buttons already shown)
 6. Start Answering
 
 --
@@ -101,7 +104,8 @@ Sections provided:
 
 a) Tone & Goal:
 - Be helpful, accurate, and concise. Synthesize information - do not just repeat the retrieved text.
-- Use the chat history to resolve follow-up references (e.g. "it", "that", "more details").
+- Use the FULL chat history (Section 5b) to resolve follow-up references (e.g. "it", "that", "more details") and maintain conversational continuity across ALL exchanges, not just the last one.
+- Never repeat information already covered in earlier answers unless the user explicitly asks for it again. Build on what was already discussed.
 - **Primary source**: Always ground your answer in the uploaded context first. Context-based information needs no special label.
 - **Common-knowledge fallback**: When the context is insufficient or when widely-known facts, logical reasoning, or domain common sense can meaningfully enrich the answer, you MAY supplement with common knowledge. Rules for this:
   * Clearly separate or label such additions so the user knows they come from outside the uploaded files (e.g. "_From general knowledge:_" or "_Beyond the uploaded documents:_").
@@ -233,8 +237,23 @@ Below is the full text of pages where matching sources were found. Each block is
 
 --
 
-== SECTION 5b: Chat History (Previous Messages) ==
-Below is the most recent question the user asked and the answer you gave. Use this to understand follow-up questions and maintain conversational continuity. If empty, this is the first question in the conversation.
+== SECTION 5a: Conversation Context ==
+Conversation name: {conversation_name}
+Conversation ID: {conversation_id}
+This is a unique conversation where the user uploaded files and is asking questions about them. Use the conversation name (if set) to understand the broader topic or purpose of this session.
+
+--
+
+== SECTION 5b: Full Chat History (All Previous Messages) ==
+Below is the COMPLETE conversation history between the user and you (the assistant) in this session, in chronological order. Each message is labeled with its role (User Question / Assistant Answer) and numbered sequentially. Timestamps are included when available.
+
+Use this full history to:
+- Understand the full arc of the conversation and what topics have been covered
+- Resolve follow-up references ("it", "that", "the previous one", "more details")
+- Avoid repeating information already given in earlier answers
+- Build on insights and analysis from previous exchanges
+- Maintain consistent terminology and style throughout the conversation
+
 {chat_history}
 
 --
@@ -564,18 +583,35 @@ def _format_previous_suggested_questions(questions: list[str] | None) -> str:
 
 
 def _format_chat_history(chat_history: list[dict] | None) -> str:
-    """Format the last Q&A exchange into a string for the prompt."""
+    """Format the full conversation history into a structured string for the prompt.
+    
+    Each message is labeled with role (User Question / Assistant Answer) and
+    timestamp when available, so the model can clearly distinguish exchanges.
+    """
     if not chat_history:
         return "(no previous conversation)"
     parts = []
+    exchange_num = 0
     for msg in chat_history:
-        role = msg.get("role", "user").capitalize()
+        role = msg.get("role", "user")
         content = msg.get("content", "")
-        # Truncate long assistant answers to keep context window reasonable
-        if len(content) > 1000:
-            content = content[:1000] + "..."
-        parts.append(f"{role}: {content}")
-    return "\n".join(parts)
+        timestamp = msg.get("timestamp", "")
+
+        if role == "user":
+            exchange_num += 1
+            label = f"[User Question #{exchange_num}]"
+        else:
+            label = f"[Assistant Answer #{exchange_num}]"
+
+        if timestamp:
+            label += f" ({timestamp})"
+
+        # Truncate very long assistant answers to keep total context reasonable
+        if role == "assistant" and len(content) > 3000:
+            content = content[:3000] + "\n... (truncated)"
+
+        parts.append(f"{label}\n{content}")
+    return "\n\n---\n\n".join(parts)
 
 
 def _load_raw_text_legacy(storage_dir: str | None) -> str:
@@ -729,7 +765,7 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
-def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None, previous_suggested_questions: list[str] | None = None) -> dict:
+def answer_with_citations(collection_name: str, conversation_id: str, question: str, top_k: int = 10, chat_history: list[dict] | None = None, welcome_messages: list[str] | None = None, image_file_paths: list[str] | None = None, file_metadata: dict[str, dict] | None = None, storage_dir: str | None = None, previous_suggested_questions: list[str] | None = None, conversation_name: str | None = None) -> dict:
     import sentry_sdk
     logger.info(f"❓ Answering question: {question[:100]}...")
 
@@ -798,6 +834,7 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
                 "page_summaries": page_summaries or "(no page summaries available)",
             }
         else:
+            conv_name = conversation_name or "(unnamed conversation)"
             prompt_vars = {
                 "question": question,
                 "context": context,
@@ -806,6 +843,8 @@ def answer_with_citations(collection_name: str, conversation_id: str, question: 
                 "matched_pages": matched_pages,
                 "exif_metadata": exif_str,
                 "previous_suggested_questions": prev_questions_str,
+                "conversation_name": conv_name,
+                "conversation_id": conversation_id,
             }
 
         # Render the full prompt string and log it for debugging

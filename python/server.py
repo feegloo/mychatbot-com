@@ -81,6 +81,7 @@ class AnswerRequest(BaseModel):
     file_metadata: dict[str, dict] | None = None
     storage_dir: str | None = None
     previous_suggested_questions: list[str] | None = None
+    conversation_name: str | None = None
 
 
 class IndexRequest(BaseModel):
@@ -190,6 +191,7 @@ async def answer(req: AnswerRequest):
             file_metadata=req.file_metadata,
             storage_dir=req.storage_dir,
             previous_suggested_questions=req.previous_suggested_questions,
+            conversation_name=req.conversation_name,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(f"📤 /answer response: {len(result.get('answer', ''))} chars, preview='{answer_preview}'")

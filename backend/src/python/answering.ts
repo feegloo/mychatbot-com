@@ -4,12 +4,13 @@ export async function answerQuestion(options: {
   conversationId: string;
   collectionName: string;
   question: string;
-  chatHistory?: { role: string; content: string }[];
+  chatHistory?: { role: string; content: string; timestamp?: string }[];
   welcomeMessages?: string[];
   imageFilePaths?: string[];
   fileMetadata?: Record<string, any>;
   storageDir?: string;
   previousSuggestedQuestions?: string[];
+  conversationName?: string;
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: "POST",
@@ -24,6 +25,7 @@ export async function answerQuestion(options: {
       file_metadata: options.fileMetadata || null,
       storage_dir: options.storageDir || null,
       previous_suggested_questions: options.previousSuggestedQuestions || null,
+      conversation_name: options.conversationName || null,
     }),
   });
 

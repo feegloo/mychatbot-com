@@ -1,30 +1,22 @@
 import type { ConversationMessageRecord } from "../types.js";
 
 /**
- * Extract the last user+assistant exchange from conversation messages
- * to provide as chat history context. Only includes the most recent
- * Q&A pair to avoid blowing up the context window.
+ * Build full chat history from conversation messages.
+ * Includes all user+assistant exchanges (excluding welcome messages)
+ * with timestamps for contextual continuity.
  */
-export function buildChatHistory(messages: ConversationMessageRecord[]): { role: string; content: string }[] {
-  // Find the last assistant message and the user message before it
-  const history: { role: string; content: string }[] = [];
-
-  // Walk backwards to find the last assistant message
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant") {
-      // Found the last assistant message — now find the user message before it
-      for (let j = i - 1; j >= 0; j--) {
-        if (messages[j].role === "user") {
-          history.push({ role: "user", content: messages[j].content });
-          break;
-        }
-      }
-      history.push({ role: "assistant", content: messages[i].content });
-      break;
-    }
-  }
-
-  return history;
+export function buildChatHistory(messages: ConversationMessageRecord[]): { role: string; content: string; timestamp?: string }[] {
+  return messages
+    .filter(msg => {
+      // Skip welcome/upload messages (assistant messages with _uploadedFileNames)
+      if (msg.role === "assistant" && msg.citations_json?._uploadedFileNames) return false;
+      return true;
+    })
+    .map(msg => ({
+      role: msg.role,
+      content: msg.content,
+      ...(msg.created_at ? { timestamp: msg.created_at } : {}),
+    }));
 }
 
 /**

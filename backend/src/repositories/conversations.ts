@@ -79,7 +79,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   );
 
   const messagesResult = await query<ConversationMessageRecord>(
-    `SELECT id, conversation_id, role, content, citations_json, user_id
+    `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
      FROM conversation_messages
      WHERE conversation_id = $1
      ORDER BY created_at ASC`,
@@ -92,7 +92,7 @@ export async function getConversation(id: string, role: ConversationRole = "view
   if (conversation?.parent_message_id && conversation.storage_namespace !== id) {
     // Fetch the branched-from message to display as first message in thread
     const parentMsgResult = await query<ConversationMessageRecord>(
-      `SELECT id, conversation_id, role, content, citations_json, user_id
+      `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
        FROM conversation_messages
        WHERE id = $1`,
       [conversation.parent_message_id]

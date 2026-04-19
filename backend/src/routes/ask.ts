@@ -107,6 +107,7 @@ askRouter.post("/ask", async (ctx) => {
     fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
     storageDir,
     previousSuggestedQuestions: previousSuggestedQuestions.length ? previousSuggestedQuestions : undefined,
+    conversationName: data.conversation.display_name || undefined,
   });
 
   const payload = result.parsedJson || {

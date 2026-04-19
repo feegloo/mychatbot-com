@@ -51,8 +51,12 @@ _META_EXCLUDE_KEYS = {"file_name", "file_created", "file_modified", "file_size_b
 # ~30K tokens ≈ 120K chars is safe for all models and gives the LLM
 # much more raw text to work with for detailed welcome messages.
 _DESCRIBE_MAX_CONTENT_CHARS = 120_000
-# When a document is large, we split the budget: 70 % for text, 30 % for page summaries.
-_TEXT_BUDGET_RATIO = 0.7
+# When a document is large, we split the budget: 50% for raw text from start,
+# 20% for 2-pass summaries of remaining content, 30% for page summaries.
+_TEXT_BUDGET_RATIO = 0.50
+_SUMMARY_PASS_BUDGET_RATIO = 0.20
+# Threshold for triggering 2-pass summarization (chars of total extracted text)
+_TWO_PASS_THRESHOLD = 200_000
 
 
 def _estimate_total_text_len(extracted: list[dict]) -> int:
@@ -71,6 +75,45 @@ def _build_page_summary_block(page_summaries: list[dict]) -> str:
             prefix = f"[{fname} p.{page}]" if fname else f"[p.{page}]"
             lines.append(f"{prefix} {summary}")
     return "\n".join(lines)
+
+
+def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
+    """Summarize a large chunk of text into a dense condensed summary.
+    
+    Used in the 2-pass strategy for very large documents: each half of the
+    document is summarized separately, then combined with raw text from the
+    beginning for the final welcome message prompt.
+    """
+    if not text.strip():
+        return ""
+
+    if language == "pl":
+        system_msg = (
+            "Jesteś ekspertem od streszczania dokumentów. Otrzymasz fragment dużego dokumentu. "
+            "Stwórz gęste, szczegółowe streszczenie zachowując WSZYSTKIE kluczowe fakty, nazwiska, daty, kwoty, "
+            "wnioski i argumenty. Dla każdej strony/sekcji napisz 2-3 zdania wyciągając najważniejsze informacje. "
+            "Zachowaj oryginalną strukturę i kolejność. NIE pomijaj ważnych szczegółów. "
+            "Pisz zwięźle ale kompletnie — to streszczenie będzie jedynym źródłem informacji o tej części dokumentu."
+        )
+    else:
+        system_msg = (
+            "You are an expert document summarizer. You will receive a section of a large document. "
+            "Create a dense, detailed summary preserving ALL key facts, names, dates, amounts, "
+            "conclusions, and arguments. For each page/section, write 2-3 sentences extracting the crucial information. "
+            "Maintain the original structure and order. Do NOT skip important details. "
+            "Write concisely but completely — this summary will be the only source of information about this part of the document."
+        )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_msg),
+        ("human", f"Document section ({chunk_label}):\n\n{{text}}"),
+    ])
+
+    llm = get_llm()
+    chain = prompt | llm | StrOutputParser()
+    result = chain.invoke({"text": text})
+    logger.info(f"📝 2-pass summary for {chunk_label}: {len(text)} chars → {len(result)} chars")
+    return result.strip()
 
 
 def describe_documents(
@@ -105,14 +148,25 @@ def describe_documents(
 
     if is_large:
         # ── Large-document strategy ──────────────────────────────────
-        # Split the budget between beginning-of-text and page summaries
-        # so the model sees both detail (start) and breadth (all pages).
+        # For very large documents (>200K chars), use 2-pass summarization:
+        # 1. Raw text from the start of the document (50% budget)
+        # 2. Summarize remaining content in 2 passes (20% budget)
+        # 3. Per-page summaries for breadth (30% budget)
         image_chars = len(image_block)
         remaining = _DESCRIBE_MAX_CONTENT_CHARS - image_chars
-        text_budget = int(remaining * _TEXT_BUDGET_RATIO)
-        summary_budget = remaining - text_budget
 
-        # Truncated text from each document (distribute budget evenly)
+        is_very_large = total_chars > _TWO_PASS_THRESHOLD
+
+        if is_very_large:
+            text_budget = int(remaining * _TEXT_BUDGET_RATIO)
+            summary_pass_budget = int(remaining * _SUMMARY_PASS_BUDGET_RATIO)
+            summary_budget = remaining - text_budget - summary_pass_budget
+        else:
+            text_budget = int(remaining * 0.7)
+            summary_pass_budget = 0
+            summary_budget = remaining - text_budget
+
+        # Raw text from each document start (distribute budget evenly)
         per_doc = max(text_budget // max(len(extracted), 1), 500)
         text_snippets: list[str] = []
         for doc in extracted:
@@ -124,9 +178,45 @@ def describe_documents(
         # Page summaries block
         summary_text = _build_page_summary_block(page_summaries)[:summary_budget]
 
+        # 2-pass summarization for very large documents
+        two_pass_summary = ""
+        if is_very_large and summary_pass_budget > 0:
+            # Detect language early for summarization prompts
+            early_lang = language or detect_language(
+                (extracted[0].get("text") or "")[:2000] if extracted else ""
+            )
+            # Collect remaining text (after the raw text budget) from all docs
+            remaining_texts: list[str] = []
+            for doc in extracted:
+                full_text = doc.get("text") or ""
+                if len(full_text) > per_doc:
+                    remaining_texts.append(full_text[per_doc:])
+            
+            if remaining_texts:
+                all_remaining = "\n\n---\n\n".join(remaining_texts)
+                midpoint = len(all_remaining) // 2
+                
+                # Cap each half to avoid sending too much to the summarizer
+                max_half = 80_000
+                first_half = all_remaining[:midpoint][-max_half:]
+                second_half = all_remaining[midpoint:][:max_half]
+                
+                # Summarize each half
+                summary_1 = _summarize_text_chunk(first_half, "first half (middle pages)", early_lang)
+                summary_2 = _summarize_text_chunk(second_half, "second half (final pages)", early_lang)
+                
+                two_pass_summary = f"[Condensed summary of middle pages]\n{summary_1}\n\n[Condensed summary of final pages]\n{summary_2}"
+                two_pass_summary = two_pass_summary[:summary_pass_budget]
+                logger.info(f"📝 2-pass summaries combined: {len(two_pass_summary)} chars")
+
         parts: list[str] = []
         if text_snippets:
             parts.append("\n\n---\n\n".join(text_snippets))
+        if two_pass_summary:
+            parts.append(
+                f"[Dense summaries of document content beyond the raw text above — "
+                f"generated via 2-pass summarization of the remaining {total_chars - text_budget} chars]\n{two_pass_summary}"
+            )
         if summary_text:
             parts.append(
                 f"[Short summaries of all pages — the full text above was truncated "
@@ -140,7 +230,7 @@ def describe_documents(
             return _fallback_from_metadata(extracted, images, file_metadata, language)
         logger.info(
             f"📝 Large-doc describe: {total_chars} chars total → "
-            f"{len(combined)} chars context (text {text_budget}, summaries {summary_budget})"
+            f"{len(combined)} chars context (text {text_budget}, 2-pass {len(two_pass_summary)}, summaries {len(summary_text)})"
         )
     else:
         # ── Small-document strategy (original) ───────────────────────
@@ -202,8 +292,10 @@ Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, autor/źródło i rok jeśli znane.
    Sformatuj jako nagłówek Markdown: ## Tytuł tutaj
+   WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
 
 2. **Opis** (po tytule): 2-4 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
+   Jeśli w metadanych pliku jest pole page_count, KONIECZNIE wspomnij ile stron liczy dokument (np. "Ten **14-stronicowy** przewodnik...").
    Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
    Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym.
 
@@ -252,8 +344,10 @@ Your response MUST have three parts:
 
 1. **Title** (first line): A short summary of the uploaded file — its title, author/source, and year if known.
    Format as a Markdown heading: ## Title here
+   IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
 
 2. **Description** (after the title): 2-4 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** for key terms.
+   If file metadata includes page_count, you MUST mention how many pages the document has (e.g. "This **14-page** scar treatment guide...").
    If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
    If the image shows a person or people, mention it.
 

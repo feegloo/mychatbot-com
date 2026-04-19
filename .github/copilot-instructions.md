@@ -16,6 +16,10 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
 - use Sentry MCP as well to check projects (I configured Sentry for both frontend and backend, so you can check error logs and performance metrics there to help with debugging and understanding the system's behavior in production
 - you should be independent and proactive in finding information and understanding the codebase, architecture, and requirements, and should not rely on me to provide all the information or context you need to be productive
 - after round of few AI Agents implementations, you can ask to run ./deploy or do it further by yourself, to see how your changes work in production, and to check logs and Sentry for any errors or issues that may arise, and use that information to further improve your understanding of the system and to guide your future implementations and contributions
+- always modify .env for dev and .env for production by yourself, but you can comment previous env if it's valueable and shouldn't be lost, but generally add required .env to deploy to production, when you obtain some tocken
+- try to execute as many cli commands as possible by yourself (main system: macOS), to understand the system better, and to be more independent in your work, but if you encounter any issues or errors while running commands, try to understand the error message and reason about what might be causing it, and ask for clarification or suggest potential solutions based on the error message and your understanding of the codebase and architecture
+- use as many MCP integrations or install them along the way, to help with debugging, understanding the system, and improving your productivity and independence in the workspace
+
 
 ---
 

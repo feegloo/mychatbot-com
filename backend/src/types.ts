@@ -54,6 +54,7 @@ export type ConversationMessageRecord = {
   content: string;
   citations_json: any;
   user_id: number;
+  created_at?: string;
 };
 
 export type UserFingerprintRecord = {
