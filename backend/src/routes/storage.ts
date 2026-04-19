@@ -151,7 +151,7 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
         })
         if (!upstream.ok && upstream.status !== 206) {
           ctx.status = upstream.status || 502
-          ctx.body = { error: 'Failed to read file from storage' }
+          ctx.body = { error: `Failed to read file from storage (status: ${upstream.status})` }
           return
         }
         if (!upstream.body) {
@@ -176,8 +176,8 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
         ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`)
         ctx.set('X-Content-Type-Options', 'nosniff')
         ctx.set('Cache-Control', 'public, max-age=86400')
-        const webReadable = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
-        ctx.body = Readable.fromWeb(webReadable)
+        const webStream = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
+        ctx.body = Readable.fromWeb(webStream)
         return
       }
 
