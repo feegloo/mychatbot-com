@@ -6,6 +6,7 @@ storage directory so they can be served via the existing /api/storage/ route.
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import uuid
@@ -52,20 +53,28 @@ def generate_image(
     )
 
     image_data = result.data[0]
-    image_url = image_data.url
     revised_prompt = getattr(image_data, "revised_prompt", prompt)
 
-    # Download the image
-    resp = requests.get(image_url, timeout=60)
-    resp.raise_for_status()
+    # gpt-image-1 returns b64_json by default; dall-e-3 returns a URL
+    image_url = getattr(image_data, "url", None)
+    b64_json = getattr(image_data, "b64_json", None)
+
+    if b64_json:
+        image_bytes = base64.b64decode(b64_json)
+    elif image_url:
+        resp = requests.get(image_url, timeout=60)
+        resp.raise_for_status()
+        image_bytes = resp.content
+    else:
+        raise ValueError("OpenAI image response contained neither url nor b64_json")
 
     # Save to storage dir
     file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
     os.makedirs(storage_dir, exist_ok=True)
     file_path = Path(storage_dir) / file_name
-    file_path.write_bytes(resp.content)
+    file_path.write_bytes(image_bytes)
 
-    logger.info(f"🖼️ Image saved: {file_path} ({len(resp.content)} bytes)")
+    logger.info(f"🖼️ Image saved: {file_path} ({len(image_bytes)} bytes)")
 
     return {
         "file_name": file_name,
