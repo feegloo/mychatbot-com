@@ -151,7 +151,23 @@ export async function printContentAsPdf(markdown: string, title: string) {
     .replace(/\[source:\s*\d+(?:,\s*\d+)*\]/g, '')
     .replace(/\[action:\s*[^\]]+\]/g, '')
 
-  const lines = cleaned.split('\n')
+  // Extract [poem]...[/poem] blocks into placeholders
+  const poemBlocks: string[][] = []
+  let poemIdx = 0
+  const withPoemPlaceholders = cleaned.replace(
+    /\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi,
+    (_, body: string) => {
+      const pLines = body
+        .trim()
+        .split('\n')
+        .map((l: string) => stripInlineFormatting(l.trim()))
+        .filter(Boolean)
+      poemBlocks.push(pLines)
+      return `[POEM_BLOCK_${poemIdx++}]`
+    },
+  )
+
+  const lines = withPoemPlaceholders.split('\n')
   let i = 0
   let inCodeBlock = false
 
@@ -216,6 +232,51 @@ export async function printContentAsPdf(markdown: string, title: string) {
         doc.text('[Diagram could not be rendered]', marginLeft, y)
         y += 6
       }
+      i++
+      continue
+    }
+
+    // --- Poem block placeholder ---
+    const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)
+    if (poemPlaceholder) {
+      const idx = parseInt(poemPlaceholder[1], 10)
+      const pLines = poemBlocks[idx]
+      const lineH = 6
+      const quoteMarkH = 8
+      const padding = 6
+      const blockH = quoteMarkH + pLines.length * lineH + quoteMarkH + padding * 2
+      checkNewPage(blockH)
+
+      // Background box (soft purple tint, like the Vue component)
+      doc.setFillColor(248, 245, 255)
+      doc.setDrawColor(210, 195, 250)
+      doc.roundedRect(marginLeft, y - 2, contentWidth, blockH, 3, 3, 'FD')
+
+      // Opening quote mark "\u201C"
+      y += padding + 5
+      doc.setFont(PDF_FONT, 'normal')
+      doc.setFontSize(32)
+      doc.setTextColor(167, 139, 250)
+      doc.text('\u201C', marginLeft + contentWidth / 2, y, { align: 'center' })
+      y += quoteMarkH
+
+      // Poem lines (centered, italic)
+      doc.setFont(PDF_FONT, 'italic')
+      doc.setFontSize(11)
+      doc.setTextColor(80, 80, 80)
+      for (const pLine of pLines) {
+        doc.text(pLine, marginLeft + contentWidth / 2, y, { align: 'center' })
+        y += lineH
+      }
+
+      // Closing quote mark "\u201D"
+      y += 2
+      doc.setFont(PDF_FONT, 'normal')
+      doc.setFontSize(32)
+      doc.setTextColor(167, 139, 250)
+      doc.text('\u201D', marginLeft + contentWidth / 2, y, { align: 'center' })
+      y += quoteMarkH + padding
+
       i++
       continue
     }

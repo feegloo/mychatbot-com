@@ -22,6 +22,16 @@ marked.use({
   },
 })
 
+/** Strip markdown italic/bold markers from poem lines (poem body is already styled italic) */
+function stripPoemInlineMarkers(line: string): string {
+  return line
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+}
+
 function normalizeCitations(text: string): string {
   // Convert bare [N] references to [source:N] format
   // Handles [1][2][3], [1,2,3,4], [1, 2, 3], etc.
@@ -127,6 +137,7 @@ export function renderMarkdown(content: string): string {
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
+      .map((l) => stripPoemInlineMarkers(l))
     const body = lines.join('<br>')
     return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`
   })

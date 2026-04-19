@@ -63,6 +63,7 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
+- Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
 - Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 🎭")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Każdy prompt powinien być zwięzły (max 10 słów)
@@ -251,6 +252,7 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
+- If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
 - Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 🎭")
   Each action-prompt MUST end with a relevant emoji
 - Each prompt should be concise (max 10 words)
