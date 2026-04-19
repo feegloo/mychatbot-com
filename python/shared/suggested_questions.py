@@ -84,7 +84,17 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Przykład: "Napisz inspirowany wiersz w stylu Paula Coelho 🎭"
    Drugą akcję dobierz losowo z poniższej listy.
 
-3. Jeśli treść NIE pasuje do powyższych — dobierz obie akcje LOSOWO z poniższej listy.
+3. PORADNIK / SAMOROZWÓJ / LISTA WSKAZÓWEK / WORKBOOK (produktywność, pewność siebie, nawyki, wskazówki, ćwiczenia, wyzwania, jak zrobić, samodoskonalenie):
+   → OBOWIĄZKOWO: Wybierz LOSOWO jeden z poniższych promptów generowania treści inspirowanej:
+     - "Napisz 10 nowych wskazówek inspirowanych [Imię Nazwisko autora] 💡"
+     - "Stwórz 7 ćwiczeń inspirowanych [Imię Nazwisko autora] 🏋️"
+     - "Wygeneruj 12 pytań refleksyjnych inspirowanych [Imię Nazwisko autora] 🤔"
+     - "Napisz 5 scenariuszy z życia inspirowanych [Imię Nazwisko autora] 🎭"
+     - "Stwórz 14-dniowy plan działania inspirowany [Imię Nazwisko autora] 📅"
+   Zamień [Imię Nazwisko autora] na prawdziwe imię i nazwisko autora wykryte z dokumentu. Jeśli autor jest nieznany, użyj "autora" lub opisu np. "tym poradnikiem".
+   Drugą akcję dobierz losowo z poniższej listy.
+
+4. Jeśli treść NIE pasuje do powyższych — dobierz obie akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -257,6 +267,31 @@ ag) Postaw diagnozę / diagnoza 🔬 — sugeruj gdy:
    - akcja: "Postaw diagnozę na podstawie wyników 🔬"
    - UWAGA: to ma WYSOKI PRIORYTET — jeśli treść to wyniki badań, ta akcja MUSI być jedną z dwóch
 
+ah) Napisz nowe wskazówki 💡 — sugeruj gdy:
+   - dokument to poradnik, lista wskazówek, "N sposobów na...", "X wskazówek jak..."
+   - treść to samorozwój, produktywność, pewność siebie, nawyki, motywacja
+   - akcja: "Napisz 10 nowych wskazówek inspirowanych [Imię Nazwisko autora] 💡"
+
+ai) Stwórz ćwiczenia 🏋️ — sugeruj gdy:
+   - dokument to workbook, materiał kursowy, przewodnik po ćwiczeniach, zbiór zadań
+   - treść zawiera kroki do wykonania lub praktyczne elementy do ćwiczenia
+   - akcja: "Stwórz 7 ćwiczeń inspirowanych [Imię Nazwisko autora] 🏋️"
+
+aj) Wygeneruj pytania refleksyjne 🤔 — sugeruj gdy:
+   - dokument jest introspekcyjny, dotyczący journalingu, coachingu, mindset, samorozwoju
+   - treść skłania do autorefleksji lub głębszego myślenia
+   - akcja: "Wygeneruj 12 pytań refleksyjnych inspirowanych [Imię Nazwisko autora] 🤔"
+
+ak) Scenariusze z życia 🎭 — sugeruj gdy:
+   - dokument stosuje zasady do rzeczywistych sytuacji, zawiera case study, przykłady
+   - treść dotyczy umiejętności społecznych, komunikacji, przywództwa, psychologii
+   - akcja: "Napisz 5 scenariuszy z życia inspirowanych [Imię Nazwisko autora] 🎭"
+
+al) 14-dniowy plan działania 📅 — sugeruj gdy:
+   - dokument to przewodnik po samodoskonaleniu, wyzwanie lub ustrukturyzowany program
+   - treść można przełożyć na codzienne zadania praktyczne
+   - akcja: "Stwórz 14-dniowy plan działania inspirowany [Imię Nazwisko autora] 📅"
+
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}""",
                 ),
@@ -296,7 +331,17 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST use t
    Example: "Write inspired poem like Paulo Coelho 🎭"
    Pick the second action RANDOMLY from the list below.
 
-3. If the content does NOT match the above — pick BOTH actions RANDOMLY from the list below.
+3. NON-FICTION GUIDE / SELF-HELP / TIPS LIST / WORKBOOK (productivity, confidence, habits, how-to, advice, personal growth, exercises, challenges):
+   → MANDATORY: Pick ONE of the following inspired generation prompts AT RANDOM:
+     - "Write 10 new tips inspired by [Author Full Name] 💡"
+     - "Create 7 exercises inspired by [Author Full Name] 🏋️"
+     - "Generate 12 reflection questions inspired by [Author Full Name] 🤔"
+     - "Draft 5 real-life scenarios inspired by [Author Full Name] 🎭"
+     - "Build a 14-day action plan inspired by [Author Full Name] 📅"
+   Replace [Author Full Name] with the actual author's name detected from the document. If no author is found, use "the author" or a short description like "this guide".
+   Pick the second action RANDOMLY from the list below.
+
+4. If the content does NOT match any of the above — pick BOTH actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
@@ -469,6 +514,31 @@ ag) Make a diagnosis 🔬 — suggest when:
    - file looks like a laboratory report
    - action: "Make a diagnosis based on results 🔬"
    - NOTE: this has HIGH PRIORITY — if the content is lab results, this action MUST be one of the two
+
+ah) Write new tips 💡 — suggest when:
+   - document is a tips guide, advice collection, "X ways to...", "N tips for..."
+   - content is non-fiction self-help, productivity, confidence, habit-building, motivation
+   - action: "Write 10 new tips inspired by [Author Full Name] 💡"
+
+ai) Create exercises 🏋️ — suggest when:
+   - document is a workbook, course material, practice guide, or exercise collection
+   - content has step-by-step tasks or actionable practice elements
+   - action: "Create 7 exercises inspired by [Author Full Name] 🏋️"
+
+aj) Generate reflection questions 🤔 — suggest when:
+   - document is introspective, journaling, self-coaching, mindset, or personal growth focused
+   - content prompts self-examination or deeper thinking about one's life/habits
+   - action: "Generate 12 reflection questions inspired by [Author Full Name] 🤔"
+
+ak) Real-life scenarios 🎭 — suggest when:
+   - document applies principles to real situations, contains case studies, or practical examples
+   - content is about social skills, communication, leadership, or psychology
+   - action: "Draft 5 real-life scenarios inspired by [Author Full Name] 🎭"
+
+al) 14-day action plan 📅 — suggest when:
+   - document is a self-improvement guide, challenge program, or structured practice plan
+   - content can be translated into day-by-day practice tasks with clear goals
+   - action: "Build a 14-day action plan inspired by [Author Full Name] 📅"
 
 Uploaded files: {file_types_str}
 Document description: {description}""",
