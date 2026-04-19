@@ -317,7 +317,10 @@ export function useTextSelectionSpeech(
         await chunkPlayback
       } else {
         const promises = chunks.map((chunk) =>
-          synthesizeSpeech(chunk, currentLanguage?.value, ttsInstructions).catch(() => null),
+          synthesizeSpeech(chunk, currentLanguage?.value, ttsInstructions).catch((error) => {
+            console.error('Speech chunk synthesis error:', error)
+            return null
+          }),
         )
         for (const promise of promises) {
           if (signal.aborted) return

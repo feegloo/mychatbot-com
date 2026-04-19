@@ -165,6 +165,12 @@ describe("extractPoemForAutoRead", () => {
   it("returns null when no poem block exists", () => {
     expect(extractPoemForAutoRead("Plain answer without poem block.")).toBeNull();
   });
+
+  it("trims leading blank lines inside poem block", () => {
+    expect(extractPoemForAutoRead("[poem]\n  \n  Line one\n[/poem]")).toBe(
+      "Line one",
+    );
+  });
 });
 
 describe("buildSentenceChunkSizes", () => {
@@ -174,6 +180,10 @@ describe("buildSentenceChunkSizes", () => {
 
   it("keeps regular powers-of-two progression when exact", () => {
     expect(buildSentenceChunkSizes(7)).toEqual([1, 2, 4]);
+  });
+
+  it("does not merge when the final chunk is not smaller", () => {
+    expect(buildSentenceChunkSizes(15)).toEqual([1, 2, 4, 8]);
   });
 });
 
@@ -195,5 +205,10 @@ describe("buildSynthesisChunks", () => {
       "S2. S3.",
       "S4. S5. S6. S7. S8. S9.",
     ]);
+  });
+
+  it("splits overlong chunk text to satisfy max chunk length", () => {
+    const longWord = "a".repeat(5000);
+    expect(buildSynthesisChunks([longWord])).toHaveLength(2);
   });
 });
