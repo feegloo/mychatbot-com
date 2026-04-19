@@ -1,8 +1,9 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
 import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from '../api'
-import { cleanTextForTTS } from './useAutoRead'
+import { buildSynthesisChunks, cleanTextForTTS, splitIntoSentences } from './useAutoRead'
 
 const TTS_INSTRUCTIONS_MAX = 4096
+const SELECTION_TTS_TEXT_MAX = 4096
 
 /**
  * Composable that enables text-to-speech on message content when the
@@ -208,6 +209,50 @@ export function useTextSelectionSpeech(
     stopCurrentAudio()
     setIconState('loading')
     abortController = new AbortController()
+    const signal = abortController.signal
+
+    const resetPlaybackUi = () => {
+      isPinned = false
+      pinnedRange = null
+      stopCaptionPlayback()
+      stopSingleWordGhost()
+      stopCurrentAudio()
+      hideTooltip()
+      removeHighlight()
+    }
+
+    const playChunkAudio = (blob: Blob): Promise<void> => {
+      if (signal.aborted) return Promise.resolve()
+      const url = URL.createObjectURL(blob)
+      currentBlobUrl = url
+      const audio = new Audio(url)
+      currentAudio = audio
+
+      return new Promise<void>((resolve) => {
+        const cleanup = () => {
+          signal.removeEventListener('abort', onAbort)
+          if (currentAudio === audio) currentAudio = null
+          if (currentBlobUrl === url) {
+            URL.revokeObjectURL(url)
+            currentBlobUrl = null
+          }
+          resolve()
+        }
+
+        const onAbort = () => {
+          audio.pause()
+          audio.src = ''
+          cleanup()
+        }
+
+        signal.addEventListener('abort', onAbort, { once: true })
+        audio.addEventListener('ended', cleanup, { once: true })
+        audio.addEventListener('error', cleanup, { once: true })
+        audio.play().catch(cleanup)
+        isPlaying = true
+        setIconState('pause')
+      })
+    }
 
     try {
       // Build TTS instructions: tone preamble + recent chat context + welcome message
@@ -242,63 +287,64 @@ export function useTextSelectionSpeech(
       parts.push(`The user selected this text to hear: "${text.slice(0, 400)}"`)
       const ttsInstructions = parts.join('\n\n').slice(0, TTS_INSTRUCTIONS_MAX)
 
-      // Use captions API for word-by-word playback with ghost translation
-      const result = await synthesizeSpeechWithCaptions(
-        text.slice(0, 4096),
-        currentLanguage?.value,
-        browserLang,
-        ttsInstructions,
-      )
-      if (abortController?.signal.aborted) return
-
-      const url = URL.createObjectURL(result.audio)
-      currentBlobUrl = url
-
-      const audio = new Audio(url)
-      currentAudio = audio
-
-      const isSingleWord = text.trim().split(/\s+/).length === 1
-
-      // Prepare word-by-word caption data
-      if (speechRange && result.captions && result.captions.length > 0) {
-        prepareCaptionPlayback(result.captions, result.translatedText)
+      const cleaned = cleanTextForTTS(text)
+      const truncatedText = cleaned.slice(0, SELECTION_TTS_TEXT_MAX)
+      if (cleaned.length > SELECTION_TTS_TEXT_MAX) {
+        console.warn('Selection speech truncated to 4096 characters for safe synthesis limits')
+      }
+      const sentences = splitIntoSentences(truncatedText)
+      const chunks = buildSynthesisChunks(sentences)
+      if (!chunks.length) {
+        resetPlaybackUi()
+        return
       }
 
-      audio.addEventListener('ended', () => {
-        isPinned = false
-        pinnedRange = null
-        stopCaptionPlayback()
-        stopSingleWordGhost()
-        stopCurrentAudio()
-        hideTooltip()
-        removeHighlight()
-      })
-      audio.addEventListener('error', () => {
-        isPinned = false
-        pinnedRange = null
-        stopCaptionPlayback()
-        stopSingleWordGhost()
-        stopCurrentAudio()
-        hideTooltip()
-        removeHighlight()
-      })
+      const isSingleChunk = chunks.length === 1
 
-      await audio.play()
-      isPlaying = true
-      setIconState('pause')
+      if (isSingleChunk) {
+        // Keep caption support for single-chunk synthesis
+        const result = await synthesizeSpeechWithCaptions(
+          chunks[0],
+          currentLanguage?.value,
+          browserLang,
+          ttsInstructions,
+        )
+        if (signal.aborted) return
 
-      // Start word-by-word highlight animation or single-word ghost
-      if (activeCaptionWords) {
-        startCaptionAnimation(audio)
-      } else if (isSingleWord && result.translatedText && speechRange) {
-        showSingleWordGhost(speechRange, result.translatedText)
+        const isSingleWord = chunks[0].trim().split(/\s+/).length === 1
+        if (speechRange && result.captions && result.captions.length > 0) {
+          prepareCaptionPlayback(result.captions, result.translatedText)
+        }
+
+        const chunkPlayback = playChunkAudio(result.audio)
+        if (currentAudio && activeCaptionWords) {
+          startCaptionAnimation(currentAudio)
+        } else if (currentAudio && isSingleWord && result.translatedText && speechRange) {
+          showSingleWordGhost(speechRange, result.translatedText)
+        }
+        await chunkPlayback
+      } else {
+        const promises = chunks.map((chunk) =>
+          synthesizeSpeech(chunk, currentLanguage?.value, ttsInstructions).catch((error) => {
+            console.error('Speech chunk synthesis error:', error)
+            return null
+          }),
+        )
+        for (const promise of promises) {
+          if (signal.aborted) return
+          const blob = await promise
+          if (signal.aborted) return
+          if (!blob) continue
+          await playChunkAudio(blob)
+          if (signal.aborted) return
+        }
       }
-      // Multi-word with null captions → plain playback, no animation
+
+      if (!signal.aborted) resetPlaybackUi()
     } catch (err: any) {
-      if (err?.name === 'AbortError' || abortController?.signal.aborted) return
+      if (err?.name === 'AbortError' || signal.aborted) return
       console.error('Speech synthesis error:', err)
-      stopCaptionPlayback()
-      hideTooltip()
+      resetPlaybackUi()
     }
   }
 
