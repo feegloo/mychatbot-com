@@ -1392,6 +1392,10 @@ h3 {
 /* ── Mobile responsive ── */
 
 @media (max-width: 768px) {
+  .message-row.assistant {
+    margin-left: 0;
+  }
+
   .sidebar-toggle {
     display: flex;
   }
