@@ -9,7 +9,6 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .extractors import clean_file_name
 from .lang_detect import detect_language
-from .rag import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,8 @@ def suggest_questions_from_chunks(
     file_types: dict[str, str] = None,
     welcome_message: str = "",
 ) -> list[str]:
+    from .rag import get_llm
+
     sample_chunks = _sample_chunks(chunks)
     sample = "\n\n".join(sample_chunks)[:10000]
 
