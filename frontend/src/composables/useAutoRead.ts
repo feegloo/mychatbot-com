@@ -128,6 +128,8 @@ function splitTextByMaxLength(text: string, maxLength = MAX_CHUNK_LENGTH): strin
       continue
     }
 
+    // Extremely long unbroken tokens (e.g., malformed URLs) must be hard-split
+    // to satisfy backend TTS max input limits.
     let start = 0
     while (start < word.length) {
       const piece = word.slice(start, start + maxLength)

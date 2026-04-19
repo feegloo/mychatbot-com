@@ -209,6 +209,9 @@ describe("buildSynthesisChunks", () => {
 
   it("splits overlong chunk text to satisfy max chunk length", () => {
     const longWord = "a".repeat(5000);
-    expect(buildSynthesisChunks([longWord])).toHaveLength(2);
+    const chunks = buildSynthesisChunks([longWord]);
+    expect(chunks).toHaveLength(2);
+    expect(chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
+    expect(chunks.join("")).toBe(longWord);
   });
 });
