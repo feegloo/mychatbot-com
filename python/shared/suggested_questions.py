@@ -11,6 +11,9 @@ from .extractors import clean_file_name
 from .lang_detect import detect_language
 
 logger = logging.getLogger(__name__)
+MAX_TOTAL_SUGGESTED_PROMPTS = 10
+MAX_NORMAL_QUESTIONS = 3
+MAX_ACTION_PROMPTS = 7
 
 
 def _sample_chunks(chunks: list[str], max_chunks: int = 8) -> list[str]:
@@ -58,15 +61,16 @@ def suggest_questions_from_chunks(
             [
                 (
                     "system",
-                    """Wygeneruj DOKŁADNIE 5 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
+                    """Wygeneruj do 10 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
+Domyślnie zwracaj pełne 10; mniej tylko gdy treść jest zbyt uboga, by tworzyć sensowne, różne propozycje.
 
 Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
-{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
 
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
-- Ostatnie 2 to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
+- Kolejne (do 7) to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Często sugeruj akcję generowania obrazu powiązaną z konkretnym tematem dokumentu (np. "Wygeneruj obraz inspirowany [temat/bohater/scena] 🎨") — dopasuj temat do treści, nie używaj ogólnikowego "aktualnego nastroju"
 - Każdy prompt powinien być zwięzły (max 10 słów)
@@ -75,17 +79,17 @@ Zasady:
 - KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków. Dotyczy to również nazw akcji.
 
 == OBOWIĄZKOWE AKCJE DLA KONKRETNYCH TYPÓW TREŚCI ==
-Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć danej akcji jako jednej z dwóch:
+Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć danej akcji wśród promptów-akcji:
 
 1. POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, horror itp.):
    → OBOWIĄZKOWO: "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
    Przykład: "Napisz inspirowany rozdział w stylu Remigiusza Mroza ✏️"
-   Drugą akcję dobierz losowo z poniższej listy (quiz, oś czasu, mapa myśli itp.)
+   Pozostałe akcje dobierz losowo z poniższej listy (quiz, oś czasu, mapa myśli itp.)
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
    → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
    Przykład: "Napisz inspirowany wiersz w stylu Paulo Coelho 📜"
-   Drugą akcję dobierz losowo z poniższej listy.
+   Pozostałe akcje dobierz losowo z poniższej listy.
 
 3. PORADNIK / SAMOROZWÓJ / LISTA WSKAZÓWEK / WORKBOOK (produktywność, pewność siebie, nawyki, wskazówki, ćwiczenia, wyzwania, jak zrobić, samodoskonalenie):
    → OBOWIĄZKOWO: Wybierz LOSOWO jeden z poniższych promptów generowania treści inspirowanej:
@@ -95,9 +99,9 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
      - "Napisz 5 scenariuszy z życia inspirowanych [Imię Nazwisko autora] 🎭"
      - "Stwórz 14-dniowy plan działania inspirowany [Imię Nazwisko autora] 📅"
    Zamień [Imię Nazwisko autora] na prawdziwe imię i nazwisko autora wykryte z dokumentu. Jeśli autor jest nieznany, użyj "autora" lub opisu np. "tym poradnikiem".
-   Drugą akcję dobierz losowo z poniższej listy.
+   Pozostałe akcje dobierz losowo z poniższej listy.
 
-4. Jeśli treść NIE pasuje do powyższych — dobierz obie akcje LOSOWO z poniższej listy.
+4. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -306,15 +310,16 @@ Opis dokumentu: {description}""",
             [
                 (
                     "system",
-                    """Generate EXACTLY 5 suggested prompts for the user based on the following uploaded content.
+                    """Generate up to 10 suggested prompts for the user based on the following uploaded content.
+By default return the full 10; return fewer only when the content is too limited to produce meaningful, distinct suggestions.
 
 Reply with ONLY valid JSON (no markdown, no ```json). Format:
-{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
 
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
-- Last 2 are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
+- The next prompts (up to 7) are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
   Each action-prompt MUST end with a relevant emoji
 - Frequently suggest a subject-specific image generation action tied to the document's concrete topic/character/scene (e.g. "Generate image: dark forest with Hermione 🎨") — do NOT use the generic phrase "current mood"; make it relevant to what the document is actually about
 - Each prompt should be concise (max 10 words)
@@ -323,17 +328,17 @@ Rules:
 - CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages. This applies to action labels, topics, and everything else.
 
 == MANDATORY ACTIONS FOR SPECIFIC CONTENT TYPES ==
-These rules have the HIGHEST PRIORITY — if the content matches, you MUST use that action as one of the two:
+These rules have the HIGHEST PRIORITY — if the content matches, you MUST include that action among the action prompts:
 
 1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
    → MANDATORY: "Write inspired chapter like [Author Full Name] ✏️"
    Example: "Write inspired chapter like Stephen King ✏️"
-   Pick the second action RANDOMLY from the list below (quiz, timeline, mind map, etc.)
+   Pick the remaining actions RANDOMLY from the list below (quiz, timeline, mind map, etc.)
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
    → MANDATORY: "Write inspired poem like [Author Full Name] 📜"
    Example: "Write inspired poem like Paulo Coelho 📜"
-   Pick the second action RANDOMLY from the list below.
+   Pick the remaining actions RANDOMLY from the list below.
 
 3. NON-FICTION GUIDE / SELF-HELP / TIPS LIST / WORKBOOK (productivity, confidence, habits, how-to, advice, personal growth, exercises, challenges):
    → MANDATORY: Pick ONE of the following inspired generation prompts AT RANDOM:
@@ -343,9 +348,9 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST use t
      - "Draft 5 real-life scenarios inspired by [Author Full Name] 🎭"
      - "Build a 14-day action plan inspired by [Author Full Name] 📅"
    Replace [Author Full Name] with the actual author's name detected from the document. If no author is found, use "the author" or a short description like "this guide".
-   Pick the second action RANDOMLY from the list below.
+   Pick the remaining actions RANDOMLY from the list below.
 
-4. If the content does NOT match any of the above — pick BOTH actions RANDOMLY from the list below.
+4. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
@@ -517,7 +522,7 @@ ag) Make a diagnosis 🔬 — suggest when:
    - content contains values like: CBC, hemoglobin, WBC, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, vitamin B12, homocysteine, magnesium, iron, CRP, D-dimers, creatinine, bilirubin, ALT, AST, HbA1c, folic acid, estradiol, testosterone, etc.
    - file looks like a laboratory report
    - action: "Make a diagnosis based on results 🔬"
-   - NOTE: this has HIGH PRIORITY — if the content is lab results, this action MUST be one of the two
+   - NOTE: this has HIGH PRIORITY — if the content is lab results, this action MUST appear in the action prompts
 
 ah) Write new tips 💡 — suggest when:
    - document is a tips guide, advice collection, "X ways to...", "N tips for..."
@@ -563,7 +568,12 @@ Document description: {description}""",
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
             return _append_contextual_prompts(
-                questions[:5], file_names, file_types, language, welcome_message, description
+                questions,
+                file_names,
+                file_types,
+                language,
+                welcome_message,
+                description,
             )
     except (json.JSONDecodeError, AttributeError):
         logger.warning(
@@ -573,7 +583,12 @@ Document description: {description}""",
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
     return _append_contextual_prompts(
-        questions[:5], file_names, file_types, language, welcome_message, description
+        questions,
+        file_names,
+        file_types,
+        language,
+        welcome_message,
+        description,
     )
 
 
@@ -674,16 +689,16 @@ def _append_contextual_prompts(
     welcome_message: str = "",
     description: str = "",
 ) -> list[str]:
-    """Build final list: 3 normal questions + up to 2 action prompts = max 5.
+    """Build final list: up to 3 normal questions + up to 7 action prompts = max 10.
 
     Contextual action prompts (EXIF, recognize, file metadata) take priority
     over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.
     'create recipe' is added when the welcome message mentions ingredients.
     """
-    # Split LLM output: first 3 are questions, rest are actions
-    normal_questions = questions[:3]
-    llm_actions = questions[3:5]
+    # Split LLM output: first 3 are questions, next prompts are actions
+    normal_questions = questions[:MAX_NORMAL_QUESTIONS]
+    llm_actions = questions[MAX_NORMAL_QUESTIONS:MAX_TOTAL_SUGGESTED_PROMPTS]
 
     subject = _extract_subject_phrase(welcome_message, description, file_names, language)
     pinned_image_prompt = (
@@ -702,22 +717,22 @@ def _append_contextual_prompts(
         has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
 
         for name in file_names:
-            if len(contextual) >= 2:
+            if len(contextual) >= MAX_ACTION_PROMPTS:
                 break
             ftype = file_types.get(name, "document")
             display_name = clean_file_name(name)
             short_name = display_name if len(display_name) <= 30 else display_name[:27] + "..."
 
             if ftype == "image":
-                if has_ingredients and len(contextual) < 2:
+                if has_ingredients and len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Stwórz przepis na podstawie {short_name} 🍝")
                     else:
                         contextual.append(f"Create a recipe from {short_name} 🍝")
-                if len(contextual) < 2:
+                if len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")
-                        if has_person and len(contextual) < 2:
+                        if has_person and len(contextual) < MAX_ACTION_PROMPTS:
                             if is_woman:
                                 contextual.append(f"Kto jest kobietą na zdjęciu {short_name}? 🔍")
                             elif is_man:
@@ -726,7 +741,7 @@ def _append_contextual_prompts(
                                 contextual.append(f"Kto jest osobą na zdjęciu {short_name}? 🔍")
                     else:
                         contextual.append(f"Show EXIF metadata for {short_name} 📷")
-                        if has_person and len(contextual) < 2:
+                        if has_person and len(contextual) < MAX_ACTION_PROMPTS:
                             if is_woman:
                                 contextual.append(f"Who is the woman in {short_name}? 🔍")
                             elif is_man:
@@ -736,28 +751,38 @@ def _append_contextual_prompts(
             # PDF metadata prompt removed — LLM-generated creative actions are more valuable
 
     # Lab test / blood test results → diagnosis prompt (highest priority)
-    if has_lab_tests and len(contextual) < 2:
+    if has_lab_tests and len(contextual) < MAX_ACTION_PROMPTS:
         if language == "pl":
             contextual.insert(0, "Postaw diagnozę na podstawie wyników 🔬")
         else:
             contextual.insert(0, "Make a diagnosis based on results 🔬")
 
-    # The pinned image prompt takes one of the two action slots.
-    # The second action slot goes to a contextual prompt (higher priority) or an LLM action.
-    second_action = (contextual + llm_actions)[:1]
-    actions = [pinned_image_prompt] + second_action
+    actions = [pinned_image_prompt] + contextual + llm_actions
 
-    # Build the final list: 3 questions + 2 action slots = exactly 5 (or fewer if inputs short)
-    final = normal_questions + actions
-
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for question in final:
+    # Build the final list with explicit caps per group:
+    # - max 3 normal questions
+    # - max 7 action prompts
+    # This guarantees the action cap even after deduplication.
+    deduped_normal: list[str] = []
+    seen_normal: set[str] = set()
+    for question in normal_questions:
         key = question.strip().lower()
-        if key and key not in seen:
-            deduped.append(question)
-            seen.add(key)
-        if len(deduped) >= 5:
+        if key and key not in seen_normal:
+            deduped_normal.append(question)
+            seen_normal.add(key)
+        if len(deduped_normal) >= MAX_NORMAL_QUESTIONS:
             break
 
-    return deduped
+    deduped_actions: list[str] = []
+    seen_actions: set[str] = set()
+    for action in actions:
+        key = action.strip().lower()
+        if key and key not in seen_actions:
+            deduped_actions.append(action)
+            seen_actions.add(key)
+        if len(deduped_actions) >= MAX_ACTION_PROMPTS:
+            break
+
+    final = deduped_normal + deduped_actions
+    # Defensive guard in case constants diverge in future refactors.
+    return final[:MAX_TOTAL_SUGGESTED_PROMPTS]

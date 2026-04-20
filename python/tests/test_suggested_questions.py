@@ -78,7 +78,7 @@ def test_pins_subject_image_prompt_with_correct_slot_math_english():
         welcome_message="## Machine Learning Basics\n\nAn intro guide.",
     )
 
-    assert len(result) == 5
+    assert 6 <= len(result) <= 10
     # Pinned image prompt occupies the 4th slot (after 3 questions)
     assert result[3] == "Generate image inspired by: Machine Learning Basics 🎨"
     assert sum(1 for q in result if "Generate image inspired by:" in q) == 1
@@ -99,13 +99,13 @@ def test_pins_subject_image_prompt_with_correct_slot_math_polish():
         welcome_message="## Kuchnia polska\n\nPrzepisy i tradycje.",
     )
 
-    assert len(result) == 5
+    assert 6 <= len(result) <= 10
     assert result[3] == "Wygeneruj obraz inspirowany: Kuchnia polska 🎨"
     assert sum(1 for q in result if "Wygeneruj obraz inspirowany:" in q) == 1
 
 
 def test_contextual_action_not_dropped_when_present():
-    """Contextual action must fill the second slot; total must stay at 5."""
+    """Contextual actions should be preserved in the expanded action set."""
     result = _append_contextual_prompts(
         questions=[
             "Q1", "Q2", "Q3", "LLM action A 🧠", "LLM action B 📓"
@@ -115,7 +115,7 @@ def test_contextual_action_not_dropped_when_present():
         language="en",
         welcome_message="## Blood Test Results\n\nCholesterol and CBC results.",
     )
-    assert len(result) == 5
+    assert 6 <= len(result) <= 10
     # Diagnosis contextual prompt must appear (not be dropped)
     assert any("diagnosis" in q.lower() for q in result)
     # Pinned image prompt must also appear
@@ -131,3 +131,33 @@ def test_generic_fallback_when_no_context():
         welcome_message="",
     )
     assert any("Generate image inspired by: this content 🎨" in q for q in result)
+
+
+def test_action_cap_is_enforced_after_dedup():
+    """Duplicate normal prompts must not allow more than 7 actions in final output."""
+    result = _append_contextual_prompts(
+        questions=[
+            "Repeat?",
+            "Repeat?",
+            "Repeat?",
+            "Action 1 🧠",
+            "Action 2 📓",
+            "Action 3 📊",
+            "Action 4 🖼️",
+            "Action 5 🎯",
+            "Action 6 📅",
+            "Action 7 💡",
+            "Action 8 🎨",
+            "Action 9 🧩",
+        ],
+        file_names=None,
+        file_types=None,
+        language="en",
+        welcome_message="## Topic",
+    )
+
+    # With duplicated normal prompts, final output should still respect:
+    # - max 1 deduped normal prompt here ("Repeat?")
+    # - max 7 action prompts
+    assert len(result) <= 8
+    assert any("Generate image inspired by:" in q for q in result)

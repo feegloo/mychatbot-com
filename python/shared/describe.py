@@ -103,13 +103,13 @@ _QUESTIONS_RULES_PL = """
 Po wiadomości powitalnej, wypisz DOKŁADNIE tę linię separatora:
 ---SUGGESTED_QUESTIONS---
 Następnie wypisz prawidłowy JSON (bez markdown, bez ```json):
-{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
 
 Zasady:
-- Wygeneruj DOKŁADNIE 5 sugerowanych promptów
+- Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
-- Ostatnie 2 to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
+- Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
 - WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
 
@@ -118,7 +118,7 @@ Obowiązkowe akcje dla typów treści:
 - POEZJA/FILOZOFIA/CYTATY → "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
 - PORADNIK/SAMOROZWÓJ → losowo jedno z: "Napisz 10 nowych wskazówek inspirowanych [autor] 💡", "Stwórz 7 ćwiczeń inspirowanych [autor] 🏋️", "Wygeneruj 12 pytań refleksyjnych inspirowanych [autor] 🤔", "Napisz 5 scenariuszy z życia inspirowanych [autor] 🎭", "Stwórz 14-dniowy plan działania inspirowany [autor] 📅"
 - WYNIKI BADAŃ LAB → "Postaw diagnozę na podstawie wyników 🔬"
-- Inne typy → dobierz obie akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
+- Inne typy → dobierz kreatywne akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
 - Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany"""
 
 _QUESTIONS_RULES_EN = """
@@ -127,13 +127,13 @@ _QUESTIONS_RULES_EN = """
 After the welcome message, output EXACTLY this separator line:
 ---SUGGESTED_QUESTIONS---
 Then output valid JSON (no markdown, no ```json):
-{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
 
 Rules:
-- Generate EXACTLY 5 suggested prompts
+- Generate up to 10 suggested prompts (target 10 when context allows)
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
 - If the document is by or about a well-known person, ONE of the first 3 MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive)
-- Last 2 are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
+- The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - Each prompt max 10 words, no numbering, no explanations
 - ALL prompts MUST be written 100% in the language of the document content
 
@@ -142,7 +142,7 @@ Mandatory actions for content types:
 - POETRY/PHILOSOPHY/QUOTES → "Write inspired poem like [Author Full Name] 📜"
 - SELF-HELP/GUIDE → randomly pick one of: "Write 10 new tips inspired by [author] 💡", "Create 7 exercises inspired by [author] 🏋️", "Generate 12 reflection questions inspired by [author] 🤔", "Draft 5 real-life scenarios inspired by [author] 🎭", "Build a 14-day action plan inspired by [author] 📅"
 - LAB TEST RESULTS → "Make a diagnosis based on results 🔬"
-- Other types → pick both actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
+- Other types → pick creative actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
 - Do NOT always pick quiz — be creative and varied"""
 
 
@@ -156,7 +156,7 @@ def _parse_describe_response(response: str) -> tuple[str, list[str]]:
             parsed = json.loads(json_part)
             questions = parsed.get("questions", [])
             if isinstance(questions, list) and len(questions) >= 3:
-                return welcome, [str(q) for q in questions[:5]]
+                return welcome, [str(q) for q in questions[:10]]
         except (json.JSONDecodeError, AttributeError):
             logger.warning("Failed to parse suggested questions JSON from describe response")
         return welcome, []
@@ -480,7 +480,7 @@ def describe_documents(
     file_types: dict[str, str] | None = None,
 ) -> DescribeResult:
     """Generate a welcome message with a ## Title, description, and expert insight,
-    plus 5 suggested questions — all from a single LLM call.
+    plus up to 10 suggested questions — all from a single LLM call.
 
     Returns a DescribeResult dict with 'welcome_message' and 'suggested_questions'.
 
