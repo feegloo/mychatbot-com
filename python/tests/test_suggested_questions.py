@@ -78,7 +78,7 @@ def test_pins_subject_image_prompt_with_correct_slot_math_english():
         welcome_message="## Machine Learning Basics\n\nAn intro guide.",
     )
 
-    assert len(result) >= 6
+    assert 6 <= len(result) <= 10
     # Pinned image prompt occupies the 4th slot (after 3 questions)
     assert result[3] == "Generate image inspired by: Machine Learning Basics 🎨"
     assert sum(1 for q in result if "Generate image inspired by:" in q) == 1
@@ -99,7 +99,7 @@ def test_pins_subject_image_prompt_with_correct_slot_math_polish():
         welcome_message="## Kuchnia polska\n\nPrzepisy i tradycje.",
     )
 
-    assert len(result) >= 6
+    assert 6 <= len(result) <= 10
     assert result[3] == "Wygeneruj obraz inspirowany: Kuchnia polska 🎨"
     assert sum(1 for q in result if "Wygeneruj obraz inspirowany:" in q) == 1
 
@@ -115,7 +115,7 @@ def test_contextual_action_not_dropped_when_present():
         language="en",
         welcome_message="## Blood Test Results\n\nCholesterol and CBC results.",
     )
-    assert len(result) >= 6
+    assert 6 <= len(result) <= 10
     # Diagnosis contextual prompt must appear (not be dropped)
     assert any("diagnosis" in q.lower() for q in result)
     # Pinned image prompt must also appear

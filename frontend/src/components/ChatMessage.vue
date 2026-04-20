@@ -509,6 +509,9 @@ import { getData, setData } from '../utils/localData'
 import UploadingDots from './UploadingDots.vue'
 
 const EMOJI_RE = /\p{Extended_Pictographic}/u
+const MAX_WELCOME_TEXT_PROMPTS = 3
+const MAX_WELCOME_ACTION_PROMPTS = 7
+const WELCOME_VISIBLE_ACTION_PROMPTS = 2
 const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
 let outsideClickListenerBound = false
 
@@ -666,16 +669,22 @@ const renderedSuggestedQuestions = computed(() =>
 )
 const welcomeMoreOpen = ref(false)
 const welcomeTextQuestions = computed(() =>
-  renderedSuggestedQuestions.value.filter((q) => !EMOJI_RE.test(q.raw)).slice(0, 3),
+  renderedSuggestedQuestions.value
+    .filter((q) => !EMOJI_RE.test(q.raw))
+    .slice(0, MAX_WELCOME_TEXT_PROMPTS),
 )
 const welcomeActionQuestions = computed(() =>
-  renderedSuggestedQuestions.value.filter((q) => EMOJI_RE.test(q.raw)).slice(0, 7),
+  renderedSuggestedQuestions.value
+    .filter((q) => EMOJI_RE.test(q.raw))
+    .slice(0, MAX_WELCOME_ACTION_PROMPTS),
 )
 const welcomeVisibleQuestions = computed(() => [
   ...welcomeTextQuestions.value,
-  ...welcomeActionQuestions.value.slice(0, 2),
+  ...welcomeActionQuestions.value.slice(0, WELCOME_VISIBLE_ACTION_PROMPTS),
 ])
-const welcomeHiddenActionQuestions = computed(() => welcomeActionQuestions.value.slice(2))
+const welcomeHiddenActionQuestions = computed(() =>
+  welcomeActionQuestions.value.slice(WELCOME_VISIBLE_ACTION_PROMPTS),
+)
 
 function onSuggestedQuestionClick(event: MouseEvent, question: string) {
   const target = event.target as HTMLElement | null

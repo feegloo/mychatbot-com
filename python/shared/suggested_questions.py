@@ -11,6 +11,9 @@ from .extractors import clean_file_name
 from .lang_detect import detect_language
 
 logger = logging.getLogger(__name__)
+MAX_TOTAL_SUGGESTED_PROMPTS = 10
+MAX_NORMAL_QUESTIONS = 3
+MAX_ACTION_PROMPTS = 7
 
 
 def _sample_chunks(chunks: list[str], max_chunks: int = 8) -> list[str]:
@@ -565,7 +568,12 @@ Document description: {description}""",
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
             return _append_contextual_prompts(
-                questions[:10], file_names, file_types, language, welcome_message, description
+                questions[:MAX_TOTAL_SUGGESTED_PROMPTS],
+                file_names,
+                file_types,
+                language,
+                welcome_message,
+                description,
             )
     except (json.JSONDecodeError, AttributeError):
         logger.warning(
@@ -575,7 +583,12 @@ Document description: {description}""",
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
     return _append_contextual_prompts(
-        questions[:10], file_names, file_types, language, welcome_message, description
+        questions[:MAX_TOTAL_SUGGESTED_PROMPTS],
+        file_names,
+        file_types,
+        language,
+        welcome_message,
+        description,
     )
 
 
@@ -684,8 +697,8 @@ def _append_contextual_prompts(
     'create recipe' is added when the welcome message mentions ingredients.
     """
     # Split LLM output: first 3 are questions, next prompts are actions
-    normal_questions = questions[:3]
-    llm_actions = questions[3:10]
+    normal_questions = questions[:MAX_NORMAL_QUESTIONS]
+    llm_actions = questions[MAX_NORMAL_QUESTIONS:MAX_TOTAL_SUGGESTED_PROMPTS]
 
     subject = _extract_subject_phrase(welcome_message, description, file_names, language)
     pinned_image_prompt = (
@@ -704,22 +717,22 @@ def _append_contextual_prompts(
         has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
 
         for name in file_names:
-            if len(contextual) >= 7:
+            if len(contextual) >= MAX_ACTION_PROMPTS:
                 break
             ftype = file_types.get(name, "document")
             display_name = clean_file_name(name)
             short_name = display_name if len(display_name) <= 30 else display_name[:27] + "..."
 
             if ftype == "image":
-                if has_ingredients and len(contextual) < 7:
+                if has_ingredients and len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Stwórz przepis na podstawie {short_name} 🍝")
                     else:
                         contextual.append(f"Create a recipe from {short_name} 🍝")
-                if len(contextual) < 7:
+                if len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")
-                        if has_person and len(contextual) < 7:
+                        if has_person and len(contextual) < MAX_ACTION_PROMPTS:
                             if is_woman:
                                 contextual.append(f"Kto jest kobietą na zdjęciu {short_name}? 🔍")
                             elif is_man:
@@ -728,7 +741,7 @@ def _append_contextual_prompts(
                                 contextual.append(f"Kto jest osobą na zdjęciu {short_name}? 🔍")
                     else:
                         contextual.append(f"Show EXIF metadata for {short_name} 📷")
-                        if has_person and len(contextual) < 7:
+                        if has_person and len(contextual) < MAX_ACTION_PROMPTS:
                             if is_woman:
                                 contextual.append(f"Who is the woman in {short_name}? 🔍")
                             elif is_man:
@@ -738,7 +751,7 @@ def _append_contextual_prompts(
             # PDF metadata prompt removed — LLM-generated creative actions are more valuable
 
     # Lab test / blood test results → diagnosis prompt (highest priority)
-    if has_lab_tests and len(contextual) < 7:
+    if has_lab_tests and len(contextual) < MAX_ACTION_PROMPTS:
         if language == "pl":
             contextual.insert(0, "Postaw diagnozę na podstawie wyników 🔬")
         else:
@@ -756,7 +769,7 @@ def _append_contextual_prompts(
         if key and key not in seen:
             deduped.append(question)
             seen.add(key)
-        if len(deduped) >= 10:
+        if len(deduped) >= MAX_TOTAL_SUGGESTED_PROMPTS:
             break
 
     return deduped
