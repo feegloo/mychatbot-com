@@ -511,7 +511,7 @@ import UploadingDots from './UploadingDots.vue'
 const EMOJI_RE = /\p{Extended_Pictographic}/u
 const MAX_WELCOME_TEXT_PROMPTS = 3
 const MAX_WELCOME_ACTION_PROMPTS = 7
-const WELCOME_VISIBLE_ACTION_PROMPTS = 2
+const WELCOME_VISIBLE_ACTION_PROMPTS = 0
 const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
 let outsideClickListenerBound = false
 
@@ -1668,10 +1668,11 @@ function openFilePreview(file: FileInfo) {
   top: 0;
   left: calc(100% + 8px);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 6px;
   z-index: 7;
-  min-width: 260px;
+  align-content: flex-start;
 }
 
 .welcome-more-menu .welcome-more-item {
@@ -1805,6 +1806,9 @@ function openFilePreview(file: FileInfo) {
   gap: 6px;
   z-index: 7;
   min-width: 240px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 8px;
 }
 
 :deep(.action-more-wrap.open .action-more-menu) {

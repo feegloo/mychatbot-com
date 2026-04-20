@@ -19,7 +19,7 @@ describe('ChatMessage suggested prompt overflow', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders only 3 text + 2 action prompts inline for welcome, with More overflow', async () => {
+  it('renders only 3 text prompts inline for welcome, with More overflow for action prompts', async () => {
     const wrapper = mount(ChatMessage, {
       attachTo: document.body,
       props: {
@@ -41,11 +41,13 @@ describe('ChatMessage suggested prompt overflow', () => {
     expect(wrapper.text()).toContain('Text 1')
     expect(wrapper.text()).toContain('Text 2')
     expect(wrapper.text()).toContain('Text 3')
-    expect(wrapper.text()).toContain('Action 1')
-    expect(wrapper.text()).toContain('Action 2')
+    expect(wrapper.text()).not.toContain('Action 1')
+    expect(wrapper.text()).not.toContain('Action 2')
     expect(wrapper.text()).not.toContain('Action 3')
 
     await wrapper.find('.welcome-more-wrap').trigger('click')
+    expect(wrapper.text()).toContain('Action 1')
+    expect(wrapper.text()).toContain('Action 2')
     expect(wrapper.text()).toContain('Action 3')
 
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))

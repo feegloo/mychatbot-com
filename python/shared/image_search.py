@@ -234,7 +234,7 @@ If the results are too ambiguous or there's not enough evidence, respond with:
             messages=messages,
             model=settings.openai_chat_model,
             operation="image_identify",
-            max_tokens=200,
+            max_completion_tokens=200,
         )
         logger.info(f"🤖 LLM raw response: {text[:500]}")
         result = json.loads(text)

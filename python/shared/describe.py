@@ -5,6 +5,7 @@ import logging
 import math
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TypedDict
 
 from langchain_core.output_parsers import StrOutputParser
@@ -18,6 +19,7 @@ from .rag import get_llm
 logger = logging.getLogger(__name__)
 
 _QUESTIONS_SEPARATOR = "---SUGGESTED_QUESTIONS---"
+_PAGE_HEADER_RE = re.compile(r"^#\s*Page\s+(\d+)\s*$", re.MULTILINE)
 
 
 class DescribeResult(TypedDict):
@@ -93,6 +95,16 @@ _SPLIT_INTER_CALL_DELAY = 2.0
 # ~200 pages ≈ 400K chars. This gives the synthesis LLM direct access to the
 # beginning of the book alongside the condensed summaries.
 _SYNTHESIS_RAW_TEXT_CHARS = 400_000
+# Whole-book path: if the book fits inside this estimated token budget,
+# send the full raw text to the welcome-message prompt instead of truncating.
+_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 250_000
+# Keep the extracted raw text in memory up to 500 MB as requested.
+_WHOLE_BOOK_MEMORY_LIMIT_BYTES = 500 * 1024 * 1024
+# Large-book compaction path packs adjacent chapters/page ranges into 4-8 LLM calls.
+_BOOK_COMPACTION_MIN_GROUPS = 4
+_BOOK_COMPACTION_MAX_GROUPS = 8
+_BOOK_COMPACTION_TOKENS_PER_GROUP = 60_000
+_RAW_ENDING_CHARS = 120_000
 # Max retries for 429 rate-limit errors
 _LLM_MAX_RETRIES = 3
 _LLM_RETRY_BASE_DELAY = 2.0
@@ -167,6 +179,60 @@ def _parse_describe_response(response: str) -> tuple[str, list[str]]:
 def _estimate_total_text_len(extracted: list[dict]) -> int:
     """Return the total character count across all extracted documents."""
     return sum(len(doc.get("text") or "") for doc in extracted)
+
+
+def _estimate_word_count(text: str) -> int:
+    """Count words quickly without a heavyweight tokenizer."""
+    if not text.strip():
+        return 0
+    return len(re.findall(r"\S+", text))
+
+
+def _estimate_token_count(text: str, word_count: int | None = None) -> int:
+    """Estimate tokens conservatively from chars and words."""
+    words = word_count if word_count is not None else _estimate_word_count(text)
+    return max(len(text) // 4, int(words * 1.35))
+
+
+def _extract_pages(text: str) -> list[tuple[int, str]]:
+    """Split extracted PDF text into page-numbered sections."""
+    if not text.strip():
+        return []
+
+    matches = list(_PAGE_HEADER_RE.finditer(text))
+    if not matches:
+        return [(1, text.strip())]
+
+    pages: list[tuple[int, str]] = []
+    for index, match in enumerate(matches):
+        page_number = int(match.group(1))
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        pages.append((page_number, text[start:end].strip()))
+    return pages
+
+
+def _resolve_page_count(
+    extracted: list[dict],
+    file_metadata: dict[str, dict] | None,
+    page_summaries: list[dict] | None,
+) -> int:
+    """Resolve page count from metadata first, then from extracted page markers."""
+    if file_metadata:
+        for meta in file_metadata.values():
+            page_count = meta.get("page_count") if isinstance(meta, dict) else None
+            if isinstance(page_count, int) and page_count > 0:
+                return page_count
+
+    if page_summaries:
+        pages = [ps.get("page") for ps in page_summaries if isinstance(ps.get("page"), int)]
+        if pages:
+            return max(pages)
+
+    detected_pages: list[int] = []
+    for doc in extracted:
+        detected_pages.extend(page_number for page_number, _text in _extract_pages(doc.get("text") or ""))
+    return max(detected_pages) if detected_pages else 0
 
 
 def _build_page_summary_block(page_summaries: list[dict]) -> str:
@@ -311,6 +377,137 @@ def _split_text_into_parts(full_text: str, max_chars_per_part: int) -> list[str]
     return [p for p in parts if p.strip()]
 
 
+def _build_book_sections(
+    *,
+    pages: list[tuple[int, str]],
+    chapters: list[dict] | None,
+    total_pages: int,
+    estimated_tokens: int,
+) -> list[dict]:
+    """Build chapter-based or fallback page-range sections for large books."""
+    if not pages:
+        return []
+
+    last_page = max(page_number for page_number, _text in pages)
+    normalized_chapters: list[dict] = []
+
+    if chapters:
+        for index, chapter in enumerate(chapters, start=1):
+            start_page = int(chapter.get("start_page") or chapter.get("pageFrom") or 0)
+            end_page = int(chapter.get("end_page") or chapter.get("pageTo") or 0)
+            if start_page <= 0 or end_page < start_page:
+                continue
+            name = (
+                chapter.get("chapter_name")
+                or chapter.get("name")
+                or chapter.get("title")
+                or f"Chapter {index}"
+            )
+            normalized_chapters.append(
+                {
+                    "name": str(name),
+                    "start_page": start_page,
+                    "end_page": min(end_page, last_page),
+                }
+            )
+
+    if normalized_chapters:
+        return normalized_chapters
+
+    target_groups = max(
+        _BOOK_COMPACTION_MIN_GROUPS,
+        min(_BOOK_COMPACTION_MAX_GROUPS, math.ceil(estimated_tokens / _BOOK_COMPACTION_TOKENS_PER_GROUP)),
+    )
+    target_groups = max(1, min(target_groups, len(pages)))
+    pages_per_group = max(1, math.ceil(max(total_pages, last_page) / target_groups))
+
+    sections: list[dict] = []
+    current_start = 1
+    while current_start <= last_page:
+        current_end = min(last_page, current_start + pages_per_group - 1)
+        sections.append(
+            {
+                "name": f"Pages {current_start}-{current_end}",
+                "start_page": current_start,
+                "end_page": current_end,
+            }
+        )
+        current_start = current_end + 1
+
+    return sections
+
+
+def _pack_book_sections(section_ranges: list[dict], total_pages: int, estimated_tokens: int) -> list[dict]:
+    """Pack adjacent sections into 4-8 larger LLM requests."""
+    if not section_ranges:
+        return []
+
+    target_groups = max(
+        _BOOK_COMPACTION_MIN_GROUPS,
+        min(_BOOK_COMPACTION_MAX_GROUPS, math.ceil(estimated_tokens / _BOOK_COMPACTION_TOKENS_PER_GROUP)),
+    )
+    target_groups = max(1, min(target_groups, len(section_ranges)))
+    target_pages = max(1, math.ceil(max(total_pages, 1) / target_groups))
+
+    packed: list[dict] = []
+    current_sections: list[dict] = []
+    current_pages = 0
+
+    for section in section_ranges:
+        section_pages = max(1, section["end_page"] - section["start_page"] + 1)
+        should_flush = (
+            current_sections
+            and current_pages + section_pages > target_pages
+            and len(packed) < target_groups - 1
+        )
+        if should_flush:
+            packed.append(
+                {
+                    "sections": current_sections,
+                    "start_page": current_sections[0]["start_page"],
+                    "end_page": current_sections[-1]["end_page"],
+                }
+            )
+            current_sections = []
+            current_pages = 0
+
+        current_sections.append(section)
+        current_pages += section_pages
+
+    if current_sections:
+        packed.append(
+            {
+                "sections": current_sections,
+                "start_page": current_sections[0]["start_page"],
+                "end_page": current_sections[-1]["end_page"],
+            }
+        )
+
+    return packed
+
+
+def _build_group_text(pages: list[tuple[int, str]], group: dict) -> str:
+    """Build text for one packed chapter/page-range group."""
+    page_map = {page_number: text for page_number, text in pages}
+    blocks: list[str] = []
+
+    for section in group["sections"]:
+        section_pages: list[str] = []
+        for page_number in range(section["start_page"], section["end_page"] + 1):
+            page_text = page_map.get(page_number, "")
+            if page_text.strip():
+                section_pages.append(f"# Page {page_number}\n\n{page_text}")
+        if section_pages:
+            blocks.append(
+                f"===SECTION===\n"
+                f"name: {section['name']}\n"
+                f"pages: {section['start_page']}-{section['end_page']}\n\n"
+                + "\n\n".join(section_pages)
+            )
+
+    return "\n\n-----\n\n".join(blocks)
+
+
 def _generate_partial_welcome(
     part_text: str,
     part_index: int,
@@ -395,12 +592,83 @@ def _generate_partial_welcome(
     return result.strip()
 
 
+def _generate_compacted_book_group(
+    group_text: str,
+    group_index: int,
+    total_groups: int,
+    file_list: str,
+    language: str,
+    metadata_section: str,
+) -> str:
+    """Compact one packed set of chapters/page-ranges into structured summaries."""
+    if language == "pl":
+        system_msg = (
+            "Otrzymasz kilka kolejnych rozdziałów lub zakresów stron tej samej książki. "
+            f"To pakiet {group_index + 1} z {total_groups}.\n\n"
+            "Dla KAŻDEJ sekcji zachowaj osobny blok w dokładnie takim formacie:\n"
+            "===SECTION===\n"
+            "name: <nazwa sekcji>\n"
+            "pages: <zakres stron>\n"
+            "summary:\n"
+            "- ...\n"
+            "- ...\n\n"
+            "Skróć każdą sekcję do około 10-15% objętości, ale zachowaj fabułę, bohaterów, "
+            "fakty, liczby, miejsca, relacje, zwroty akcji i ważne szczegóły. "
+            "Nie mieszaj sekcji ze sobą. Nie pomijaj zakończeń scen i ważnych przejść. "
+            "Pisz po polsku."
+        )
+    else:
+        system_msg = (
+            "You will receive several consecutive chapters or page ranges from the same book. "
+            f"This is pack {group_index + 1} of {total_groups}.\n\n"
+            "For EACH section, keep a separate block in exactly this format:\n"
+            "===SECTION===\n"
+            "name: <section name>\n"
+            "pages: <page range>\n"
+            "summary:\n"
+            "- ...\n"
+            "- ...\n\n"
+            "Compress each section to about 10-15% of its volume while preserving plot, people, "
+            "facts, numbers, places, relationships, twists, and key details. "
+            "Do not merge sections together. Do not skip endings of scenes or important transitions. "
+            "Reply in the same language as the content."
+        )
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_msg),
+            (
+                "human",
+                "Files: {file_list}\n\nSections to compact:\n{content}{metadata_section}",
+            ),
+        ]
+    )
+
+    llm = get_llm()
+    chain = prompt | llm | StrOutputParser()
+    result = _invoke_with_retry(
+        chain,
+        {
+            "file_list": file_list,
+            "content": group_text,
+            "metadata_section": metadata_section if group_index == 0 else "",
+        },
+        label=f"book compact {group_index + 1}/{total_groups}",
+    )
+    logger.info(
+        f"📝 Book compact {group_index + 1}/{total_groups}: "
+        f"{len(group_text)} chars → {len(result)} chars"
+    )
+    return result.strip()
+
+
 def _synthesize_welcome_messages(
     partial_messages: list[str],
     file_list: str,
     language: str,
     metadata_section: str,
     raw_beginning: str = "",
+    raw_ending: str = "",
 ) -> tuple[str, list[str]]:
     """Synthesize N detailed condensed summaries into one final welcome message.
 
@@ -418,12 +686,21 @@ def _synthesize_welcome_messages(
         for i, msg in enumerate(partial_messages)
     )
 
-    raw_block = ""
+    raw_parts: list[str] = []
     if raw_beginning:
-        raw_block = (
-            f"\n\n=====\nRaw text from the beginning of the document "
-            f"(first ~{len(raw_beginning) // 1000}K chars):\n{raw_beginning}\n====="
+        raw_parts.append(
+            f"Raw text from the beginning of the document "
+            f"(first ~{len(raw_beginning) // 1000}K chars):\n{raw_beginning}"
         )
+    if raw_ending:
+        raw_parts.append(
+            f"Raw text from the ending of the document "
+            f"(last ~{len(raw_ending) // 1000}K chars):\n{raw_ending}"
+        )
+
+    raw_block = ""
+    if raw_parts:
+        raw_block = "\n\n=====\n" + "\n\n-----\n\n".join(raw_parts) + "\n====="
 
     if language == "pl":
         system_msg = (
@@ -486,7 +763,7 @@ def _synthesize_welcome_messages(
     )
     logger.info(
         f"📝 Synthesized {len(partial_messages)} summaries "
-        f"(+ {len(raw_beginning)} chars raw text) → {len(result)} chars final"
+        f"(+ {len(raw_beginning)} chars raw start, {len(raw_ending)} chars raw end) → {len(result)} chars final"
     )
     return _parse_describe_response(result)
 
@@ -499,6 +776,7 @@ def describe_documents(
     page_summaries: list[dict] | None = None,
     file_names: list[str] | None = None,
     file_types: dict[str, str] | None = None,
+    chapters: list[dict] | None = None,
 ) -> DescribeResult:
     """Generate a welcome message with a # Title, description, and expert insight,
     plus up to 10 suggested questions — all from a single LLM call.
@@ -506,15 +784,9 @@ def describe_documents(
     Returns a DescribeResult dict with 'welcome_message' and 'suggested_questions'.
 
     Uses the beginning of extracted text (no embeddings/RAG) so the response
-    is as quick as possible.  When file_metadata contains EXIF data for images,
-    it is included so the welcome message can mention camera, date, location etc.
-
-    For very large documents (>800K chars, e.g. 500+ page books), we use a
-    split+synthesize strategy: split into N parts, generate N partial welcome
-    messages in parallel, then synthesize into one.
-
-    For moderately large documents, we use a hybrid strategy: truncated
-    beginning of text + short per-page summaries + 2-pass summarization.
+    is as quick as possible. When a whole book fits inside the budget, the full
+    raw text is sent in one call. Larger books are compacted chapter-by-chapter
+    or page-range-by-page-range, then synthesized with raw beginning/end text.
     """
     total_chars = _estimate_total_text_len(extracted)
 
@@ -543,6 +815,12 @@ def describe_documents(
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
+    all_text = "\n\n---\n\n".join(
+        (doc.get("text") or "") for doc in extracted if (doc.get("text") or "").strip()
+    )
+    word_count = _estimate_word_count(all_text)
+    estimated_tokens = _estimate_token_count(all_text, word_count)
+    total_pages = _resolve_page_count(extracted, file_metadata, page_summaries)
 
     if language is None:
         sample_text = ""
@@ -552,7 +830,74 @@ def describe_documents(
                 break
         language = detect_language(sample_text) if sample_text else "en"
 
-    # ── Strategy 1: Split+Synthesize for very large documents ────────
+    if all_text and len(all_text.encode("utf-8")) <= _WHOLE_BOOK_MEMORY_LIMIT_BYTES:
+        logger.info(
+            f"📚 Welcome input stats: pages={total_pages or '?'} words={word_count} "
+            f"estimated_tokens={estimated_tokens} chars={len(all_text)}"
+        )
+
+    # ── Strategy 1: Whole-book prompt when it fits ──────────────────
+    if all_text and estimated_tokens <= _WHOLE_BOOK_MAX_ESTIMATED_TOKENS:
+        logger.info(
+            f"📚 Whole-book welcome strategy: {total_pages or '?'} pages, {word_count} words, "
+            f"~{estimated_tokens} tokens"
+        )
+
+    # ── Strategy 2: Chapter/page-range compaction for large books ───
+    elif all_text and len(extracted) == 1 and total_pages >= 1:
+        logger.info(
+            f"📚 Large-book welcome strategy: {total_pages} pages, {word_count} words, "
+            f"~{estimated_tokens} tokens"
+        )
+        pages = _extract_pages(all_text)
+        section_ranges = _build_book_sections(
+            pages=pages,
+            chapters=chapters,
+            total_pages=total_pages,
+            estimated_tokens=estimated_tokens,
+        )
+        groups = _pack_book_sections(section_ranges, total_pages, estimated_tokens)
+
+        compacted: list[tuple[int, str]] = []
+        with ThreadPoolExecutor(max_workers=min(len(groups), _BOOK_COMPACTION_MAX_GROUPS)) as pool:
+            futures = {}
+            for index, group in enumerate(groups):
+                group_text = _build_group_text(pages, group)
+                if not group_text.strip():
+                    continue
+                futures[pool.submit(
+                    _generate_compacted_book_group,
+                    group_text,
+                    index,
+                    len(groups),
+                    file_list,
+                    language,
+                    metadata_section,
+                )] = index
+
+            for future in futures:
+                index = futures[future]
+                try:
+                    compacted.append((index, future.result()))
+                except Exception as e:
+                    logger.warning(f"⚠️ Book compact group {index + 1} failed: {e}")
+
+        compacted.sort(key=lambda item: item[0])
+        compacted_messages = [message for _, message in compacted if message.strip()]
+        if compacted_messages:
+            synthesis_msg, synthesis_qs = _synthesize_welcome_messages(
+                compacted_messages,
+                file_list,
+                language,
+                metadata_section,
+                raw_beginning=all_text[:_SYNTHESIS_RAW_TEXT_CHARS],
+                raw_ending=all_text[-_RAW_ENDING_CHARS:] if len(all_text) > _RAW_ENDING_CHARS else "",
+            )
+            return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
+
+        logger.warning("⚠️ Book compaction produced no summaries, falling back to split/truncated strategy")
+
+    # ── Strategy 3: Split+Synthesize for very large documents ────────
     # For documents > _SPLIT_THRESHOLD chars (~800K), split the full text
     # into N parts, generate a detailed condensed summary for each (sequentially
     # to respect TPM limits), then synthesize all summaries + raw beginning
@@ -560,10 +905,6 @@ def describe_documents(
     if total_chars > _SPLIT_THRESHOLD:
         logger.info(
             f"📝 Very large document ({total_chars} chars) → using split+synthesize strategy"
-        )
-        # Concatenate all document texts
-        all_text = "\n\n---\n\n".join(
-            (doc.get("text") or "") for doc in extracted if (doc.get("text") or "").strip()
         )
         parts = _split_text_into_parts(all_text, _SPLIT_PART_MAX_CHARS)
         logger.info(f"📝 Split into {len(parts)} parts ({[len(p) for p in parts[:5]]}...)")
@@ -612,7 +953,8 @@ def describe_documents(
         )
         return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
-    is_large = total_chars > _DESCRIBE_MAX_CONTENT_CHARS and page_summaries
+    whole_book_mode = bool(all_text and estimated_tokens <= _WHOLE_BOOK_MAX_ESTIMATED_TOKENS)
+    is_large = total_chars > _DESCRIBE_MAX_CONTENT_CHARS and page_summaries and not whole_book_mode
 
     # ── Build image snippets (always included, capped) ───────────────
     image_snippets: list[str] = []
@@ -624,7 +966,12 @@ def describe_documents(
             image_snippets.append(f"[Image from {name}, page {page}]\n{desc[:500]}")
     image_block = "\n\n---\n\n".join(image_snippets)
 
-    if is_large:
+    if whole_book_mode:
+        combined_parts = [all_text]
+        if image_block:
+            combined_parts.append(image_block)
+        combined = "\n\n---\n\n".join(part for part in combined_parts if part.strip())
+    elif is_large:
         # ── Large-document strategy ──────────────────────────────────
         # For very large documents (>200K chars), use 2-pass summarization:
         # 1. Raw text from the start of the document (50% budget)

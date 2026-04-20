@@ -209,7 +209,7 @@ def traced_openai_call(
     model: str,
     operation: str,
     conversation_id: str | None = None,
-    max_tokens: int | None = None,
+    max_completion_tokens: int | None = None,
     **kwargs: Any,
 ) -> tuple[str, dict]:
     """Wrap a direct OpenAI client.chat.completions.create() call with tracing.
@@ -244,8 +244,8 @@ def traced_openai_call(
         start = time.monotonic()
         try:
             create_kwargs = {"model": model, "messages": messages, **kwargs}
-            if max_tokens is not None:
-                create_kwargs["max_tokens"] = max_tokens
+            if max_completion_tokens is not None:
+                create_kwargs["max_completion_tokens"] = max_completion_tokens
             resp = client.chat.completions.create(**create_kwargs)
             elapsed_ms = int((time.monotonic() - start) * 1000)
 

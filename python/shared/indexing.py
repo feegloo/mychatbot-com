@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -14,6 +15,7 @@ from .chapters import (
 from .chunkers import Chunk, split_into_chunks
 from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
 from .describe import DescribeResult, describe_documents
+from .extractors import extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
@@ -31,6 +33,12 @@ _MIN_PAGE_SUMMARY_CHARS = 200
 _MAX_PAGE_SUMMARY_CHARS = 600
 _PAGE_SUMMARY_RATIO = 10
 
+# OCR-first welcome strategy for scanned / image-based PDFs
+# (tunable via environment variables for production)
+_OCR_PREFETCH_PAGES = int(os.getenv("OCR_PREFETCH_PAGES", "50"))
+_OCR_PREFETCH_WORKERS = int(os.getenv("OCR_PREFETCH_WORKERS", "8"))
+_OCR_MIN_CHARS_PER_PAGE = 50  # Avg OCR chars/page below this → not enough for welcome
+
 
 def _build_page_summary(page_text: str) -> str | None:
     """Build a compact per-page summary used for early welcome generation.
@@ -47,6 +55,83 @@ def _build_page_summary(page_text: str) -> str | None:
         min(_MAX_PAGE_SUMMARY_CHARS, len(page_text) // _PAGE_SUMMARY_RATIO),
     )
     return page_text[:summary_len].replace("\n", " ").strip()
+
+
+def _ocr_prefetch_welcome(
+    file_path: str,
+    file_metadata: dict,
+    file_name_list: list[str],
+    file_types: dict[str, str],
+) -> "DescribeResult | None":
+    """OCR-first welcome strategy for scanned / image-based PDFs.
+
+    When native text extraction yields fewer than 500 words (no text layer),
+    we OCR the first _OCR_PREFETCH_PAGES pages in parallel so the user
+    receives a welcome message before full indexing completes.  The rest of
+    the pages are processed normally by the main pipeline.
+    """
+    import fitz  # lazy — only needed for scanned PDFs
+
+    p = Path(file_path)
+    try:
+        doc = fitz.open(file_path)
+        total_pages = len(doc)
+        doc.close()
+    except Exception as e:
+        logger.warning(f"⚠️ OCR prefetch: cannot open {p.name}: {e}")
+        return None
+
+    if total_pages < 2:
+        # Single-page documents are handled fast enough by the regular path.
+        return None
+
+    pages_to_ocr = min(_OCR_PREFETCH_PAGES, total_pages)
+    logger.info(
+        f"⏱️  Scanned PDF '{p.name}': OCR-prefetching "
+        f"{pages_to_ocr}/{total_pages} pages "
+        f"with {_OCR_PREFETCH_WORKERS} workers"
+    )
+
+    def _ocr_page(page_idx: int) -> tuple[int, str]:
+        try:
+            return page_idx, ocr_pdf_page(file_path, page_idx) or ""
+        except Exception as e:
+            logger.warning(f"⚠️ OCR prefetch page {page_idx + 1} of {p.name}: {e}")
+            return page_idx, ""
+
+    with ThreadPoolExecutor(max_workers=_OCR_PREFETCH_WORKERS) as pool:
+        ocr_results = list(pool.map(_ocr_page, range(pages_to_ocr)))
+
+    page_texts = dict(ocr_results)
+    total_chars = sum(len(t) for t in page_texts.values())
+    avg_chars = total_chars / pages_to_ocr
+
+    if avg_chars < _OCR_MIN_CHARS_PER_PAGE:
+        logger.info(
+            f"⏱️  OCR prefetch: too little text for {p.name} "
+            f"(avg {avg_chars:.0f} chars/page) — not enough for welcome"
+        )
+        return None
+
+    combined = "\n\n".join(
+        f"# Page {idx + 1}\n\n{t}"
+        for idx, t in sorted(page_texts.items())
+        if t.strip()
+    )
+    ocr_lang = detect_language(combined[:2000]) if combined else None
+    logger.info(
+        f"⏱️  OCR prefetch done for {p.name}: "
+        f"{total_chars} chars, lang={ocr_lang}, "
+        f"{pages_to_ocr}/{total_pages} pages prefetched"
+    )
+    return describe_documents(
+        [{"file_path": file_path, "file_name": p.name, "text": combined}],
+        [],
+        language=ocr_lang,
+        file_metadata=file_metadata,
+        file_names=file_name_list,
+        file_types=file_types,
+    )
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -122,6 +207,35 @@ def index_documents(
     # so the user doesn't wait for all N OCR calls before seeing the welcome.
     file_results: list[FileProcessingResult] = []
     early_describe_future: Future | None = None
+    welcome_emitted = False
+
+    def _emit_welcome(result: DescribeResult | None) -> None:
+        nonlocal welcome_emitted
+        if welcome_emitted or not on_progress or not result:
+            return
+        welcome_message = result.get("welcome_message") or ""
+        if not welcome_message:
+            return
+        on_progress("welcome_message", {
+            "welcome_message": welcome_message,
+            "suggested_questions": result.get("suggested_questions") or [],
+            "file_metadata": file_metadata or {},
+        })
+        welcome_emitted = True
+
+    def _set_early_describe_future(future: Future) -> None:
+        nonlocal early_describe_future
+        early_describe_future = future
+
+        def _done(done_future: Future) -> None:
+            try:
+                result = done_future.result()
+            except Exception as e:
+                logger.warning(f"⚠️ Early welcome generation failed: {e}")
+                return
+            _emit_welcome(result)
+
+        future.add_done_callback(_done)
 
     def _on_early_text(early_text: str, early_summaries: list[dict]) -> None:
         """Callback: start welcome message generation with early OCR results.
@@ -145,15 +259,57 @@ def index_documents(
             f"⏱️  Starting early welcome message generation "
             f"({len(early_text)} chars, lang={early_lang})"
         )
-        early_describe_future = _describe_pool.submit(
-            describe_documents,
-            early_extracted,
+        _set_early_describe_future(
+            _describe_pool.submit(
+                describe_documents,
+                early_extracted,
+                [],
+                language=early_lang,
+                file_metadata=file_metadata,
+                page_summaries=early_summaries or None,
+                file_names=file_name_list,
+                file_types=file_types,
+            )
+        )
+
+    def _prefetch_pdf_welcome(file_path: str) -> DescribeResult | None:
+        try:
+            text = extract_pdf(Path(file_path))
+        except Exception as e:
+            logger.warning(f"⚠️ Fast PDF welcome prefetch failed for {Path(file_path).name}: {e}")
+            return None
+
+        word_count = len(text.split())
+        if word_count < 500:
+            # Very little native text → likely a scanned / image-based PDF.
+            # Fall back to parallel OCR of the first pages so the welcome is
+            # still served promptly despite having no text layer.
+            logger.info(
+                f"⏱️  Scanned PDF detected for {Path(file_path).name} ({word_count} words) "
+                f"— switching to OCR-prefetch welcome strategy"
+            )
+            return _ocr_prefetch_welcome(file_path, file_metadata, file_name_list, file_types)
+
+        quick_chapters = chapters_to_serializable(detect_chapters(file_path))
+        quick_lang = detect_language(text[:2000]) if text else None
+        logger.info(
+            f"⏱️  Starting fast full-book welcome prefetch for {Path(file_path).name} "
+            f"({len(text)} chars, {word_count} words)"
+        )
+        return describe_documents(
+            [
+                {
+                    "file_path": file_path,
+                    "file_name": Path(file_path).name,
+                    "text": text,
+                }
+            ],
             [],
-            language=early_lang,
+            language=quick_lang,
             file_metadata=file_metadata,
-            page_summaries=early_summaries or None,
             file_names=file_name_list,
             file_types=file_types,
+            chapters=quick_chapters or None,
         )
 
     for file_path in file_paths:
@@ -162,6 +318,8 @@ def index_documents(
 
         if suffix == ".pdf":
             output_dir = str(p.parent)
+            if early_describe_future is None:
+                _set_early_describe_future(_describe_pool.submit(_prefetch_pdf_welcome, file_path))
             if is_cloud_mode():
                 # Cloud Run Jobs: dispatch per-page containers for image extraction.
                 # Always chunk text locally as fallback (cloud workers may fail).
@@ -362,6 +520,8 @@ def index_documents(
                     enriched_count += 1
         logger.info(f"📖 Enriched {enriched_count}/{len(all_chunks)} chunks with chapter metadata")
 
+    describe_chapters = all_chapters.get(file_name_list[0]) if len(file_name_list) == 1 else None
+
     # Save raw text and page summaries to disk for follow-up answer context
     storage_dir = str(Path(file_paths[0]).parent) if file_paths else None
     if storage_dir:
@@ -419,12 +579,18 @@ def index_documents(
             chunks=all_chunks,
         )
 
-        # If early describe was started during processing, use its result.
+        # If early describe was started during processing, try to reuse it.
         # Otherwise, start a fresh describe with the full extracted text.
+        describe_result: DescribeResult | None = None
         if early_describe_future is not None:
-            logger.info("⏱️  Using early welcome message (started during page processing)")
-            describe_future = early_describe_future
-        else:
+            logger.info("⏱️  Resolving precomputed welcome message")
+            try:
+                describe_result = early_describe_future.result()
+            except Exception as e:
+                logger.warning(f"⚠️ Early welcome result failed, regenerating: {e}")
+                describe_result = None
+
+        if describe_result is None:
             describe_future = pool.submit(
                 describe_documents,
                 extracted,
@@ -434,20 +600,16 @@ def index_documents(
                 page_summaries=all_page_summaries or None,
                 file_names=file_name_list,
                 file_types=file_types,
+                chapters=describe_chapters,
             )
+            describe_result = describe_future.result()
 
         # Get welcome message + suggested questions ASAP — don't wait for upsert
-        describe_result: DescribeResult = describe_future.result()
         welcome_message = describe_result["welcome_message"]
         suggested_questions = describe_result["suggested_questions"]
 
         # Emit welcome_message event immediately so the frontend can show it
-        if on_progress and welcome_message:
-            on_progress("welcome_message", {
-                "welcome_message": welcome_message,
-                "suggested_questions": suggested_questions,
-                "file_metadata": file_metadata or {},
-            })
+        _emit_welcome(describe_result)
 
         upsert_result = upsert_future.result()
 

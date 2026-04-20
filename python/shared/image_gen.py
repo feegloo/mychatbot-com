@@ -125,7 +125,7 @@ def build_image_prompt(
         messages=messages,
         model=settings.openai_chat_model,
         operation="image_prompt_build",
-        max_tokens=400,
+        max_completion_tokens=400,
         temperature=0.8,
     )
     try:

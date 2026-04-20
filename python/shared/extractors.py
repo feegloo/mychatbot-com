@@ -184,7 +184,7 @@ def _vision_extract_or_describe(
         messages=messages,
         model=settings.openai_chat_model,
         operation="vision_ocr",
-        max_tokens=max_completion_tokens,
+        max_completion_tokens=max_completion_tokens,
         reasoning_effort=settings.openai_reasoning_effort,
     )
     return text.strip()

@@ -41,6 +41,7 @@ def _get_db_pool() -> psycopg2.pool.ThreadedConnectionPool:
         minconn=1,
         maxconn=10,
         dsn=db_url,
+        connect_timeout=5,
     )
     return _db_pool
 

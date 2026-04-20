@@ -255,8 +255,8 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
     * [c:gray]word[/c] — uncertainty, neutrality, balance, ambiguity
   - If a concept does not naturally map to a color, leave it uncolored.
 - Math / LaTeX: Use KaTeX syntax not just for math — use it as a STYLE TOOL whenever it adds elegance or visual punch. The frontend renders beautiful LaTeX.
-  * Obvious: $E = mc^2$, $\sum_{i=1}^{n} x_i$, $$\int_0^\infty e^{-x} dx = 1$$
-  * Creative uses: express ratios as $\frac{risk}{reward}$, show relationships as $A \rightarrow B \rightarrow C$, highlight a key number as $\mathbf{42\%}$, frame a philosophical equation like $\text{courage} + \text{honesty} = \text{freedom}$
+  * Obvious: $E = mc^2$, $\sum_{{i=1}}^{{n}} x_i$, $$\int_0^\infty e^{{-x}} dx = 1$$
+  * Creative uses: express ratios as $\frac{{risk}}{{reward}}$, show relationships as $A \rightarrow B \rightarrow C$, highlight a key number as $\mathbf{{42\%}}$, frame a philosophical equation like $\text{{courage}} + \text{{honesty}} = \text{{freedom}}$
   * Use $$...$$ display blocks for dramatic effect when presenting a key formula, conclusion, or conceptual equation that deserves visual emphasis.
   * Don't force it — but when the content involves numbers, comparisons, ratios, sequences, or conceptual relationships, reach for LaTeX before plain text.
 - IMPORTANT - citation format: Use EXACTLY [source:N] where N is the source number. Examples: [source:1], [source:2], [source:1][source:3]. NEVER use bare brackets like [1], [2]. ALWAYS write "source" in English, never translate it.

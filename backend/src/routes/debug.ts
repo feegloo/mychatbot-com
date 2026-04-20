@@ -211,7 +211,7 @@ debugRouter.get('/debug/processing-jobs/:conversationId', handleProcessingJobs)
  *
  * View LLM prompt/response history with token usage and timing.
  */
-debugRouter.get('/debug/prompt-history/:conversationId?', async (ctx) => {
+async function handlePromptHistory(ctx: any) {
   const auth = ctx.headers.authorization
   if (!auth || !auth.startsWith('Basic ')) {
     ctx.status = 401
@@ -287,7 +287,10 @@ debugRouter.get('/debug/prompt-history/:conversationId?', async (ctx) => {
     total: rows.rows.length,
     limit,
   }
-})
+}
+
+debugRouter.get('/debug/prompt-history', handlePromptHistory)
+debugRouter.get('/debug/prompt-history/:conversationId', handlePromptHistory)
 
 /**
  * GET /debug/prompt-history/:conversationId/:promptId/full

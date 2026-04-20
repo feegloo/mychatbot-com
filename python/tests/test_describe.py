@@ -438,6 +438,65 @@ class TestSplitSynthesizeStrategy:
 # ---------------------------------------------------------------------------
 
 
+class TestWholeBookStrategy:
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_whole_book_strategy_keeps_tail_text_when_under_token_limit(
+        self, _mock_lang, mock_get_llm
+    ):
+        from shared.describe import _DESCRIBE_MAX_CONTENT_CHARS
+
+        marker = "WHOLE_BOOK_TAIL_MARKER_98765"
+        text = ("intro " * 25000) + marker
+        assert len(text) > _DESCRIBE_MAX_CONTENT_CHARS
+
+        mock_llm = _make_mock_llm("## Whole Book\nSummary.")
+        mock_get_llm.return_value = mock_llm
+
+        describe_documents(
+            [{"file_name": "book.pdf", "text": text}],
+            [],
+            language="en",
+            file_metadata={"book.pdf": {"page_count": 180}},
+        )
+
+        human_text = _get_human_message_text(mock_llm)
+        assert marker in human_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_large_book_with_chapters_uses_compaction_and_synthesis(
+        self, _mock_lang, mock_get_llm
+    ):
+        from shared.describe import _WHOLE_BOOK_MAX_ESTIMATED_TOKENS
+
+        mock_llm = _make_mock_llm("## Large Book\nSummary.")
+        mock_get_llm.return_value = mock_llm
+
+        pages = []
+        for page in range(1, 301):
+            pages.append(f"# Page {page}\n\n" + (f"page {page} text " * 250))
+        text = "\n\n".join(pages)
+        assert len(text) // 4 > _WHOLE_BOOK_MAX_ESTIMATED_TOKENS
+
+        chapters = [
+            {"title": "One", "start_page": 1, "end_page": 100},
+            {"title": "Two", "start_page": 101, "end_page": 200},
+            {"title": "Three", "start_page": 201, "end_page": 300},
+        ]
+
+        result = describe_documents(
+            [{"file_name": "book.pdf", "text": text}],
+            [],
+            language="en",
+            file_metadata={"book.pdf": {"page_count": 300}},
+            chapters=chapters,
+        )
+
+        assert result["welcome_message"]
+        assert len(mock_llm.captured) >= 2
+
+
 class TestParseDescribeResponse:
     """Tests for _parse_describe_response: splitting combined LLM output."""
 
