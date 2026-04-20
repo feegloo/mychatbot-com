@@ -4,9 +4,9 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Prompt <strong> AI Agent chatbot</strong>, use semantic search & RAG, share answers<br />
-        <span style="font-size: 12px; padding-top: 4px"
-          >Study, generate checklist ✅ quiz 🧠 recipe 🍝 book chapter 📖 poem 📜 PDF 📄 and more!</span
+        Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, use semantic search & RAG, share answers<br />
+        <span style="font-size: 12px; padding-top: 6px"
+          >Generate checklist ✅ quiz 🧠 recipe 🍝 book chapter 📖 poem 📜 PDF 📄 and more!</span
         >
       </p>
     </div>
