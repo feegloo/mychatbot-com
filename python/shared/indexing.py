@@ -26,6 +26,21 @@ logger = logging.getLogger(__name__)
 # Thread pool for background welcome message generation (started early via callback)
 _describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
 _EARLY_WELCOME_PAGE_TARGET = 100
+_MIN_PAGE_TEXT_FOR_SUMMARY = 50
+_MIN_PAGE_SUMMARY_CHARS = 200
+_MAX_PAGE_SUMMARY_CHARS = 600
+_PAGE_SUMMARY_RATIO = 10
+
+
+def _build_page_summary(page_text: str) -> str | None:
+    """Build a compact per-page summary used for early welcome generation."""
+    if len(page_text.strip()) <= _MIN_PAGE_TEXT_FOR_SUMMARY:
+        return None
+    summary_len = max(
+        _MIN_PAGE_SUMMARY_CHARS,
+        min(_MAX_PAGE_SUMMARY_CHARS, len(page_text) // _PAGE_SUMMARY_RATIO),
+    )
+    return page_text[:summary_len].replace("\n", " ").strip()
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -158,6 +173,7 @@ def index_documents(
                 local_chunks: list[Chunk] = []
                 early_page_texts: list[str] = []
                 early_page_summaries: list[dict] = []
+                cloud_early_started = False
                 for page_idx in range(total_pages):
                     try:
                         page = doc[page_idx]
@@ -183,17 +199,18 @@ def index_documents(
                         page_texts.append(page_text)
                         if page_text:
                             early_page_texts.append(page_text)
-                            if len(page_text.strip()) > 50:
-                                summary_len = max(200, min(600, len(page_text) // 10))
+                            summary = _build_page_summary(page_text)
+                            if summary:
                                 early_page_summaries.append(
                                     {
                                         "page": page_idx + 1,
                                         "file_name": p.name,
-                                        "summary": page_text[:summary_len].replace("\n", " ").strip(),
+                                        "summary": summary,
                                     }
                                 )
-                        if early_describe_future is None and len(early_page_texts) >= early_target:
+                        if not cloud_early_started and len(early_page_texts) >= early_target:
                             _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                            cloud_early_started = True
                             logger.info(
                                 f"⏱️  Cloud mode early welcome started after "
                                 f"{len(early_page_texts)}/{total_pages} pages"
@@ -209,8 +226,9 @@ def index_documents(
                 doc.close()
 
                 # Small PDFs may complete before reaching early target.
-                if early_describe_future is None and early_page_texts:
+                if not cloud_early_started and early_page_texts:
                     _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                    cloud_early_started = True
                     logger.info(
                         f"⏱️  Cloud mode early welcome started after full local pre-pass "
                         f"({len(early_page_texts)}/{total_pages} pages)"
