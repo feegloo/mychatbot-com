@@ -25,6 +25,28 @@ logger = logging.getLogger(__name__)
 
 # Thread pool for background welcome message generation (started early via callback)
 _describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
+_EARLY_WELCOME_PAGE_TARGET = 100
+_MIN_PAGE_TEXT_CHARS_FOR_SUMMARY = 50
+_MIN_PAGE_SUMMARY_CHARS = 200
+_MAX_PAGE_SUMMARY_CHARS = 600
+_PAGE_SUMMARY_RATIO = 10
+
+
+def _build_page_summary(page_text: str) -> str | None:
+    """Build a compact per-page summary used for early welcome generation.
+
+    Thresholds keep early prompts informative but bounded:
+    - Skip very short pages (<= 50 chars) to avoid low-signal summaries.
+    - Use ~10% of page text, clamped to 200..600 chars, so each page contributes
+      enough context without bloating the early describe prompt.
+    """
+    if len(page_text.strip()) <= _MIN_PAGE_TEXT_CHARS_FOR_SUMMARY:
+        return None
+    summary_len = max(
+        _MIN_PAGE_SUMMARY_CHARS,
+        min(_MAX_PAGE_SUMMARY_CHARS, len(page_text) // _PAGE_SUMMARY_RATIO),
+    )
+    return page_text[:summary_len].replace("\n", " ").strip()
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -150,10 +172,14 @@ def index_documents(
 
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
+                early_target = max(1, min(_EARLY_WELCOME_PAGE_TARGET, total_pages))
 
                 # Extract + chunk text locally so all_chunks is always populated
                 page_texts: list[str] = []
                 local_chunks: list[Chunk] = []
+                early_page_texts: list[str] = []
+                early_page_summaries: list[dict] = []
+                cloud_early_started = False
                 for page_idx in range(total_pages):
                     try:
                         page = doc[page_idx]
@@ -177,6 +203,24 @@ def index_documents(
                                     f"⚠️ OCR failed for page {page_idx + 1}: {ocr_err}"
                                 )
                         page_texts.append(page_text)
+                        if page_text:
+                            early_page_texts.append(page_text)
+                            summary = _build_page_summary(page_text)
+                            if summary:
+                                early_page_summaries.append(
+                                    {
+                                        "page": page_idx + 1,
+                                        "file_name": p.name,
+                                        "summary": summary,
+                                    }
+                                )
+                        if not cloud_early_started and len(early_page_texts) >= early_target:
+                            _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                            cloud_early_started = True
+                            logger.info(
+                                f"⏱️  Cloud mode early welcome started after "
+                                f"{len(early_page_texts)}/{total_pages} pages"
+                            )
                         # Chunk locally so we always have text chunks even if cloud workers fail
                         chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
                         local_chunks.extend(chunks)
@@ -186,6 +230,15 @@ def index_documents(
                         )
                         page_texts.append("")
                 doc.close()
+
+                # Small PDFs may complete before reaching early target.
+                if not cloud_early_started and early_page_texts:
+                    _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                    cloud_early_started = True
+                    logger.info(
+                        f"⏱️  Cloud mode early welcome started after full local pre-pass "
+                        f"({len(early_page_texts)}/{total_pages} pages)"
+                    )
 
                 full_text = "\n\n".join(page_texts)
                 logger.info(
