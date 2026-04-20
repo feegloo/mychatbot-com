@@ -28,6 +28,23 @@ describe("renderMarkdown table wrapping", () => {
     expect(html).toContain('src="https://example.com/chart.png"');
     expect(html).toContain('alt="Generated chart"');
   });
+
+  it("renders newly supported color markers", () => {
+    const html = renderMarkdown(
+      "[c:yellow]warning[/c] [c:brown]wood[/c] [c:gray]neutral[/c]",
+    );
+
+    expect(html).toContain('<span class="text-color-yellow">warning</span>');
+    expect(html).toContain('<span class="text-color-brown">wood</span>');
+    expect(html).toContain('<span class="text-color-gray">neutral</span>');
+  });
+
+  it("strips unsupported color markers while keeping text", () => {
+    const html = renderMarkdown("[c:gold]value[/c]");
+
+    expect(html).toContain("value");
+    expect(html).not.toContain("text-color-gold");
+  });
 });
 
 describe("renderInlineMarkdown", () => {

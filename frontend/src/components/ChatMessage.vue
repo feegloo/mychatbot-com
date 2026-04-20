@@ -1556,11 +1556,17 @@ function openFilePreview(file: FileInfo) {
 :deep(.text-color-red) {
   color: #fca5a5;
 }
+:deep(.text-color-yellow) {
+  color: #fde047;
+}
 :deep(.text-color-amber) {
   color: #fcd34d;
 }
 :deep(.text-color-blue) {
   color: #93c5fd;
+}
+:deep(.text-color-brown) {
+  color: #b08968;
 }
 :deep(.text-color-purple) {
   color: #c4b5fd;
@@ -1579,6 +1585,15 @@ function openFilePreview(file: FileInfo) {
 }
 :deep(.text-color-rose) {
   color: #fda4af;
+}
+:deep(.text-color-black) {
+  color: #334155;
+}
+:deep(.text-color-white) {
+  color: #f8fafc;
+}
+:deep(.text-color-gray) {
+  color: #94a3b8;
 }
 
 :deep(.action-btn) {
