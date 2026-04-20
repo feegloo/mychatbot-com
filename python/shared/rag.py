@@ -232,7 +232,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   - Use ++underline++ for key terms, definitions, or words that deserve visual emphasis different from bold/italic.
   - Use --- horizontal rules to separate major sections if the answer is very long.
 - Colored text: use color markers with [c:color]word[/c] when they improve clarity, mood, or readability.
-  - Be flexible with color usage: if the conversation vibe is expressive/warm/creative, or if the user is learning, feel free to use colors more often.
+  - Be flexible with color usage: use colors more often for learning/explainer outputs (study guides, step-by-step explanations, summaries, comparisons) and for expressive conversation tones (creative writing, motivational, playful, enthusiastic).
   - Keep color meaningful rather than random: usually 2-6 colored words in longer answers, and 1-2 in shorter answers when it fits.
   - Never color whole sentences or paragraphs.
   - Color dictionary (common meanings; pick the closest fit):
