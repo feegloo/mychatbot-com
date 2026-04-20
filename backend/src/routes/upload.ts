@@ -16,7 +16,8 @@ import {
   resolveConversationRole,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
-import { indexConversation, describeUrl } from '../python/indexing.js'
+import { indexConversation, indexConversationStream, describeUrl } from '../python/indexing.js'
+import { emitConversationEvent } from '../events.js'
 import { deriveToken } from '../security.js'
 import { generateSignedUploadUrl, downloadGcsFileToLocal } from '../storage/gcs-storage.js'
 import { getConversationToken } from '../utils/request.js'
@@ -98,46 +99,93 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     }
   }
 
-  indexConversation({
-    conversationId,
-    collectionName,
-    files: absolutePaths,
-    mode: config.pythonIndexingMode === 'notebook' ? 'notebook' : 'script',
-  })
-    .then(async (result) => {
-      Sentry.logger.info(Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`, {
-        conversation_id: conversationId,
-        file_count: files.length,
-        suggested_questions_count: (result.parsedJson?.suggested_questions || []).length,
-        has_welcome_message: !!result.parsedJson?.welcome_message,
-      })
-      const suggestedQuestions = result.parsedJson?.suggested_questions || []
-      const welcomeMessage = result.parsedJson?.welcome_message || ''
-      const fileMetadata = result.parsedJson?.file_metadata || {}
-      const fallbackMessage =
-        welcomeMessage ||
-        `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
-      const messageId = await insertConversationMessage({
+  // Fire-and-forget: stream indexing events and emit SSE updates
+  ;(async () => {
+    let welcomeMessageId: string | undefined
+    try {
+      const stream = indexConversationStream({
         conversationId,
-        role: 'assistant',
-        content: fallbackMessage,
-        citations: { _uploadedFileNames: uploadedFileNames },
+        collectionName,
+        files: absolutePaths,
       })
-      // Store file metadata per file
-      for (const [fileName, metadata] of Object.entries(fileMetadata)) {
-        try {
-          const origName = storedToOriginal[fileName] || fileName
-          await updateFileMetadata(conversationId, origName, metadata)
-        } catch (err: any) {
-          console.error(`[metadata update error for ${fileName}]:`, err.message)
+
+      for await (const { event, data } of stream) {
+        if (event === 'welcome_message') {
+          const welcomeMessage = (data.welcome_message as string) || ''
+          const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+          const fallbackMessage =
+            welcomeMessage ||
+            `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+          welcomeMessageId = await insertConversationMessage({
+            conversationId,
+            role: 'assistant',
+            content: fallbackMessage,
+            citations: { _uploadedFileNames: uploadedFileNames },
+          })
+          for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+            try {
+              const origName = storedToOriginal[fileName] || fileName
+              await updateFileMetadata(conversationId, origName, metadata)
+            } catch (err: any) {
+              console.error(`[metadata update error for ${fileName}]:`, err.message)
+            }
+          }
+          emitConversationEvent(conversationId, {
+            event: 'welcome_message',
+            data: { messageId: welcomeMessageId },
+          })
+        } else if (event === 'complete') {
+          Sentry.logger.info(
+            Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`,
+            {
+              conversation_id: conversationId,
+              file_count: files.length,
+              suggested_questions_count: ((data.suggested_questions as string[]) || []).length,
+              has_welcome_message: !!data.welcome_message,
+            },
+          )
+          const suggestedQuestions = (data.suggested_questions as string[]) || []
+          // If welcome message was not emitted earlier (no on_progress callback hit),
+          // insert it now as a fallback
+          if (!welcomeMessageId) {
+            const welcomeMessage = (data.welcome_message as string) || ''
+            const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+            const fallbackMessage =
+              welcomeMessage ||
+              `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+            welcomeMessageId = await insertConversationMessage({
+              conversationId,
+              role: 'assistant',
+              content: fallbackMessage,
+              citations: { _uploadedFileNames: uploadedFileNames },
+            })
+            for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+              try {
+                const origName = storedToOriginal[fileName] || fileName
+                await updateFileMetadata(conversationId, origName, metadata)
+              } catch (err: any) {
+                console.error(`[metadata update error for ${fileName}]:`, err.message)
+              }
+            }
+          }
+          await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
+          await updateConversationStatus(conversationId, 'ready')
+          emitConversationEvent(conversationId, {
+            event: 'complete',
+            data: { suggestedQuestions },
+          })
+        } else if (event === 'error') {
+          throw new Error((data.error as string) || 'Indexing failed')
         }
       }
-      await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId)
-      await updateConversationStatus(conversationId, 'ready')
-    })
-    .catch(async (error) => {
+    } catch (error: any) {
       await updateConversationStatus(conversationId, 'failed', error.message)
-    })
+      emitConversationEvent(conversationId, {
+        event: 'error',
+        data: { message: error.message },
+      })
+    }
+  })()
 
   ctx.body = {
     conversationId,
@@ -296,39 +344,82 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
 
   const collectionName = `conversation_${conversationId}`
 
-  indexConversation({
-    conversationId,
-    collectionName,
-    files: absolutePaths,
-    mode: config.pythonIndexingMode === 'notebook' ? 'notebook' : 'script',
-  })
-    .then(async (result) => {
-      const suggestedQuestions = result.parsedJson?.suggested_questions || []
-      const welcomeMessage = result.parsedJson?.welcome_message || ''
-      const fileMetadata = result.parsedJson?.file_metadata || {}
-      const fallbackMessage =
-        welcomeMessage ||
-        `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
-      const messageId = await insertConversationMessage({
+  // Fire-and-forget: stream indexing events and emit SSE updates
+  ;(async () => {
+    let welcomeMessageId: string | undefined
+    try {
+      const stream = indexConversationStream({
         conversationId,
-        role: 'assistant',
-        content: fallbackMessage,
-        citations: { _uploadedFileNames: uploadedFileNames },
+        collectionName,
+        files: absolutePaths,
       })
-      for (const [fileName, metadata] of Object.entries(fileMetadata)) {
-        try {
-          const origName = storedToOriginal[fileName] || fileName
-          await updateFileMetadata(conversationId, origName, metadata)
-        } catch (err: any) {
-          console.error(`[metadata update error for ${fileName}]:`, err.message)
+
+      for await (const { event, data } of stream) {
+        if (event === 'welcome_message') {
+          const welcomeMessage = (data.welcome_message as string) || ''
+          const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+          const fallbackMessage =
+            welcomeMessage ||
+            `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+          welcomeMessageId = await insertConversationMessage({
+            conversationId,
+            role: 'assistant',
+            content: fallbackMessage,
+            citations: { _uploadedFileNames: uploadedFileNames },
+          })
+          for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+            try {
+              const origName = storedToOriginal[fileName] || fileName
+              await updateFileMetadata(conversationId, origName, metadata)
+            } catch (err: any) {
+              console.error(`[metadata update error for ${fileName}]:`, err.message)
+            }
+          }
+          emitConversationEvent(conversationId, {
+            event: 'welcome_message',
+            data: { messageId: welcomeMessageId },
+          })
+        } else if (event === 'complete') {
+          const suggestedQuestions = (data.suggested_questions as string[]) || []
+          if (!welcomeMessageId) {
+            const welcomeMessage = (data.welcome_message as string) || ''
+            const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+            const fallbackMessage =
+              welcomeMessage ||
+              `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+            welcomeMessageId = await insertConversationMessage({
+              conversationId,
+              role: 'assistant',
+              content: fallbackMessage,
+              citations: { _uploadedFileNames: uploadedFileNames },
+            })
+            for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+              try {
+                const origName = storedToOriginal[fileName] || fileName
+                await updateFileMetadata(conversationId, origName, metadata)
+              } catch (err: any) {
+                console.error(`[metadata update error for ${fileName}]:`, err.message)
+              }
+            }
+          }
+          await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
+          await updateConversationStatus(conversationId, 'ready')
+          emitConversationEvent(conversationId, {
+            event: 'complete',
+            data: { suggestedQuestions },
+          })
+        } else if (event === 'error') {
+          throw new Error((data.error as string) || 'Indexing failed')
         }
       }
-      await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId)
-      await updateConversationStatus(conversationId, 'ready')
-    })
-    .catch(async (error) => {
+    } catch (error: any) {
       await updateConversationStatus(conversationId, 'failed', error.message)
-    })
+      emitConversationEvent(conversationId, {
+        event: 'error',
+        data: { message: error.message },
+      })
+    }
+  })()
 
   ctx.body = {
     conversationId,

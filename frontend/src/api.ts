@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios'
 
 const api = axios.create({
   // @ts-ignore
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
 /** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
@@ -313,7 +313,7 @@ export async function generateImage(conversationId: string, question: string, us
 
 function getBaseUrl() {
   // @ts-ignore
-  return (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api$/, '')
+  return (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '')
 }
 
 export function getStorageUrl(conversationId: string, fileName: string) {

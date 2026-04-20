@@ -7,6 +7,7 @@ so answering questions doesn't pay the ~20s import cost each time.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import urllib.error
@@ -210,6 +211,67 @@ async def index(req: IndexRequest):
         )
         logger.exception("Error indexing documents")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/index-stream")
+async def index_stream(req: IndexRequest):
+    """Streaming variant of /index that emits NDJSON events as indexing progresses.
+
+    Events:
+      {"event": "welcome_message", "data": {...}}  – welcome message ready
+      {"event": "complete", "data": {...}}          – indexing finished
+      {"event": "error", "data": {"error": "..."}}  – fatal error
+    """
+    from fastapi.responses import StreamingResponse  # noqa: E402
+
+    loop = asyncio.get_running_loop()
+    event_queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def on_progress(event_type: str, data: dict) -> None:
+        loop.call_soon_threadsafe(event_queue.put_nowait, {"event": event_type, "data": data})
+
+    async def generate():
+        task = asyncio.ensure_future(
+            asyncio.to_thread(
+                index_documents,
+                conversation_id=req.conversation_id,
+                collection_name=req.collection_name,
+                file_paths=req.file_paths,
+                on_progress=on_progress,
+            )
+        )
+
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(event_queue.get(), timeout=60.0)
+                    yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
+                    if item["event"] in ("complete", "error"):
+                        break
+                except asyncio.TimeoutError:
+                    if task.done():
+                        exc = task.exception()
+                        if exc:
+                            yield json.dumps(
+                                {"event": "error", "data": {"error": str(exc)}}
+                            ) + "\n"
+                        break
+                    yield "\n"  # keepalive
+        except Exception as e:
+            yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
+
+        if not task.done():
+            try:
+                await task
+            except Exception:
+                pass
+
+    sentry_logger.info(
+        "Streaming index for conversation {conversation_id}",
+        conversation_id=req.conversation_id,
+    )
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @app.post("/answer")

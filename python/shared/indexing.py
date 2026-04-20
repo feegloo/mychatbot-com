@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
@@ -58,7 +59,12 @@ def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
     return chunks
 
 
-def index_documents(conversation_id: str, collection_name: str, file_paths: list[str]) -> dict:
+def index_documents(
+    conversation_id: str,
+    collection_name: str,
+    file_paths: list[str],
+    on_progress: "Callable[[str, dict], None] | None" = None,
+) -> dict:
     logger.info(
         f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}"
     )
@@ -360,8 +366,17 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 page_summaries=all_page_summaries or None,
             )
 
-        upsert_result = upsert_future.result()
+        # Get welcome message ASAP — don't wait for upsert
         welcome_message = describe_future.result()
+
+        # Emit welcome_message event immediately so the frontend can show it
+        if on_progress and welcome_message:
+            on_progress("welcome_message", {
+                "welcome_message": welcome_message,
+                "file_metadata": file_metadata or {},
+            })
+
+        upsert_result = upsert_future.result()
 
     # Now generate suggested questions with the description for contextual prompts
     logger.info("💡 Generating suggested prompts (with description context)...")
@@ -412,7 +427,7 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         ),
     )
 
-    return {
+    result = {
         "conversation_id": conversation_id,
         "collection_name": collection_name,
         "file_count": len(file_paths),
@@ -424,3 +439,8 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
         "processing_errors": all_errors if all_errors else None,
         **upsert_result,
     }
+
+    if on_progress:
+        on_progress("complete", result)
+
+    return result

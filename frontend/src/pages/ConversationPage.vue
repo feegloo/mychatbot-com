@@ -7,6 +7,7 @@
       :conversation-title="conversationTitle"
       :can-upload="canUpload"
       :processing="loaded && status.status === 'processing'"
+      :processing-step="processingStepLabel"
       @renamed="status.displayName = $event"
       @reload="onReload"
       @view-threads="viewHeaderThreads"
@@ -183,6 +184,7 @@ import LanguageToggle from '../components/LanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
+import { useConversationEvents, stepLabel } from '../composables/useConversationEvents'
 
 const props = defineProps<{ conversationId: string }>()
 
@@ -227,6 +229,20 @@ const {
   readWelcomeIfEnabled,
   cleanup: cleanupAutoRead,
 } = useAutoRead(messages, asking, welcomeMessageContent)
+
+// SSE: real-time processing events (welcome_message, complete)
+const {
+  processingStep,
+  connect: connectSSE,
+  disconnect: disconnectSSE,
+  onWelcome,
+  onComplete: onSSEComplete,
+} = useConversationEvents(conversationId)
+
+onWelcome(() => loadConversation())
+onSSEComplete(() => loadConversation())
+
+const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null)
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
@@ -721,6 +737,11 @@ onMounted(async () => {
   // Listen for scroll events to persist position
   chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true })
 
+  // Connect SSE for real-time processing events while conversation is being indexed
+  if (status.value.status === 'processing') {
+    connectSSE()
+  }
+
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined
   if (pending) {
@@ -742,6 +763,7 @@ onUnmounted(() => {
   if (intervalHandle !== undefined) {
     clearInterval(intervalHandle)
   }
+  disconnectSSE()
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
   cleanupAutoRead()

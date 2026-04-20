@@ -73,10 +73,11 @@
         class="indexing-bar"
         role="status"
         aria-live="polite"
-        aria-label="Processing files"
+        :aria-label="processingStep || 'Processing files'"
+        :title="processingStep || 'Processing files…'"
       >
         <div class="indexing-spinner" aria-hidden="true"></div>
-        <span class="sr-only">Processing files</span>
+        <span class="sr-only">{{ processingStep || 'Processing files' }}</span>
       </div>
       <slot name="language-toggle"></slot>
       <slot name="auto-read-toggle"></slot>
@@ -113,6 +114,7 @@ const props = defineProps<{
   conversationTitle: string
   canUpload: boolean
   processing?: boolean
+  processingStep?: string
 }>()
 
 const emit = defineEmits<{

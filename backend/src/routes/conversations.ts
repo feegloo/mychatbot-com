@@ -30,6 +30,7 @@ import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
 import { config } from '../config.js'
 import { indexConversation } from '../python/indexing.js'
+import { onConversationEvent } from '../events.js'
 import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
 import { SHORT_ID_RE, MAX_FILE_SIZE } from '../constants.js'
@@ -71,6 +72,73 @@ conversationsRouter.post('/conversations', async (ctx) => {
     url: `/c/${conversationId}`,
     ownerPassword,
   }
+})
+
+// SSE endpoint: stream processing events (welcome_message, complete) to the frontend
+conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => {
+  const { conversationId } = ctx.params
+
+  const data = await getConversation(conversationId, 'viewer')
+  if (!data.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  ctx.req.socket.setTimeout(0)
+  ctx.req.socket.setNoDelay(true)
+  ctx.req.socket.setKeepAlive(true)
+
+  ctx.status = 200
+  ctx.respond = false
+  const res = ctx.res
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  })
+
+  function send(event: string, payload: Record<string, unknown>) {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+  }
+
+  // If conversation is already ready, send catchup events and close
+  if (data.conversation.status === 'ready') {
+    send('welcome_message', {})
+    send('complete', {})
+    res.end()
+    return
+  }
+
+  // If there are already messages, the welcome message was already saved
+  const hasWelcome = data.messages.some(
+    (m: { role: string }) => m.role === 'assistant',
+  )
+  if (hasWelcome) {
+    send('welcome_message', {})
+  }
+
+  send('connected', { conversationId })
+
+  const unsubscribe = onConversationEvent(conversationId, (evt) => {
+    send(evt.event, evt.data)
+    if (evt.event === 'complete' || evt.event === 'error') {
+      cleanup()
+      res.end()
+    }
+  })
+
+  const keepalive = setInterval(() => {
+    res.write(': keepalive\n\n')
+  }, 15_000)
+
+  function cleanup() {
+    unsubscribe()
+    clearInterval(keepalive)
+  }
+
+  ctx.req.on('close', cleanup)
 })
 
 conversationsRouter.get('/conversations/:conversationId', async (ctx) => {

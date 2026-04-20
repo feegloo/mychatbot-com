@@ -5,6 +5,9 @@ storage
 .git
 .env
 .env.*
+# Allow .env.production — only public client-side keys (Stripe publishable, Sentry DSN)
+!.env.production
+!frontend/.env.production
 **/.venv
 **/dist
 **/coverage
