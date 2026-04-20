@@ -195,7 +195,7 @@
               <span class="suggested-question-markdown" v-html="question.html"></span>
             </div>
             <div
-              v-if="welcomeHiddenActionQuestions.length"
+              v-if="welcomeHiddenQuestions.length"
               class="question-pill welcome-more-wrap"
               role="button"
               tabindex="0"
@@ -208,7 +208,7 @@
               <transition name="fade-right">
                 <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
                   <div
-                    v-for="question in welcomeHiddenActionQuestions"
+                    v-for="question in welcomeHiddenQuestions"
                     :key="`more-${question.raw}`"
                     class="question-pill welcome-more-item"
                     role="menuitem"
@@ -394,7 +394,7 @@
           <span class="suggested-question-markdown" v-html="question.html"></span>
         </div>
         <div
-          v-if="welcomeHiddenActionQuestions.length"
+          v-if="welcomeHiddenQuestions.length"
           class="question-pill welcome-more-wrap"
           role="button"
           tabindex="0"
@@ -407,7 +407,7 @@
           <transition name="fade-right">
             <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
               <div
-                v-for="question in welcomeHiddenActionQuestions"
+                v-for="question in welcomeHiddenQuestions"
                 :key="`more-${question.raw}`"
                 class="question-pill welcome-more-item"
                 role="menuitem"
@@ -508,10 +508,8 @@ import type { QuizData } from './QuizBlock.vue'
 import { getData, setData } from '../utils/localData'
 import UploadingDots from './UploadingDots.vue'
 
-const EMOJI_RE = /\p{Extended_Pictographic}/u
-const MAX_WELCOME_TEXT_PROMPTS = 3
-const MAX_WELCOME_ACTION_PROMPTS = 7
-const WELCOME_VISIBLE_ACTION_PROMPTS = 0
+const MAX_VISIBLE_WELCOME_PROMPTS = 5
+const MAX_VISIBLE_ASSISTANT_ACTIONS = 3
 const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
 let outsideClickListenerBound = false
 
@@ -668,22 +666,11 @@ const renderedSuggestedQuestions = computed(() =>
   })),
 )
 const welcomeMoreOpen = ref(false)
-const welcomeTextQuestions = computed(() =>
-  renderedSuggestedQuestions.value
-    .filter((q) => !EMOJI_RE.test(q.raw))
-    .slice(0, MAX_WELCOME_TEXT_PROMPTS),
+const welcomeVisibleQuestions = computed(() =>
+  renderedSuggestedQuestions.value.slice(0, MAX_VISIBLE_WELCOME_PROMPTS),
 )
-const welcomeActionQuestions = computed(() =>
-  renderedSuggestedQuestions.value
-    .filter((q) => EMOJI_RE.test(q.raw))
-    .slice(0, MAX_WELCOME_ACTION_PROMPTS),
-)
-const welcomeVisibleQuestions = computed(() => [
-  ...welcomeTextQuestions.value,
-  ...welcomeActionQuestions.value.slice(0, WELCOME_VISIBLE_ACTION_PROMPTS),
-])
-const welcomeHiddenActionQuestions = computed(() =>
-  welcomeActionQuestions.value.slice(WELCOME_VISIBLE_ACTION_PROMPTS),
+const welcomeHiddenQuestions = computed(() =>
+  renderedSuggestedQuestions.value.slice(MAX_VISIBLE_WELCOME_PROMPTS),
 )
 
 function onSuggestedQuestionClick(event: MouseEvent, question: string) {
@@ -965,12 +952,12 @@ function transformActionButtonGroups() {
     rows.forEach((row) => {
       if (row.dataset.moreReady === '1') return
       const buttons = Array.from(row.querySelectorAll<HTMLElement>(':scope > .action-btn'))
-      if (buttons.length <= 1) {
+      if (buttons.length <= MAX_VISIBLE_ASSISTANT_ACTIONS) {
         row.dataset.moreReady = '1'
         return
       }
-      const first = buttons[0]
-      const rest = buttons.slice(1)
+      const visibleButtons = buttons.slice(0, MAX_VISIBLE_ASSISTANT_ACTIONS)
+      const rest = buttons.slice(MAX_VISIBLE_ASSISTANT_ACTIONS)
       const wrap = document.createElement('span')
       wrap.className = 'action-more-wrap'
 
@@ -988,7 +975,9 @@ function transformActionButtonGroups() {
         menu.appendChild(btn)
       })
 
-      wrap.appendChild(first)
+      visibleButtons.forEach((btn) => {
+        wrap.appendChild(btn)
+      })
       wrap.appendChild(moreBtn)
       wrap.appendChild(menu)
       row.replaceChildren(wrap)
@@ -1701,6 +1690,10 @@ function openFilePreview(file: FileInfo) {
 .welcome-suggested-questions .question-pill:focus-visible {
   outline: 2px solid rgba(167, 139, 250, 0.6);
   outline-offset: 2px;
+}
+
+.suggested-question-markdown {
+  white-space: nowrap;
 }
 
 .suggested-question-markdown :deep(a) {

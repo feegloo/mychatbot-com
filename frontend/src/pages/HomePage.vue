@@ -40,7 +40,7 @@
             </svg>
           </div>
           <p><strong>Click to upload or drag & drop</strong></p>
-          <p class="dropzone-hint">PDF, images, .doc, other text files — or paste a URL below</p>
+          <p class="dropzone-hint">PDF, images, .doc, other text files</p>
           <input
             ref="inputRef"
             type="file"
@@ -90,7 +90,7 @@
         ref="questionInput"
         v-model="question"
         class="chat-textarea"
-        placeholder="Ask a question or paste a URL..."
+        placeholder="Ask a question ..."
         rows="1"
         @input="autoResize"
         @keydown.enter.exact.prevent="submitQuestion"

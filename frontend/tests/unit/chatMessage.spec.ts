@@ -19,7 +19,7 @@ describe('ChatMessage suggested prompt overflow', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders only 3 text prompts inline for welcome, with More overflow for action prompts', async () => {
+  it('renders the first 5 welcome prompts inline and moves the rest to More preserving order', async () => {
     const wrapper = mount(ChatMessage, {
       attachTo: document.body,
       props: {
@@ -27,11 +27,11 @@ describe('ChatMessage suggested prompt overflow', () => {
         isWelcome: true,
         suggestedQuestions: [
           'Text 1',
-          'Text 2',
-          'Text 3',
           'Action 1 🧠',
+          'Text 2',
           'Action 2 📓',
           'Action 3 🧩',
+          'Text 3',
         ],
       },
     })
@@ -39,16 +39,18 @@ describe('ChatMessage suggested prompt overflow', () => {
     const visibleQuestionPills = wrapper.findAll('.welcome-suggested-questions > .question-pill')
     expect(visibleQuestionPills.some((p) => p.text().includes('More ...'))).toBe(true)
     expect(wrapper.text()).toContain('Text 1')
+    expect(wrapper.text()).toContain('Action 1')
     expect(wrapper.text()).toContain('Text 2')
-    expect(wrapper.text()).toContain('Text 3')
-    expect(wrapper.text()).not.toContain('Action 1')
-    expect(wrapper.text()).not.toContain('Action 2')
-    expect(wrapper.text()).not.toContain('Action 3')
+    expect(wrapper.text()).toContain('Action 2')
+    expect(wrapper.text()).toContain('Action 3')
+    expect(wrapper.text()).not.toContain('Text 3')
 
     await wrapper.find('.welcome-more-wrap').trigger('click')
     expect(wrapper.text()).toContain('Action 1')
+    expect(wrapper.text()).toContain('Text 2')
     expect(wrapper.text()).toContain('Action 2')
     expect(wrapper.text()).toContain('Action 3')
+    expect(wrapper.text()).toContain('Text 3')
 
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await nextTick()
@@ -84,7 +86,7 @@ describe('ChatMessage suggested prompt overflow', () => {
     vi.useFakeTimers()
     try {
       const messageWithActions =
-        'Done.\n\n[action:First action] [action:Second action] [action:Third action]'
+        'Done.\n\n[action:First action] [action:Second action] [action:Third action] [action:Fourth action] [action:Fifth action]'
       const wrap1 = mount(ChatMessage, {
         attachTo: document.body,
         props: {
@@ -104,7 +106,8 @@ describe('ChatMessage suggested prompt overflow', () => {
       await nextTick()
 
       expect(wrap1.find('.action-more-btn').exists()).toBe(true)
-      expect(wrap1.findAll('.action-more-menu .action-btn[data-action]').length).toBe(2)
+  expect(wrap1.findAll('.action-more-wrap > .action-btn[data-action]').length).toBe(3)
+  expect(wrap1.findAll('.action-more-menu .action-btn[data-action]').length).toBe(2)
 
       await wrap1.find('.action-more-btn').trigger('click')
       expect(wrap1.find('.action-more-wrap').classes()).toContain('open')
