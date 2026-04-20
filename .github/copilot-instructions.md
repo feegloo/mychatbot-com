@@ -49,7 +49,7 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
   - Index: `python index_documents.py ...`
   - Answer: `python answer_question.py ...`
   - See [python/README.md](python/README.md) for notebook and script usage.
-
+  - in CLI, we are using explicitly `python3.11` instead of `python`, to make sure we are using correct version of python, and avoid any issues with multiple python versions installed on the system, so you should do the same when running python scripts or commands, to ensure consistency and avoid potential issues with using the wrong python version or environment
 --- 
 
 Deployment:

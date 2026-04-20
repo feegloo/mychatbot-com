@@ -99,14 +99,29 @@ class TestChapterDetectionMocked:
             [1, "Chapter 3", 60],
         ]
 
+        # Mock pages so _extract_chapter_name_from_page can read text
+        def make_page(text="Some regular text\n"):
+            p = MagicMock()
+            p.get_text.return_value = text
+            return p
+
+        mock_doc.__getitem__ = MagicMock(side_effect=lambda i: make_page())
+
         with patch("shared.chapters.fitz") as mock_fitz:
             mock_fitz.open.return_value = mock_doc
             chapters = detect_chapters_from_toc("fake.pdf")
 
         assert len(chapters) == 3
-        assert chapters[0] == ChapterInfo(number=1, title="Chapter 1", start_page=5, end_page=29)
-        assert chapters[1] == ChapterInfo(number=2, title="Chapter 2", start_page=30, end_page=59)
-        assert chapters[2] == ChapterInfo(number=3, title="Chapter 3", start_page=60, end_page=100)
+        assert chapters[0].number == 1
+        assert chapters[0].title == "Chapter 1"
+        assert chapters[0].start_page == 5
+        assert chapters[0].end_page == 29
+        assert chapters[1].number == 2
+        assert chapters[1].start_page == 30
+        assert chapters[1].end_page == 59
+        assert chapters[2].number == 3
+        assert chapters[2].start_page == 60
+        assert chapters[2].end_page == 100
 
     def test_detect_chapters_from_toc_empty(self):
         mock_doc = MagicMock()
@@ -127,6 +142,13 @@ class TestChapterDetectionMocked:
             [1, "Rozdział 2", 50],
             [1, "Posłowie", 180],  # non-chapter entry
         ]
+
+        def make_page(text="Some regular text\n"):
+            p = MagicMock()
+            p.get_text.return_value = text
+            return p
+
+        mock_doc.__getitem__ = MagicMock(side_effect=lambda i: make_page())
 
         with patch("shared.chapters.fitz") as mock_fitz:
             mock_fitz.open.return_value = mock_doc
@@ -210,13 +232,15 @@ class TestBuildPageToChapterMap:
 class TestSerialization:
     def test_roundtrip(self):
         chapters = [
-            ChapterInfo(number=1, title="Rozdział 1", start_page=8, end_page=72),
+            ChapterInfo(number=1, title="Rozdział 1", start_page=8, end_page=72, chapter_name="Jan"),
             ChapterInfo(number=2, title="Rozdział 2", start_page=73, end_page=153),
         ]
         serialized = chapters_to_serializable(chapters)
         assert isinstance(serialized, list)
         assert serialized[0]["number"] == 1
         assert serialized[0]["title"] == "Rozdział 1"
+        assert serialized[0]["chapter_name"] == "Jan"
+        assert serialized[1]["chapter_name"] == ""
 
         restored = chapters_from_serializable(serialized)
         assert restored == chapters

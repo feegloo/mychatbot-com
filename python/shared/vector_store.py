@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 _chroma_client = None
 _openai_client = None
 
-EMBED_BATCH_SIZE = 2048  # OpenAI API limit per request
+EMBED_BATCH_SIZE = 2048  # OpenAI API max items per request
+EMBED_MAX_TOKENS_PER_BATCH = 250_000  # Stay under OpenAI's 300K token-per-request limit
+EMBED_CHARS_PER_TOKEN = 4  # Conservative estimate for English text
 EMBED_MAX_WORKERS = 4  # Parallel embedding requests for very large batches
 CHROMA_BATCH_SIZE = 5000  # Chroma add() limit is ~5461
 
@@ -80,10 +82,14 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         span.set_data("count", len(texts))
         span.set_data("model", settings.openai_embedding_model)
 
-        if len(texts) <= EMBED_BATCH_SIZE:
+        # Build token-budget-aware batches: respect both item count AND token limit
+        batches = _build_token_aware_batches(texts)
+
+        if len(batches) == 1:
+            start_idx, batch = batches[0]
             response = client.embeddings.create(
                 model=settings.openai_embedding_model,
-                input=texts,
+                input=batch,
             )
             tokens_used = getattr(response, "usage", None)
             if tokens_used:
@@ -92,11 +98,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
             sorted_data = sorted(response.data, key=lambda x: x.index)
             return [item.embedding for item in sorted_data]
 
-        # For very large batches, split and parallelize
+        # For multiple batches, parallelize
         all_vectors: list[list[float] | None] = [None] * len(texts)
-        batches = [
-            (i, texts[i : i + EMBED_BATCH_SIZE]) for i in range(0, len(texts), EMBED_BATCH_SIZE)
-        ]
         total_tokens = 0
 
         def _embed_batch(start_idx: int, batch: list[str]):
@@ -123,6 +126,38 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
             f"⚡ Embedded {len(texts)} texts in {len(batches)} batches, {total_tokens} tokens"
         )
         return all_vectors
+
+
+def _build_token_aware_batches(texts: list[str]) -> list[tuple[int, list[str]]]:
+    """Split texts into batches that respect both item count and token budget.
+
+    Each batch stays under EMBED_BATCH_SIZE items AND EMBED_MAX_TOKENS_PER_BATCH
+    estimated tokens to avoid OpenAI's per-request token limit.
+    """
+    batches: list[tuple[int, list[str]]] = []
+    current_batch: list[str] = []
+    current_start = 0
+    current_tokens = 0
+
+    for i, text in enumerate(texts):
+        estimated_tokens = max(len(text) // EMBED_CHARS_PER_TOKEN, 1)
+
+        would_exceed_tokens = current_tokens + estimated_tokens > EMBED_MAX_TOKENS_PER_BATCH
+        would_exceed_count = len(current_batch) >= EMBED_BATCH_SIZE
+
+        if current_batch and (would_exceed_tokens or would_exceed_count):
+            batches.append((current_start, current_batch))
+            current_batch = []
+            current_start = i
+            current_tokens = 0
+
+        current_batch.append(text)
+        current_tokens += estimated_tokens
+
+    if current_batch:
+        batches.append((current_start, current_batch))
+
+    return batches
 
 
 @lru_cache(maxsize=128)
@@ -237,6 +272,7 @@ def query_chunks(
                 "section": metadata.get("section") or None,
                 "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
                 "chapter_number": metadata.get("chapter_number") or None,
+                "chapter_name": metadata.get("chapter_name") or None,
                 "distance": distance,
                 "metadata": metadata,
                 "image_name": metadata.get("image_name") or None,

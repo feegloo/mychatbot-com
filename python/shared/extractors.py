@@ -83,6 +83,79 @@ def extract_pdf(path: Path) -> str:
     return _sanitize_text(result)
 
 
+# ── Vision-based OCR ───────────────────────────────────────────────
+
+# Minimum chars of real text (excluding headings like "# Page N") to consider
+# text extraction successful. Below this threshold, OCR fallback is triggered.
+_MIN_PAGE_TEXT_CHARS = 20
+
+
+def _render_pdf_page_to_png(pdf_path: str, page_idx: int, *, dpi: int = 200) -> bytes:
+    """Render a single PDF page to PNG bytes using PyMuPDF."""
+    doc = fitz.open(pdf_path)
+    page = doc[page_idx]
+    zoom = dpi / 72  # 72 is the default PDF DPI
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat, alpha=False)
+    png_bytes = pix.tobytes("png")
+    doc.close()
+    return png_bytes
+
+
+def ocr_pdf_page(pdf_path: str, page_idx: int) -> str:
+    """Render a PDF page as image and extract text via GPT Vision OCR.
+
+    Used as fallback when native text extraction yields no/minimal text
+    (scanned PDFs, image-based PDFs, non-Latin scripts without text layer).
+    """
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    png_bytes = _render_pdf_page_to_png(pdf_path, page_idx)
+    b64 = base64.b64encode(png_bytes).decode("utf-8")
+
+    response = client.chat.completions.create(
+        model=settings.openai_chat_model,
+        max_completion_tokens=4000,
+        reasoning_effort=settings.openai_reasoning_effort,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an OCR engine. Extract ALL visible text from this "
+                    "document page image. Preserve the original language — do NOT "
+                    "translate. Maintain paragraph structure and line breaks. "
+                    "For right-to-left scripts (Arabic, Hebrew, Persian, Urdu), "
+                    "preserve the reading order. Output ONLY the extracted text, "
+                    "no commentary or descriptions."
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{b64}",
+                            "detail": "high",
+                        },
+                    },
+                ],
+            },
+        ],
+    )
+    return response.choices[0].message.content.strip()
+
+
+def page_needs_ocr(page_text: str) -> bool:
+    """Check whether a page's extracted text is too sparse and needs OCR.
+
+    Strips the page heading (e.g. "# Page 5") before measuring.
+    """
+    stripped = re.sub(r"^#\s*Page\s+\d+\s*", "", page_text).strip()
+    return len(stripped) < _MIN_PAGE_TEXT_CHARS
+
+
 # ── PDF image extraction ───────────────────────────────────────────
 
 MIN_IMAGE_SIZE = 5_000  # Skip tiny images (icons, bullets) under 5 KB

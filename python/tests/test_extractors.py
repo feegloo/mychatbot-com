@@ -1,4 +1,5 @@
 import json
+from unittest.mock import MagicMock, patch
 
 from shared.extractors import (
     _reflow_pdf_text,
@@ -7,6 +8,7 @@ from shared.extractors import (
     extract_json,
     extract_plain_text,
     extract_text,
+    page_needs_ocr,
 )
 
 
@@ -85,3 +87,55 @@ class TestExtractText:
         f.write_text("# Title\nContent", encoding="utf-8")
         result = extract_text(str(f))
         assert "Title" in result
+
+
+class TestPageNeedsOcr:
+    def test_empty_page_needs_ocr(self):
+        assert page_needs_ocr("# Page 1\n\n") is True
+
+    def test_page_with_only_heading_needs_ocr(self):
+        assert page_needs_ocr("# Page 5") is True
+
+    def test_sparse_text_needs_ocr(self):
+        assert page_needs_ocr("# Page 1\n\nshort") is True
+
+    def test_real_text_does_not_need_ocr(self):
+        assert page_needs_ocr("# Page 1\n\nThis is a paragraph with enough text content.") is False
+
+    def test_arabic_text_does_not_need_ocr(self):
+        arabic = "# Page 1\n\n" + "على كتب المنشوي الستة ما يكشف عن كثير"
+        assert page_needs_ocr(arabic) is False
+
+    def test_blank_string_needs_ocr(self):
+        assert page_needs_ocr("") is True
+
+
+class TestOcrPdfPage:
+    @patch("shared.extractors.OpenAI")
+    def test_ocr_returns_extracted_text(self, mock_openai_cls, tmp_path):
+        import fitz
+
+        # Create a minimal 1-page PDF
+        doc = fitz.open()
+        doc.new_page(width=200, height=200)
+        pdf_path = str(tmp_path / "scan.pdf")
+        doc.save(pdf_path)
+        doc.close()
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "بسم الله الرحمن الرحيم"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_cls.return_value = mock_client
+
+        from shared.extractors import ocr_pdf_page
+
+        result = ocr_pdf_page(pdf_path, 0)
+        assert result == "بسم الله الرحمن الرحيم"
+        mock_client.chat.completions.create.assert_called_once()
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 4000
+        assert "OCR" in call_kwargs["messages"][0]["content"]

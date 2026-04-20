@@ -83,7 +83,8 @@ class TestMetadataBlock:
 
         assert "=====" in human_text, "Metadata block should be delimited with ====="
         assert "Cara de Nysschen" in human_text
-        assert "Microsoft® Word 2013" in human_text
+        # 'creator' is in _META_EXCLUDE_KEYS — should NOT appear
+        assert "Microsoft® Word 2013" not in human_text
         assert "2018-04-11" in human_text
         assert "page_count" in human_text
 
@@ -238,14 +239,16 @@ class TestMetadataBlock:
 
 
 class TestEdgeCases:
-    def test_returns_empty_when_no_content(self):
-        """No extracted text and no images → empty string, no LLM call."""
+    def test_returns_fallback_when_no_content(self):
+        """No extracted text and no images → fallback message (not empty)."""
         result = describe_documents([], [], language="en", file_metadata=None)
-        assert result == ""
+        assert "has been uploaded" in result
+        assert "Text extraction was not possible" in result
 
-    def test_returns_empty_when_text_is_blank(self):
+    def test_returns_fallback_when_text_is_blank(self):
         result = describe_documents([{"file_name": "empty.txt", "text": "   "}], [], language="en")
-        assert result == ""
+        assert "empty.txt" in result
+        assert "has been uploaded" in result
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")

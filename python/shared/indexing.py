@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 from .chapters import (
@@ -21,6 +21,9 @@ from .telemetry import log_processing_event, trace_step
 from .vector_store import upsert_chunks
 
 logger = logging.getLogger(__name__)
+
+# Thread pool for background welcome message generation (started early via callback)
+_describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -74,7 +77,42 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
 
     # ── Parallel per-page processing ─────────────────────────────────
     # PDFs get parallel page-level processing; other files processed individually.
+    # For scanned/OCR PDFs, we start welcome message generation early via callback
+    # so the user doesn't wait for all N OCR calls before seeing the welcome.
     file_results: list[FileProcessingResult] = []
+    early_describe_future: Future | None = None
+
+    def _on_early_text(early_text: str, early_summaries: list[dict]) -> None:
+        """Callback: start welcome message generation with early OCR results.
+
+        Called by process_pdf_parallel after early_text_timeout_s, while
+        remaining pages are still being processed. Submits describe_documents
+        to a background thread so it runs in parallel with page processing.
+        """
+        nonlocal early_describe_future
+        if early_describe_future is not None:
+            return  # Already started
+        early_lang = detect_language(early_text[:2000]) if early_text else None
+        early_extracted = [
+            {
+                "file_path": file_paths[0] if file_paths else "",
+                "file_name": Path(file_paths[0]).name if file_paths else "",
+                "text": early_text,
+            }
+        ]
+        logger.info(
+            f"⏱️  Starting early welcome message generation "
+            f"({len(early_text)} chars, lang={early_lang})"
+        )
+        early_describe_future = _describe_pool.submit(
+            describe_documents,
+            early_extracted,
+            [],
+            language=early_lang,
+            file_metadata=file_metadata,
+            page_summaries=early_summaries or None,
+        )
+
     for file_path in file_paths:
         p = Path(file_path)
         suffix = p.suffix.lower()
@@ -87,7 +125,7 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 logger.info(f"☁️ Cloud mode: dispatching Cloud Run Jobs for {p.name}")
                 import fitz
 
-                from .extractors import _reflow_pdf_text, _sanitize_text
+                from .extractors import _reflow_pdf_text, _sanitize_text, ocr_pdf_page, page_needs_ocr
 
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
@@ -101,6 +139,22 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                         raw = page.get_text() or ""
                         reflowed = _reflow_pdf_text(raw.strip())
                         page_text = _sanitize_text(f"# Page {page_idx + 1}\n\n{reflowed}")
+                        # OCR fallback for scanned/image-based pages
+                        if page_needs_ocr(page_text):
+                            try:
+                                ocr_text = ocr_pdf_page(file_path, page_idx)
+                                if ocr_text and len(ocr_text.strip()) > len(page_text.strip()):
+                                    page_text = _sanitize_text(
+                                        f"# Page {page_idx + 1}\n\n{ocr_text}"
+                                    )
+                                    logger.info(
+                                        f"🔍 OCR page {page_idx + 1}: "
+                                        f"{len(ocr_text)} chars extracted"
+                                    )
+                            except Exception as ocr_err:
+                                logger.warning(
+                                    f"⚠️ OCR failed for page {page_idx + 1}: {ocr_err}"
+                                )
                         page_texts.append(page_text)
                         # Chunk locally so we always have text chunks even if cloud workers fail
                         chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
@@ -140,7 +194,10 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                         )
             else:
                 # Local mode (default): parallel threads
-                result = process_pdf_parallel(file_path, output_dir, conversation_id)
+                result = process_pdf_parallel(
+                    file_path, output_dir, conversation_id,
+                    on_early_text=_on_early_text,
+                )
         else:
             result = process_standalone_file(file_path, conversation_id)
 
@@ -193,9 +250,10 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
     )
 
     # ── Chapter detection ────────────────────────────────────────────
-    # Detect chapters in PDFs and enrich chunk metadata with chapter_number
+    # Detect chapters in PDFs and enrich chunk metadata with chapter_number + chapter_name
     all_chapters: dict[str, list[dict]] = {}  # file_name -> chapters (serializable)
     page_to_chapter_maps: dict[str, dict[int, int]] = {}  # file_name -> {page: chapter_nr}
+    page_to_chapter_name: dict[str, dict[int, str]] = {}  # file_name -> {page: chapter_name}
     for file_path in file_paths:
         p = Path(file_path)
         if p.suffix.lower() == ".pdf":
@@ -203,12 +261,19 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             if chapters:
                 all_chapters[p.name] = chapters_to_serializable(chapters)
                 page_to_chapter_maps[p.name] = build_page_to_chapter_map(chapters)
+                # Build page -> chapter_name map
+                name_map: dict[int, str] = {}
+                for ch in chapters:
+                    if ch.chapter_name:
+                        for pg in range(ch.start_page, ch.end_page + 1):
+                            name_map[pg] = ch.chapter_name
+                page_to_chapter_name[p.name] = name_map
                 logger.info(
                     f"📖 {p.name}: {len(chapters)} chapters detected, "
                     f"pages mapped: {len(page_to_chapter_maps[p.name])}"
                 )
 
-    # Enrich chunks with chapter_number metadata
+    # Enrich chunks with chapter_number and chapter_name metadata
     if page_to_chapter_maps:
         enriched_count = 0
         for chunk in all_chunks:
@@ -217,8 +282,11 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
                 chapter_nr = page_map.get(chunk.page)
                 if chapter_nr is not None:
                     chunk.metadata["chapter_number"] = chapter_nr
+                    name = page_to_chapter_name.get(chunk.file_name, {}).get(chunk.page)
+                    if name:
+                        chunk.metadata["chapter_name"] = name
                     enriched_count += 1
-        logger.info(f"📖 Enriched {enriched_count}/{len(all_chunks)} chunks with chapter_number")
+        logger.info(f"📖 Enriched {enriched_count}/{len(all_chunks)} chunks with chapter metadata")
 
     # Save raw text and page summaries to disk for follow-up answer context
     storage_dir = str(Path(file_paths[0]).parent) if file_paths else None
@@ -276,14 +344,22 @@ def index_documents(conversation_id: str, collection_name: str, file_paths: list
             conversation_id=conversation_id,
             chunks=all_chunks,
         )
-        describe_future = pool.submit(
-            describe_documents,
-            extracted,
-            all_images,
-            language=detected_language,
-            file_metadata=file_metadata,
-            page_summaries=all_page_summaries or None,
-        )
+
+        # If early describe was started during processing, use its result.
+        # Otherwise, start a fresh describe with the full extracted text.
+        if early_describe_future is not None:
+            logger.info("⏱️  Using early welcome message (started during page processing)")
+            describe_future = early_describe_future
+        else:
+            describe_future = pool.submit(
+                describe_documents,
+                extracted,
+                all_images,
+                language=detected_language,
+                file_metadata=file_metadata,
+                page_summaries=all_page_summaries or None,
+            )
+
         upsert_result = upsert_future.result()
         welcome_message = describe_future.result()
 

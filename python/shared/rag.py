@@ -414,7 +414,10 @@ def build_context(rows: list[dict]) -> str:
         if row.get("page") is not None:
             label += f" (Page {row['page']})"
         if row.get("chapter_number") is not None:
-            label += f" (Chapter {row['chapter_number']})"
+            ch_label = f"Chapter {row['chapter_number']}"
+            if row.get("chapter_name"):
+                ch_label += f": {row['chapter_name']}"
+            label += f" ({ch_label})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
         label += f" | Similarity: {similarity:.2f}"
@@ -1067,8 +1070,11 @@ def _extract_chapter_context(storage_dir: str | None, rows: list[dict]) -> str:
         if len(combined) > _CHAPTER_CONTEXT_MAX_CHARS:
             combined = combined[:_CHAPTER_CONTEXT_MAX_CHARS] + "\n\n[... chapter truncated]"
 
+        ch_display = target_chapter.title
+        if target_chapter.chapter_name and target_chapter.chapter_name.lower() != target_chapter.title.lower():
+            ch_display += f" — {target_chapter.chapter_name}"
         header = (
-            f'[Full Chapter {target_chapter.number}: "{target_chapter.title}" '
+            f'[Full Chapter {target_chapter.number}: "{ch_display}" '
             f"of {best_fname}, pages {target_chapter.start_page}-{target_chapter.end_page}]"
         )
         result = f"{header}\n\n{combined}"

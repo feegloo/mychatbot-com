@@ -20,6 +20,7 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,6 +36,8 @@ from .extractors import (
     _reflow_pdf_text,
     _sanitize_text,
     extract_text,
+    ocr_pdf_page,
+    page_needs_ocr,
 )
 from .telemetry import log_processing_event, trace_step
 
@@ -116,6 +119,10 @@ class FileProcessingResult:
     all_chunks: list[Chunk] = field(default_factory=list)
     all_images: list[dict] = field(default_factory=list)
     full_text: str = ""
+    # Text from the first pages that completed within the early-text timeout.
+    # Used by describe_documents to generate welcome messages without waiting
+    # for all pages (critical for scanned/OCR PDFs with hundreds of pages).
+    early_text: str = ""
     errors: list[dict] = field(default_factory=list)
 
 
@@ -257,6 +264,29 @@ def process_pdf_page(
             result.text = page_text
             ctx["detail"] = f"{len(page_text)} chars"
 
+        # Step 1b: OCR fallback for scanned/image-based pages
+        if page_needs_ocr(page_text):
+            with trace_step(
+                conversation_id,
+                file_name,
+                "ocr_page_fallback",
+                page_number=page_num,
+                total_pages=total_pages,
+                worker_id=worker_id,
+            ) as ctx:
+                try:
+                    ocr_text = ocr_pdf_page(str(pdf_path), page_idx)
+                    if ocr_text and len(ocr_text.strip()) > len(page_text.strip()):
+                        page_text = _sanitize_text(f"# Page {page_num}\n\n{ocr_text}")
+                        result.text = page_text
+                        ctx["detail"] = f"OCR extracted {len(ocr_text)} chars"
+                        logger.info(f"🔍 OCR page {page_num}: {len(ocr_text)} chars extracted")
+                    else:
+                        ctx["detail"] = "OCR returned no improvement"
+                except Exception as e:
+                    ctx["detail"] = f"OCR failed: {e}"
+                    logger.warning(f"⚠️ OCR failed for page {page_num}: {e}")
+
         # Step 2: Extract images from page
         with trace_step(
             conversation_id,
@@ -333,10 +363,18 @@ def process_pdf_parallel(
     output_dir: str,
     conversation_id: str,
     max_retries: int = 1,
+    early_text_timeout_s: float = 5.0,
+    on_early_text: Callable[[str, list[dict]], None] | None = None,
 ) -> FileProcessingResult:
     """Process all pages of a PDF in parallel using ThreadPoolExecutor.
 
     Each page is an independent unit of work. Failed pages are retried once.
+
+    For scanned/OCR PDFs, early_text_timeout_s controls how long to wait for
+    initial page results before snapshotting early_text for the welcome message.
+    When on_early_text is provided, it is called as soon as the snapshot is
+    taken, allowing the caller to start welcome message generation in parallel
+    with the remaining page processing.
     """
     p = Path(pdf_path)
     file_name = p.name
@@ -367,7 +405,12 @@ def process_pdf_parallel(
 
     page_results: dict[int, PageResult] = {}
 
-    # Phase 1: Process all pages in parallel
+    # Phase 1: Process all pages in parallel, capturing early results for welcome message
+    early_page_texts: dict[int, str] = {}
+    early_page_summaries: dict[int, dict] = {}
+    early_text_captured = False
+    processing_start = time.monotonic()
+
     with ThreadPoolExecutor(max_workers=_PAGE_WORKERS) as pool:
         futures: dict[Future, int] = {}
         for page_idx in range(total_pages):
@@ -388,6 +431,16 @@ def process_pdf_parallel(
             try:
                 result = future.result()
                 page_results[page_idx] = result
+                # Collect text for early snapshot
+                if not early_text_captured:
+                    if result.text:
+                        early_page_texts[page_idx] = result.text
+                    if result.description_summary:
+                        early_page_summaries[page_idx] = {
+                            "page": result.page_number,
+                            "file_name": result.file_name,
+                            "summary": result.description_summary,
+                        }
             except Exception as e:
                 logger.error(f"❌ Page {page_idx + 1} worker crashed: {e}")
                 page_results[page_idx] = PageResult(
@@ -395,6 +448,49 @@ def process_pdf_parallel(
                     file_name=file_name,
                     error=str(e)[:500],
                 )
+
+            # Snapshot early text once timeout is reached and we have some results.
+            # Fire callback so caller can start welcome message generation immediately.
+            if (
+                not early_text_captured
+                and early_page_texts
+                and (time.monotonic() - processing_start) >= early_text_timeout_s
+            ):
+                early_text_captured = True
+                sorted_texts = [
+                    early_page_texts[idx] for idx in sorted(early_page_texts.keys())
+                ]
+                file_result.early_text = "\n\n".join(sorted_texts)
+                sorted_summaries = [
+                    early_page_summaries[idx]
+                    for idx in sorted(early_page_summaries.keys())
+                ]
+                logger.info(
+                    f"⏱️  Early text snapshot: {len(early_page_texts)} pages, "
+                    f"{len(file_result.early_text)} chars "
+                    f"(after {time.monotonic() - processing_start:.1f}s)"
+                )
+                if on_early_text:
+                    try:
+                        on_early_text(file_result.early_text, sorted_summaries)
+                    except Exception as e:
+                        logger.warning(f"⚠️ on_early_text callback failed: {e}")
+
+    # If all pages completed before timeout, early_text = full_text (set below).
+    # Fire callback if it hasn't been fired yet.
+    if not early_text_captured and early_page_texts:
+        sorted_texts = [early_page_texts[idx] for idx in sorted(early_page_texts.keys())]
+        file_result.early_text = "\n\n".join(sorted_texts)
+        if on_early_text:
+            sorted_summaries = [
+                early_page_summaries[idx]
+                for idx in sorted(early_page_summaries.keys())
+                if idx in early_page_summaries
+            ]
+            try:
+                on_early_text(file_result.early_text, sorted_summaries)
+            except Exception as e:
+                logger.warning(f"⚠️ on_early_text callback failed: {e}")
 
     # Phase 2: Retry failed pages (max once)
     failed_pages = [idx for idx, r in page_results.items() if r.error]
