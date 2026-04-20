@@ -108,43 +108,13 @@ def ocr_pdf_page(pdf_path: str, page_idx: int) -> str:
     Used as fallback when native text extraction yields no/minimal text
     (scanned PDFs, image-based PDFs, non-Latin scripts without text layer).
     """
-    settings = get_settings()
-    client = OpenAI(api_key=settings.openai_api_key)
-
     png_bytes = _render_pdf_page_to_png(pdf_path, page_idx)
-    b64 = base64.b64encode(png_bytes).decode("utf-8")
-
-    response = client.chat.completions.create(
-        model=settings.openai_chat_model,
-        max_completion_tokens=4000,
-        reasoning_effort=settings.openai_reasoning_effort,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an OCR engine. Extract ALL visible text from this "
-                    "document page image. Preserve the original language — do NOT "
-                    "translate. Maintain paragraph structure and line breaks. "
-                    "For right-to-left scripts (Arabic, Hebrew, Persian, Urdu), "
-                    "preserve the reading order. Output ONLY the extracted text, "
-                    "no commentary or descriptions."
-                ),
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{b64}",
-                            "detail": "high",
-                        },
-                    },
-                ],
-            },
-        ],
+    return _vision_extract_or_describe(
+        png_bytes,
+        mime_type="image/png",
+        max_completion_tokens=5000,
+        detail="high",
     )
-    return response.choices[0].message.content.strip()
 
 
 def page_needs_ocr(page_text: str) -> bool:
@@ -166,39 +136,60 @@ MIN_IMAGE_DIM = 50  # Skip images smaller than 50px in either dimension
 _NUM_THREADS = os.cpu_count() * 2 or 4
 
 
-def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
-    """Use GPT-4 vision to describe an image."""
+_VISION_OCR_FIRST_PROMPT = (
+    "You are an OCR-first visual extraction engine for document indexing.\n"
+    "Priority rules:\n"
+    "1) If meaningful visible text exists, output an exact transcription in the original language/script.\n"
+    "2) Never translate, normalize, paraphrase, summarize, or explain extracted text.\n"
+    "3) Preserve paragraph/line structure and right-to-left order for Arabic/Hebrew/Persian/Urdu.\n"
+    "4) If there is no meaningful text, output a concise factual description of the visual content.\n"
+    "5) If both text and visual context matter, output the exact text first, then one short factual visual note."
+)
+
+
+def _vision_extract_or_describe(
+    image_bytes: bytes,
+    *,
+    mime_type: str = "image/png",
+    max_completion_tokens: int = 1200,
+    detail: str = "auto",
+) -> str:
+    """Extract OCR text first, otherwise describe visual content."""
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     response = client.chat.completions.create(
         model=settings.openai_chat_model,
-        max_completion_tokens=300,
+        max_completion_tokens=max_completion_tokens,
         reasoning_effort=settings.openai_reasoning_effort,
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "Describe what you see in this image in "
-                    "detail. Include: what objects/people/scenes "
-                    "are shown, any visible text or captions, "
-                    "colors, layout, and mood. Be factual and "
-                    "specific. 3-5 sentences."
-                ),
+                "content": _VISION_OCR_FIRST_PROMPT,
             },
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": "auto"},
+                        "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": detail},
                     },
                 ],
             },
         ],
     )
     return response.choices[0].message.content.strip()
+
+
+def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
+    """Describe/extract text from an image using OCR-first vision."""
+    return _vision_extract_or_describe(
+        image_bytes,
+        mime_type=mime_type,
+        max_completion_tokens=1200,
+        detail="auto",
+    )
 
 
 def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:

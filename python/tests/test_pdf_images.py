@@ -180,7 +180,7 @@ class TestExtractPdfImages:
 class TestPromptQuality:
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
-    def test_max_completion_tokens_is_150(self, mock_openai_cls, mock_settings):
+    def test_max_completion_tokens_is_1200(self, mock_openai_cls, mock_settings):
         mock_settings.return_value = MagicMock(
             openai_api_key="test", openai_chat_model="gpt-5.4-mini"
         )
@@ -193,11 +193,11 @@ class TestPromptQuality:
         _describe_image(b"fake")
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        assert call_kwargs["max_completion_tokens"] == 300, "max_completion_tokens should be 300"
+        assert call_kwargs["max_completion_tokens"] == 1200, "max_completion_tokens should be 1200"
 
     @patch("shared.extractors.get_settings")
     @patch("shared.extractors.OpenAI")
-    def test_prompt_is_concise(self, mock_openai_cls, mock_settings):
+    def test_prompt_is_ocr_first(self, mock_openai_cls, mock_settings):
         mock_settings.return_value = MagicMock(
             openai_api_key="test", openai_chat_model="gpt-5.4-mini"
         )
@@ -211,6 +211,6 @@ class TestPromptQuality:
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         prompt_text = call_kwargs["messages"][0]["content"]
-        # Prompt should be short — under 250 chars
-        assert len(prompt_text) < 250, f"Prompt too long ({len(prompt_text)} chars): {prompt_text}"
-        assert "sentences" in prompt_text.lower() or "brief" in prompt_text.lower()
+        assert "OCR-first" in prompt_text
+        assert "Never translate" in prompt_text
+        assert "right-to-left" in prompt_text

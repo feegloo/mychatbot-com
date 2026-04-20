@@ -137,5 +137,28 @@ class TestOcrPdfPage:
         assert result == "بسم الله الرحمن الرحيم"
         mock_client.chat.completions.create.assert_called_once()
         call_kwargs = mock_client.chat.completions.create.call_args[1]
-        assert call_kwargs["max_completion_tokens"] == 4000
-        assert "OCR" in call_kwargs["messages"][0]["content"]
+        assert call_kwargs["max_completion_tokens"] == 5000
+        assert "OCR-first" in call_kwargs["messages"][0]["content"]
+
+    @patch("shared.extractors.OpenAI")
+    def test_ocr_handles_real_arabic_pdf_fixture(self, mock_openai_cls):
+        from pathlib import Path
+
+        from shared.extractors import ocr_pdf_page
+
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        arabic_pdf = repo_root / "test-files" / "54_Mathnawi_Arabic01.pdf"
+        assert arabic_pdf.exists(), f"Missing fixture: {arabic_pdf}"
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_cls.return_value = mock_client
+
+        result = ocr_pdf_page(str(arabic_pdf), 0)
+        assert result == "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+        mock_client.chat.completions.create.assert_called_once()

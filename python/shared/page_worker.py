@@ -364,17 +364,18 @@ def process_pdf_parallel(
     conversation_id: str,
     max_retries: int = 1,
     early_text_timeout_s: float = 5.0,
+    early_text_target_pages: int = 100,
     on_early_text: Callable[[str, list[dict]], None] | None = None,
 ) -> FileProcessingResult:
     """Process all pages of a PDF in parallel using ThreadPoolExecutor.
 
     Each page is an independent unit of work. Failed pages are retried once.
 
-    For scanned/OCR PDFs, early_text_timeout_s controls how long to wait for
-    initial page results before snapshotting early_text for the welcome message.
-    When on_early_text is provided, it is called as soon as the snapshot is
-    taken, allowing the caller to start welcome message generation in parallel
-    with the remaining page processing.
+    For scanned/OCR PDFs, early text is captured when either:
+      - enough pages are processed (early_text_target_pages, capped by total pages), or
+      - early_text_timeout_s elapses after at least one page result.
+    When on_early_text is provided, it is called immediately after capture,
+    allowing welcome message generation in parallel with remaining processing.
     """
     p = Path(pdf_path)
     file_name = p.name
@@ -410,6 +411,7 @@ def process_pdf_parallel(
     early_page_summaries: dict[int, dict] = {}
     early_text_captured = False
     processing_start = time.monotonic()
+    early_target = max(1, min(early_text_target_pages, total_pages))
 
     with ThreadPoolExecutor(max_workers=_PAGE_WORKERS) as pool:
         futures: dict[Future, int] = {}
@@ -449,12 +451,15 @@ def process_pdf_parallel(
                     error=str(e)[:500],
                 )
 
-            # Snapshot early text once timeout is reached and we have some results.
+            # Snapshot early text once target pages are processed, or timeout is reached.
             # Fire callback so caller can start welcome message generation immediately.
             if (
                 not early_text_captured
                 and early_page_texts
-                and (time.monotonic() - processing_start) >= early_text_timeout_s
+                and (
+                    len(early_page_texts) >= early_target
+                    or (time.monotonic() - processing_start) >= early_text_timeout_s
+                )
             ):
                 early_text_captured = True
                 sorted_texts = [
@@ -468,7 +473,7 @@ def process_pdf_parallel(
                 logger.info(
                     f"⏱️  Early text snapshot: {len(early_page_texts)} pages, "
                     f"{len(file_result.early_text)} chars "
-                    f"(after {time.monotonic() - processing_start:.1f}s)"
+                    f"(target={early_target}, after {time.monotonic() - processing_start:.1f}s)"
                 )
                 if on_early_text:
                     try:

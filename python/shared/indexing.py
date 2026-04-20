@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Thread pool for background welcome message generation (started early via callback)
 _describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
+_EARLY_WELCOME_PAGE_TARGET = 100
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -150,10 +151,13 @@ def index_documents(
 
                 doc = fitz.open(file_path)
                 total_pages = len(doc)
+                early_target = max(1, min(_EARLY_WELCOME_PAGE_TARGET, total_pages))
 
                 # Extract + chunk text locally so all_chunks is always populated
                 page_texts: list[str] = []
                 local_chunks: list[Chunk] = []
+                early_page_texts: list[str] = []
+                early_page_summaries: list[dict] = []
                 for page_idx in range(total_pages):
                     try:
                         page = doc[page_idx]
@@ -177,6 +181,23 @@ def index_documents(
                                     f"⚠️ OCR failed for page {page_idx + 1}: {ocr_err}"
                                 )
                         page_texts.append(page_text)
+                        if page_text:
+                            early_page_texts.append(page_text)
+                            if len(page_text.strip()) > 50:
+                                summary_len = max(200, min(600, len(page_text) // 10))
+                                early_page_summaries.append(
+                                    {
+                                        "page": page_idx + 1,
+                                        "file_name": p.name,
+                                        "summary": page_text[:summary_len].replace("\n", " ").strip(),
+                                    }
+                                )
+                        if early_describe_future is None and len(early_page_texts) >= early_target:
+                            _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                            logger.info(
+                                f"⏱️  Cloud mode early welcome started after "
+                                f"{len(early_page_texts)}/{total_pages} pages"
+                            )
                         # Chunk locally so we always have text chunks even if cloud workers fail
                         chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
                         local_chunks.extend(chunks)
@@ -186,6 +207,14 @@ def index_documents(
                         )
                         page_texts.append("")
                 doc.close()
+
+                # Small PDFs may complete before reaching early target.
+                if early_describe_future is None and early_page_texts:
+                    _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                    logger.info(
+                        f"⏱️  Cloud mode early welcome started after full local pre-pass "
+                        f"({len(early_page_texts)}/{total_pages} pages)"
+                    )
 
                 full_text = "\n\n".join(page_texts)
                 logger.info(
