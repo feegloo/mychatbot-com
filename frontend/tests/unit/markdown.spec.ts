@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMarkdown } from "../../src/utils/markdown";
+import { renderInlineMarkdown, renderMarkdown } from "../../src/utils/markdown";
 
 describe("renderMarkdown table wrapping", () => {
   it("wraps markdown tables in a horizontal scroll container", () => {
@@ -27,5 +27,22 @@ describe("renderMarkdown table wrapping", () => {
     expect(html).toContain('<span class="markdown-image-scroll"><img');
     expect(html).toContain('src="https://example.com/chart.png"');
     expect(html).toContain('alt="Generated chart"');
+  });
+});
+
+describe("renderInlineMarkdown", () => {
+  it("renders italic and bold markdown", () => {
+    const html = renderInlineMarkdown("What made _The Alchemist_ **famous**?");
+
+    expect(html).toContain("<em>The Alchemist</em>");
+    expect(html).toContain("<strong>famous</strong>");
+  });
+
+  it("renders links with safe target attributes", () => {
+    const html = renderInlineMarkdown("[Open docs](https://example.com/docs)");
+
+    expect(html).toContain('href="https://example.com/docs"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
   });
 });
