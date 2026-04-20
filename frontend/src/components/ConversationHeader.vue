@@ -68,8 +68,15 @@
         {{ status.conversationThreadCount }}
         {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
       </div>
-      <div v-if="processing" class="indexing-bar">
-        <div class="indexing-spinner"></div>
+      <div
+        v-if="processing"
+        class="indexing-bar"
+        role="status"
+        aria-live="polite"
+        aria-label="Processing files"
+      >
+        <div class="indexing-spinner" aria-hidden="true"></div>
+        <span class="sr-only">Processing files</span>
       </div>
       <slot name="language-toggle"></slot>
       <slot name="auto-read-toggle"></slot>

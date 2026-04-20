@@ -84,7 +84,13 @@
             padding-bottom: 12px;
           "
         >
-          <div v-if="showCenteredProcessing" class="chat-log-centered-processing">
+          <div
+            v-if="showCenteredProcessing"
+            class="chat-log-centered-processing"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <UploadingDots text="Processing" />
           </div>
           <ChatMessageItem
