@@ -181,15 +181,19 @@
             </div>
           </div>
 
-          <div v-if="suggestedQuestions?.length" class="welcome-suggested-questions">
-            <AppButton
-              v-for="q in suggestedQuestions"
-              :key="q"
+          <div v-if="renderedSuggestedQuestions.length" class="welcome-suggested-questions">
+            <div
+              v-for="question in renderedSuggestedQuestions"
+              :key="question.raw"
               class="question-pill"
-              @click="$emit('select-question', q)"
+              role="button"
+              tabindex="0"
+              @click="onSuggestedQuestionClick($event, question.raw)"
+              @keydown="onSuggestedQuestionKeydown($event, question.raw)"
             >
-              {{ q }}
-            </AppButton>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <span class="suggested-question-markdown" v-html="question.html"></span>
+            </div>
           </div>
 
           <div
@@ -349,17 +353,21 @@
 
       <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
       <div
-        v-if="isWelcome && !welcomeHasFiles && suggestedQuestions?.length"
+        v-if="isWelcome && !welcomeHasFiles && renderedSuggestedQuestions.length"
         class="welcome-suggested-questions"
       >
-        <AppButton
-          v-for="q in suggestedQuestions"
-          :key="q"
+        <div
+          v-for="question in renderedSuggestedQuestions"
+          :key="question.raw"
           class="question-pill"
-          @click="$emit('select-question', q)"
+          role="button"
+          tabindex="0"
+          @click="onSuggestedQuestionClick($event, question.raw)"
+          @keydown="onSuggestedQuestionKeydown($event, question.raw)"
         >
-          {{ q }}
-        </AppButton>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <span class="suggested-question-markdown" v-html="question.html"></span>
+        </div>
       </div>
 
       <!-- Upload files button (first message only, non-2-col fallback) -->
@@ -436,7 +444,7 @@ import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
-import { renderMarkdown } from '../utils/markdown'
+import { renderMarkdown, renderInlineMarkdown } from '../utils/markdown'
 import ImageModal from './ImageModal.vue'
 import SourcePreviewModal from './SourcePreviewModal.vue'
 import AppButton from './AppButton.vue'
@@ -572,6 +580,26 @@ function triggerUpload() {
 defineExpose({ resetUploadState, setUploading, triggerUpload })
 
 const _renderedContent = computed(() => renderMarkdown(props.msg.content))
+const renderedSuggestedQuestions = computed(() =>
+  (props.suggestedQuestions ?? []).map((question) => ({
+    raw: question,
+    html: renderInlineMarkdown(question),
+  })),
+)
+
+function onSuggestedQuestionClick(event: MouseEvent, question: string) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('a')) return
+  emit('select-question', question)
+}
+
+function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('a')) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  if (event.key === ' ') event.preventDefault()
+  emit('select-question', question)
+}
 
 const messageContentEl = ref<HTMLElement | null>(null)
 
@@ -1427,6 +1455,21 @@ function openFilePreview(file: FileInfo) {
 
 .welcome-suggested-questions .question-pill {
   margin: 0 6px 8px 0;
+}
+
+.welcome-suggested-questions .question-pill:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.6);
+  outline-offset: 2px;
+}
+
+.suggested-question-markdown :deep(a) {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.suggested-question-markdown :deep(p) {
+  display: inline;
+  margin: 0;
 }
 
 @media (hover: hover) {

@@ -244,3 +244,12 @@ export function renderMarkdown(content: string): string {
     },
   )
 }
+
+export function renderInlineMarkdown(content: string): string {
+  const rawHtml = marked.parseInline(content, { async: false }) as string
+  const sanitized = DOMPurify.sanitize(rawHtml)
+  return sanitized.replace(
+    /<a (?![^>]*target=)/gi,
+    '<a target="_blank" rel="noopener noreferrer" ',
+  )
+}

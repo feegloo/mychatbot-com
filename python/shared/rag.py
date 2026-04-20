@@ -231,7 +231,10 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   - Use _italics_ generously for: book/film/song titles (_The Alchemist_), foreign words, direct quotes from sources, rhetorical emphasis, and softer highlighting when bold would be too heavy. Italics add elegance — use them often.
   - Use ++underline++ for key terms, definitions, or words that deserve visual emphasis different from bold/italic.
   - Use --- horizontal rules to separate major sections if the answer is very long.
-- Colored text: OCCASIONALLY highlight important words with color markers using [c:color]word[/c] syntax. Use meaningfully and sparingly (max 2-3 per answer):
+- Colored text: ALWAYS use color markers in every answer using [c:color]word[/c] syntax.
+  - Requirement: include at least one color marker in each major paragraph or bullet group.
+  - For short answers (1-2 sentences), include at least one color marker.
+  - Keep emphasis meaningful; avoid coloring entire sentences. If emphasis options are limited, color only the single most important keyword.
   - [c:green]word[/c] — positive, correct, success, approved, healthy, growth
   - [c:red]word[/c] — negative, danger, error, warning, critical, decline
   - [c:amber]word[/c] — caution, moderate, pending, attention needed
