@@ -1,11 +1,14 @@
 import { config } from '../config.js'
 
+type ImageQuality = 'auto' | 'high' | 'low'
+
 export async function generateImage(options: {
   question: string
   storageDir: string
   context?: string
   welcomeMessages?: string[]
   size?: string
+  quality?: ImageQuality
 }) {
   const response = await fetch(`${config.pythonServerUrl}/generate-image`, {
     method: 'POST',
@@ -16,6 +19,7 @@ export async function generateImage(options: {
       context: options.context || '',
       welcome_messages: options.welcomeMessages || [],
       size: options.size || '1024x1024',
+      quality: options.quality || 'low',
     }),
   })
 

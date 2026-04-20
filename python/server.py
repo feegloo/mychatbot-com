@@ -12,6 +12,7 @@ import logging
 import os
 import urllib.error
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 
@@ -144,6 +145,7 @@ class GenerateImageRequest(BaseModel):
     context: str = ""
     welcome_messages: list[str] | None = None
     size: str = "1024x1024"
+    quality: Literal["auto", "high", "low"] = "low"
 
 
 @app.get("/health")
@@ -457,6 +459,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 prompt=image_prompt,
                 storage_dir=req.storage_dir,
                 size=req.size,
+                quality=req.quality,
             )
             result["image_prompt"] = image_prompt
             return result
