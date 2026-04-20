@@ -26,6 +26,15 @@ def _before_send_log(log, _hint):
     return log
 
 
+def _before_send(event, hint):
+    if "ClientCreateCollectionEvent" in event.get("logentry", {}).get("message", ""):
+        return None
+    exc_info = hint.get("exc_info")
+    if exc_info and "ClientCreateCollectionEvent" in str(exc_info[1]):
+        return None
+    return event
+
+
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     environment=os.getenv("SENTRY_ENVIRONMENT", "dev"),
@@ -33,6 +42,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     max_value_length=8192,
     enable_logs=True,
+    before_send=_before_send,
     before_send_log=_before_send_log,
 )
 
