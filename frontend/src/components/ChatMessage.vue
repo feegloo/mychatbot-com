@@ -1883,6 +1883,21 @@ function openFilePreview(file: FileInfo) {
 :deep(.text-color-gray) {
   color: #94a3b8;
 }
+:deep(.text-color-teal) {
+  color: #2dd4bf;
+}
+:deep(.text-color-indigo) {
+  color: #818cf8;
+}
+:deep(.text-color-gold) {
+  color: #e8b84b;
+}
+:deep(.text-color-silver) {
+  color: #cbd5e1;
+}
+:deep(.text-color-magenta) {
+  color: #e879f9;
+}
 
 :deep(.action-btn) {
   position: relative;

@@ -238,21 +238,26 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
     - Keep emphasis readable: usually 2-6 colored words/phrases in longer answers, and 1-3 in short/medium answers.
     - You may color short phrases (2-3 words) when it improves clarity, but never color full sentences or paragraphs.
   - Color dictionary (common meanings; pick the closest fit):
-    * [c:green]word[/c] — correct, truth, acceptance, nature, plants, life, ready
-    * [c:red]word[/c] — wrong, false, lie, danger, love, aggression, stop, blood
-    * [c:yellow]word[/c] — warning, pause, sun, sand, honey
-    * [c:blue]word[/c] — ocean, cool, sky, frozen, ice
-    * [c:brown]word[/c] — wood, earth, soil, stability, natural materials
-    * [c:amber]word[/c] — caution, moderate risk, pending, attention needed
-    * [c:orange]word[/c] — energy, excitement, urgency, warmth
-    * [c:purple]word[/c] — creativity, mystery, premium, unique ideas
-    * [c:pink]word[/c] — affection, tenderness, beauty, personal warmth
-    * [c:cyan]word[/c] — data, science, precision, cool facts
-    * [c:lime]word[/c] — freshness, growth, eco, new beginnings
-    * [c:rose]word[/c] — subtle elegance, gentle emotion, nuanced emphasis
-    * [c:black]word[/c] — seriousness, power, finality, contrast
-    * [c:white]word[/c] — clarity, simplicity, clean state, neutrality
-    * [c:gray]word[/c] — uncertainty, neutrality, balance, ambiguity
+    * [c:green]word[/c] — correct, growth, nature, hope, life, healing, ready, spring, envy, go-signal
+    * [c:red]word[/c] — wrong, danger, love, passion, fire, alarm, urgency, stop, blood, anger
+    * [c:yellow]word[/c] — sun, joy, optimism, happiness, warning, summer, lemon, sunflower, bee, radiance
+    * [c:amber]word[/c] — caution, transition, pending, harvest, in-between, autumn, whiskey, tiger, fossil, risk
+    * [c:blue]word[/c] — ocean, sky, calm, sadness, trust, depth, melancholy, rain, tranquility, ice
+    * [c:brown]word[/c] — earth, wood, stability, warmth, chocolate, coffee, leather, autumn, rustic, soil
+    * [c:orange]word[/c] — energy, warmth, excitement, sunset, fox, pumpkin, citrus, enthusiasm, harvest, glow
+    * [c:purple]word[/c] — creativity, mystery, royalty, magic, wisdom, twilight, lavender, premium, mystical, grape
+    * [c:pink]word[/c] — affection, tenderness, romance, flamingo, blossom, blush, sweetness, beauty, cotton candy, warmth
+    * [c:cyan]word[/c] — science, precision, data, tech, aqua, fresh, turquoise, clarity, cool, Caribbean
+    * [c:lime]word[/c] — freshness, eco, vitality, youth, kiwi, spring, neon, growth, tangy, new-beginnings
+    * [c:rose]word[/c] — elegance, nostalgia, delicate, romantic, soft, gentle-emotion, grace, flower, nuance, sunset
+    * [c:black]word[/c] — power, finality, night, shadow, sophistication, void, death, formal, contrast, coal
+    * [c:white]word[/c] — clarity, purity, peace, snow, simplicity, neutrality, dove, blank-canvas, milk, clean
+    * [c:gray]word[/c] — uncertainty, ambiguity, fog, ash, wolf, balance, smoke, stone, indifference, neutrality
+    * [c:teal]word[/c] — healing, balance, calm-water, serenity, reef, ocean-life, medical, clarity, sophistication, harmony
+    * [c:indigo]word[/c] — intuition, night-sky, depth, meditation, insight, dusk, cosmos, wisdom, inner-truth, contemplation
+    * [c:gold]word[/c] — achievement, wealth, victory, treasure, luxury, success, radiance, medal, excellence, value
+    * [c:silver]word[/c] — technology, modernity, precision, moon, sleek, grace, metal, futurism, innovation, elegance
+    * [c:magenta]word[/c] — intensity, boldness, innovation, transformation, vivid, audacity, disruption, power, shock, energy
     - If a concept does not naturally map to a color, leave it uncolored rather than forcing a random color.
 - Math / LaTeX: Use KaTeX syntax not just for math — use it as a STYLE TOOL whenever it adds elegance or visual punch. The frontend renders beautiful LaTeX.
   * Obvious: $E = mc^2$, $\sum_{{i=1}}^{{n}} x_i$, $$\int_0^\infty e^{{-x}} dx = 1$$

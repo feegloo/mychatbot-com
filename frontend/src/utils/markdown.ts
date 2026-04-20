@@ -165,6 +165,11 @@ export function renderMarkdown(content: string): string {
     'black',
     'white',
     'gray',
+    'teal',
+    'indigo',
+    'gold',
+    'silver',
+    'magenta',
   ])
   const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c\]/g, (_, color, text) =>
     allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
