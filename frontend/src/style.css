@@ -1457,10 +1457,6 @@ h3 {
     margin-left: 0;
   }
 
-  .message.assistant {
-    max-width: 100%;
-  }
-
   .sidebar-toggle {
     display: flex;
   }
@@ -1574,6 +1570,12 @@ h3 {
 
   .chat-textarea {
     font-size: 16px; /* prevent iOS zoom */
+  }
+}
+
+@media (max-width: 960px) {
+  .message.assistant {
+    max-width: 100%;
   }
 }
 
