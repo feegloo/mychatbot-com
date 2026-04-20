@@ -960,6 +960,10 @@ function transformActionButtonGroups() {
       const rest = buttons.slice(MAX_VISIBLE_ASSISTANT_ACTIONS)
       const wrap = document.createElement('span')
       wrap.className = 'action-more-wrap'
+      const visibleRow = document.createElement('span')
+      visibleRow.className = 'action-visible-row'
+      const overflowWrap = document.createElement('span')
+      overflowWrap.className = 'action-overflow-wrap'
 
       const moreBtn = document.createElement('button')
       moreBtn.className = 'action-btn action-more-btn'
@@ -976,10 +980,12 @@ function transformActionButtonGroups() {
       })
 
       visibleButtons.forEach((btn) => {
-        wrap.appendChild(btn)
+        visibleRow.appendChild(btn)
       })
-      wrap.appendChild(moreBtn)
-      wrap.appendChild(menu)
+      overflowWrap.appendChild(moreBtn)
+      overflowWrap.appendChild(menu)
+      wrap.appendChild(visibleRow)
+      wrap.appendChild(overflowWrap)
       row.replaceChildren(wrap)
       row.dataset.moreReady = '1'
     })
@@ -1795,10 +1801,22 @@ function openFilePreview(file: FileInfo) {
 }
 
 :deep(.action-more-wrap) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+:deep(.action-visible-row) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:deep(.action-overflow-wrap) {
   position: relative;
   display: inline-flex;
   align-items: flex-start;
-  gap: 6px;
 }
 
 :deep(.action-more-menu) {

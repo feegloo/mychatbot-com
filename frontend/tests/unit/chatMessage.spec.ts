@@ -106,7 +106,7 @@ describe('ChatMessage suggested prompt overflow', () => {
       await nextTick()
 
       expect(wrap1.find('.action-more-btn').exists()).toBe(true)
-  expect(wrap1.findAll('.action-more-wrap > .action-btn[data-action]').length).toBe(3)
+  expect(wrap1.findAll('.action-visible-row > .action-btn[data-action]').length).toBe(3)
   expect(wrap1.findAll('.action-more-menu .action-btn[data-action]').length).toBe(2)
 
       await wrap1.find('.action-more-btn').trigger('click')
