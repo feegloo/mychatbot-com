@@ -82,7 +82,7 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
    → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
-   Przykład: "Napisz inspirowany wiersz w stylu Paula Coelho 📜"
+   Przykład: "Napisz inspirowany wiersz w stylu Paulo Coelho 📜"
    Drugą akcję dobierz losowo z poniższej listy.
 
 3. PORADNIK / SAMOROZWÓJ / LISTA WSKAZÓWEK / WORKBOOK (produktywność, pewność siebie, nawyki, wskazówki, ćwiczenia, wyzwania, jak zrobić, samodoskonalenie):
