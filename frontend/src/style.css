@@ -1319,7 +1319,7 @@ textarea.big-input {
 
 .conv-title {
   font-size: 0.9rem;
-  margin: 0 0 6px;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1356,7 +1356,7 @@ textarea.big-input {
 .conv-title-input {
   font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 2px 8px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(167, 139, 250, 0.4);
