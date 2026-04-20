@@ -43,7 +43,7 @@ def _fallback_from_metadata(
                 break
 
     title = title_from_meta or name_list
-    msg = f"## {title}\n\n"
+    msg = f"# {title}\n\n"
     if language == "pl":
         msg += f"Plik **{name_list}** został przesłany. Nie udało się wyodrębnić treści tekstowej — dokument może zawierać wyłącznie obrazy lub być zabezpieczony. Możesz zadać pytanie, a postaram się pomóc."
     else:
@@ -413,12 +413,12 @@ def _synthesize_welcome_messages(
             "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
             "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
             "Twoja odpowiedź MUSI składać się z trzech części:\n"
-            "1. **Tytuł**: ## Tytuł dokumentu - Autor\n"
+            "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
             "2. **Opis**: 2-3 zdania podsumowujące CAŁY dokument. Zachowaj najważniejsze "
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia**.\n"
             "3. **Ekspercki wgląd**: 1-2 zdania wartościowej analizy.\n\n"
             "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH streszczeń, nie tylko pierwszego. "
-            "Celuj w 100-200 słów łącznie. NIE pytaj użytkownika. NIE używaj [source:N]. "
+            "Celuj w 150-250 słów łącznie (1-4 akapitów, najczęściej 3, czasem 2, rzadko 4). NIE pytaj użytkownika. NIE używaj [source:N]. "
             "Używaj emoji profesjonalnie (📖, ⚔️, 🗺️ itp.).\n"
             "Odpowiadaj po polsku."
         ) + _QUESTIONS_RULES_PL
@@ -431,12 +431,12 @@ def _synthesize_welcome_messages(
             "to capture the author's voice, tone, and opening context.\n\n"
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
             "Your response MUST have three parts:\n"
-            "1. **Title**: ## Document Title - Author Name\n"
+            "1. **Title**: # Document Title - Author Name\n"
             "2. **Description**: 2-3 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** for key terms.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
             "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
-            "Aim for 100-200 words total. Do NOT ask the user anything. Do NOT use [source:N]. "
+            "Aim for 150-250 words total (1-4 paragraphs, usually 3, sometimes 2, rarely 4). Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         ) + _QUESTIONS_RULES_EN
@@ -479,7 +479,7 @@ def describe_documents(
     file_names: list[str] | None = None,
     file_types: dict[str, str] | None = None,
 ) -> DescribeResult:
-    """Generate a welcome message with a ## Title, description, and expert insight,
+    """Generate a welcome message with a # Title, description, and expert insight,
     plus up to 10 suggested questions — all from a single LLM call.
 
     Returns a DescribeResult dict with 'welcome_message' and 'suggested_questions'.
@@ -735,9 +735,9 @@ Pisz z perspektywy tego eksperta — nie jako AI, ale jako kompetentna osoba, kt
 Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, a po myślniku autor jeśli znany (lub "Nieznany autor" gdy brak danych).
-   Sformatuj jako nagłówek Markdown: ## Tytuł dokumentu - Imię Nazwisko Autora
-   Na przykład: ## Przewodnik po bliznach - Amanda Keyes
-   Jeśli autor nie jest znany z treści ani metadanych, napisz: ## Tytuł dokumentu - Nieznany autor
+   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu - Imię Nazwisko Autora
+   Na przykład: # Przewodnik po bliznach - Amanda Keyes
+   Jeśli autor nie jest znany z treści ani metadanych, napisz: # Tytuł dokumentu - Nieznany autor
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
 
 2. **Opis** (po tytule): 2-3 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
@@ -780,7 +780,7 @@ Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzy
 NIGDY nie wspominaj o wewnętrznych technicznych metadanych — pomijaj informacje typu: nazwa generatora PDF (np. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), wersja producenta, ID dokumentu, format zapisu. Te dane są bezwartościowe dla użytkownika i brzmią jak wyciek z systemu.
 
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
-Bądź zwięzły — to ma być szybka analiza, nie rozprawka. Celuj w około 100-150 słów łącznie (opis + wgląd). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
+Bądź zwięzły — to ma być szybka analiza, nie rozprawka. Celuj w około 150-250 słów łącznie (opis + wgląd), używając 1-4 akapitów (najczęściej 3, czasem 2, rzadko 4). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
 NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
 Od czasu do czasu użyj profesjonalnych emoji, żeby wiadomość była bardziej żywa i łatwa do przeskanowania (np. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, "inne fajne, lekkie, nieofensywne emoji"). Nie przesadzaj — jedno-dwa na sekcję wystarczą. Nigdy nie używaj dziecinnych lub nieprofesjonalnych emoji (💩, 🤡, 😜 itp.).
 Odpowiadaj po polsku.""" + _QUESTIONS_RULES_PL,
@@ -811,9 +811,9 @@ Write from that expert's perspective — not as an AI, but as a competent person
 Your response MUST have three parts:
 
 1. **Title** (first line): The document title followed by a dash and the author name (or "Unknown author" if not available).
-   Format as a Markdown heading: ## Document Title - Author Name
-   For example: ## Ultimate Guide To Scar Treatments - Amanda Keyes
-   If the author is not known from the content or metadata, write: ## Document Title - Unknown author
+   Format as a Markdown heading: # Document Title - Author Name
+   For example: # Ultimate Guide To Scar Treatments - Amanda Keyes
+   If the author is not known from the content or metadata, write: # Document Title - Unknown author
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
 
 2. **Description** (after the title): 2-3 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** for key terms.
@@ -856,7 +856,7 @@ If file metadata is provided below (JSON block marked with =====), you MUST use 
 NEVER mention internal technical metadata — skip information like: PDF generator name (e.g. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), producer version, document ID, encoding format. This data is worthless to the user and reads like a system leak.
 
 Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
-Be concise — this is a quick analysis, not an essay. Aim for roughly 100-150 words total (description + insight). Don't pad — every sentence must carry concrete value.
+Be concise — this is a quick analysis, not an essay. Aim for roughly 150-250 words total (description + insight), using 1-4 paragraphs (usually 3, sometimes 2, rarely 4). Don't pad — every sentence must carry concrete value.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
 Reply in the same language as the content.""" + _QUESTIONS_RULES_EN,
