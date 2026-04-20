@@ -1,3 +1,4 @@
+import './otel.js'
 import './instrument.js'
 import { createApp } from './app.js'
 import { config } from './config.js'

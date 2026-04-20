@@ -47,6 +47,10 @@ sentry_sdk.init(
     before_send_log=_before_send_log,
 )
 
+# Initialize OpenTelemetry (before FastAPI import so auto-instrumentation hooks in)
+from shared.otel import init_otel  # noqa: E402
+init_otel()
+
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402

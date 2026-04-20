@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
+from .llm_instrument import traced_llm_call
 from .vector_store import query_chunks
 
 logger = logging.getLogger(__name__)
@@ -1310,33 +1311,37 @@ def answer_with_citations(
         logger.info(
             f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)..."
         )
+        model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+        operation = "rag.quiz" if is_quiz else "rag.answer"
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
-            ai_message = chain.invoke(prompt_vars)
-        answer = ai_message.content
+            answer, usage_meta = traced_llm_call(
+                chain=chain,
+                params=prompt_vars,
+                operation=operation,
+                model=model_name,
+                conversation_id=conversation_id,
+                rendered_prompt=rendered_prompt,
+            )
+        # traced_llm_call returns (text, usage) — answer is already a string
 
         # Log the full question and model response for observability (visible in GCP Cloud Logging)
-        model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
         logger.info(f"📝 [Q&A LOG] conversation={conversation_id} model={model_name}")
         logger.info(f"📝 [Q&A LOG] question={question}")
         logger.info(f"📝 [Q&A LOG] answer={answer[:500]}")
 
-        # Log prompt cache metrics if available
-        usage = ai_message.response_metadata.get("token_usage") or ai_message.response_metadata.get(
-            "usage", {}
-        )
-        if usage:
-            cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
-            prompt_tokens = usage.get("prompt_tokens", 0)
-            completion_tokens = usage.get("completion_tokens", 0)
+        # Token usage already logged by traced_llm_call; extract for Sentry span
+        prompt_tokens = usage_meta.get("prompt_tokens", 0)
+        completion_tokens = usage_meta.get("completion_tokens", 0)
+        total_tokens = usage_meta.get("total_tokens", 0)
+        cached = usage_meta.get("cached_tokens", 0)
+
+        if prompt_tokens:
             if cached:
                 logger.info(
-                    f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached * 100 // prompt_tokens}%)"
+                    f"💾 Prompt cache hit: {cached}/{prompt_tokens} tokens cached ({cached * 100 // max(prompt_tokens, 1)}%)"
                 )
             else:
                 logger.info(f"💾 Prompt cache miss: 0/{prompt_tokens} tokens cached")
-            logger.info(
-                f"📊 Token usage: prompt={prompt_tokens} completion={completion_tokens} total={prompt_tokens + completion_tokens}"
-            )
 
             sentry_logger.info(
                 "LLM invocation completed for conversation {conversation_id}",
@@ -1345,7 +1350,7 @@ def answer_with_citations(
                     "model": model_name,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
+                    "total_tokens": total_tokens,
                     "cached_tokens": cached,
                     "answer_length": len(answer),
                     "chunk_count": len(rows),
@@ -1356,7 +1361,7 @@ def answer_with_citations(
             rag_span.set_data("model", model_name)
             rag_span.set_data("prompt_tokens", prompt_tokens)
             rag_span.set_data("completion_tokens", completion_tokens)
-            rag_span.set_data("total_tokens", prompt_tokens + completion_tokens)
+            rag_span.set_data("total_tokens", total_tokens)
 
         logger.info(f"✅ Generated answer: {answer[:100]}...")
 

@@ -204,3 +204,124 @@ async function handleProcessingJobs(ctx: any) {
 
 debugRouter.get('/debug/processing-jobs', handleProcessingJobs)
 debugRouter.get('/debug/processing-jobs/:conversationId', handleProcessingJobs)
+
+/**
+ * GET /debug/prompt-history
+ * GET /debug/prompt-history/:conversationId
+ *
+ * View LLM prompt/response history with token usage and timing.
+ */
+debugRouter.get('/debug/prompt-history/:conversationId?', async (ctx) => {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
+  }
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const conversationId = ctx.params.conversationId
+  const limit = Math.min(parseInt(String(ctx.query.limit ?? '100'), 10) || 100, 1000)
+  const operation = ctx.query.operation as string | undefined
+
+  let sql = `
+    SELECT id, conversation_id, operation, model,
+           LENGTH(prompt_text) AS prompt_chars,
+           LENGTH(response_text) AS response_chars,
+           prompt_tokens, completion_tokens, total_tokens, cached_tokens,
+           duration_ms, created_at
+    FROM prompt_history
+  `
+  const params: any[] = []
+  const conditions: string[] = []
+
+  if (conversationId) {
+    conditions.push(`conversation_id = $${params.length + 1}`)
+    params.push(conversationId)
+  }
+  if (operation) {
+    conditions.push(`operation = $${params.length + 1}`)
+    params.push(operation)
+  }
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(' AND ')}`
+  }
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`
+  params.push(limit)
+
+  const rows = await query(sql, params)
+
+  // Summary by operation
+  const summaryResult = await query(
+    `SELECT operation, model,
+            COUNT(*) AS call_count,
+            AVG(duration_ms) AS avg_duration_ms,
+            MAX(duration_ms) AS max_duration_ms,
+            SUM(prompt_tokens) AS total_prompt_tokens,
+            SUM(completion_tokens) AS total_completion_tokens,
+            SUM(total_tokens) AS total_tokens,
+            SUM(cached_tokens) AS total_cached_tokens
+     FROM prompt_history
+     ${conversationId ? 'WHERE conversation_id = $1' : ''}
+     GROUP BY operation, model
+     ORDER BY call_count DESC`,
+    conversationId ? [conversationId] : [],
+  )
+
+  ctx.body = {
+    prompts: rows.rows,
+    summary: summaryResult.rows,
+    total: rows.rows.length,
+    limit,
+  }
+})
+
+/**
+ * GET /debug/prompt-history/:conversationId/:promptId/full
+ *
+ * View full prompt/response text for a specific prompt_history row.
+ */
+debugRouter.get('/debug/prompt-history/:conversationId/:promptId/full', async (ctx) => {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
+  }
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const { promptId } = ctx.params
+  const result = await query('SELECT * FROM prompt_history WHERE id = $1', [promptId])
+  if (result.rows.length === 0) {
+    ctx.status = 404
+    ctx.body = { error: 'Prompt not found' }
+    return
+  }
+  ctx.body = result.rows[0]
+})

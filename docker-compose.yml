@@ -36,6 +36,18 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma4:e2b}
     entrypoint: ["/ollama-entrypoint.sh"]
 
+  # Jaeger — distributed tracing UI + OTLP collector
+  # Open http://localhost:16686 to view traces, timelines, and service dependencies
+  jaeger:
+    image: jaegertracing/jaeger:2
+    container_name: chatrag-jaeger
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
 volumes:
   postgres_data:
   chroma_data:

@@ -13,6 +13,8 @@ import docx2txt
 import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
 import pandas as pd
 from openai import OpenAI
+
+from .llm_instrument import traced_openai_call
 from pypdf import PdfReader
 
 from .config import get_settings
@@ -162,27 +164,30 @@ def _vision_extract_or_describe(
     client = OpenAI(api_key=settings.openai_api_key)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-    response = client.chat.completions.create(
+    messages = [
+        {
+            "role": "system",
+            "content": _VISION_OCR_FIRST_PROMPT,
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": detail},
+                },
+            ],
+        },
+    ]
+    text, _usage = traced_openai_call(
+        client=client,
+        messages=messages,
         model=settings.openai_chat_model,
-        max_completion_tokens=max_completion_tokens,
+        operation="vision_ocr",
+        max_tokens=max_completion_tokens,
         reasoning_effort=settings.openai_reasoning_effort,
-        messages=[
-            {
-                "role": "system",
-                "content": _VISION_OCR_FIRST_PROMPT,
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": detail},
-                    },
-                ],
-            },
-        ],
     )
-    return response.choices[0].message.content.strip()
+    return text.strip()
 
 
 def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:

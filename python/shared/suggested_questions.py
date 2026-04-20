@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .extractors import clean_file_name
 from .lang_detect import detect_language
+from .llm_instrument import traced_llm_call
 
 logger = logging.getLogger(__name__)
 MAX_TOTAL_SUGGESTED_PROMPTS = 10
@@ -559,8 +560,13 @@ Document description: {description}""",
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    response = chain.invoke(
-        {"content": sample, "description": description, "file_types_str": _file_types_str}
+    model = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    params = {"content": sample, "description": description, "file_types_str": _file_types_str}
+    response, _usage = traced_llm_call(
+        chain=chain,
+        params=params,
+        operation="suggested_questions",
+        model=model,
     )
 
     # Parse JSON response

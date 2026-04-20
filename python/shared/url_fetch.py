@@ -16,6 +16,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from .lang_detect import detect_language
+from .llm_instrument import traced_llm_call
 from .rag import get_llm
 
 logger = logging.getLogger(__name__)
@@ -158,5 +159,11 @@ Reply in the same language as the page content.""",
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke({"url": url, "html": html_truncated})
+    model = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    result, _usage = traced_llm_call(
+        chain=chain,
+        params={"url": url, "html": html_truncated},
+        operation="url_describe",
+        model=model,
+    )
     return result.strip()

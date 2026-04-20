@@ -16,6 +16,8 @@ import requests
 from openai import OpenAI
 
 from shared.config import get_settings
+from shared.llm_instrument import traced_openai_call
+from shared.otel import get_tracer
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +48,15 @@ def generate_image(
         f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} quality={quality} model={model}"
     )
 
-    result = client.images.generate(
-        model=model,
-        prompt=prompt,
-        n=1,
-        size=size,
-        quality=quality,
-    )
+    tracer = get_tracer("chatrag.image_gen")
+    with tracer.start_as_current_span("image.generate", attributes={"model": model, "size": size, "quality": quality}):
+        result = client.images.generate(
+            model=model,
+            prompt=prompt,
+            n=1,
+            size=size,
+            quality=quality,
+        )
 
     image_data = result.data[0]
     revised_prompt = getattr(image_data, "revised_prompt", prompt)
@@ -112,17 +116,18 @@ def build_image_prompt(
     if context:
         user_content += f"\nRecent conversation:\n{context[:1000]}\n"
 
-    response = client.chat.completions.create(
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_content},
+    ]
+    raw, _usage = traced_openai_call(
+        client=client,
+        messages=messages,
         model=settings.openai_chat_model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user_content},
-        ],
-        max_completion_tokens=400,
+        operation="image_prompt_build",
+        max_tokens=400,
         temperature=0.8,
     )
-
-    raw = response.choices[0].message.content.strip()
     try:
         import json
 

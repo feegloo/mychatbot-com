@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .llm_instrument import traced_openai_call
+
 logger = logging.getLogger(__name__)
 
 
@@ -215,23 +217,25 @@ If the results are too ambiguous or there's not enough evidence, respond with:
     try:
         logger.info(f"🤖 Calling OpenAI {settings.openai_chat_model} for identification...")
         logger.info(f"📝 LLM prompt context length: {len(combined_context)} chars")
-        response = client.chat.completions.create(
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are an image identification assistant. "
+                    "Analyze web search results to identify "
+                    "people, places, or subjects. Be precise "
+                    "and honest about confidence levels."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
+        text, _usage = traced_openai_call(
+            client=client,
+            messages=messages,
             model=settings.openai_chat_model,
-            max_completion_tokens=200,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an image identification assistant. "
-                        "Analyze web search results to identify "
-                        "people, places, or subjects. Be precise "
-                        "and honest about confidence levels."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
+            operation="image_identify",
+            max_tokens=200,
         )
-        text = response.choices[0].message.content.strip()
         logger.info(f"🤖 LLM raw response: {text[:500]}")
         result = json.loads(text)
         if result.get("identified_name"):

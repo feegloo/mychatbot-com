@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .extractors import clean_file_name
 from .lang_detect import detect_language
+from .llm_instrument import traced_llm_call
 from .rag import get_llm
 
 logger = logging.getLogger(__name__)
@@ -181,11 +182,31 @@ def _build_page_summary_block(page_summaries: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _invoke_with_retry(chain, params: dict, label: str = "LLM call") -> str:
-    """Invoke a LangChain chain with retry on 429 rate-limit errors."""
+def _invoke_with_retry(
+    chain, params: dict, label: str = "LLM call", *, conversation_id: str | None = None,
+) -> str:
+    """Invoke a LangChain chain with retry on 429 rate-limit errors.
+
+    Wraps each attempt with OTel tracing, metrics, and prompt history logging.
+    """
+    model = "unknown"
+    try:
+        llm = get_llm()
+        model = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    except Exception:
+        pass
+
     for attempt in range(_LLM_MAX_RETRIES + 1):
         try:
-            return chain.invoke(params)
+            response_text, _usage = traced_llm_call(
+                chain=chain,
+                params=params,
+                operation=f"describe.{label}",
+                model=model,
+                conversation_id=conversation_id,
+                rendered_prompt=str(params)[:500_000],
+            )
+            return response_text
         except Exception as e:
             error_str = str(e)
             is_rate_limit = "429" in error_str or "rate_limit" in error_str.lower()

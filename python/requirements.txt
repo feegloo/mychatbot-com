@@ -24,3 +24,9 @@ pytest>=7.0.0
 pytest-mock>=3.10.0
 sentry-sdk[fastapi]>=2.35.0
 psycopg2-binary>=2.9.0
+# OpenTelemetry — distributed tracing & metrics
+opentelemetry-api>=1.28.0
+opentelemetry-sdk>=1.28.0
+opentelemetry-exporter-otlp>=1.28.0
+opentelemetry-instrumentation-fastapi>=0.49b0
+opentelemetry-instrumentation-requests>=0.49b0
