@@ -568,7 +568,7 @@ Document description: {description}""",
         questions = parsed.get("questions", [])
         if isinstance(questions, list) and len(questions) >= 3:
             return _append_contextual_prompts(
-                questions[:MAX_TOTAL_SUGGESTED_PROMPTS],
+                questions,
                 file_names,
                 file_types,
                 language,
@@ -583,7 +583,7 @@ Document description: {description}""",
     # Fallback: parse as lines (backward compat)
     questions = [line.strip("- ").strip() for line in response.splitlines() if line.strip()]
     return _append_contextual_prompts(
-        questions[:MAX_TOTAL_SUGGESTED_PROMPTS],
+        questions,
         file_names,
         file_types,
         language,
@@ -759,17 +759,30 @@ def _append_contextual_prompts(
 
     actions = [pinned_image_prompt] + contextual + llm_actions
 
-    # Build the final list: up to 3 text prompts + up to 7 action prompts = up to 10
-    final = normal_questions + actions
-
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for question in final:
+    # Build the final list with explicit caps per group:
+    # - max 3 normal questions
+    # - max 7 action prompts
+    # This guarantees the action cap even after deduplication.
+    deduped_normal: list[str] = []
+    seen_normal: set[str] = set()
+    for question in normal_questions:
         key = question.strip().lower()
-        if key and key not in seen:
-            deduped.append(question)
-            seen.add(key)
-        if len(deduped) >= MAX_TOTAL_SUGGESTED_PROMPTS:
+        if key and key not in seen_normal:
+            deduped_normal.append(question)
+            seen_normal.add(key)
+        if len(deduped_normal) >= MAX_NORMAL_QUESTIONS:
             break
 
-    return deduped
+    deduped_actions: list[str] = []
+    seen_actions: set[str] = set()
+    for action in actions:
+        key = action.strip().lower()
+        if key and key not in seen_actions:
+            deduped_actions.append(action)
+            seen_actions.add(key)
+        if len(deduped_actions) >= MAX_ACTION_PROMPTS:
+            break
+
+    final = deduped_normal + deduped_actions
+    # Defensive guard in case constants diverge in future refactors.
+    return final[:MAX_TOTAL_SUGGESTED_PROMPTS]

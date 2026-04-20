@@ -131,3 +131,33 @@ def test_generic_fallback_when_no_context():
         welcome_message="",
     )
     assert any("Generate image inspired by: this content 🎨" in q for q in result)
+
+
+def test_action_cap_is_enforced_after_dedup():
+    """Duplicate normal prompts must not allow more than 7 actions in final output."""
+    result = _append_contextual_prompts(
+        questions=[
+            "Repeat?",
+            "Repeat?",
+            "Repeat?",
+            "Action 1 🧠",
+            "Action 2 📓",
+            "Action 3 📊",
+            "Action 4 🖼️",
+            "Action 5 🎯",
+            "Action 6 📅",
+            "Action 7 💡",
+            "Action 8 🎨",
+            "Action 9 🧩",
+        ],
+        file_names=None,
+        file_types=None,
+        language="en",
+        welcome_message="## Topic",
+    )
+
+    # With duplicated normal prompts, final output should still respect:
+    # - max 1 deduped normal prompt here ("Repeat?")
+    # - max 7 action prompts
+    assert len(result) <= 8
+    assert any("Generate image inspired by:" in q for q in result)

@@ -1,5 +1,5 @@
 <template>
-  <div class="message-row" :class="msg.role">
+  <div ref="messageRootEl" class="message-row" :class="msg.role">
     <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
       <strong>{{ senderLabel }}</strong>
       <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
@@ -697,6 +697,11 @@ function onSuggestedQuestionClick(event: MouseEvent, question: string) {
 function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
   const target = event.target as HTMLElement | null
   if (target?.closest('a')) return
+  if (event.key === 'Escape') {
+    closeWelcomeMore()
+    closeActionMenus()
+    return
+  }
   if (event.key !== 'Enter' && event.key !== ' ') return
   if (event.key === ' ') event.preventDefault()
   closeWelcomeMore()
@@ -723,6 +728,7 @@ function onWelcomeMoreKeydown(event: KeyboardEvent) {
 }
 
 const messageContentEl = ref<HTMLElement | null>(null)
+const messageRootEl = ref<HTMLElement | null>(null)
 
 /** Show PDF download button for all assistant messages with content,
  *  except those with quiz blocks (they have their own PDF button). */
@@ -1121,7 +1127,8 @@ function onContentClick(e: MouseEvent) {
 function onDocumentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null
   if (!target) return
-  if (target.closest('.action-more-wrap, .welcome-more-wrap')) return
+  const clickedMenu = target.closest('.action-more-wrap, .welcome-more-wrap')
+  if (clickedMenu && messageRootEl.value?.contains(clickedMenu)) return
   closeActionMenus()
   closeWelcomeMore()
 }
