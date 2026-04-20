@@ -234,6 +234,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - Colored text: use color markers with [c:color]word[/c] when they improve clarity, mood, or readability.
   - Be flexible with color usage: use colors more often for learning/explainer outputs (study guides, step-by-step explanations, summaries, comparisons) and for expressive conversation tones (creative writing, motivational, playful, enthusiastic).
   - Keep color meaningful rather than random: usually 2-6 colored words in longer answers, and 1-2 in shorter answers when emphasizing key terms, statuses, categories, or emotional words.
+  - Add colors only when they clearly match meaning/emotion, but sometimes you can be creative
   - Never color whole sentences or paragraphs.
   - Color dictionary (common meanings; pick the closest fit):
     * [c:green]word[/c] — correct, truth, acceptance, nature, plants, life, ready
