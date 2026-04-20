@@ -13,7 +13,7 @@ from .chapters import (
 )
 from .chunkers import Chunk, split_into_chunks
 from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
-from .describe import describe_documents
+from .describe import DescribeResult, describe_documents
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
@@ -81,6 +81,19 @@ def index_documents(
     with trace_step(conversation_id, "*", "extract_metadata", detail=f"{len(file_paths)} files"):
         file_metadata = extract_metadata_many(file_paths)
 
+    # Pre-compute file types for contextual question prompts
+    file_types: dict[str, str] = {}
+    for fp in file_paths:
+        p = Path(fp)
+        suffix = p.suffix.lower()
+        if suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"}:
+            file_types[p.name] = "image"
+        elif suffix == ".pdf":
+            file_types[p.name] = "pdf"
+        else:
+            file_types[p.name] = "document"
+    file_name_list = [Path(fp).name for fp in file_paths]
+
     # ── Parallel per-page processing ─────────────────────────────────
     # PDFs get parallel page-level processing; other files processed individually.
     # For scanned/OCR PDFs, we start welcome message generation early via callback
@@ -117,6 +130,8 @@ def index_documents(
             language=early_lang,
             file_metadata=file_metadata,
             page_summaries=early_summaries or None,
+            file_names=file_name_list,
+            file_types=file_types,
         )
 
     for file_path in file_paths:
@@ -364,44 +379,40 @@ def index_documents(
                 language=detected_language,
                 file_metadata=file_metadata,
                 page_summaries=all_page_summaries or None,
+                file_names=file_name_list,
+                file_types=file_types,
             )
 
-        # Get welcome message ASAP — don't wait for upsert
-        welcome_message = describe_future.result()
+        # Get welcome message + suggested questions ASAP — don't wait for upsert
+        describe_result: DescribeResult = describe_future.result()
+        welcome_message = describe_result["welcome_message"]
+        suggested_questions = describe_result["suggested_questions"]
 
         # Emit welcome_message event immediately so the frontend can show it
         if on_progress and welcome_message:
             on_progress("welcome_message", {
                 "welcome_message": welcome_message,
+                "suggested_questions": suggested_questions,
                 "file_metadata": file_metadata or {},
             })
 
         upsert_result = upsert_future.result()
 
-    # Now generate suggested questions with the description for contextual prompts
-    logger.info("💡 Generating suggested prompts (with description context)...")
-
-    # Determine file types for contextual prompts
-    file_types = {}
-    for fp in file_paths:
-        p = Path(fp)
-        suffix = p.suffix.lower()
-        if suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"}:
-            file_types[p.name] = "image"
-        elif suffix == ".pdf":
-            file_types[p.name] = "pdf"
-        else:
-            file_types[p.name] = "document"
-
-    with trace_step(conversation_id, "*", "generate_suggested_questions"):
-        suggested_questions = suggest_questions_from_chunks(
-            chunk_texts,
-            language=detected_language,
-            description=welcome_message or "",
-            file_names=[Path(fp).name for fp in file_paths],
-            file_types=file_types,
-            welcome_message=welcome_message or "",
-        )
+    # If describe didn't produce questions (e.g. split+synthesize for very large docs),
+    # fall back to the separate suggest_questions_from_chunks call.
+    if not suggested_questions and chunk_texts:
+        logger.info("💡 Generating suggested prompts via fallback (separate call)...")
+        with trace_step(conversation_id, "*", "generate_suggested_questions"):
+            suggested_questions = suggest_questions_from_chunks(
+                chunk_texts,
+                language=detected_language,
+                description=welcome_message or "",
+                file_names=file_name_list,
+                file_types=file_types,
+                welcome_message=welcome_message or "",
+            )
+    else:
+        logger.info("💡 Suggested questions generated inline with welcome message")
 
     logger.info("✅ Indexing complete")
     logger.info(

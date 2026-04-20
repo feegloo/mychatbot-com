@@ -14,11 +14,18 @@ export function buildChatHistory(
       if (msg.role === 'assistant' && msg.citations_json?._uploadedFileNames) return false
       return true
     })
-    .map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-      ...(msg.created_at ? { timestamp: msg.created_at } : {}),
-    }))
+    .map((msg) => {
+      let content = msg.content
+      const imageDesc = msg.citations_json?._generatedImageDescription
+      if (imageDesc) {
+        content += `\n[Image description: ${imageDesc}]`
+      }
+      return {
+        role: msg.role,
+        content,
+        ...(msg.created_at ? { timestamp: msg.created_at } : {}),
+      }
+    })
 }
 
 /**

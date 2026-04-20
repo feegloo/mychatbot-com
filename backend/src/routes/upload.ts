@@ -113,6 +113,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
         if (event === 'welcome_message') {
           const welcomeMessage = (data.welcome_message as string) || ''
           const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+          const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
           const fallbackMessage =
             welcomeMessage ||
             `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
@@ -130,9 +131,15 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
               console.error(`[metadata update error for ${fileName}]:`, err.message)
             }
           }
+          if (earlySuggestedQuestions.length) {
+            await replaceSuggestedQuestions(conversationId, earlySuggestedQuestions, welcomeMessageId)
+          }
           emitConversationEvent(conversationId, {
             event: 'welcome_message',
-            data: { messageId: welcomeMessageId },
+            data: {
+              messageId: welcomeMessageId,
+              suggestedQuestions: earlySuggestedQuestions,
+            },
           })
         } else if (event === 'complete') {
           Sentry.logger.info(
@@ -358,6 +365,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
         if (event === 'welcome_message') {
           const welcomeMessage = (data.welcome_message as string) || ''
           const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+          const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
           const fallbackMessage =
             welcomeMessage ||
             `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
@@ -375,9 +383,15 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
               console.error(`[metadata update error for ${fileName}]:`, err.message)
             }
           }
+          if (earlySuggestedQuestions.length) {
+            await replaceSuggestedQuestions(conversationId, earlySuggestedQuestions, welcomeMessageId)
+          }
           emitConversationEvent(conversationId, {
             event: 'welcome_message',
-            data: { messageId: welcomeMessageId },
+            data: {
+              messageId: welcomeMessageId,
+              suggestedQuestions: earlySuggestedQuestions,
+            },
           })
         } else if (event === 'complete') {
           const suggestedQuestions = (data.suggested_questions as string[]) || []

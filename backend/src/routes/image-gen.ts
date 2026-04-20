@@ -80,6 +80,9 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     conversationId,
     role: 'assistant',
     content: answer,
+    citations: {
+      _generatedImageDescription: result.revised_prompt || result.image_prompt,
+    },
   })
 
   ctx.body = {

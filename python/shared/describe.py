@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import math
+import re
 import time
+from typing import TypedDict
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -13,6 +15,13 @@ from .lang_detect import detect_language
 from .rag import get_llm
 
 logger = logging.getLogger(__name__)
+
+_QUESTIONS_SEPARATOR = "---SUGGESTED_QUESTIONS---"
+
+
+class DescribeResult(TypedDict):
+    welcome_message: str
+    suggested_questions: list[str]
 
 
 def _fallback_from_metadata(
@@ -86,6 +95,72 @@ _SYNTHESIS_RAW_TEXT_CHARS = 400_000
 # Max retries for 429 rate-limit errors
 _LLM_MAX_RETRIES = 3
 _LLM_RETRY_BASE_DELAY = 2.0
+
+# ── Suggested questions rules (appended to describe prompts) ─────────
+_QUESTIONS_RULES_PL = """
+
+== SUGEROWANE PYTANIA ==
+Po wiadomości powitalnej, wypisz DOKŁADNIE tę linię separatora:
+---SUGGESTED_QUESTIONS---
+Następnie wypisz prawidłowy JSON (bez markdown, bez ```json):
+{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+
+Zasady:
+- Wygeneruj DOKŁADNIE 5 sugerowanych promptów
+- Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
+- Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
+- Ostatnie 2 to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
+- Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
+- WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
+
+Obowiązkowe akcje dla typów treści:
+- POWIEŚĆ/BELETRYSTYKA → "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
+- POEZJA/FILOZOFIA/CYTATY → "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
+- PORADNIK/SAMOROZWÓJ → losowo jedno z: "Napisz 10 nowych wskazówek inspirowanych [autor] 💡", "Stwórz 7 ćwiczeń inspirowanych [autor] 🏋️", "Wygeneruj 12 pytań refleksyjnych inspirowanych [autor] 🤔", "Napisz 5 scenariuszy z życia inspirowanych [autor] 🎭", "Stwórz 14-dniowy plan działania inspirowany [autor] 📅"
+- WYNIKI BADAŃ LAB → "Postaw diagnozę na podstawie wyników 🔬"
+- Inne typy → dobierz obie akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
+- Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany"""
+
+_QUESTIONS_RULES_EN = """
+
+== SUGGESTED QUESTIONS ==
+After the welcome message, output EXACTLY this separator line:
+---SUGGESTED_QUESTIONS---
+Then output valid JSON (no markdown, no ```json):
+{{"questions": ["q1", "q2", "q3", "q4", "q5"]}}
+
+Rules:
+- Generate EXACTLY 5 suggested prompts
+- First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
+- If the document is by or about a well-known person, ONE of the first 3 MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive)
+- Last 2 are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
+- Each prompt max 10 words, no numbering, no explanations
+- ALL prompts MUST be written 100% in the language of the document content
+
+Mandatory actions for content types:
+- NOVEL/FICTION → "Write inspired chapter like [Author Full Name] ✏️"
+- POETRY/PHILOSOPHY/QUOTES → "Write inspired poem like [Author Full Name] 📜"
+- SELF-HELP/GUIDE → randomly pick one of: "Write 10 new tips inspired by [author] 💡", "Create 7 exercises inspired by [author] 🏋️", "Generate 12 reflection questions inspired by [author] 🤔", "Draft 5 real-life scenarios inspired by [author] 🎭", "Build a 14-day action plan inspired by [author] 📅"
+- LAB TEST RESULTS → "Make a diagnosis based on results 🔬"
+- Other types → pick both actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
+- Do NOT always pick quiz — be creative and varied"""
+
+
+def _parse_describe_response(response: str) -> tuple[str, list[str]]:
+    """Split a combined describe response into welcome message and questions."""
+    if _QUESTIONS_SEPARATOR in response:
+        parts = response.split(_QUESTIONS_SEPARATOR, 1)
+        welcome = parts[0].strip()
+        json_part = parts[1].strip()
+        try:
+            parsed = json.loads(json_part)
+            questions = parsed.get("questions", [])
+            if isinstance(questions, list) and len(questions) >= 3:
+                return welcome, [str(q) for q in questions[:5]]
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning("Failed to parse suggested questions JSON from describe response")
+        return welcome, []
+    return response.strip(), []
 
 
 def _estimate_total_text_len(extracted: list[dict]) -> int:
@@ -305,15 +380,17 @@ def _synthesize_welcome_messages(
     language: str,
     metadata_section: str,
     raw_beginning: str = "",
-) -> str:
+) -> tuple[str, list[str]]:
     """Synthesize N detailed condensed summaries into one final welcome message.
+
+    Returns (welcome_message, suggested_questions).
 
     When raw_beginning is provided, the LLM also receives the first ~200 pages
     of raw book text alongside the condensed summaries — giving it direct access
     to the author's voice, style, and opening content for a smarter result.
     """
     if len(partial_messages) == 1 and not raw_beginning:
-        return partial_messages[0]
+        return partial_messages[0], []
 
     combined_partials = "\n\n---\n\n".join(
         f"[Detailed summary of section {i + 1} of {len(partial_messages)}]\n{msg}"
@@ -344,7 +421,7 @@ def _synthesize_welcome_messages(
             "Celuj w 100-200 słów łącznie. NIE pytaj użytkownika. NIE używaj [source:N]. "
             "Używaj emoji profesjonalnie (📖, ⚔️, 🗺️ itp.).\n"
             "Odpowiadaj po polsku."
-        )
+        ) + _QUESTIONS_RULES_PL
     else:
         system_msg = (
             "You are receiving DETAILED CONDENSED SUMMARIES of different PARTS of the same "
@@ -362,7 +439,7 @@ def _synthesize_welcome_messages(
             "Aim for 100-200 words total. Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
-        )
+        ) + _QUESTIONS_RULES_EN
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -390,7 +467,7 @@ def _synthesize_welcome_messages(
         f"📝 Synthesized {len(partial_messages)} summaries "
         f"(+ {len(raw_beginning)} chars raw text) → {len(result)} chars final"
     )
-    return result.strip()
+    return _parse_describe_response(result)
 
 
 def describe_documents(
@@ -399,8 +476,13 @@ def describe_documents(
     language: str | None = None,
     file_metadata: dict[str, dict] | None = None,
     page_summaries: list[dict] | None = None,
-) -> str:
-    """Generate a welcome message with a ## Title, description, and expert insight.
+    file_names: list[str] | None = None,
+    file_types: dict[str, str] | None = None,
+) -> DescribeResult:
+    """Generate a welcome message with a ## Title, description, and expert insight,
+    plus 5 suggested questions — all from a single LLM call.
+
+    Returns a DescribeResult dict with 'welcome_message' and 'suggested_questions'.
 
     Uses the beginning of extracted text (no embeddings/RAG) so the response
     is as quick as possible.  When file_metadata contains EXIF data for images,
@@ -490,10 +572,13 @@ def describe_documents(
         messages = [msg for _, msg in partial_messages]
 
         if not messages:
-            return _fallback_from_metadata(extracted, images, file_metadata, language)
+            return DescribeResult(
+                welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
+                suggested_questions=[],
+            )
 
         if len(messages) == 1:
-            return messages[0]
+            return DescribeResult(welcome_message=messages[0], suggested_questions=[])
 
         # Extract raw beginning text for the synthesis prompt.
         # This gives the synthesis LLM direct access to the author's voice
@@ -501,9 +586,10 @@ def describe_documents(
         raw_beginning = all_text[:_SYNTHESIS_RAW_TEXT_CHARS]
 
         # Synthesize all detailed summaries + raw beginning into one message
-        return _synthesize_welcome_messages(
+        synthesis_msg, synthesis_qs = _synthesize_welcome_messages(
             messages, file_list, language, metadata_section, raw_beginning=raw_beginning
         )
+        return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
     is_large = total_chars > _DESCRIBE_MAX_CONTENT_CHARS and page_summaries
 
@@ -598,7 +684,10 @@ def describe_documents(
 
         combined = "\n\n---\n\n".join(parts)
         if not combined.strip():
-            return _fallback_from_metadata(extracted, images, file_metadata, language)
+            return DescribeResult(
+                welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
+                suggested_questions=[],
+            )
         logger.info(
             f"📝 Large-doc describe: {total_chars} chars total → "
             f"{len(combined)} chars context (text {text_budget}, 2-pass {len(two_pass_summary)}, summaries {len(summary_text)})"
@@ -616,7 +705,10 @@ def describe_documents(
 
         if not snippets:
             # No text extracted — return a minimal fallback from metadata
-            return _fallback_from_metadata(extracted, images, file_metadata, language)
+            return DescribeResult(
+                welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
+                suggested_questions=[],
+            )
 
         combined = "\n\n---\n\n".join(snippets)[:_DESCRIBE_MAX_CONTENT_CHARS]
 
@@ -691,7 +783,7 @@ Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak auto
 Bądź zwięzły — to ma być szybka analiza, nie rozprawka. Celuj w około 100-150 słów łącznie (opis + wgląd). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
 NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
 Od czasu do czasu użyj profesjonalnych emoji, żeby wiadomość była bardziej żywa i łatwa do przeskanowania (np. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, "inne fajne, lekkie, nieofensywne emoji"). Nie przesadzaj — jedno-dwa na sekcję wystarczą. Nigdy nie używaj dziecinnych lub nieprofesjonalnych emoji (💩, 🤡, 😜 itp.).
-Odpowiadaj po polsku.""",
+Odpowiadaj po polsku.""" + _QUESTIONS_RULES_PL,
                 ),
                 ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
             ]
@@ -767,7 +859,7 @@ Write like a human briefly telling another human what this document is about —
 Be concise — this is a quick analysis, not an essay. Aim for roughly 100-150 words total (description + insight). Don't pad — every sentence must carry concrete value.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
-Reply in the same language as the content.""",
+Reply in the same language as the content.""" + _QUESTIONS_RULES_EN,
                 ),
                 ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
             ]
@@ -775,9 +867,27 @@ Reply in the same language as the content.""",
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = _invoke_with_retry(
+    raw = _invoke_with_retry(
         chain,
         {"file_list": file_list, "content": combined, "metadata_section": metadata_section},
         label="describe",
     )
-    return result.strip()
+    welcome_message, suggested_questions = _parse_describe_response(raw)
+
+    # Apply contextual post-processing (EXIF, person recognition, image prompts)
+    if suggested_questions:
+        from .suggested_questions import _append_contextual_prompts
+
+        suggested_questions = _append_contextual_prompts(
+            suggested_questions,
+            file_names,
+            file_types,
+            language,
+            welcome_message=welcome_message,
+            description="",
+        )
+
+    return DescribeResult(
+        welcome_message=welcome_message,
+        suggested_questions=suggested_questions,
+    )

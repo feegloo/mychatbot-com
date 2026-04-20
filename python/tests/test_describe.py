@@ -243,13 +243,13 @@ class TestEdgeCases:
     def test_returns_fallback_when_no_content(self):
         """No extracted text and no images → fallback message (not empty)."""
         result = describe_documents([], [], language="en", file_metadata=None)
-        assert "has been uploaded" in result
-        assert "Text extraction was not possible" in result
+        assert "has been uploaded" in result["welcome_message"]
+        assert "Text extraction was not possible" in result["welcome_message"]
 
     def test_returns_fallback_when_text_is_blank(self):
         result = describe_documents([{"file_name": "empty.txt", "text": "   "}], [], language="en")
-        assert "empty.txt" in result
-        assert "has been uploaded" in result
+        assert "empty.txt" in result["welcome_message"]
+        assert "has been uploaded" in result["welcome_message"]
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")
@@ -380,7 +380,7 @@ class TestSplitSynthesizeStrategy:
         expected_parts = math.ceil(len(big_text) / _SPLIT_PART_MAX_CHARS)
         # At least N partial calls + 1 synthesis call
         assert len(mock_llm.captured) >= expected_parts + 1
-        assert result  # non-empty result
+        assert result["welcome_message"]  # non-empty result
 
     @patch("shared.describe.time.sleep")
     @patch("shared.describe.get_llm")
@@ -431,3 +431,61 @@ class TestSplitSynthesizeStrategy:
         expected_parts = math.ceil(len(big_text) / _SPLIT_PART_MAX_CHARS)
         # Should have (N-1) sleeps between N sequential part calls
         assert mock_sleep.call_count >= expected_parts - 1
+
+
+# ---------------------------------------------------------------------------
+# Response parsing (welcome message + suggested questions)
+# ---------------------------------------------------------------------------
+
+
+class TestParseDescribeResponse:
+    """Tests for _parse_describe_response: splitting combined LLM output."""
+
+    def test_parses_welcome_and_questions(self):
+        from shared.describe import _parse_describe_response
+
+        response = (
+            "## My Book - Author\n\nGreat book about stuff.\n\n"
+            "Expert insight here.\n\n"
+            "---SUGGESTED_QUESTIONS---\n"
+            '{"questions": ["What is the main theme?", "Who is the protagonist?", '
+            '"When was it written?", "Create a quiz 🧠", "Write inspired chapter ✏️"]}'
+        )
+        welcome, questions = _parse_describe_response(response)
+        assert "## My Book - Author" in welcome
+        assert "Expert insight here." in welcome
+        assert "---SUGGESTED_QUESTIONS---" not in welcome
+        assert len(questions) == 5
+        assert questions[0] == "What is the main theme?"
+
+    def test_returns_empty_questions_when_no_separator(self):
+        from shared.describe import _parse_describe_response
+
+        response = "## Title\n\nJust a welcome message, no questions."
+        welcome, questions = _parse_describe_response(response)
+        assert welcome == response
+        assert questions == []
+
+    def test_handles_malformed_json_gracefully(self):
+        from shared.describe import _parse_describe_response
+
+        response = "## Title\n\nWelcome.\n\n---SUGGESTED_QUESTIONS---\nnot valid json"
+        welcome, questions = _parse_describe_response(response)
+        assert "## Title" in welcome
+        assert questions == []
+
+    def test_describe_documents_returns_dict_with_questions(self):
+        """describe_documents should return a DescribeResult with both fields."""
+        mock_llm = _make_mock_llm(
+            "## Test - Author\n\nDescription.\n\nInsight.\n\n"
+            "---SUGGESTED_QUESTIONS---\n"
+            '{"questions": ["Q1?", "Q2?", "Q3?", "Action 1 🧠", "Action 2 ✏️"]}'
+        )
+        with patch("shared.describe.get_llm", return_value=mock_llm), \
+             patch("shared.describe.detect_language", return_value="en"):
+            result = describe_documents(
+                SAMPLE_EXTRACTED, SAMPLE_IMAGES, language="en", file_metadata=None
+            )
+        assert isinstance(result, dict)
+        assert "## Test - Author" in result["welcome_message"]
+        assert len(result["suggested_questions"]) >= 3
