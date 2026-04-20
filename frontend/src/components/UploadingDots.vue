@@ -13,8 +13,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ label?: string }>()
-const labelText = computed(() => props.label || 'Uploading')
+const props = defineProps<{ text?: string }>()
+const labelText = computed(() => props.text || 'Uploading')
 </script>
 
 <style scoped>

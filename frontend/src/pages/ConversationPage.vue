@@ -85,7 +85,7 @@
           "
         >
           <div v-if="showCenteredProcessing" class="chat-log-centered-processing">
-            <UploadingDots label="Processing" />
+            <UploadingDots text="Processing" />
           </div>
           <ChatMessageItem
             v-for="(msg, index) in messages"
