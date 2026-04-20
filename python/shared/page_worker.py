@@ -74,7 +74,7 @@ def _read_worker_count(
 # PyMuPDF page extraction in highly parallel mode can be unstable on some PDFs
 # (especially large scanned/OCR-heavy books), leading to process crashes and
 # backend "fetch failed" errors. Allow opt-in scaling via env override.
-_CPU_COUNT = max(os.cpu_count() or 1, 1)
+_CPU_COUNT = os.cpu_count() or 1
 _PAGE_WORKERS = _read_worker_count(
     "PDF_PAGE_WORKERS",
     default=1,
