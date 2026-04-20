@@ -384,6 +384,8 @@ export async function getDebugTables(username: string, password: string, offset 
     conversation_access_tokens: Record<string, unknown>[]
     access_requests: Record<string, unknown>[]
     users: Record<string, unknown>[]
+    processing_jobs: Record<string, unknown>[]
+    prompt_history: Record<string, unknown>[]
   }
 }
 

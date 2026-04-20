@@ -116,6 +116,8 @@ const data = ref<Tables>({
   conversation_access_tokens: [],
   access_requests: [],
   users: [],
+  processing_jobs: [],
+  prompt_history: [],
 })
 
 const expandedCells = ref<Set<string>>(new Set())
@@ -198,6 +200,8 @@ const paginatedTables: (keyof Tables)[] = [
   'user_fingerprints',
   'conversation_access_tokens',
   'access_requests',
+  'processing_jobs',
+  'prompt_history',
 ]
 
 const canLoadMore = computed(() => {

@@ -47,6 +47,7 @@ debugRouter.get('/debug/tables', async (ctx) => {
     accessRequests,
     users,
     processingJobs,
+    promptHistory,
   ] = await Promise.all([
     query('SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
       limit,
@@ -86,6 +87,15 @@ debugRouter.get('/debug/tables', async (ctx) => {
       limit,
       offset,
     ]),
+    query(
+      `SELECT id, conversation_id, operation, model,
+              LENGTH(prompt_text) AS prompt_chars,
+              LENGTH(response_text) AS response_chars,
+              prompt_tokens, completion_tokens, total_tokens, cached_tokens,
+              duration_ms, created_at
+       FROM public.prompt_history ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    ),
   ])
 
   ctx.body = {
@@ -98,6 +108,7 @@ debugRouter.get('/debug/tables', async (ctx) => {
     access_requests: accessRequests.rows,
     users: users.rows,
     processing_jobs: processingJobs.rows,
+    prompt_history: promptHistory.rows,
   }
 })
 

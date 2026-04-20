@@ -71,6 +71,7 @@ Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 
 Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
+- KRYTYCZNE: Pytania formułuj jako intencję użytkownika — NIE jako pytanie modelu do użytkownika. Zamiast "Chcesz X?" pisz po prostu "X". NIGDY nie używaj zwrotów "Chcesz…?", "Czy chcesz…?", "Czy mogę…?", "Powinienem…?". Przykłady: ❌ "Chcesz krótki opis finału bez spoilerów?" → ✅ "Krótki opis finału bez spoilerów". ❌ "Chcesz pełne streszczenie procesu Szlezyngierów?" → ✅ "Pełne streszczenie procesu Szlezyngierów".
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
 - Kolejne (do 7) to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
@@ -320,6 +321,7 @@ Reply with ONLY valid JSON (no markdown, no ```json). Format:
 
 Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
+- CRITICAL: Questions must be phrased as user intents — NOT as the assistant asking the user. Instead of "Do you want X?" write simply "X". NEVER use phrasing like "Do you want…?", "Would you like…?", "Should I…?", "Can I…?". Examples: ❌ "Do you want a short spoiler-free finale summary?" → ✅ "Short spoiler-free finale summary". ❌ "Would you like a full summary of the trial?" → ✅ "Full summary of the trial".
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive). Use the person's full name.
 - The next prompts (up to 7) are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
   Each action-prompt MUST end with a relevant emoji
