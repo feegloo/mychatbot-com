@@ -100,7 +100,7 @@ def build_image_prompt(
         "You are an expert prompt engineer for AI image generation. "
         "Given the user's request and context, create a detailed, vivid image generation prompt. "
         "Focus on visual elements: composition, style, colors, mood, lighting. "
-        "Prefer a clear composition and avoid unnecessary micro-details so generation stays fast. "
+        "Prefer a clear composition and avoid unnecessary micro-details unless explicitly requested. "
         "Output ONLY the image prompt text, nothing else. Max 200 words."
     )
 
