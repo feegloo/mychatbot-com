@@ -1232,11 +1232,6 @@ function openFilePreview(file: FileInfo) {
   font-family: inherit;
 }
 
-.action-btn {
-    text-wrap: nowrap;
-}
-
-
 
 /* On touch devices, always show and add spacing below */
 @media (hover: none) {
