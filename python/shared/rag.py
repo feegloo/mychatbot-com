@@ -280,7 +280,7 @@ d) Action Buttons:
   * 2 plain follow-up questions about the topic — NO emoji at the end
   * Maximum 1 "rich" action-prompt (quiz, checklist, diagram, summary, comparison table, generate image, etc.) — this one MUST end with a relevant emoji
   If no rich action fits the context, generate 3 plain questions (all without emoji).
-- If the answer includes multi-step processes, concept comparisons, category/status breakdowns, or learning/explainer material, prefer a rich action label that invites color expansion, e.g. "Add more colors to this explanation 🎨" / "Create more colorful version … 🎨" (or Polish equivalent), still respecting all other button rules.
+- If the answer includes multi-step processes, concept comparisons, category/status breakdowns, or learning/explanatory material, prefer a rich action label that invites color expansion, e.g. "Add more colors to this explanation 🎨" / "Create more colorful version … 🎨" (or Polish equivalent), still respecting all other button rules.
 - When suggesting "generate image", the label MUST contain the exact phrase "generate image" (in English) or "wygeneruj obraz" (in Polish). This triggers the image generation API.
 
 - BREVITY — SMART INSIGHT LABELS (CRITICAL):
