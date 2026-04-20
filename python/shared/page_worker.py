@@ -64,7 +64,9 @@ def _read_worker_count(name: str, default: int, minimum: int = 1) -> int:
 # backend "fetch failed" errors. Allow opt-in scaling via env override.
 _PAGE_WORKERS = _read_worker_count("PDF_PAGE_WORKERS", default=1, minimum=1)
 # Image description is IO-bound — parallelism is configurable and safe to keep higher.
-_IMAGE_WORKERS = _read_worker_count("PDF_IMAGE_WORKERS", default=(os.cpu_count() or 2) * 2)
+_IMAGE_WORKERS = _read_worker_count(
+    "PDF_IMAGE_WORKERS", default=(os.cpu_count() or 2) * 2, minimum=1
+)
 
 
 @dataclass
