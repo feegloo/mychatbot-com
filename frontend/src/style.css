@@ -779,6 +779,17 @@ a {
   gap: 14px;
 }
 
+.chat-log-centered-processing {
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  font-size: 24px;
+  font-weight: 600;
+}
+
 /* ── iOS-style bubble wrapper ── */
 .message-row {
   display: flex;

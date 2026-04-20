@@ -70,8 +70,6 @@
       </div>
       <div v-if="processing" class="indexing-bar">
         <div class="indexing-spinner"></div>
-        <span class="indexing-label-full">Processing files …</span>
-        <span class="indexing-label-short">Processing</span>
       </div>
       <slot name="language-toggle"></slot>
       <slot name="auto-read-toggle"></slot>

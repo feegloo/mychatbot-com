@@ -84,6 +84,9 @@
             padding-bottom: 12px;
           "
         >
+          <div v-if="showCenteredProcessing" class="chat-log-centered-processing">
+            <UploadingDots label="Processing" />
+          </div>
           <ChatMessageItem
             v-for="(msg, index) in messages"
             :key="msg.id || index"
@@ -170,6 +173,7 @@ import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import LanguageToggle from '../components/LanguageToggle.vue'
+import UploadingDots from '../components/UploadingDots.vue'
 import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 
@@ -321,6 +325,9 @@ const roleLoaded = ref(false)
 const canUpload = computed(() => status.value.role === 'owner' || status.value.role === 'editor')
 const canReply = computed(
   () => status.value.role === 'owner' || status.value.role === 'editor' || isViewer.value,
+)
+const showCenteredProcessing = computed(
+  () => loaded.value && status.value.status === 'processing' && messages.value.length === 0,
 )
 
 function isUploadMessage(index: number): boolean {

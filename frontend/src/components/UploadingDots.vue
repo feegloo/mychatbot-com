@@ -1,6 +1,6 @@
 <template>
   <span class="uploading-dots"
-    >Uploading<span
+    >{{ labelText }}<span
       v-for="i in 3"
       :key="i"
       class="dot"
@@ -9,6 +9,13 @@
     ></span
   >
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+const props = defineProps<{ label?: string }>()
+const labelText = computed(() => props.label || 'Uploading')
+</script>
 
 <style scoped>
 .uploading-dots {
