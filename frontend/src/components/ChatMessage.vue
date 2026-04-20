@@ -181,9 +181,9 @@
             </div>
           </div>
 
-          <div v-if="renderedSuggestedQuestions.length" class="welcome-suggested-questions">
+          <div v-if="isWelcome && welcomeVisibleQuestions.length" class="welcome-suggested-questions">
             <div
-              v-for="question in renderedSuggestedQuestions"
+              v-for="question in welcomeVisibleQuestions"
               :key="question.raw"
               class="question-pill"
               role="button"
@@ -193,6 +193,34 @@
             >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span class="suggested-question-markdown" v-html="question.html"></span>
+            </div>
+            <div
+              v-if="welcomeHiddenActionQuestions.length"
+              class="question-pill welcome-more-wrap"
+              role="button"
+              tabindex="0"
+              aria-haspopup="menu"
+              :aria-expanded="welcomeMoreOpen"
+              @click.stop="toggleWelcomeMore"
+              @keydown="onWelcomeMoreKeydown"
+            >
+              More ...
+              <transition name="fade-right">
+                <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
+                  <div
+                    v-for="question in welcomeHiddenActionQuestions"
+                    :key="`more-${question.raw}`"
+                    class="question-pill welcome-more-item"
+                    role="menuitem"
+                    tabindex="0"
+                    @click="onSuggestedQuestionClick($event, question.raw)"
+                    @keydown="onSuggestedQuestionKeydown($event, question.raw)"
+                  >
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <span class="suggested-question-markdown" v-html="question.html"></span>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
 
@@ -352,12 +380,9 @@
       <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
 
       <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
-      <div
-        v-if="isWelcome && !welcomeHasFiles && renderedSuggestedQuestions.length"
-        class="welcome-suggested-questions"
-      >
+      <div v-if="isWelcome && !welcomeHasFiles && welcomeVisibleQuestions.length" class="welcome-suggested-questions">
         <div
-          v-for="question in renderedSuggestedQuestions"
+          v-for="question in welcomeVisibleQuestions"
           :key="question.raw"
           class="question-pill"
           role="button"
@@ -367,6 +392,34 @@
         >
           <!-- eslint-disable-next-line vue/no-v-html -->
           <span class="suggested-question-markdown" v-html="question.html"></span>
+        </div>
+        <div
+          v-if="welcomeHiddenActionQuestions.length"
+          class="question-pill welcome-more-wrap"
+          role="button"
+          tabindex="0"
+          aria-haspopup="menu"
+          :aria-expanded="welcomeMoreOpen"
+          @click.stop="toggleWelcomeMore"
+          @keydown="onWelcomeMoreKeydown"
+        >
+          More ...
+          <transition name="fade-right">
+            <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
+              <div
+                v-for="question in welcomeHiddenActionQuestions"
+                :key="`more-${question.raw}`"
+                class="question-pill welcome-more-item"
+                role="menuitem"
+                tabindex="0"
+                @click="onSuggestedQuestionClick($event, question.raw)"
+                @keydown="onSuggestedQuestionKeydown($event, question.raw)"
+              >
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <span class="suggested-question-markdown" v-html="question.html"></span>
+              </div>
+            </div>
+          </transition>
         </div>
       </div>
 
@@ -473,6 +526,7 @@ const props = defineProps<{
 
 const animateIn = ref(!props.noAnimation)
 onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
   if (animateIn.value)
     setTimeout(() => {
       animateIn.value = false
@@ -586,10 +640,25 @@ const renderedSuggestedQuestions = computed(() =>
     html: renderInlineMarkdown(question),
   })),
 )
+const welcomeMoreOpen = ref(false)
+const emojiRe = /\p{Extended_Pictographic}/u
+const welcomeTextQuestions = computed(() =>
+  renderedSuggestedQuestions.value.filter((q) => !emojiRe.test(q.raw)).slice(0, 3),
+)
+const welcomeActionQuestions = computed(() =>
+  renderedSuggestedQuestions.value.filter((q) => emojiRe.test(q.raw)).slice(0, 7),
+)
+const welcomeVisibleQuestions = computed(() => [
+  ...welcomeTextQuestions.value,
+  ...welcomeActionQuestions.value.slice(0, 2),
+])
+const welcomeHiddenActionQuestions = computed(() => welcomeActionQuestions.value.slice(2))
 
 function onSuggestedQuestionClick(event: MouseEvent, question: string) {
   const target = event.target as HTMLElement | null
   if (target?.closest('a')) return
+  closeWelcomeMore()
+  closeActionMenus()
   emit('select-question', question)
 }
 
@@ -598,7 +667,27 @@ function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
   if (target?.closest('a')) return
   if (event.key !== 'Enter' && event.key !== ' ') return
   if (event.key === ' ') event.preventDefault()
+  closeWelcomeMore()
+  closeActionMenus()
   emit('select-question', question)
+}
+
+function closeWelcomeMore() {
+  welcomeMoreOpen.value = false
+}
+
+function toggleWelcomeMore() {
+  welcomeMoreOpen.value = !welcomeMoreOpen.value
+}
+
+function onWelcomeMoreKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeWelcomeMore()
+    return
+  }
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  if (event.key === ' ') event.preventDefault()
+  toggleWelcomeMore()
 }
 
 const messageContentEl = ref<HTMLElement | null>(null)
@@ -831,6 +920,56 @@ function injectCodeCopyButtons() {
   }
 }
 
+function transformActionButtonGroups() {
+  if (!contentEls.value?.length) return
+  for (const el of contentEls.value) {
+    const rows = el.querySelectorAll<HTMLElement>('.action-btns-row')
+    rows.forEach((row) => {
+      if (row.dataset.moreReady === '1') return
+      const buttons = Array.from(row.querySelectorAll<HTMLElement>(':scope > .action-btn'))
+      if (buttons.length <= 1) {
+        row.dataset.moreReady = '1'
+        return
+      }
+      const first = buttons[0]
+      const rest = buttons.slice(1)
+      const wrap = document.createElement('span')
+      wrap.className = 'action-more-wrap'
+
+      const moreBtn = document.createElement('button')
+      moreBtn.className = 'action-btn action-more-btn'
+      moreBtn.type = 'button'
+      moreBtn.textContent = 'More ...'
+      moreBtn.setAttribute('aria-haspopup', 'menu')
+      moreBtn.setAttribute('aria-expanded', 'false')
+
+      const menu = document.createElement('span')
+      menu.className = 'action-more-menu'
+      rest.forEach((btn) => {
+        btn.classList.add('action-more-item')
+        menu.appendChild(btn)
+      })
+
+      wrap.appendChild(first)
+      wrap.appendChild(moreBtn)
+      wrap.appendChild(menu)
+      row.innerHTML = ''
+      row.appendChild(wrap)
+      row.dataset.moreReady = '1'
+    })
+  }
+}
+
+function closeActionMenus() {
+  if (!messageContentEl.value) return
+  const openMenus = messageContentEl.value.querySelectorAll<HTMLElement>('.action-more-wrap.open')
+  openMenus.forEach((wrap) => {
+    wrap.classList.remove('open')
+    const btn = wrap.querySelector<HTMLElement>('.action-more-btn')
+    if (btn) btn.setAttribute('aria-expanded', 'false')
+  })
+}
+
 let postProcessTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
@@ -841,12 +980,14 @@ watch(
       setupTooltips()
       restoreChecklistState()
       injectCodeCopyButtons()
+      transformActionButtonGroups()
     }, 150)
   },
   { immediate: true },
 )
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
   cleanupTooltips()
   if (postProcessTimer) clearTimeout(postProcessTimer)
 })
@@ -903,14 +1044,29 @@ function onContentClick(e: MouseEvent) {
   }
 
   // Handle action button clicks
+  const actionMoreBtn = (e.target as HTMLElement).closest('.action-more-btn') as HTMLElement | null
+  if (actionMoreBtn) {
+    const wrap = actionMoreBtn.closest('.action-more-wrap') as HTMLElement | null
+    if (!wrap) return
+    const isOpen = wrap.classList.contains('open')
+    closeActionMenus()
+    if (!isOpen) {
+      wrap.classList.add('open')
+      actionMoreBtn.setAttribute('aria-expanded', 'true')
+    }
+    return
+  }
   const actionBtn = (e.target as HTMLElement).closest('.action-btn') as HTMLElement | null
   if (actionBtn) {
     if (actionBtn.dataset.upload) {
+      closeActionMenus()
       emit('trigger-upload')
       return
     }
     const action = actionBtn.dataset.action
     if (action) {
+      closeActionMenus()
+      closeWelcomeMore()
       emit('select-question', action)
     }
     return
@@ -929,6 +1085,13 @@ function onContentClick(e: MouseEvent) {
     saveChecklistState()
     return
   }
+}
+
+function onDocumentClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.action-more-wrap') || target?.closest('.welcome-more-wrap')) return
+  closeActionMenus()
+  closeWelcomeMore()
 }
 
 // Image modal state
@@ -1457,6 +1620,44 @@ function openFilePreview(file: FileInfo) {
   margin: 0 6px 8px 0;
 }
 
+.welcome-more-wrap {
+  position: relative;
+}
+
+.welcome-more-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 7;
+  min-width: 260px;
+}
+
+.welcome-more-menu .welcome-more-item {
+  margin: 0;
+}
+
+@keyframes fade-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.fade-right-enter-active {
+  animation: fade-in-right 0.2s ease-out;
+}
+
+.fade-right-leave-active {
+  animation: fade-in-right 0.15s ease-in reverse;
+}
+
 .welcome-suggested-questions .question-pill:focus-visible {
   outline: 2px solid rgba(167, 139, 250, 0.6);
   outline-offset: 2px;
@@ -1547,6 +1748,33 @@ function openFilePreview(file: FileInfo) {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 4px;
+}
+
+:deep(.action-more-wrap) {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+:deep(.action-more-menu) {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 7;
+  min-width: 240px;
+}
+
+:deep(.action-more-wrap.open .action-more-menu) {
+  display: flex;
+  animation: fade-in-right 0.2s ease-out;
+}
+
+:deep(.action-more-item) {
+  margin: 0;
 }
 
 /* Colored text markers */
