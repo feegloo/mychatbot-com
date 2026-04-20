@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from shared.extractors import (
+    _vision_extract_or_describe,
     _render_pdf_page_to_png,
     _reflow_pdf_text,
     _sanitize_text,
@@ -11,6 +12,8 @@ from shared.extractors import (
     extract_text,
     page_needs_ocr,
 )
+
+PNG_HEADER = b"\x89PNG"
 
 
 class TestSanitizeText:
@@ -151,7 +154,7 @@ class TestOcrPdfPage:
         arabic_pdf = repo_root / "test-files" / "54_Mathnawi_Arabic01.pdf"
         assert arabic_pdf.exists(), f"Missing fixture: {arabic_pdf}"
         rendered = _render_pdf_page_to_png(str(arabic_pdf), 0)
-        assert rendered.startswith(b"\x89PNG"), "Arabic PDF page should render to PNG"
+        assert rendered.startswith(PNG_HEADER), "Arabic PDF page should render to PNG"
 
         mock_choice = MagicMock()
         mock_choice.message.content = "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
@@ -166,3 +169,34 @@ class TestOcrPdfPage:
         assert result == "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
         assert any("\u0600" <= ch <= "\u06FF" for ch in result)
         mock_client.chat.completions.create.assert_called_once()
+
+
+class TestVisionExtractOrDescribe:
+    @patch("shared.extractors.get_settings")
+    @patch("shared.extractors.OpenAI")
+    def test_passes_mime_tokens_and_detail(self, mock_openai_cls, mock_settings):
+        mock_settings.return_value = MagicMock(
+            openai_api_key="test",
+            openai_chat_model="gpt-5.4-mini",
+            openai_reasoning_effort="low",
+        )
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="ok"))]
+        )
+
+        result = _vision_extract_or_describe(
+            b"fake",
+            mime_type="image/jpeg",
+            max_completion_tokens=777,
+            detail="high",
+        )
+
+        assert result == "ok"
+        call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+        assert call_kwargs["max_completion_tokens"] == 777
+        assert call_kwargs["messages"][1]["content"][0]["image_url"]["url"].startswith(
+            "data:image/jpeg;base64,"
+        )
+        assert call_kwargs["messages"][1]["content"][0]["image_url"]["detail"] == "high"
