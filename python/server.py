@@ -144,6 +144,7 @@ class GenerateImageRequest(BaseModel):
     context: str = ""
     welcome_messages: list[str] | None = None
     size: str = "1024x1024"
+    quality: str = "low"
 
 
 @app.get("/health")
@@ -457,6 +458,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 prompt=image_prompt,
                 storage_dir=req.storage_dir,
                 size=req.size,
+                quality=req.quality,
             )
             result["image_prompt"] = image_prompt
             return result

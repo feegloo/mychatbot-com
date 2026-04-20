@@ -24,7 +24,7 @@ def generate_image(
     prompt: str,
     storage_dir: str,
     size: str = "1024x1024",
-    quality: str = "auto",
+    quality: str = "low",
     model: str = "gpt-image-1",
 ) -> dict:
     """Generate an image from a text prompt using OpenAI DALL-E.
@@ -42,7 +42,9 @@ def generate_image(
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
-    logger.info(f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} model={model}")
+    logger.info(
+        f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} quality={quality} model={model}"
+    )
 
     result = client.images.generate(
         model=model,
@@ -98,6 +100,7 @@ def build_image_prompt(
         "You are an expert prompt engineer for AI image generation. "
         "Given the user's request and context, create a detailed, vivid image generation prompt. "
         "Focus on visual elements: composition, style, colors, mood, lighting. "
+        "Prefer a clear composition and avoid unnecessary micro-details so generation stays fast. "
         "Output ONLY the image prompt text, nothing else. Max 200 words."
     )
 

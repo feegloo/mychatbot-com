@@ -6,6 +6,7 @@ export async function generateImage(options: {
   context?: string
   welcomeMessages?: string[]
   size?: string
+  quality?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/generate-image`, {
     method: 'POST',
@@ -16,6 +17,7 @@ export async function generateImage(options: {
       context: options.context || '',
       welcome_messages: options.welcomeMessages || [],
       size: options.size || '1024x1024',
+      quality: options.quality || 'low',
     }),
   })
 

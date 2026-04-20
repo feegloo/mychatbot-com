@@ -70,6 +70,8 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     storageDir,
     context,
     welcomeMessages,
+    size: '1024x1024',
+    quality: 'low',
   })
 
   // Build the assistant answer with the image
