@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage
@@ -286,3 +287,147 @@ class TestEdgeCases:
 
         # Verify invoke was called (prompt construction didn't crash)
         assert len(mock_llm.captured) == 1
+
+
+# ---------------------------------------------------------------------------
+# Retry logic
+# ---------------------------------------------------------------------------
+
+
+class TestInvokeWithRetry:
+    """Tests for _invoke_with_retry: exponential backoff on 429 errors."""
+
+    def test_succeeds_on_first_attempt(self):
+        from shared.describe import _invoke_with_retry
+
+        chain = RunnableLambda(lambda _: "ok")
+        assert _invoke_with_retry(chain, {}, label="test") == "ok"
+
+    @patch("shared.describe.time.sleep")
+    def test_retries_on_rate_limit_then_succeeds(self, mock_sleep):
+        from shared.describe import _invoke_with_retry
+
+        call_count = 0
+
+        def _invoke(params):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise Exception("Error code: 429 rate limit exceeded")
+            return "recovered"
+
+        chain = RunnableLambda(_invoke)
+        result = _invoke_with_retry(chain, {}, label="test")
+        assert result == "recovered"
+        assert call_count == 3
+        # Should have slept twice (before retry 2 and 3)
+        assert mock_sleep.call_count == 2
+
+    @patch("shared.describe.time.sleep")
+    def test_raises_after_max_retries(self, mock_sleep):
+        from shared.describe import _invoke_with_retry, _LLM_MAX_RETRIES
+
+        def _invoke(params):
+            raise Exception("429 rate_limit")
+
+        chain = RunnableLambda(_invoke)
+        import pytest
+
+        with pytest.raises(Exception, match="429"):
+            _invoke_with_retry(chain, {}, label="test")
+        assert mock_sleep.call_count == _LLM_MAX_RETRIES
+
+    def test_non_rate_limit_error_raises_immediately(self):
+        from shared.describe import _invoke_with_retry
+
+        def _invoke(params):
+            raise ValueError("some other error")
+
+        chain = RunnableLambda(_invoke)
+        import pytest
+
+        with pytest.raises(ValueError, match="some other error"):
+            _invoke_with_retry(chain, {}, label="test")
+
+
+# ---------------------------------------------------------------------------
+# Split+Synthesize strategy
+# ---------------------------------------------------------------------------
+
+
+class TestSplitSynthesizeStrategy:
+    """Tests for the split+synthesize path (very large documents)."""
+
+    @patch("shared.describe.time.sleep")
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_large_document_triggers_split_strategy(
+        self, _mock_lang, mock_get_llm, mock_sleep
+    ):
+        """Documents exceeding _SPLIT_THRESHOLD should use sequential split+synthesize."""
+        from shared.describe import _SPLIT_THRESHOLD, _SPLIT_PART_MAX_CHARS
+
+        mock_llm = _make_mock_llm("## Big Book\nA great summary.")
+        mock_get_llm.return_value = mock_llm
+
+        # Create text that exceeds _SPLIT_THRESHOLD
+        big_text = "x" * (_SPLIT_THRESHOLD + 1000)
+        extracted = [{"file_name": "big.pdf", "text": big_text}]
+
+        result = describe_documents(extracted, [], language="en", file_metadata=None)
+
+        # Should have been called multiple times: once per part + once for synthesis
+        expected_parts = math.ceil(len(big_text) / _SPLIT_PART_MAX_CHARS)
+        # At least N partial calls + 1 synthesis call
+        assert len(mock_llm.captured) >= expected_parts + 1
+        assert result  # non-empty result
+
+    @patch("shared.describe.time.sleep")
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_split_strategy_includes_raw_beginning(
+        self, _mock_lang, mock_get_llm, mock_sleep
+    ):
+        """The synthesis call should include raw text from the beginning of the document."""
+        from shared.describe import _SPLIT_THRESHOLD, _SYNTHESIS_RAW_TEXT_CHARS
+
+        mock_llm = _make_mock_llm("## Summary\nFinal result.")
+        mock_get_llm.return_value = mock_llm
+
+        # Use distinct content at the beginning so we can check it appears
+        marker = "UNIQUE_BEGINNING_MARKER_12345"
+        big_text = marker + "y" * _SPLIT_THRESHOLD
+        extracted = [{"file_name": "big.pdf", "text": big_text}]
+
+        describe_documents(extracted, [], language="en", file_metadata=None)
+
+        # The last LLM call is the synthesis — check it has raw text
+        last_call = mock_llm.captured[-1]
+        messages = last_call.messages if hasattr(last_call, "messages") else list(last_call)
+        human_text = ""
+        for msg in messages:
+            if hasattr(msg, "type") and msg.type == "human":
+                human_text = msg.content
+                break
+        assert marker in human_text, "Synthesis prompt should contain raw beginning text"
+
+    @patch("shared.describe.time.sleep")
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_split_strategy_sequential_with_delays(
+        self, _mock_lang, mock_get_llm, mock_sleep
+    ):
+        """Split strategy should add inter-call delays between sequential LLM calls."""
+        from shared.describe import _SPLIT_THRESHOLD, _SPLIT_PART_MAX_CHARS
+
+        mock_llm = _make_mock_llm("## Result\nSummary.")
+        mock_get_llm.return_value = mock_llm
+
+        big_text = "z" * (_SPLIT_THRESHOLD + 1000)
+        extracted = [{"file_name": "big.pdf", "text": big_text}]
+
+        describe_documents(extracted, [], language="en", file_metadata=None)
+
+        expected_parts = math.ceil(len(big_text) / _SPLIT_PART_MAX_CHARS)
+        # Should have (N-1) sleeps between N sequential part calls
+        assert mock_sleep.call_count >= expected_parts - 1

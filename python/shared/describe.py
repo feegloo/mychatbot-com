@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -56,11 +56,10 @@ _META_EXCLUDE_KEYS = {
 }
 
 # ── Token budget for the describe prompt ─────────────────────────────
-# Model context windows: gpt-4.1-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
-# We keep the content budget generous to cover large PDFs well while still
-# fitting comfortably in all supported model context windows.
-# ~30K tokens ≈ 120K chars is safe for all models and gives the LLM
-# much more raw text to work with for detailed welcome messages.
+# Organization TPM (tokens per minute) limit for gpt-5.4-mini: 200K.
+# Context windows: gpt-5.4-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
+# We keep the content budget generous but respect TPM constraints.
+# ~30K tokens ≈ 120K chars is safe for a single call.
 _DESCRIBE_MAX_CONTENT_CHARS = 120_000
 # When a document is large, we split the budget: 50% for raw text from start,
 # 20% for 2-pass summaries of remaining content, 30% for page summaries.
@@ -70,14 +69,23 @@ _SUMMARY_PASS_BUDGET_RATIO = 0.20
 _TWO_PASS_THRESHOLD = 200_000
 # Threshold for triggering multi-part split+synthesize strategy.
 # Documents above this size get split into N parts, each generating a
-# partial welcome message, then synthesized into one.
+# detailed condensed summary, then synthesized into one welcome message.
 # ~800K chars ≈ 200K tokens. Well above single-call capacity.
 _SPLIT_THRESHOLD = 800_000
 # Max chars of text to send per partial welcome message call.
-# ~100K chars ≈ 25K tokens, safely under any model limit.
-_SPLIT_PART_MAX_CHARS = 100_000
-# Max parallel LLM calls for split welcome messages
-_SPLIT_MAX_WORKERS = 4
+# ~150K chars ≈ 37K tokens. Each part produces a detailed "condensed summary"
+# of its section (~10 pages worth of detail).
+_SPLIT_PART_MAX_CHARS = 150_000
+# Delay between sequential LLM calls (seconds) to spread out TPM usage.
+# Each call uses ~40K tokens; serial execution avoids bursting past 200K TPM.
+_SPLIT_INTER_CALL_DELAY = 2.0
+# How many chars of raw book text to include in the synthesis prompt.
+# ~200 pages ≈ 400K chars. This gives the synthesis LLM direct access to the
+# beginning of the book alongside the condensed summaries.
+_SYNTHESIS_RAW_TEXT_CHARS = 400_000
+# Max retries for 429 rate-limit errors
+_LLM_MAX_RETRIES = 3
+_LLM_RETRY_BASE_DELAY = 2.0
 
 
 def _estimate_total_text_len(extracted: list[dict]) -> int:
@@ -96,6 +104,25 @@ def _build_page_summary_block(page_summaries: list[dict]) -> str:
             prefix = f"[{fname} p.{page}]" if fname else f"[p.{page}]"
             lines.append(f"{prefix} {summary}")
     return "\n".join(lines)
+
+
+def _invoke_with_retry(chain, params: dict, label: str = "LLM call") -> str:
+    """Invoke a LangChain chain with retry on 429 rate-limit errors."""
+    for attempt in range(_LLM_MAX_RETRIES + 1):
+        try:
+            return chain.invoke(params)
+        except Exception as e:
+            error_str = str(e)
+            is_rate_limit = "429" in error_str or "rate_limit" in error_str.lower()
+            if is_rate_limit and attempt < _LLM_MAX_RETRIES:
+                delay = _LLM_RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning(
+                    f"⚠️ Rate limit hit for {label} (attempt {attempt + 1}), "
+                    f"retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                continue
+            raise
 
 
 def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
@@ -134,7 +161,7 @@ def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke({"text": text})
+    result = _invoke_with_retry(chain, {"text": text}, label=f"2-pass summary ({chunk_label})")
     logger.info(f"📝 2-pass summary for {chunk_label}: {len(text)} chars → {len(result)} chars")
     return result.strip()
 
@@ -196,35 +223,49 @@ def _generate_partial_welcome(
     language: str,
     metadata_section: str,
 ) -> str:
-    """Generate a welcome message for one part of a large document."""
+    """Generate a detailed condensed summary for one part of a large document.
+
+    Unlike a short welcome message, this produces a rich, dense summary
+    (equivalent to ~10 pages of detail) that captures all key facts, characters,
+    events, and concepts. These detailed summaries are later synthesized into
+    the final welcome message.
+    """
     if language == "pl":
         system_msg = (
-            "Tworzysz wiadomość powitalną dla CZĘŚCI dużego dokumentu. "
+            "Tworzysz SZCZEGÓŁOWE STRESZCZENIE CZĘŚCI dużego dokumentu. "
             f"To jest część {part_index + 1} z {total_parts}.\n\n"
-            "Twoim zadaniem jest opisać treść TEGO fragmentu — wymień najważniejsze fakty, "
-            "nazwiska postaci, miejsca, wydarzenia, kluczowe koncepcje.\n\n"
-            "Twoja odpowiedź MUSI składać się z:\n"
-            "1. **Tytuł** (## Tytuł - Autor) — tylko jeśli to pierwsza część i możesz go rozpoznać, "
-            "w przeciwnym razie zacznij od opisu.\n"
-            "2. **Opis**: 3-5 zdań z KONKRETNYMI faktami z tej części. Używaj **pogrubienia** "
-            "dla kluczowych terminów, nazwisk, liczb.\n"
-            "3. **Ekspercki wgląd**: 1-2 zdania analizy.\n\n"
-            "Pisz zwięźle. NIE pytaj użytkownika o nic. NIE używaj [source:N]. "
+            "Twoim zadaniem jest wyciągnąć WSZYSTKIE istotne informacje z tego fragmentu "
+            "i stworzyć gęste, szczegółowe streszczenie — jakby skrócić 500 stron do 10.\n\n"
+            "Twoja odpowiedź MUSI zawierać:\n"
+            "- **Tytuł i autor** (tylko jeśli to część 1 i możesz je rozpoznać)\n"
+            "- **WSZYSTKIE imiona postaci/osób** z pogrubionymi nazwami\n"
+            "- **Kluczowe wydarzenia** w kolejności chronologicznej\n"
+            "- **Miejsca, daty, kwoty, statystyki** — każda konkretna liczba\n"
+            "- **Główne tematy i argumenty** z tej części\n"
+            "- **Relacje między postaciami/elementami**\n"
+            "- **Zwroty akcji, kluczowe cytaty, wnioski**\n\n"
+            "Pisz gęsto i szczegółowo — to streszczenie będzie jedynym źródłem "
+            "informacji o tej części dokumentu. Każde zdanie musi nieść konkretne fakty.\n"
+            "NIE pisz ogólników. NIE pytaj użytkownika. NIE używaj [source:N].\n"
             "Odpowiadaj po polsku."
         )
     else:
         system_msg = (
-            "You are writing a welcome message for ONE PART of a large document. "
+            "You are creating a DETAILED CONDENSED SUMMARY of ONE PART of a large document. "
             f"This is part {part_index + 1} of {total_parts}.\n\n"
-            "Your job is to describe the content of THIS section — mention the key facts, "
-            "character names, places, events, and key concepts.\n\n"
+            "Your job is to extract ALL important information from this section and create "
+            "a dense, detailed summary — as if condensing 500 pages into 10.\n\n"
             "Your response MUST include:\n"
-            "1. **Title** (## Title - Author) — only if this is part 1 and you can identify it, "
-            "otherwise start with the description.\n"
-            "2. **Description**: 3-5 sentences with SPECIFIC facts from this section. Use **bold** "
-            "for key terms, names, numbers.\n"
-            "3. **Expert insight**: 1-2 sentences of analysis.\n\n"
-            "Be concise. Do NOT ask the user anything. Do NOT use [source:N]. "
+            "- **Title and author** (only if this is part 1 and you can identify them)\n"
+            "- **ALL character/person names** with bold formatting\n"
+            "- **Key events** in chronological order\n"
+            "- **Places, dates, amounts, statistics** — every specific number\n"
+            "- **Main themes and arguments** from this section\n"
+            "- **Relationships between characters/elements**\n"
+            "- **Plot twists, key quotes, conclusions**\n\n"
+            "Write densely and in detail — this summary will be the ONLY source of information "
+            "about this part of the document. Every sentence must carry concrete facts.\n"
+            "Do NOT write generalities. Do NOT ask the user anything. Do NOT use [source:N].\n"
             "Reply in the same language as the content."
         )
 
@@ -240,18 +281,20 @@ def _generate_partial_welcome(
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke(
+    result = _invoke_with_retry(
+        chain,
         {
             "file_list": file_list,
             "part_num": str(part_index + 1),
             "total": str(total_parts),
             "content": part_text,
             "metadata_section": metadata_section,
-        }
+        },
+        label=f"partial summary {part_index + 1}/{total_parts}",
     )
     logger.info(
-        f"📝 Partial welcome message {part_index + 1}/{total_parts}: "
-        f"{len(part_text)} chars text → {len(result)} chars message"
+        f"📝 Detailed summary {part_index + 1}/{total_parts}: "
+        f"{len(part_text)} chars text → {len(result)} chars summary"
     )
     return result.strip()
 
@@ -261,43 +304,62 @@ def _synthesize_welcome_messages(
     file_list: str,
     language: str,
     metadata_section: str,
+    raw_beginning: str = "",
 ) -> str:
-    """Synthesize N partial welcome messages into one final welcome message."""
-    if len(partial_messages) == 1:
+    """Synthesize N detailed condensed summaries into one final welcome message.
+
+    When raw_beginning is provided, the LLM also receives the first ~200 pages
+    of raw book text alongside the condensed summaries — giving it direct access
+    to the author's voice, style, and opening content for a smarter result.
+    """
+    if len(partial_messages) == 1 and not raw_beginning:
         return partial_messages[0]
 
     combined_partials = "\n\n---\n\n".join(
-        f"[Part {i + 1} of {len(partial_messages)}]\n{msg}"
+        f"[Detailed summary of section {i + 1} of {len(partial_messages)}]\n{msg}"
         for i, msg in enumerate(partial_messages)
     )
 
+    raw_block = ""
+    if raw_beginning:
+        raw_block = (
+            f"\n\n=====\nRaw text from the beginning of the document "
+            f"(first ~{len(raw_beginning) // 1000}K chars):\n{raw_beginning}\n====="
+        )
+
     if language == "pl":
         system_msg = (
-            "Otrzymujesz kilka opisów różnych CZĘŚCI tego samego dużego dokumentu (książki/PDF). "
-            "Każdy opis obejmuje inną sekcję. Twoim zadaniem jest POŁĄCZYĆ je w jedną, "
-            "spójną wiadomość powitalną.\n\n"
+            "Otrzymujesz SZCZEGÓŁOWE STRESZCZENIA różnych CZĘŚCI tego samego dużego dokumentu "
+            "(książki/PDF). Każde streszczenie obejmuje inną sekcję i zawiera gęste, "
+            "szczegółowe informacje o treści.\n\n"
+            "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
+            "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
+            "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
             "Twoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: ## Tytuł dokumentu - Autor\n"
             "2. **Opis**: 2-3 zdania podsumowujące CAŁY dokument. Zachowaj najważniejsze "
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia**.\n"
             "3. **Ekspercki wgląd**: 1-2 zdania wartościowej analizy.\n\n"
-            "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH części, nie tylko pierwszej. "
-            "Celuj w 100-150 słów łącznie. NIE pytaj użytkownika. NIE używaj [source:N]. "
+            "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH streszczeń, nie tylko pierwszego. "
+            "Celuj w 100-200 słów łącznie. NIE pytaj użytkownika. NIE używaj [source:N]. "
             "Używaj emoji profesjonalnie (📖, ⚔️, 🗺️ itp.).\n"
             "Odpowiadaj po polsku."
         )
     else:
         system_msg = (
-            "You are receiving several descriptions of different PARTS of the same large document (book/PDF). "
-            "Each description covers a different section. Your job is to MERGE them into one "
-            "cohesive welcome message.\n\n"
+            "You are receiving DETAILED CONDENSED SUMMARIES of different PARTS of the same "
+            "large document (book/PDF). Each summary covers a different section and contains "
+            "dense, detailed information about the content.\n\n"
+            "You may also receive raw text from the beginning of the document — use it "
+            "to capture the author's voice, tone, and opening context.\n\n"
+            "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
             "Your response MUST have three parts:\n"
             "1. **Title**: ## Document Title - Author Name\n"
             "2. **Description**: 2-3 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** for key terms.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
-            "IMPORTANT: Synthesize information from ALL parts, not just the first. "
-            "Aim for 100-150 words total. Do NOT ask the user anything. Do NOT use [source:N]. "
+            "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
+            "Aim for 100-200 words total. Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         )
@@ -307,22 +369,26 @@ def _synthesize_welcome_messages(
             ("system", system_msg),
             (
                 "human",
-                "Files: {file_list}\n\nPartial welcome messages to synthesize:\n\n{partials}{metadata_section}",
+                "Files: {file_list}\n\nDetailed summaries to synthesize:\n\n{partials}{raw_block}{metadata_section}",
             ),
         ]
     )
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke(
+    result = _invoke_with_retry(
+        chain,
         {
             "file_list": file_list,
             "partials": combined_partials,
+            "raw_block": raw_block,
             "metadata_section": metadata_section,
-        }
+        },
+        label="synthesis",
     )
     logger.info(
-        f"📝 Synthesized {len(partial_messages)} partial messages → {len(result)} chars final"
+        f"📝 Synthesized {len(partial_messages)} summaries "
+        f"(+ {len(raw_beginning)} chars raw text) → {len(result)} chars final"
     )
     return result.strip()
 
@@ -385,8 +451,9 @@ def describe_documents(
 
     # ── Strategy 1: Split+Synthesize for very large documents ────────
     # For documents > _SPLIT_THRESHOLD chars (~800K), split the full text
-    # into N parts, generate a partial welcome message for each in parallel,
-    # then synthesize all partial messages into one final welcome message.
+    # into N parts, generate a detailed condensed summary for each (sequentially
+    # to respect TPM limits), then synthesize all summaries + raw beginning
+    # into one final welcome message.
     if total_chars > _SPLIT_THRESHOLD:
         logger.info(
             f"📝 Very large document ({total_chars} chars) → using split+synthesize strategy"
@@ -398,29 +465,25 @@ def describe_documents(
         parts = _split_text_into_parts(all_text, _SPLIT_PART_MAX_CHARS)
         logger.info(f"📝 Split into {len(parts)} parts ({[len(p) for p in parts[:5]]}...)")
 
-        # Generate partial welcome messages in parallel
+        # Generate detailed condensed summaries sequentially to stay under TPM
         partial_messages: list[tuple[int, str]] = []
-        with ThreadPoolExecutor(max_workers=min(_SPLIT_MAX_WORKERS, len(parts))) as pool:
-            futures = {}
-            for i, part in enumerate(parts):
-                future = pool.submit(
-                    _generate_partial_welcome,
+        for i, part in enumerate(parts):
+            try:
+                msg = _generate_partial_welcome(
                     part,
                     i,
                     len(parts),
                     file_list,
                     language,
-                    metadata_section if i == 0 else "",  # Only first part gets metadata
+                    metadata_section if i == 0 else "",
                 )
-                futures[future] = i
+                partial_messages.append((i, msg))
+            except Exception as e:
+                logger.warning(f"⚠️ Detailed summary {i + 1} failed: {e}")
 
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    msg = future.result()
-                    partial_messages.append((idx, msg))
-                except Exception as e:
-                    logger.warning(f"⚠️ Partial welcome message {idx + 1} failed: {e}")
+            # Delay between calls to spread TPM usage
+            if i < len(parts) - 1:
+                time.sleep(_SPLIT_INTER_CALL_DELAY)
 
         # Sort by part index to maintain order
         partial_messages.sort(key=lambda x: x[0])
@@ -432,8 +495,15 @@ def describe_documents(
         if len(messages) == 1:
             return messages[0]
 
-        # Synthesize all partial messages into one
-        return _synthesize_welcome_messages(messages, file_list, language, metadata_section)
+        # Extract raw beginning text for the synthesis prompt.
+        # This gives the synthesis LLM direct access to the author's voice
+        # and opening content alongside the condensed summaries.
+        raw_beginning = all_text[:_SYNTHESIS_RAW_TEXT_CHARS]
+
+        # Synthesize all detailed summaries + raw beginning into one message
+        return _synthesize_welcome_messages(
+            messages, file_list, language, metadata_section, raw_beginning=raw_beginning
+        )
 
     is_large = total_chars > _DESCRIBE_MAX_CONTENT_CHARS and page_summaries
 
@@ -705,7 +775,9 @@ Reply in the same language as the content.""",
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = chain.invoke(
-        {"file_list": file_list, "content": combined, "metadata_section": metadata_section}
+    result = _invoke_with_retry(
+        chain,
+        {"file_list": file_list, "content": combined, "metadata_section": metadata_section},
+        label="describe",
     )
     return result.strip()

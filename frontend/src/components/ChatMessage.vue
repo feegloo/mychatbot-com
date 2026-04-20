@@ -477,6 +477,7 @@ const effectiveStorageId = computed(() => props.storageConversationId || props.c
 const emit = defineEmits<{
   'select-question': [question: string]
   'upload-files': [files: File[]]
+  'trigger-upload': []
   'view-threads': [messageId: string]
 }>()
 
@@ -564,7 +565,11 @@ function setUploading(val: boolean) {
   uploadingFiles.value = val
 }
 
-defineExpose({ resetUploadState, setUploading })
+function triggerUpload() {
+  uploadInput.value?.click()
+}
+
+defineExpose({ resetUploadState, setUploading, triggerUpload })
 
 const _renderedContent = computed(() => renderMarkdown(props.msg.content))
 
@@ -849,6 +854,15 @@ function restoreChecklistState() {
 }
 
 function onContentClick(e: MouseEvent) {
+  // Handle inline image clicks — open in modal
+  const img = (e.target as HTMLElement).closest('img') as HTMLImageElement | null
+  if (img && img.src) {
+    modalSrc.value = img.src
+    modalAlt.value = img.alt || 'Image'
+    modalOpen.value = true
+    return
+  }
+
   // Handle source citation clicks (higher priority than checklist)
   const btn = (e.target as HTMLElement).closest('.inline-source-btn') as HTMLElement | null
   if (btn) {
@@ -863,6 +877,10 @@ function onContentClick(e: MouseEvent) {
   // Handle action button clicks
   const actionBtn = (e.target as HTMLElement).closest('.action-btn') as HTMLElement | null
   if (actionBtn) {
+    if (actionBtn.dataset.upload) {
+      emit('trigger-upload')
+      return
+    }
     const action = actionBtn.dataset.action
     if (action) {
       emit('select-question', action)
@@ -1566,6 +1584,22 @@ function openFilePreview(file: FileInfo) {
 }
 :deep(.action-btn:active)::after {
   background: rgba(167, 139, 250, 0.1);
+}
+
+:deep(.upload-action-btn) {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+}
+:deep(.upload-action-btn)::after {
+  display: none;
+}
+@media (hover: hover) {
+  :deep(.upload-action-btn:hover) {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.3);
+    color: #bae6fd;
+  }
 }
 
 /* Highlight.js code block overrides */

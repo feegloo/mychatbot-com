@@ -74,7 +74,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
 
   // Build the assistant answer with the image
   const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
-  const answer = `🎨 Here's the generated image:\n\n![Generated image](${imageUrl})\n\n_${result.image_prompt}_`
+  const answer = `🎨 Here's the generated image:\n\n![Generated image](${imageUrl})`
 
   const assistantMsgId = await insertConversationMessage({
     conversationId,

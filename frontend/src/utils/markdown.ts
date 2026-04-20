@@ -106,6 +106,9 @@ export function renderMarkdown(content: string): string {
     actionPlaceholders.push(label.trim())
     return actionToken(i)
   })
+  // Protect [upload] markers from marked processing
+  const uploadToken = '\x01UPLOAD\x01'
+  normalized = normalized.replace(/\[upload\]/gi, uploadToken)
 
   const rawHtml = marked.parse(normalized, { async: false }) as string
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
@@ -178,8 +181,19 @@ export function renderMarkdown(content: string): string {
     const label = actionPlaceholders[parseInt(idxStr, 10)]
     return `<button class="action-btn" data-action="${label}">${label}</button>`
   })
+  // Restore [upload] placeholders as upload action buttons
+  // eslint-disable-next-line no-control-regex
+  const withUpload = withActions.replace(
+    /\x01UPLOAD\x01/g,
+    '<button class="action-btn upload-action-btn" data-upload="true">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px">' +
+      '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>' +
+      '<polyline points="17 8 12 3 7 8"/>' +
+      '<line x1="12" y1="3" x2="12" y2="15"/>' +
+      '</svg>Upload more files</button>',
+  )
   // Wrap consecutive action buttons in an inline container (like welcome message pills)
-  const withActionsWrapped = withActions.replace(
+  const withActionsWrapped = withUpload.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<span class="action-btns-row">$1</span>',
   )

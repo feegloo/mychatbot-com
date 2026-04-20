@@ -116,6 +116,7 @@
             :no-animation="index < initialMessageCount"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
+            @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
           />
         </div>
@@ -516,6 +517,10 @@ async function handleUploadFiles(files: File[]) {
       msgRef.resetUploadState(message || 'Upload failed')
     }
   }
+}
+
+function triggerUploadOnFirstMessage() {
+  firstMessageRef.value?.triggerUpload()
 }
 
 function viewThreads(messageId: string) {

@@ -894,6 +894,16 @@ a {
   line-height: 1.6;
 }
 
+.markdown-content img {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: opacity 0.15s;
+}
+
+.markdown-content img:hover {
+  opacity: 0.85;
+}
+
 .markdown-content p {
   margin: 0 0 8px;
 }
@@ -1445,6 +1455,10 @@ h3 {
 @media (max-width: 768px) {
   .message-row.assistant {
     margin-left: 0;
+  }
+
+  .message.assistant {
+    max-width: 100%;
   }
 
   .sidebar-toggle {
