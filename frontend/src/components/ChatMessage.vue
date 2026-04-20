@@ -1226,6 +1226,12 @@ function openFilePreview(file: FileInfo) {
   font-family: inherit;
 }
 
+.action-btn {
+    text-wrap: nowrap;
+}
+
+
+
 /* On touch devices, always show and add spacing below */
 @media (hover: none) {
   .msg-actions {
@@ -1627,6 +1633,11 @@ function openFilePreview(file: FileInfo) {
   }
   .welcome-file-previews-mobile {
     display: flex;
+  }
+
+  .action-more-wrap {
+    display: flex;
+    flex-direction: column;
   }
 }
 
