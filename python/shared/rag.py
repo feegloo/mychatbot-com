@@ -234,7 +234,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - Colored text: ALWAYS use color markers in every answer using [c:color]word[/c] syntax.
   - Requirement: include at least one color marker in each major paragraph or bullet group.
   - For short answers (1-2 sentences), include at least one color marker.
-  - Use meaningful emphasis; avoid coloring entire sentences.
+  - Keep emphasis meaningful; avoid coloring entire sentences. If emphasis options are limited, color only the single most important keyword.
   - [c:green]word[/c] — positive, correct, success, approved, healthy, growth
   - [c:red]word[/c] — negative, danger, error, warning, critical, decline
   - [c:amber]word[/c] — caution, moderate, pending, attention needed

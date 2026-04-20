@@ -189,8 +189,7 @@
               role="button"
               tabindex="0"
               @click="onSuggestedQuestionClick($event, question.raw)"
-              @keydown.enter="emit('select-question', question.raw)"
-              @keydown.space.prevent="emit('select-question', question.raw)"
+              @keydown="onSuggestedQuestionKeydown($event, question.raw)"
             >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span class="suggested-question-markdown" v-html="question.html"></span>
@@ -364,8 +363,7 @@
           role="button"
           tabindex="0"
           @click="onSuggestedQuestionClick($event, question.raw)"
-          @keydown.enter="emit('select-question', question.raw)"
-          @keydown.space.prevent="emit('select-question', question.raw)"
+          @keydown="onSuggestedQuestionKeydown($event, question.raw)"
         >
           <!-- eslint-disable-next-line vue/no-v-html -->
           <span class="suggested-question-markdown" v-html="question.html"></span>
@@ -592,6 +590,14 @@ const renderedSuggestedQuestions = computed(() =>
 function onSuggestedQuestionClick(event: MouseEvent, question: string) {
   const target = event.target as HTMLElement | null
   if (target?.closest('a')) return
+  emit('select-question', question)
+}
+
+function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('a')) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  if (event.key === ' ') event.preventDefault()
   emit('select-question', question)
 }
 
