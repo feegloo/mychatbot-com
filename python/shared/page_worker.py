@@ -40,10 +40,55 @@ from .telemetry import log_processing_event, trace_step
 
 logger = logging.getLogger(__name__)
 
-# Use all available cores for page-level parallelism
-_PAGE_WORKERS = max(os.cpu_count() or 4, 4)
-# Image description is IO-bound — use 2x cores
-_IMAGE_WORKERS = (os.cpu_count() or 2) * 2
+
+def _read_worker_count(
+    name: str,
+    default: int,
+    minimum: int = 1,
+    maximum: int | None = None,
+) -> int:
+    # Invalid/non-numeric values use `default`.
+    # Numeric values are clamped to [minimum, maximum] when `maximum` is provided.
+    # If `maximum` is None, only the minimum bound is enforced.
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+        if value < minimum:
+            logger.warning(
+                f"{name}={value} is below minimum {minimum}; using {minimum}"
+            )
+            return minimum
+        if maximum is not None and value > maximum:
+            logger.warning(
+                f"{name}={value} is above maximum {maximum}; using {maximum}"
+            )
+            return maximum
+        return value
+    except ValueError:
+        logger.warning(f"{name}={raw!r} is invalid; using {default}")
+        return default
+
+
+# IMPORTANT: keep PDF page workers conservative by default.
+# PyMuPDF page extraction in highly parallel mode can be unstable on some PDFs
+# (especially large scanned/OCR-heavy books), leading to process crashes and
+# backend "fetch failed" errors. Allow opt-in scaling via env override.
+_CPU_COUNT = os.cpu_count() or 1
+_PAGE_WORKERS = _read_worker_count(
+    "PDF_PAGE_WORKERS",
+    default=1,
+    minimum=1,
+    maximum=_CPU_COUNT,
+)
+# Image description is IO-bound — parallelism is configurable and safe to keep higher.
+_IMAGE_WORKERS = _read_worker_count(
+    "PDF_IMAGE_WORKERS",
+    default=_CPU_COUNT * 2,
+    minimum=1,
+    maximum=_CPU_COUNT * 4,
+)
 
 
 @dataclass
