@@ -12,6 +12,7 @@ import logging
 import os
 import urllib.error
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 
@@ -144,7 +145,7 @@ class GenerateImageRequest(BaseModel):
     context: str = ""
     welcome_messages: list[str] | None = None
     size: str = "1024x1024"
-    quality: str = "low"
+    quality: Literal["auto", "high", "low"] = "low"
 
 
 @app.get("/health")
