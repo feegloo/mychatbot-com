@@ -48,7 +48,8 @@ def _read_worker_count(
     maximum: int | None = None,
 ) -> int:
     # Invalid/non-numeric values use `default`.
-    # Numeric out-of-range values are clamped to [minimum, maximum].
+    # Numeric values are clamped to [minimum, maximum] when `maximum` is provided.
+    # If `maximum` is None, only the minimum bound is enforced.
     raw = os.getenv(name, "").strip()
     if not raw:
         return default
