@@ -95,37 +95,35 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
   let filePath = path.join(dir, safeName)
 
   // Try exact match first, then NFC/NFD scan, then DB lookup by original_name
-  let resolvedFilePath: string | null = null
-  let resolvedFileSize: number | null = null
+  let resolvedOnDisk: { filePath: string; size: number } | null
   let resolvedStoredName: string | null = null
 
-  async function tryResolveOnDisk(candidatePath: string): Promise<boolean> {
+  async function resolveOnDisk(candidatePath: string): Promise<{ filePath: string; size: number } | null> {
     const resolved = path.resolve(candidatePath)
     if (!resolved.startsWith(path.resolve(config.storageRoot))) {
-      return false
+      return null
     }
     try {
       const stats = await fs.stat(candidatePath)
-      if (!stats.isFile()) return false
-      resolvedFilePath = candidatePath
-      resolvedFileSize = stats.size
-      return true
+      if (!stats.isFile()) return null
+      return { filePath: candidatePath, size: stats.size }
     } catch {
-      return false
+      return null
     }
   }
 
-  if (!(await tryResolveOnDisk(filePath))) {
+  resolvedOnDisk = await resolveOnDisk(filePath)
+  if (!resolvedOnDisk) {
     const actualName = await findFileInDir(dir, safeName)
     if (actualName) {
       filePath = path.join(dir, actualName)
-      await tryResolveOnDisk(filePath)
+      resolvedOnDisk = await resolveOnDisk(filePath)
     } else {
       // File not found by name on disk — look up stored_name from DB
       resolvedStoredName = await findStoredName(namespace, safeName)
       if (resolvedStoredName) {
         filePath = path.join(dir, resolvedStoredName)
-        await tryResolveOnDisk(filePath)
+        resolvedOnDisk = await resolveOnDisk(filePath)
       }
     }
   }
@@ -136,7 +134,7 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
   if (
     config.storageProvider === 'gcs' &&
     config.gcsBucket &&
-    (!resolvedFilePath || (resolvedFileSize ?? 0) > MAX_PROXY_SIZE)
+    (!resolvedOnDisk || resolvedOnDisk.size > MAX_PROXY_SIZE)
   ) {
     const gcsKey = resolvedStoredName
       ? `${namespace}/${resolvedStoredName}`
@@ -189,13 +187,13 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
     }
   }
 
-  if (!resolvedFilePath) {
+  if (!resolvedOnDisk) {
     ctx.status = 404
     ctx.body = { error: 'File not found' }
     return
   }
 
-  const fileBuffer = await fs.readFile(resolvedFilePath)
+  const fileBuffer = await fs.readFile(resolvedOnDisk.filePath)
 
   const mimeTypes: Record<string, string> = {
     '.png': 'image/png',
