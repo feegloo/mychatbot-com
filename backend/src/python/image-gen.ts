@@ -32,5 +32,6 @@ export async function generateImage(options: {
     file_name: string
     revised_prompt: string
     image_prompt: string
+    image_title: string
   }
 }

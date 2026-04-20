@@ -447,11 +447,13 @@ async def generate_image_endpoint(req: GenerateImageRequest):
 
         def _generate():
             # Build a detailed visual prompt from the user's request + context
-            image_prompt = build_image_prompt(
+            prompt_result = build_image_prompt(
                 question=req.question,
                 context=req.context,
                 welcome_messages=req.welcome_messages,
             )
+            image_prompt = prompt_result["prompt"]
+            image_title = prompt_result["title"]
             logger.info(f"🎨 Image prompt: {image_prompt[:150]}...")
 
             # Generate and save the image
@@ -462,6 +464,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 quality=req.quality,
             )
             result["image_prompt"] = image_prompt
+            result["image_title"] = image_title
             return result
 
         result = await asyncio.to_thread(_generate)

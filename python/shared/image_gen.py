@@ -88,20 +88,22 @@ def build_image_prompt(
     question: str,
     context: str = "",
     welcome_messages: list[str] | None = None,
-) -> str:
-    """Build a DALL-E prompt from the user's question and conversation context.
+) -> dict:
+    """Build a DALL-E prompt and short title from the user's question and context.
 
-    Extracts the visual intent and creates a descriptive image generation prompt.
+    Returns dict with 'prompt' (detailed visual prompt) and 'title' (short image title).
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
     system = (
         "You are an expert prompt engineer for AI image generation. "
-        "Given the user's request and context, create a detailed, vivid image generation prompt. "
+        "Given the user's request and context, create:\n"
+        "1. A detailed, vivid image generation prompt (max 200 words). "
         "Focus on visual elements: composition, style, colors, mood, lighting. "
-        "Prefer a clear composition and avoid unnecessary micro-details unless explicitly requested. "
-        "Output ONLY the image prompt text, nothing else. Max 200 words."
+        "Prefer a clear composition and avoid unnecessary micro-details unless explicitly requested.\n"
+        "2. A short, evocative title for the image (max 8 words).\n\n"
+        'Output ONLY valid JSON: {"prompt": "...", "title": "..."}'
     )
 
     user_content = f"User request: {question}\n"
@@ -116,8 +118,18 @@ def build_image_prompt(
             {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ],
-        max_completion_tokens=300,
+        max_completion_tokens=400,
         temperature=0.8,
     )
 
-    return response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
+    try:
+        import json
+
+        parsed = json.loads(raw)
+        return {
+            "prompt": parsed["prompt"],
+            "title": parsed.get("title", "Generated Image"),
+        }
+    except (json.JSONDecodeError, KeyError):
+        return {"prompt": raw, "title": "Generated Image"}

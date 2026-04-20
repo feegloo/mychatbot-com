@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import re
 
 from langchain_core.output_parsers import StrOutputParser
@@ -629,6 +630,58 @@ _LAB_TEST_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_FICTION_PATTERN = re.compile(
+    r"\b(powieść|powieści|beletrystyka|kryminał|thriller|romans|fantasy|sci-fi|"
+    r"horror|opowiadanie|opowieści|tom serii|seria|fabuła|bohater|akcja zaczyna|"
+    r"novel|fiction|crime|mystery|romance|short stor|narrative|chapter|protagonist|"
+    r"stronicow[ya])\b",
+    re.IGNORECASE,
+)
+
+_POETRY_QUOTES_PATTERN = re.compile(
+    r"\b(poezja|wiersz|wiersze|wiersza|cytaty?|aforyzmy?|sentencj[ae]|filozofi[ae]|"
+    r"poet|poetry|poem|poems|quotes?|aphorism|philosophy|philosophical|"
+    r"refleksj[ae]|medytacj[ae]|mądrości|przesłani[ae])\b",
+    re.IGNORECASE,
+)
+
+_SELFHELP_PATTERN = re.compile(
+    r"\b(poradnik|samorozwój|wskazówk[iae]|nawyk[iy]|produktywność|motywacj[ae]|"
+    r"self.?help|personal.?growth|productivity|habit|confidence|mindset|"
+    r"ćwiczeni[ae]|wyzwani[ae]|workbook|how.?to|tips?\b|advice|coaching)\b",
+    re.IGNORECASE,
+)
+
+_AUTHOR_FROM_STYLE_PATTERN = re.compile(
+    r"(?:w stylu|like|inspired by|inspirowany?)\s+(.+?)(?:\s*[✏📜💡🏋🤔🎭📅]|$)",
+    re.IGNORECASE,
+)
+
+
+def _extract_author_from_llm_actions(
+    llm_actions: list[str],
+    welcome_message: str,
+) -> str | None:
+    """Try to extract author name from LLM-generated action prompts or welcome message."""
+    for action in llm_actions:
+        m = _AUTHOR_FROM_STYLE_PATTERN.search(action)
+        if m:
+            return m.group(1).strip()
+
+    # Fallback: look for "Kim jest/był [Name]?" pattern in questions or welcome
+    who_pattern = re.compile(
+        r"(?:Kim (?:jest|był[a]?)|Who (?:is|was))\s+(.+?)\??",
+        re.IGNORECASE,
+    )
+    for text in llm_actions:
+        m = who_pattern.search(text)
+        if m:
+            return m.group(1).strip().rstrip("?")
+    m = who_pattern.search(welcome_message)
+    if m:
+        return m.group(1).strip().rstrip("?")
+    return None
+
 
 def _extract_subject_phrase(
     welcome_message: str,
@@ -757,7 +810,51 @@ def _append_contextual_prompts(
         else:
             contextual.insert(0, "Make a diagnosis based on results 🔬")
 
-    actions = [pinned_image_prompt] + contextual + llm_actions
+    # Detect content type from welcome message + description for pinned creative prompt
+    combined_text = f"{welcome_message} {description}"
+    author_name = _extract_author_from_llm_actions(
+        questions, combined_text,
+    )
+
+    pinned_creative_prompt: str | None = None
+    is_fiction = bool(_FICTION_PATTERN.search(combined_text))
+    is_poetry_quotes = bool(_POETRY_QUOTES_PATTERN.search(combined_text))
+    is_selfhelp = bool(_SELFHELP_PATTERN.search(combined_text))
+
+    if is_fiction and author_name:
+        pinned_creative_prompt = (
+            f"Napisz inspirowany rozdział w stylu {author_name} ✏️"
+            if language == "pl"
+            else f"Write inspired chapter like {author_name} ✏️"
+        )
+    elif is_poetry_quotes and author_name:
+        pinned_creative_prompt = (
+            f"Napisz inspirowany wiersz w stylu {author_name} 📜"
+            if language == "pl"
+            else f"Write inspired poem like {author_name} 📜"
+        )
+    elif is_selfhelp and author_name:
+        _selfhelp_options_pl = [
+            f"Napisz 10 nowych wskazówek inspirowanych {author_name} 💡",
+            f"Stwórz 7 ćwiczeń inspirowanych {author_name} 🏋️",
+            f"Wygeneruj 12 pytań refleksyjnych inspirowanych {author_name} 🤔",
+            f"Napisz 5 scenariuszy z życia inspirowanych {author_name} 🎭",
+            f"Stwórz 14-dniowy plan działania inspirowany {author_name} 📅",
+        ]
+        _selfhelp_options_en = [
+            f"Write 10 new tips inspired by {author_name} 💡",
+            f"Create 7 exercises inspired by {author_name} 🏋️",
+            f"Generate 12 reflection questions inspired by {author_name} 🤔",
+            f"Draft 5 real-life scenarios inspired by {author_name} 🎭",
+            f"Build a 14-day action plan inspired by {author_name} 📅",
+        ]
+        options = _selfhelp_options_pl if language == "pl" else _selfhelp_options_en
+        pinned_creative_prompt = random.choice(options)
+
+    pinned = [pinned_image_prompt]
+    if pinned_creative_prompt:
+        pinned.append(pinned_creative_prompt)
+    actions = pinned + contextual + llm_actions
 
     # Build the final list with explicit caps per group:
     # - max 3 normal questions
