@@ -161,4 +161,5 @@ class TestOcrPdfPage:
 
         result = ocr_pdf_page(str(arabic_pdf), 0)
         assert result == "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+        assert any("\u0600" <= ch <= "\u06FF" for ch in result)
         mock_client.chat.completions.create.assert_called_once()

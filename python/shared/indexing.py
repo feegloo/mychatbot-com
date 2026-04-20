@@ -33,7 +33,13 @@ _PAGE_SUMMARY_RATIO = 10
 
 
 def _build_page_summary(page_text: str) -> str | None:
-    """Build a compact per-page summary used for early welcome generation."""
+    """Build a compact per-page summary used for early welcome generation.
+
+    Thresholds keep early prompts informative but bounded:
+    - Skip very short pages (<= 50 chars) to avoid low-signal summaries.
+    - Use ~10% of page text, clamped to 200..600 chars, so each page contributes
+      enough context without bloating the early describe prompt.
+    """
     if len(page_text.strip()) <= _MIN_PAGE_TEXT_FOR_SUMMARY:
         return None
     summary_len = max(
