@@ -89,7 +89,9 @@ debugRouter.get('/debug/tables', async (ctx) => {
     ]),
     query(
       `SELECT id, conversation_id, operation, model,
+              LEFT(prompt_text, 1048576) AS prompt_text,
               LENGTH(prompt_text) AS prompt_chars,
+              LEFT(response_text, 1048576) AS response_text,
               LENGTH(response_text) AS response_chars,
               prompt_tokens, completion_tokens, total_tokens, cached_tokens,
               duration_ms, created_at
