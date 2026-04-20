@@ -136,6 +136,9 @@ MIN_IMAGE_DIM = 50  # Skip images smaller than 50px in either dimension
 _NUM_THREADS = os.cpu_count() * 2 or 4
 
 
+# OCR-first prompt is used for both page OCR fallback and extracted-image chunks so
+# multilingual text-heavy scans (including RTL scripts) are indexed as literal text,
+# while non-text visuals still produce concise semantic descriptions.
 _VISION_OCR_FIRST_PROMPT = (
     "You are an OCR-first visual extraction engine for document indexing.\n"
     "Priority rules:\n"

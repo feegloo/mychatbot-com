@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from shared.extractors import (
+    _render_pdf_page_to_png,
     _reflow_pdf_text,
     _sanitize_text,
     extract_csv,
@@ -149,6 +150,8 @@ class TestOcrPdfPage:
         repo_root = Path(__file__).resolve().parent.parent.parent
         arabic_pdf = repo_root / "test-files" / "54_Mathnawi_Arabic01.pdf"
         assert arabic_pdf.exists(), f"Missing fixture: {arabic_pdf}"
+        rendered = _render_pdf_page_to_png(str(arabic_pdf), 0)
+        assert rendered.startswith(b"\x89PNG"), "Arabic PDF page should render to PNG"
 
         mock_choice = MagicMock()
         mock_choice.message.content = "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"

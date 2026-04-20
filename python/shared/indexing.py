@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Thread pool for background welcome message generation (started early via callback)
 _describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
 _EARLY_WELCOME_PAGE_TARGET = 100
-_MIN_PAGE_TEXT_FOR_SUMMARY = 50
+_MIN_PAGE_TEXT_CHARS_FOR_SUMMARY = 50
 _MIN_PAGE_SUMMARY_CHARS = 200
 _MAX_PAGE_SUMMARY_CHARS = 600
 _PAGE_SUMMARY_RATIO = 10
@@ -40,7 +40,7 @@ def _build_page_summary(page_text: str) -> str | None:
     - Use ~10% of page text, clamped to 200..600 chars, so each page contributes
       enough context without bloating the early describe prompt.
     """
-    if len(page_text.strip()) <= _MIN_PAGE_TEXT_FOR_SUMMARY:
+    if len(page_text.strip()) <= _MIN_PAGE_TEXT_CHARS_FOR_SUMMARY:
         return None
     summary_len = max(
         _MIN_PAGE_SUMMARY_CHARS,
