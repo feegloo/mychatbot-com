@@ -624,34 +624,39 @@ def _extract_subject_phrase(
     """Return a short subject phrase derived from the document context.
 
     Priority order:
-    1. Markdown h1/h2 heading from welcome_message or description
-    2. First substantive (non-heading) line, truncated to ≤40 chars
+    1. Markdown h1/h2 heading from welcome_message, then description
+    2. First substantive (non-heading) line from welcome_message, then description,
+       truncated to ≤45 chars
     3. Clean file name of first uploaded file
     4. Generic fallback
+
+    Headings up to 50 chars are returned as-is; longer headings are truncated.
     """
-    text = (welcome_message or description or "").strip()
+    texts = [t.strip() for t in (welcome_message, description) if t and t.strip()]
 
     # 1. Heading: ## Title or # Title
-    heading_match = re.search(r"^#{1,2}\s+(.+)", text, re.MULTILINE)
-    if heading_match:
-        phrase = heading_match.group(1).strip()
-        # Strip bold markers sometimes present in headings
-        phrase = re.sub(r"\*\*(.+?)\*\*", r"\1", phrase)
-        if 3 <= len(phrase) <= 50:
-            return phrase
-        if len(phrase) > 50:
-            return phrase[:47].rstrip() + "..."
+    for text in texts:
+        heading_match = re.search(r"^#{1,2}\s+(.+)", text, re.MULTILINE)
+        if heading_match:
+            phrase = heading_match.group(1).strip()
+            # Strip bold markers sometimes present in headings
+            phrase = re.sub(r"\*\*(.+?)\*\*", r"\1", phrase)
+            if 3 <= len(phrase) <= 50:
+                return phrase
+            if len(phrase) > 50:
+                return phrase[:47].rstrip() + "..."
 
     # 2. First non-empty, non-heading line
-    lines = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
-    if lines:
-        candidate = lines[0]
-        # Drop leading bold/italic markers
-        candidate = re.sub(r"^\*{1,3}(.+?)\*{1,3}", r"\1", candidate)
-        if len(candidate) > 45:
-            candidate = candidate[:42].rstrip() + "..."
-        if len(candidate) >= 4:
-            return candidate
+    for text in texts:
+        lines = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+        if lines:
+            candidate = lines[0]
+            # Drop leading bold/italic markers
+            candidate = re.sub(r"^\*{1,3}(.+?)\*{1,3}", r"\1", candidate)
+            if len(candidate) > 45:
+                candidate = candidate[:42].rstrip() + "..."
+            if len(candidate) >= 4:
+                return candidate
 
     # 3. File name fallback
     if file_names:
@@ -737,12 +742,13 @@ def _append_contextual_prompts(
         else:
             contextual.insert(0, "Make a diagnosis based on results 🔬")
 
-    # Fill remaining action slots with LLM-generated actions
-    remaining_slots = 2 - len(contextual)
-    actions = llm_actions[:remaining_slots] + contextual
+    # The pinned image prompt takes one of the two action slots.
+    # The second action slot goes to a contextual prompt (higher priority) or an LLM action.
+    second_action = (contextual + llm_actions)[:1]
+    actions = [pinned_image_prompt] + second_action
 
-    # Always pin one subject-specific image-generation prompt as the first welcome suggestion.
-    final = [pinned_image_prompt] + normal_questions + actions
+    # Build the final list: 3 questions + 2 action slots = exactly 5 (or fewer if inputs short)
+    final = normal_questions + actions
 
     deduped: list[str] = []
     seen: set[str] = set()
