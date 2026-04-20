@@ -126,12 +126,32 @@ Zasady:
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
 - WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
 
+KRYTYCZNE — ZAKAZ TEMATYCZNEGO DRYFOWANIA (sprawdzaj przed wyborem akcji):
+Jeśli dokument jest FAKTYCZNY/NAUKOWY/MEDYCZNY/PRAWNY/FINANSOWY (wyniki badań, raporty medyczne, umowy, sprawozdania finansowe, prace naukowe, specyfikacje techniczne, dokumenty urzędowe), WSZYSTKIE sugerowane pytania muszą pozostać ściśle w dziedzinie tego dokumentu.
+ZABRONIONE dla takich dokumentów: bajki, piosenki, wiersze niezwiązane z treścią, dialogi fikcyjnych postaci, obrazy z fikcyjnymi scenami, żarty, parodie gatunkowe ani żadne propozycje traktujące dokument jako materiał rozrywkowy.
+  ZŁYE przykłady dla wyników badań laboratoryjnych (NIGDY nie generuj):
+    "Zrób pieroga jako genialnego detektywa 🥟"
+    "Stwórz dialogi tylko między wynikami badań 😄"
+    "Napisz pierogową zagadkę z rozwiązaniem 🧩"
+    "Wygeneruj obraz: pieróg-detektyw z lupą 🎨"
+    "Rozwiń wyniki w odcinek noir 🕵️"
+    "Zrób śmieszną scenkę w kuchni 🍳"
+  POPRAWNE przykłady dla wyników badań laboratoryjnych:
+    "Które wyniki wymagają konsultacji lekarskiej?"
+    "Jak dieta może poprawić poziom witaminy D?"
+    "Kiedy powtórzyć morfologię z rozmazem? 📋"
+    "Stwórz tabelę wszystkich wyników z komentarzem 📊"
+    "Jaka suplementacja magnezu jest wskazana? 💊"
+    "Porównaj lipidogram z normami cardiovascularnymi 📊"
+    "Które markery wskazują na stan zapalny? 🔬"
+
 Obowiązkowe akcje dla typów treści:
 - POWIEŚĆ/BELETRYSTYKA → "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
 - POEZJA/FILOZOFIA/CYTATY → "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
 - PORADNIK/SAMOROZWÓJ → losowo jedno z: "Napisz 10 nowych wskazówek inspirowanych [autor] 💡", "Stwórz 7 ćwiczeń inspirowanych [autor] 🏋️", "Wygeneruj 12 pytań refleksyjnych inspirowanych [autor] 🤔", "Napisz 5 scenariuszy z życia inspirowanych [autor] 🎭", "Stwórz 14-dniowy plan działania inspirowany [autor] 📅"
-- WYNIKI BADAŃ LAB → "Postaw diagnozę na podstawie wyników 🔬"
-- Inne typy → dobierz kreatywne akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
+- WYNIKI BADAŃ LAB / DOKUMENTY MEDYCZNE / PRAWNE / FINANSOWE / NAUKOWE / TECHNICZNE → użyj wyłącznie analitycznych promptów z tej listy (ŻADNYCH kreatywnych fikcji): quiz z wiedzy medycznej 🧠, checklista do zrobienia 📋, tabela wyników z komentarzem 📊, podsumowanie kluczowych odchyleń 📝, FAQ: pytania do lekarza ❓, słownik pojęć medycznych 📖, oś czasu kolejnych kroków 📅, notatki do wizyty 📓, plan suplementacji 💊, analiza ryzyka sercowo-naczyniowego 📊, wykres trendów wyników 📈, lista badań do wykonania 🔬
+  * Zawsze obowiązkowo: "Postaw diagnozę na podstawie wyników 🔬" jako jeden z promptów
+- Inne typy (WYŁĄCZNIE dla dokumentów kreatywnych/literackich/rozrywkowych — powieści, poezja, blogi, scenariusze) → dobierz kreatywne akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
 - Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany"""
 
 _QUESTIONS_RULES_EN = """
@@ -150,12 +170,32 @@ Rules:
 - Each prompt max 10 words, no numbering, no explanations
 - ALL prompts MUST be written 100% in the language of the document content
 
+CRITICAL — NO TOPIC DRIFT (evaluate before selecting any action):
+If the document is FACTUAL/SCIENTIFIC/MEDICAL/LEGAL/FINANCIAL (lab test results, medical reports, clinical analyses, legal contracts, financial statements, scientific papers, technical specifications, official documents), ALL suggested prompts MUST stay strictly within the document's domain.
+PROHIBITED for such documents: fairy tales, songs, poems unrelated to content, fictional character dialogues, images based on invented scenarios, jokes, genre parodies, or any prompt that treats the document as entertainment material.
+  BAD examples for lab/blood test results (NEVER generate):
+    "Turn the blood test into a detective story 🕵️"
+    "Make a dialogue between the test results 😄"
+    "Write a dumpling riddle inspired by the results 🧩"
+    "Generate image: dumpling-detective with magnifying glass 🎨"
+    "Expand this into a noir episode ☁️"
+    "Create a funny kitchen scene from the results 🍳"
+  CORRECT examples for lab/blood test results:
+    "Which results require a doctor's consultation?"
+    "How can diet improve vitamin D levels?"
+    "When should the CBC with differential be repeated? 📋"
+    "Create a table of all results with commentary 📊"
+    "What magnesium supplementation is appropriate? 💊"
+    "Compare the lipid panel with cardiovascular norms 📊"
+    "Which markers indicate inflammation? 🔬"
+
 Mandatory actions for content types:
 - NOVEL/FICTION → "Write inspired chapter like [Author Full Name] ✏️"
 - POETRY/PHILOSOPHY/QUOTES → "Write inspired poem like [Author Full Name] 📜"
 - SELF-HELP/GUIDE → randomly pick one of: "Write 10 new tips inspired by [author] 💡", "Create 7 exercises inspired by [author] 🏋️", "Generate 12 reflection questions inspired by [author] 🤔", "Draft 5 real-life scenarios inspired by [author] 🎭", "Build a 14-day action plan inspired by [author] 📅"
-- LAB TEST RESULTS → "Make a diagnosis based on results 🔬"
-- Other types → pick creative actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
+- LAB TEST RESULTS / MEDICAL / LEGAL / FINANCIAL / SCIENTIFIC / TECHNICAL DOCUMENTS → use ONLY analytical prompts from this list (NO creative fiction): medical knowledge quiz 🧠, action checklist 📋, results table with commentary 📊, key deviations summary 📝, FAQ: questions for the doctor ❓, medical glossary 📖, next-steps timeline 📅, visit notes 📓, supplementation plan 💊, cardiovascular risk analysis 📊, results trend chart 📈, list of tests to run 🔬
+  * Always mandatory: "Make a diagnosis based on results 🔬" as one of the prompts
+- Other types (ONLY for creative/literary/entertainment documents — novels, poetry, blogs, screenplays) → pick creative actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
 - Do NOT always pick quiz — be creative and varied"""
 
 
