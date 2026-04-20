@@ -508,6 +508,30 @@ import type { QuizData } from './QuizBlock.vue'
 import { getData, setData } from '../utils/localData'
 import UploadingDots from './UploadingDots.vue'
 
+const EMOJI_RE = /\p{Extended_Pictographic}/u
+const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
+let outsideClickListenerBound = false
+
+function dispatchOutsideClick(event: MouseEvent) {
+  outsideClickHandlers.forEach((handler) => handler(event))
+}
+
+function registerOutsideClickHandler(handler: (event: MouseEvent) => void) {
+  outsideClickHandlers.add(handler)
+  if (!outsideClickListenerBound) {
+    document.addEventListener('click', dispatchOutsideClick)
+    outsideClickListenerBound = true
+  }
+}
+
+function unregisterOutsideClickHandler(handler: (event: MouseEvent) => void) {
+  outsideClickHandlers.delete(handler)
+  if (!outsideClickHandlers.size && outsideClickListenerBound) {
+    document.removeEventListener('click', dispatchOutsideClick)
+    outsideClickListenerBound = false
+  }
+}
+
 const props = defineProps<{
   msg: ChatMessage
   asking: boolean
@@ -526,7 +550,7 @@ const props = defineProps<{
 
 const animateIn = ref(!props.noAnimation)
 onMounted(() => {
-  document.addEventListener('click', onDocumentClick)
+  registerOutsideClickHandler(onDocumentClick)
   if (animateIn.value)
     setTimeout(() => {
       animateIn.value = false
@@ -641,12 +665,11 @@ const renderedSuggestedQuestions = computed(() =>
   })),
 )
 const welcomeMoreOpen = ref(false)
-const emojiRe = /\p{Extended_Pictographic}/u
 const welcomeTextQuestions = computed(() =>
-  renderedSuggestedQuestions.value.filter((q) => !emojiRe.test(q.raw)).slice(0, 3),
+  renderedSuggestedQuestions.value.filter((q) => !EMOJI_RE.test(q.raw)).slice(0, 3),
 )
 const welcomeActionQuestions = computed(() =>
-  renderedSuggestedQuestions.value.filter((q) => emojiRe.test(q.raw)).slice(0, 7),
+  renderedSuggestedQuestions.value.filter((q) => EMOJI_RE.test(q.raw)).slice(0, 7),
 )
 const welcomeVisibleQuestions = computed(() => [
   ...welcomeTextQuestions.value,
@@ -953,8 +976,7 @@ function transformActionButtonGroups() {
       wrap.appendChild(first)
       wrap.appendChild(moreBtn)
       wrap.appendChild(menu)
-      row.innerHTML = ''
-      row.appendChild(wrap)
+      row.replaceChildren(wrap)
       row.dataset.moreReady = '1'
     })
   }
@@ -987,7 +1009,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocumentClick)
+  unregisterOutsideClickHandler(onDocumentClick)
   cleanupTooltips()
   if (postProcessTimer) clearTimeout(postProcessTimer)
 })
@@ -1089,7 +1111,8 @@ function onContentClick(e: MouseEvent) {
 
 function onDocumentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null
-  if (target?.closest('.action-more-wrap') || target?.closest('.welcome-more-wrap')) return
+  if (!target) return
+  if (target.closest('.action-more-wrap, .welcome-more-wrap')) return
   closeActionMenus()
   closeWelcomeMore()
 }

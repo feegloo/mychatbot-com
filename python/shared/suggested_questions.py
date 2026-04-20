@@ -58,7 +58,8 @@ def suggest_questions_from_chunks(
             [
                 (
                     "system",
-                    """Wygeneruj do 10 sugerowanych promptów dla użytkownika na podstawie poniższej treści (celuj w 10, jeśli kontekst pozwala).
+                    """Wygeneruj do 10 sugerowanych promptów dla użytkownika na podstawie poniższej treści.
+Domyślnie zwracaj pełne 10; mniej tylko gdy treść jest zbyt uboga, by tworzyć sensowne, różne propozycje.
 
 Odpowiedz WYŁĄCZNIE prawidłowym JSON-em (bez markdown, bez ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
@@ -306,7 +307,8 @@ Opis dokumentu: {description}""",
             [
                 (
                     "system",
-                    """Generate up to 10 suggested prompts for the user based on the following uploaded content (target 10 when context allows).
+                    """Generate up to 10 suggested prompts for the user based on the following uploaded content.
+By default return the full 10; return fewer only when the content is too limited to produce meaningful, distinct suggestions.
 
 Reply with ONLY valid JSON (no markdown, no ```json). Format:
 {{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
