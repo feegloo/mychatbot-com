@@ -796,6 +796,11 @@ _AUTHOR_FROM_STYLE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Precompiled helpers used in hot paths (see `_append_contextual_prompts`).
+_QUIZ_KEYWORD_RE = re.compile(r"\bquiz\b", re.IGNORECASE)
+_GRAMMAR_KEYWORD_RE = re.compile(r"\b(?:grammar|gramaty\w*)\b", re.IGNORECASE)
+_VOCABULARY_KEYWORD_RE = re.compile(r"\b(?:vocabulary|słownictw\w*)\b", re.IGNORECASE)
+
 # Matches "by Paulo Coelho" in descriptions/welcome messages.
 # No re.IGNORECASE so [A-Z] truly means uppercase, preventing greedy capture of
 # lowercase words that follow (e.g. "by Paulo Coelho follows Santiago" → "Paulo Coelho").
@@ -1055,11 +1060,8 @@ def _append_contextual_prompts(
     # sub-topic so the pinned action aligns with the updated prompt guidance
     # ("Create a vocabulary quiz", "Create a grammar quiz", etc.).
     def _language_learning_quiz_prompt() -> str:
-        text_lower = combined_text.lower()
-        # "gramaty" covers gramatyka/gramatyki/gramatyczny/gramatycznymi; "grammar"
-        # covers the English side. "słownictw" covers słownictwo/słownictwa/słownictwem.
-        has_grammar = "grammar" in text_lower or "gramaty" in text_lower
-        has_vocabulary = "vocabulary" in text_lower or "słownictw" in text_lower
+        has_grammar = bool(_GRAMMAR_KEYWORD_RE.search(combined_text))
+        has_vocabulary = bool(_VOCABULARY_KEYWORD_RE.search(combined_text))
         if language == "pl":
             if has_grammar and not has_vocabulary:
                 return "Stwórz quiz z gramatyki 🧠"
@@ -1113,7 +1115,7 @@ def _append_contextual_prompts(
         def _is_quiz_action(action: str) -> bool:
             stripped = action.lstrip()
             lowered = stripped.lower()
-            has_quiz_keyword = re.search(r"\bquiz\b", lowered) is not None
+            has_quiz_keyword = _QUIZ_KEYWORD_RE.search(lowered) is not None
             starts_like_quiz = lowered.startswith(
                 ("quiz", "stwórz quiz", "create a quiz", "create quiz")
             )

@@ -413,7 +413,7 @@ def test_quiz_dedup_spares_brainstorm_actions_with_brain_emoji():
         language="pl",
         welcome_message=welcome,
     )
-    assert any("Burza mózgów" in q for q in result), (
+    assert "Burza mózgów: nowe nawyki 🧠" in result, (
         f"Brainstorm action was incorrectly dropped by quiz dedup: {result}"
     )
     # Exactly one quiz must remain (the pinned one)
