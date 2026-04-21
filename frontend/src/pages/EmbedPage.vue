@@ -44,10 +44,10 @@
 
       <div ref="chatContainer" class="embed-chat-log">
         <ChatMessageItem
-          v-for="(msg, index) in messages"
+          v-for="(msg, index) in displayedMessages"
           :key="msg.id || index"
           :msg="msg"
-          :asking="asking"
+          :asking="assistantPending"
           :conversation-id="conversationId"
           :is-welcome="isUploadMessage(index)"
           :is-first-message="index === 0 && msg.role === 'assistant'"
@@ -128,6 +128,24 @@ const status = ref<ConversationStatus>({
 })
 const messages = ref<ChatMessage[]>([])
 const initialMessageCount = ref(Infinity)
+
+// While the backend is generating the assistant reply, the most recent server
+// message is still the user's question. After a page refresh we keep the
+// typing dots visible by appending a virtual empty assistant bubble.
+const assistantPending = computed(() => {
+  if (asking.value) return true
+  if (hasLocalError.value) return false
+  if (status.value.status === 'failed') return false
+  const last = messages.value[messages.value.length - 1]
+  return last?.role === 'user'
+})
+
+const displayedMessages = computed<ChatMessage[]>(() => {
+  if (assistantPending.value && !asking.value) {
+    return [...messages.value, { role: 'assistant', content: '' }]
+  }
+  return messages.value
+})
 
 useTextSelectionSpeech(chatContainer, undefined, welcomeMessageContent, messages)
 

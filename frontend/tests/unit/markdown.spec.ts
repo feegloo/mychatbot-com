@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderInlineMarkdown, renderMarkdown } from "../../src/utils/markdown";
+import { IMAGE_GEN_REGEX, renderInlineMarkdown, renderMarkdown } from "../../src/utils/markdown";
 
 describe("renderMarkdown table wrapping", () => {
   it("wraps markdown tables in a horizontal scroll container", () => {
@@ -61,5 +61,33 @@ describe("renderInlineMarkdown", () => {
     expect(html).toContain('href="https://example.com/docs"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+});
+
+describe("IMAGE_GEN_REGEX", () => {
+  it.each([
+    "🎨",
+    "generate 🎨",
+    "new 🎨",
+    "create 🎨 please",
+    "Generate image of a cat",
+    "create image with sunset",
+    "new image",
+    "Create an image inspired by Rumi",
+    "Make image of a dragon",
+    "draw an image",
+    "Generate image: dark forest 🎨",
+  ])("matches image-generation request %j", (input) => {
+    expect(IMAGE_GEN_REGEX.test(input)).toBe(true);
+  });
+
+  it.each([
+    "Tell me about image processing",
+    "wygeneruj obraz zachodu słońca",
+    "What is a new imaginary world?",
+    "I imagine a creative scene",
+    "Show me the document content",
+  ])("does not match non-image request %j", (input) => {
+    expect(IMAGE_GEN_REGEX.test(input)).toBe(false);
   });
 });

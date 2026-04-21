@@ -97,7 +97,7 @@
             <UploadingDots text="Processing" />
           </div>
           <ChatMessageItem
-            v-for="(msg, index) in messages"
+            v-for="(msg, index) in displayedMessages"
             :key="msg.id || index"
             :ref="
               (el: any) => {
@@ -105,7 +105,7 @@
               }
             "
             :msg="msg"
-            :asking="asking"
+            :asking="assistantPending"
             :conversation-id="conversationId"
             :storage-conversation-id="storageConversationId"
             :is-welcome="isUploadMessage(index)"
@@ -214,6 +214,24 @@ const status = ref<ConversationStatus>({
 const messages = ref<ChatMessage[]>([])
 const initialMessageCount = ref(Infinity)
 const hasLocalError = ref(false)
+
+// While the backend is generating the assistant reply, the most recent server
+// message is still the user's question. After a page refresh we keep the
+// typing dots visible by appending a virtual empty assistant bubble.
+const assistantPending = computed(() => {
+  if (asking.value) return true
+  if (hasLocalError.value) return false
+  if (status.value.status === 'failed') return false
+  const last = messages.value[messages.value.length - 1]
+  return last?.role === 'user'
+})
+
+const displayedMessages = computed<ChatMessage[]>(() => {
+  if (assistantPending.value && !asking.value) {
+    return [...messages.value, { role: 'assistant', content: '' }]
+  }
+  return messages.value
+})
 
 // Welcome message content used as TTS tone instructions
 const welcomeMessageContent = computed(() => {

@@ -259,9 +259,19 @@ export function renderInlineMarkdown(content: string): string {
 }
 
 /**
- * Returns true when a user message is an image generation request.
- * Matches common English and Polish phrasings that trigger the /generate-image API.
+ * Returns true when a user message is an image-generation request.
+ *
+ * Image generation is exclusively associated with the 🎨 emoji:
+ *   - 🎨 anywhere in the message (including "🎨" on its own or combos like
+ *     "generate 🎨", "new 🎨") routes to the /generate-image API.
+ *   - The canonical English phrases "generate image", "create image",
+ *     "new image" (also "make image" / "draw image") are preserved as
+ *     natural-language triggers, with or without the emoji.
+ *
+ * All other phrasings (including Polish verbs like "wygeneruj obraz") are
+ * intentionally NOT matched here — suggested-question prompts always append
+ * 🎨, so the emoji branch covers them.
  */
 export const IMAGE_GEN_REGEX =
-  /generat\w*\s+(?:an?\s+)?image|creat\w*\s+(?:an?\s+)?image|make\s+(?:an?\s+)?image|draw\s+(?:an?\s+)?image|show\s+(?:an?\s+)?image|wygeneruj\s+(?:obraz|obrazek|zdjęcie)|stwórz\s+(?:obraz|obrazek|zdjęcie)|narysuj\s+(?:obraz|obrazek|zdjęcie)|zrób\s+(?:obraz|obrazek|zdjęcie)/i
+  /🎨|\b(?:generate|create|new|make|draw)\s+(?:an?\s+)?image\b/i
 

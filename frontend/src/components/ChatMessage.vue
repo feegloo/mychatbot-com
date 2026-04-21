@@ -377,7 +377,10 @@
             <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
           </div>
         </div>
-        <div v-if="msg.generatingImage && asking && !isWelcome" class="typing-dots">
+        <div
+          v-if="(msg.generatingImage && asking && !isWelcome) || imagesPending"
+          class="typing-dots"
+        >
           <span></span><span></span><span></span>
         </div>
       </template>
@@ -867,6 +870,97 @@ const contentEls = ref<HTMLElement[]>([])
 const tooltipElements: HTMLElement[] = []
 const MAX_TOOLTIP_LENGTH = 600
 
+// Tracks whether any <img> inside the rendered markdown is still loading.
+// Freshly generated images (AI/Pollinations) occasionally take a few seconds
+// to become reachable after the assistant response returns, which produces a
+// flash of a broken image. We hide such images until they actually decode,
+// show the typing-dots indicator instead, and auto-retry failed loads with
+// exponential backoff.
+const imagesPending = ref(false)
+const trackedImages = new Set<HTMLImageElement>()
+const pendingImages = new Set<HTMLImageElement>()
+const imageRetryTimers = new Set<ReturnType<typeof setTimeout>>()
+const IMG_MAX_ATTEMPTS = 8
+let componentUnmounted = false
+
+function updateImagesPending() {
+  imagesPending.value = pendingImages.size > 0
+}
+
+function revealImage(img: HTMLImageElement) {
+  img.style.removeProperty('display')
+  pendingImages.delete(img)
+  updateImagesPending()
+}
+
+function attachImgListeners(img: HTMLImageElement, attempt: number) {
+  const onLoad = () => {
+    cleanup()
+    revealImage(img)
+  }
+  const onError = () => {
+    cleanup()
+    scheduleImgRetry(img, attempt)
+  }
+  const cleanup = () => {
+    img.removeEventListener('load', onLoad)
+    img.removeEventListener('error', onError)
+  }
+  img.addEventListener('load', onLoad)
+  img.addEventListener('error', onError)
+
+  // If the image already resolved before we attached listeners (browser cache
+  // or immediate failure), handle its state synchronously.
+  if (img.complete) {
+    cleanup()
+    if (img.naturalWidth > 0) revealImage(img)
+    else scheduleImgRetry(img, attempt)
+  }
+}
+
+function scheduleImgRetry(img: HTMLImageElement, attempt: number) {
+  if (componentUnmounted) return
+  if (attempt >= IMG_MAX_ATTEMPTS) {
+    // Give up: reveal the (broken) image so the user at least sees a cue.
+    revealImage(img)
+    return
+  }
+  const baseSrc = img.dataset.origSrc || img.src.split('?')[0].split('#')[0]
+  img.dataset.origSrc = baseSrc
+  const delay = Math.min(500 * 2 ** attempt, 8000)
+  const timer = setTimeout(() => {
+    imageRetryTimers.delete(timer)
+    if (componentUnmounted) return
+    img.src = `${baseSrc}?retry=${attempt + 1}&ts=${Date.now()}`
+    attachImgListeners(img, attempt + 1)
+  }, delay)
+  imageRetryTimers.add(timer)
+}
+
+function trackContentImages() {
+  if (!contentEls.value?.length) return
+  for (const el of contentEls.value) {
+    const imgs = el.querySelectorAll<HTMLImageElement>('img')
+    imgs.forEach((img) => {
+      if (trackedImages.has(img)) return
+      trackedImages.add(img)
+      // Hide until decode succeeds so users never see a broken-image icon.
+      img.style.display = 'none'
+      pendingImages.add(img)
+      attachImgListeners(img, 0)
+    })
+  }
+  updateImagesPending()
+}
+
+function clearImageTracking() {
+  imageRetryTimers.forEach((t) => clearTimeout(t))
+  imageRetryTimers.clear()
+  trackedImages.clear()
+  pendingImages.clear()
+  imagesPending.value = false
+}
+
 function truncateText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
   return text.slice(0, maxLen) + '…'
@@ -1007,14 +1101,17 @@ watch(
       restoreChecklistState()
       injectCodeCopyButtons()
       transformActionButtonGroups()
+      trackContentImages()
     }, 150)
   },
   { immediate: true },
 )
 
 onBeforeUnmount(() => {
+  componentUnmounted = true
   unregisterOutsideClickHandler(onDocumentClick)
   cleanupTooltips()
+  clearImageTracking()
   if (postProcessTimer) clearTimeout(postProcessTimer)
 })
 

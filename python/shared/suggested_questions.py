@@ -76,6 +76,7 @@ Zasady:
 - Kolejne (do 7) to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Często sugeruj akcję generowania obrazu powiązaną z konkretnym tematem dokumentu (np. "Wygeneruj obraz inspirowany [temat/bohater/scena] 🎨") — dopasuj temat do treści, nie używaj ogólnikowego "aktualnego nastroju"
+- KRYTYCZNE: emoji 🎨 jest ZAREZERWOWANE WYŁĄCZNIE dla akcji generowania obrazu. Nigdy nie dodawaj 🎨 do innej akcji. Każda akcja generowania obrazu MUSI kończyć się 🎨 — to 🎨 (a nie konkretne słowa) uruchamia API generowania obrazu. Dla czytelności akcja powinna też zawierać frazę "wygeneruj obraz".
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
@@ -144,7 +145,8 @@ a) Wygeneruj obraz 🎨 — NAJWYŻSZY PRIORYTET — sugeruj gdy:
    - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
    - zachęcaj do częstego generowania obrazów
    - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
-   - akcja: MUSI zawierać dokładnie frazę "wygeneruj obraz" w treści
+   - akcja MUSI kończyć się emoji 🎨 — to 🎨 jest wyłącznym sygnałem wywołującym generowanie obrazu (emoji 🎨 NIE może pojawić się w żadnej innej akcji)
+   - dla czytelności dla użytkownika akcja powinna też zawierać frazę "wygeneruj obraz"
    - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
 
 b) Napisz inspirowany rozdział ✏️ — sugeruj gdy:
@@ -365,6 +367,7 @@ Rules:
 - The next prompts (up to 7) are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
   Each action-prompt MUST end with a relevant emoji
 - Frequently suggest a subject-specific image generation action tied to the document's concrete topic/character/scene (e.g. "Generate image: dark forest with Hermione 🎨") — do NOT use the generic phrase "current mood"; make it relevant to what the document is actually about
+- CRITICAL: the 🎨 emoji is RESERVED EXCLUSIVELY for image-generation actions. Never attach 🎨 to any other action. Every image-generation action MUST end with 🎨 — the 🎨 emoji (not any specific word) is what triggers the image-generation API. For clarity the label should also contain the phrase "generate image".
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
@@ -435,7 +438,8 @@ a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
    - photo or document has potential for visual reinterpretation
    - encourage frequent image generation
    - user may want to see an artistic visualization of the content
-   - action: MUST contain exactly the phrase "generate image" in the content
+   - the action MUST end with the 🎨 emoji — that 🎨 is the exclusive signal that triggers the image-generation API (🎨 must NEVER appear on any other action)
+   - for user-readability the label should also contain the phrase "generate image"
    - action MUST reference a specific topic/scene/character from the document (e.g. "Generate image: dark forest with Harry Potter 🎨") — do NOT use generic "current mood"
 
 b) Write inspired chapter ✏️ — suggest when:
