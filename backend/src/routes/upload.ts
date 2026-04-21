@@ -126,8 +126,8 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
               conversationId,
               collectionName,
               files: absolutePaths,
-              indexerUrl: config.indexerUrl,
-              indexerSecret: config.indexerSecret,
+              indexerUrl: config.indexerUrl!,
+              indexerSecret: config.indexerSecret!,
             })
             return
           } catch (delegateErr: any) {

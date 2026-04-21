@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import random
 import uuid
 from pathlib import Path
 
@@ -88,6 +89,47 @@ def generate_image(
     }
 
 
+_ART_STYLES = [
+    "oil painting", "watercolor", "digital illustration", "cinematic photography",
+    "charcoal sketch", "impressionist", "surrealist", "Art Nouveau", "woodcut print",
+    "neon noir", "vintage poster", "Japanese woodblock", "concept art", "pencil drawing",
+    "geometric abstract", "Gothic etching", "soft pastel", "hyper-realistic render",
+]
+
+_MOODS = [
+    "melancholic", "triumphant", "mysterious", "serene", "dramatic", "whimsical",
+    "ominous", "nostalgic", "ethereal", "joyful", "tense", "contemplative",
+    "magical", "raw and gritty", "dreamlike", "intimate",
+]
+
+_LIGHTING = [
+    "golden hour sunlight", "cold moonlight", "soft diffused overcast light",
+    "dramatic chiaroscuro shadows", "misty morning haze", "deep twilight glow",
+    "candlelight warmth", "harsh midday sun", "stormy backlight", "aurora borealis",
+    "neon reflections on wet pavement", "firelight flicker",
+]
+
+_PERSPECTIVES = [
+    "wide panoramic shot", "intimate close-up", "bird's eye view", "worm's eye looking up",
+    "Dutch angle", "symmetrical composition", "rule-of-thirds framing",
+    "foreground bokeh with sharp background", "over-the-shoulder perspective",
+]
+
+
+def _random_creative_seed() -> str:
+    """Pick one element from each creative dimension to seed unique generation."""
+    style = random.choice(_ART_STYLES)
+    mood = random.choice(_MOODS)
+    lighting = random.choice(_LIGHTING)
+    perspective = random.choice(_PERSPECTIVES)
+    return (
+        f"Creative direction for this specific image: {style} style, {mood} mood, "
+        f"{lighting}, {perspective}. "
+        "Use this direction to craft a UNIQUE title and visual interpretation — "
+        "do NOT produce the most obvious or generic version of the theme."
+    )
+
+
 def build_image_prompt(
     question: str,
     context: str = "",
@@ -96,21 +138,26 @@ def build_image_prompt(
     """Build a DALL-E prompt and short title from the user's question and context.
 
     Returns dict with 'prompt' (detailed visual prompt) and 'title' (short image title).
+    A random creative seed is injected each call so repeated requests for the same
+    topic produce meaningfully different images and titles.
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
     system = (
         "You are an expert prompt engineer for AI image generation. "
-        "Given the user's request and context, create:\n"
+        "Given the user's request, context, and the CREATIVE DIRECTION provided, create:\n"
         "1. A detailed, vivid image generation prompt (max 200 words). "
+        "Follow the creative direction — style, mood, lighting, and perspective — closely. "
         "Focus on visual elements: composition, style, colors, mood, lighting. "
-        "Prefer a clear composition and avoid unnecessary micro-details unless explicitly requested.\n"
-        "2. A short, evocative title for the image (max 8 words).\n\n"
+        "Do NOT produce the most literal or predictable interpretation of the subject.\n"
+        "2. A short, evocative title for the image (max 8 words) that reflects the "
+        "specific creative angle chosen — NOT a generic description of the subject.\n\n"
         'Output ONLY valid JSON: {"prompt": "...", "title": "..."}'
     )
 
-    user_content = f"User request: {question}\n"
+    creative_seed = _random_creative_seed()
+    user_content = f"User request: {question}\n\n{creative_seed}\n"
     if welcome_messages:
         user_content += f"\nDocument context:\n{chr(10).join(welcome_messages[:3])}\n"
     if context:
@@ -126,7 +173,7 @@ def build_image_prompt(
         model=settings.openai_chat_model,
         operation="image_prompt_build",
         max_completion_tokens=400,
-        temperature=0.8,
+        temperature=1.0,
     )
     try:
         import json
