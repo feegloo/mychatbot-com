@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec "$(dirname "$0")/infra/cloudrun/deploy-gcp.sh" "$@"
+git add . && git commit -m "commit" && git pull --rebase && clear && exec "$(dirname "$0")/infra/cloudrun/deploy-gcp.sh" "$@"

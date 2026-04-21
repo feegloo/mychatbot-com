@@ -95,7 +95,19 @@ const emit = defineEmits<{
   'questions-translated': [translations: string[]]
   restored: [newTranslations: Map<number, string>]
   'lang-changed': [language: string]
+  'translating-start': []
+  'translating-end': []
 }>()
+
+// Minimum visible fade-out duration before content swap (must match CSS transition).
+// Ensures cached/instant translations still produce a perceptible fade.
+const FADE_MIN_MS = 220
+async function awaitMinFade(startedAt: number) {
+  const elapsed = Date.now() - startedAt
+  if (elapsed < FADE_MIN_MS) {
+    await new Promise((r) => setTimeout(r, FADE_MIN_MS - elapsed))
+  }
+}
 
 const detectedLang = ref('')
 const browserLang = ref(navigator.language.split('-')[0])
@@ -305,6 +317,8 @@ async function translateTo(targetLang: string) {
   // Restoring to original (detected) language
   if (targetLang === detectedLang.value) {
     translating.value = true
+    emit('translating-start')
+    const startedAt = Date.now()
     try {
       const newMsgTranslations = new Map<number, string>()
       const toTranslateBack: { index: number; content: string }[] = []
@@ -335,16 +349,19 @@ async function translateTo(targetLang: string) {
         })
       }
 
+      await awaitMinFade(startedAt)
       currentLang.value = detectedLang.value
       storeLanguage(detectedLang.value)
       emit('restored', newMsgTranslations)
     } catch (err) {
       console.error('Translation failed:', err)
+      await awaitMinFade(startedAt)
       currentLang.value = detectedLang.value
       storeLanguage(detectedLang.value)
       emit('restored', new Map())
     } finally {
       translating.value = false
+      emit('translating-end')
     }
     return
   }
@@ -353,6 +370,8 @@ async function translateTo(targetLang: string) {
   // If currently showing a translation, restore first then translate
   const _sourceLang = currentLang.value
   translating.value = true
+  emit('translating-start')
+  const startedAt = Date.now()
   try {
     // If we're in a translated state, restore originals first
     if (isTranslated.value) {
@@ -418,6 +437,7 @@ async function translateTo(targetLang: string) {
       emit('questions-translated', qTranslated)
     }
 
+    await awaitMinFade(startedAt)
     translatedUpToIndex.value = props.messages.length - 1
     currentLang.value = targetLang
     storeLanguage(targetLang)
@@ -426,6 +446,7 @@ async function translateTo(targetLang: string) {
     console.error('Translation failed:', err)
   } finally {
     translating.value = false
+    emit('translating-end')
   }
 }
 

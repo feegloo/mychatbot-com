@@ -1303,7 +1303,7 @@ textarea.big-input {
 
 .action-btn {
     text-wrap: nowrap !important;
-    background: #242832;
+    background: #242832 !important;
 }
 
 .question-pill {

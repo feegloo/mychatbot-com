@@ -107,7 +107,7 @@
           <div
             ref="messageContentEl"
             class="message-content-wrap"
-            :class="{ 'animate-in': animateIn }"
+            :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }"
           >
             <div v-for="(part, pi) in contentParts" :key="pi">
               <!-- eslint-disable-next-line vue/no-v-html -->
@@ -186,7 +186,7 @@
             </div>
           </div>
 
-          <div v-if="isWelcome && welcomeVisibleQuestions.length" class="welcome-suggested-questions">
+          <div v-if="isWelcome && welcomeVisibleQuestions.length" class="welcome-suggested-questions" :class="{ 'is-translating': isTranslating }">
             <div
               v-for="question in welcomeVisibleQuestions"
               :key="question.raw"
@@ -355,7 +355,7 @@
         <div
           ref="messageContentEl"
           class="message-content-wrap"
-          :class="{ 'animate-in': animateIn }"
+          :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }"
         >
           <div v-for="(part, pi) in contentParts" :key="pi">
             <!-- eslint-disable-next-line vue/no-v-html -->
@@ -384,10 +384,10 @@
           <span></span><span></span><span></span>
         </div>
       </template>
-      <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
+      <span v-else class="user-text" :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }">{{ msg.content }}</span>
 
       <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
-      <div v-if="isWelcome && !welcomeHasFiles && welcomeVisibleQuestions.length" class="welcome-suggested-questions">
+      <div v-if="isWelcome && !welcomeHasFiles && welcomeVisibleQuestions.length" class="welcome-suggested-questions" :class="{ 'is-translating': isTranslating }">
         <div
           v-for="question in welcomeVisibleQuestions"
           :key="question.raw"
@@ -551,6 +551,7 @@ const props = defineProps<{
   fileName?: string
   isThread?: boolean
   noAnimation?: boolean
+  isTranslating?: boolean
 }>()
 
 const animateIn = ref(!props.noAnimation)
@@ -1774,6 +1775,23 @@ function openFilePreview(file: FileInfo) {
   margin: 14px 0 2px;
 }
 
+/* Translation fade: applies to assistant content, user text, and suggested questions.
+   Duration matches FADE_MIN_MS in LanguageToggle.vue so cached translations still animate. */
+.message-content-wrap,
+.user-text,
+.welcome-suggested-questions {
+  transition:
+    opacity 200ms ease,
+    filter 200ms ease;
+}
+
+.message-content-wrap.is-translating,
+.user-text.is-translating,
+.welcome-suggested-questions.is-translating {
+  opacity: 0;
+  filter: blur(2px);
+}
+
 .welcome-suggested-questions .question-pill {
   margin: 0 6px 8px 0;
 }
@@ -1913,7 +1931,7 @@ function openFilePreview(file: FileInfo) {
   gap: 6px;
   z-index: 100;
   min-width: 240px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #19202b;
   border-radius: 16px;
   padding: 8px;
 }

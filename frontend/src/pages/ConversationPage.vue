@@ -23,6 +23,8 @@
           @questions-translated="onQuestionsTranslated"
           @restored="onRestored"
           @lang-changed="currentLanguage = $event"
+          @translating-start="isTranslating = true"
+          @translating-end="isTranslating = false"
         />
       </template>
       <template #auto-read-toggle>
@@ -117,6 +119,7 @@
             :file-name="primaryFileName"
             :is-thread="isThread"
             :no-animation="index < initialMessageCount"
+            :is-translating="isTranslating"
             @select-question="question = $event; submitQuestion()"
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
@@ -198,6 +201,7 @@ const questionInput = ref<HTMLTextAreaElement | null>(null)
 const chatContainer = ref<HTMLDivElement | null>(null)
 
 const currentLanguage = ref('')
+const isTranslating = ref(false)
 
 const status = ref<ConversationStatus>({
   conversationId,
