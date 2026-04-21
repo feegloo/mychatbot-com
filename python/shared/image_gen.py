@@ -7,7 +7,9 @@ storage directory so they can be served via the existing /api/storage/ route.
 from __future__ import annotations
 
 import base64
+import contextlib
 import logging
+import mimetypes
 import os
 import random
 import uuid
@@ -16,11 +18,65 @@ from pathlib import Path
 import requests
 from openai import OpenAI
 
+# gpt-image-1 edit endpoint currently accepts at most 10 reference images;
+# we cap much lower to keep request size sane.
+MAX_REFERENCE_IMAGES = 4
+# OpenAI edits endpoint accepts png/jpeg/webp for gpt-image-1.
+_ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
+
 from shared.config import get_settings
 from shared.llm_instrument import traced_openai_call
 from shared.otel import get_tracer
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
+    """Normalize and validate reference image paths for the edit endpoint.
+
+    Filters out missing files, unsupported mime types, and anything above
+    ``MAX_REFERENCE_IMAGES``. Returns resolved Path objects in input order.
+    """
+    if not paths:
+        return []
+
+    resolved: list[Path] = []
+    for raw in paths[:MAX_REFERENCE_IMAGES]:
+        p = Path(raw)
+        if not p.is_file():
+            logger.warning(f"⚠️ Reference image not found, skipping: {raw}")
+            continue
+        mime, _ = mimetypes.guess_type(p.name)
+        if mime not in _ALLOWED_REFERENCE_MIME:
+            logger.warning(
+                f"⚠️ Unsupported reference image mime '{mime}' for {p.name}, skipping"
+            )
+            continue
+        resolved.append(p)
+    return resolved
+
+
+def _call_images_edit(
+    *,
+    client: OpenAI,
+    model: str,
+    prompt: str,
+    size: str,
+    quality: str,
+    reference_paths: list[Path],
+):
+    """Call OpenAI images.edit with one or more reference images."""
+    with contextlib.ExitStack() as stack:
+        handles = [stack.enter_context(open(p, "rb")) for p in reference_paths]
+        image_arg = handles[0] if len(handles) == 1 else handles
+        return client.images.edit(
+            model=model,
+            image=image_arg,
+            prompt=prompt,
+            n=1,
+            size=size,
+            quality=quality,
+        )
 
 
 def generate_image(
@@ -29,8 +85,14 @@ def generate_image(
     size: str = "1024x1024",
     quality: str = "low",
     model: str = "gpt-image-1",
+    reference_image_paths: list[str] | None = None,
 ) -> dict:
-    """Generate an image from a text prompt using OpenAI DALL-E.
+    """Generate an image from a text prompt using OpenAI.
+
+    When ``reference_image_paths`` is provided, the OpenAI ``images.edit``
+    endpoint is used so the model can visually ground the generation in the
+    uploaded references (style, subject, composition). Otherwise the standard
+    ``images.generate`` endpoint is used.
 
     Args:
         prompt: The text description for image generation.
@@ -38,6 +100,9 @@ def generate_image(
         size: Image size (1024x1024, 1024x1792, 1792x1024).
         quality: Image quality (auto, high, low).
         model: OpenAI image model to use.
+        reference_image_paths: Optional list of local paths to reference images.
+            Each must be a readable png/jpeg/webp file. Capped at
+            ``MAX_REFERENCE_IMAGES``.
 
     Returns:
         dict with 'file_name' (saved filename) and 'revised_prompt' (DALL-E's prompt).
@@ -45,19 +110,38 @@ def generate_image(
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
+    reference_paths = _validate_reference_paths(reference_image_paths)
+
     logger.info(
-        f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} quality={quality} model={model}"
+        f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} "
+        f"quality={quality} model={model} refs={len(reference_paths)}"
     )
 
     tracer = get_tracer("chatrag.image_gen")
-    with tracer.start_as_current_span("image.generate", attributes={"model": model, "size": size, "quality": quality}):
-        result = client.images.generate(
-            model=model,
-            prompt=prompt,
-            n=1,
-            size=size,
-            quality=quality,
-        )
+    span_attrs = {
+        "model": model,
+        "size": size,
+        "quality": quality,
+        "reference_count": len(reference_paths),
+    }
+    with tracer.start_as_current_span("image.generate", attributes=span_attrs):
+        if reference_paths:
+            result = _call_images_edit(
+                client=client,
+                model=model,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                reference_paths=reference_paths,
+            )
+        else:
+            result = client.images.generate(
+                model=model,
+                prompt=prompt,
+                n=1,
+                size=size,
+                quality=quality,
+            )
 
     image_data = result.data[0]
     revised_prompt = getattr(image_data, "revised_prompt", prompt)

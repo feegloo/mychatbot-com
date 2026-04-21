@@ -12,6 +12,7 @@ export async function generateImage(options: {
   chatHistory?: Array<{ role: string; content: string }>
   size?: string
   quality?: ImageQuality
+  referenceImagePaths?: string[]
 }) {
   const response = await fetch(`${config.pythonServerUrl}/generate-image`, {
     method: 'POST',
@@ -26,6 +27,7 @@ export async function generateImage(options: {
       chat_history: options.chatHistory || [],
       size: options.size || '1024x1024',
       quality: options.quality || 'low',
+      reference_image_paths: options.referenceImagePaths || [],
     }),
   })
 

@@ -12,10 +12,19 @@ import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
 import { SHORT_ID_RE } from '../constants.js'
 
+// File names are resolved against the conversation's storage dir server-side.
+// We reject anything that could escape the storage dir (slashes, `..`) to
+// prevent path traversal into unrelated files on disk.
+const SAFE_FILE_NAME_RE = /^[^/\\]+$/
+
 const imageGenSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
   question: z.string().min(1),
   userId: z.number().int().min(0).optional(),
+  referenceImageFileNames: z
+    .array(z.string().regex(SAFE_FILE_NAME_RE).refine((n) => !n.includes('..'), 'invalid file name'))
+    .max(4)
+    .optional(),
 })
 
 export const imageGenRouter = new Router()
@@ -28,7 +37,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     return
   }
 
-  const { conversationId, question, userId } = parsed.data
+  const { conversationId, question, userId, referenceImageFileNames } = parsed.data
 
   const token = getConversationToken(ctx)
   const role = await resolveConversationRole(conversationId, token)
@@ -61,6 +70,10 @@ imageGenRouter.post('/generate-image', async (ctx) => {
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
 
+  const referenceImagePaths = (referenceImageFileNames || []).map((name) =>
+    path.join(storageDir, name),
+  )
+
   const result = await generateImage({
     question,
     storageDir,
@@ -69,6 +82,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     conversationId,
     chatHistory: chatHistory.slice(-6),
     quality: 'auto',
+    referenceImagePaths,
   })
 
   // Build the assistant answer with the image

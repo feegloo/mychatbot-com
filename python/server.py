@@ -166,6 +166,9 @@ class GenerateImageRequest(BaseModel):
     chat_history: list[dict] | None = None
     size: str = "1024x1024"
     quality: Literal["auto", "high", "low"] = "low"
+    # Absolute paths to reference images the model should condition on
+    # (routed through OpenAI's images.edit endpoint). Optional.
+    reference_image_paths: list[str] | None = None
 
 
 @app.get("/health")
@@ -499,6 +502,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 storage_dir=req.storage_dir,
                 size=req.size,
                 quality=req.quality,
+                reference_image_paths=req.reference_image_paths,
             )
             result["image_prompt"] = image_prompt
             result["image_title"] = image_title
