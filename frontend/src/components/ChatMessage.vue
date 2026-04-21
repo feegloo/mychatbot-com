@@ -92,7 +92,7 @@
           @change="onUploadFilesChange"
         />
       </div>
-      <div v-if="msg.role === 'assistant' && !msg.content && asking" class="typing-dots">
+      <div v-if="msg.role === 'assistant' && !msg.content && asking && !isWelcome" class="typing-dots">
         <span></span><span></span><span></span>
       </div>
 
