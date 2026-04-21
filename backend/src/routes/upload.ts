@@ -212,6 +212,11 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
             event: 'complete',
             data: { suggestedQuestions },
           })
+        } else if (event === 'page_progress') {
+          emitConversationEvent(conversationId, {
+            event: 'page_progress',
+            data: { parsed: data.parsed, total: data.total },
+          })
         } else if (event === 'error') {
           throw new Error((data.error as string) || 'Indexing failed')
         }
@@ -473,6 +478,11 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           emitConversationEvent(conversationId, {
             event: 'complete',
             data: { suggestedQuestions },
+          })
+        } else if (event === 'page_progress') {
+          emitConversationEvent(conversationId, {
+            event: 'page_progress',
+            data: { parsed: data.parsed, total: data.total },
           })
         } else if (event === 'error') {
           throw new Error((data.error as string) || 'Indexing failed')

@@ -381,7 +381,7 @@
             <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
           </div>
         </div>
-        <div v-if="msg.generatingImage && asking" class="typing-dots">
+        <div v-if="msg.generatingImage && asking && !isWelcome" class="typing-dots">
           <span></span><span></span><span></span>
         </div>
       </template>
@@ -1685,6 +1685,14 @@ function openFilePreview(file: FileInfo) {
   align-content: flex-start;
 }
 
+@media (max-width: 768px) {
+  .welcome-more-menu {
+    left: auto;
+    right: 0;
+    top: calc(100% + 8px);
+  }
+}
+
 .welcome-more-menu .welcome-more-item {
   margin: 0;
 }
@@ -1835,6 +1843,14 @@ function openFilePreview(file: FileInfo) {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   padding: 8px;
+}
+
+@media (max-width: 768px) {
+  :deep(.action-more-menu) {
+    left: auto;
+    right: 0;
+    top: calc(100% + 8px);
+  }
 }
 
 :deep(.action-more-wrap.open .action-more-menu) {

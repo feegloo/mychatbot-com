@@ -386,6 +386,7 @@ def process_pdf_parallel(
     early_text_target_pages: int = 100,
     on_early_text: Callable[[str, list[dict]], None] | None = None,
     document_context: str = "",
+    on_page_done: "Callable[[int, int], None] | None" = None,
 ) -> FileProcessingResult:
     """Process all pages of a PDF in parallel using ThreadPoolExecutor.
 
@@ -396,6 +397,9 @@ def process_pdf_parallel(
       - early_text_timeout_s elapses after at least one page result.
     When on_early_text is provided, it is called immediately after capture,
     allowing welcome message generation in parallel with remaining processing.
+
+    on_page_done(parsed, total) is called after each page completes so callers
+    can stream live parsing progress to connected clients.
     """
     p = Path(pdf_path)
     file_name = p.name
@@ -471,6 +475,12 @@ def process_pdf_parallel(
                     file_name=file_name,
                     error=str(e)[:500],
                 )
+
+            if on_page_done is not None:
+                try:
+                    on_page_done(len(page_results), total_pages)
+                except Exception as e:
+                    logger.warning(f"⚠️ on_page_done callback failed: {e}")
 
             # Snapshot early text once target pages are processed, or timeout is reached.
             # Fire callback so caller can start welcome message generation immediately.

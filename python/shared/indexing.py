@@ -501,10 +501,15 @@ def index_documents(
                         )
             else:
                 # Local mode (default): parallel threads
+                def _on_page_done(parsed: int, total: int) -> None:
+                    if on_progress:
+                        on_progress("page_progress", {"parsed": parsed, "total": total})
+
                 result = process_pdf_parallel(
                     file_path, output_dir, conversation_id,
                     on_early_text=_on_early_text,
                     document_context=_build_document_context(file_path, file_metadata),
+                    on_page_done=_on_page_done,
                 )
         else:
             result = process_standalone_file(file_path, conversation_id)

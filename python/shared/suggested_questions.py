@@ -104,22 +104,43 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Zamień [Imię Nazwisko autora] na prawdziwe imię i nazwisko autora wykryte z dokumentu. Jeśli autor jest nieznany, użyj "autora" lub opisu np. "tym poradnikiem".
    Pozostałe akcje dobierz losowo z poniższej listy.
 
-4. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
+4. DOKUMENTY PROBLEMOWE — pisma wymagające działania od użytkownika (wezwania do zapłaty, nakazy zapłaty, pisma urzędowe ZUS/US/NFZ/KRUS/GUS, decyzje administracyjne, pisma sądowe i komornicze, pisma windykacyjne, odmowy ubezpieczyciela, odwołania, spory pracownicze, kary administracyjne, mandaty, pisma o odszkodowanie, wezwania do złożenia dokumentów lub rejestracji, pisma o zaległości, pisma dotyczące świadczeń):
+   → OBOWIĄZKOWO: Generuj WYŁĄCZNIE pytania i akcje ukierunkowane na ROZWIĄZANIE konkretnego problemu opisanego w dokumencie.
+   ABSOLUTNIE ZABRONIONE: quiz, wiersz, bajka, obraz, fikcja, piosenka, prezentacja, jakakolwiek kreatywna lub rozrywkowa treść.
+   Naturalne pytania (BEZ emoji, pierwsze 3) MUSZĄ dotyczyć:
+     - kto żąda i czego konkretnie
+     - termin na odpowiedź lub podjęcie działania
+     - wymagane dokumenty i dowody do złożenia
+     - konsekwencje braku działania
+     - prawa użytkownika w tej konkretnej sytuacji
+     - organ/urząd/firma do kontaktu lub odwołania
+   Przykładowe pytania: "Jaki jest termin na odpowiedź?", "Co dokładnie muszę złożyć i gdzie?", "Czy mogę odwołać się od tej decyzji?", "Jakie konsekwencje grożą za brak działania?", "Co muszę zrobić, by zarejestrować się jako bezrobotny?", "Jakie dokumenty potwierdzają ubezpieczenie zdrowotne?"
+   Akcje z emoji: "Lista kroków do rozwiązania problemu ✅", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów 📋", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
+
+5. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
 
-Wybierz akcje które NAJLEPIEJ pasują do charakteru treści. Bądź kreatywny i kontekstowy:
+PRIORYTET: Lista poniżej jest posortowana OD NAJWYŻSZEGO DO NAJNIŻSZEGO PRIORYTETU.
+Przy wyborze akcji stosuj dwie zasady:
+1. Priorytet (główna zasada): preferuj akcje z początku listy — wcześniejsze litery mają wyższy priorytet.
+2. Dopasowanie kontekstowe (czynnik dodatkowy): jeśli treść silnie pasuje do akcji o niższym priorytecie, może pojawić się wcześniej na liście wynikowej.
+Przykład: dla bajki dla dzieci — a) Wygeneruj obraz (najwyższy priorytet), b) Napisz inspirowany rozdział (wysoki), d) Bajka (niższy priorytet, ale silne dopasowanie kontekstu) → te trzy powinny pojawić się jako pierwsze akcje.
 
-a) Quiz 🧠 — sugeruj gdy:
-   - dokument to długi ebook lub podręcznik
-   - PDF wygląda na materiał edukacyjny (wykład, kurs, tutorial)
-   - treść uczy jakiegoś tematu z faktami do sprawdzenia
+a) Wygeneruj obraz 🎨 — NAJWYŻSZY PRIORYTET — sugeruj gdy:
+   - treść opisuje sceny, krajobrazy, postacie, przedmioty wizualne
+   - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
+   - zachęcaj do częstego generowania obrazów
+   - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
+   - akcja: MUSI zawierać dokładnie frazę "wygeneruj obraz" w treści
+   - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
 
-b) Checklista ✅ — sugeruj gdy:
-   - treść opisuje kroki do wykonania, procedurę, instrukcję
-   - użytkownik powinien "podjąć działanie" na podstawie tekstu
-   - dokument zawiera listę wymagań, zadań, rzeczy do zrobienia
+b) Napisz inspirowany rozdział ✏️ — sugeruj gdy:
+   - dokument to fragment powieści, opowiadania, książki beletrystycznej
+   - np. książka Stephena Kinga — "napisz inspirowany rozdział w stylu autora"
+   - treść ma wyraźny styl narracyjny do naśladowania
+   - akcja: "napisz inspirowany rozdział" (nie samo "napisz rozdział")
 
 c) Napisz inspirowany wiersz 📜 — sugeruj gdy:
    - autor to poeta, pisarz, lub treść związana z poezją
@@ -127,150 +148,12 @@ c) Napisz inspirowany wiersz 📜 — sugeruj gdy:
    - treść ma literacki, artystyczny charakter
    - akcja: "napisz inspirowany wiersz" (nie samo "wiersz")
 
-d) Napisz inspirowany rozdział ✏️ — sugeruj gdy:
-   - dokument to fragment powieści, opowiadania, książki beletrystycznej
-   - np. książka Stephena Kinga — "napisz inspirowany rozdział w stylu autora"
-   - treść ma wyraźny styl narracyjny do naśladowania
-   - akcja: "napisz inspirowany rozdział" (nie samo "napisz rozdział")
-
-e) Przepis 🍝 — sugeruj gdy:
-   - zdjęcie pokazuje składniki lub gotowe danie
-   - plik dotyczy gotowania, pieczenia chleba, przepisów kulinarnych
-   - widoczne są produkty spożywcze na zdjęciu
-
-f) Rozpoznaj osobę 🔍 — sugeruj TYLKO gdy:
-   - na zdjęciu widać wyraźnie osobę/twarz ludzką
-   - NIE sugeruj dla zdjęć krajobrazów, zwierząt, przedmiotów
-   - format: "Kto jest kobietą/mężczyzną/osobą na zdjęciu nazwa_pliku? 🔍"
-
-g) Metadane EXIF 📷 — sugeruj TYLKO gdy:
-   - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
-
-h) Diagram mermaid 🖼️ — sugeruj gdy:
-   - treść opisuje proces, przepływ, architekturę, hierarchię
-   - dokument zawiera relacje między elementami do zwizualizowania
-   - treść techniczna z komponentami do zobrazowania
-
-i) Tabela porównawcza 📊 — sugeruj gdy:
-   - treść porównuje produkty, opcje, cechy, wyniki
-   - dokument zawiera dane liczbowe do zestawienia
-
-j) Podsumowanie 📝 — sugeruj gdy:
-   - dokument jest bardzo długi (wiele stron)
-   - treść jest gęsta, pełna szczegółów do skondensowania
-
-k) Wyjaśnij jak dla dziecka 👶 — sugeruj gdy:
-   - treść jest techniczna, naukowa, lub pełna żargonu
-   - dokument wymaga uproszczenia dla zrozumienia
-
-l) Fiszki do nauki 🃏 — sugeruj gdy:
-   - treść zawiera definicje, terminy, słownictwo, kluczowe pojęcia
-   - dokument to materiał do nauki, podręcznik, notatki z wykładu
-   - akcja: "stwórz fiszki do nauki" z pytaniem na jednej stronie i odpowiedzią na drugiej
-
-m) Oś czasu / timeline 📅 — sugeruj gdy:
-   - treść opisuje wydarzenia historyczne, biografię, kamienie milowe projektu
-   - dokument zawiera daty i sekwencję wydarzeń w czasie
-   - akcja: "stwórz oś czasu wydarzeń"
-
-n) Mapa myśli 🧩 — sugeruj gdy:
-   - treść przedstawia wiele powiązanych koncepcji lub tematów
-   - dokument nadaje się do wizualnego przeglądu relacji między ideami
-   - akcja: "stwórz mapę myśli" (wygeneruj jako diagram mermaid mindmap)
-
-o) Za i przeciw ⚖️ — sugeruj gdy:
-   - treść dotyczy decyzji, recenzji, oceny produktów lub opcji
-   - dokument prezentuje argumenty za i przeciw, lub porównuje podejścia
-   - akcja: "wypisz za i przeciw"
-
-p) Szkic emaila / listu 📧 — sugeruj gdy:
-   - treść zawiera informacje wymagające formalnej komunikacji
-   - dokument to reklamacja, wniosek, raport, lub wymaga odpowiedzi
-   - akcja: "napisz szkic emaila na podstawie treści"
-
-q) Notatki do nauki 📓 — sugeruj gdy:
-   - treść to wykład, artykuł naukowy, rozdział podręcznika
-   - dokument jest gęsty i wymaga wyciągnięcia najważniejszych punktów
-   - akcja: "stwórz notatki do nauki" (skondensowane, z kluczowymi punktami)
-
-r) Przetłumacz treść 🌍 — sugeruj gdy:
-   - treść jest w języku obcym dla użytkownika (np. dokument po angielsku dla polskiego użytkownika)
-   - dokument zawiera fragmenty w różnych językach
-   - akcja: "przetłumacz na [język]"
-
-s) FAQ / Najczęstsze pytania ❓ — sugeruj gdy:
-   - treść to dokumentacja, instrukcja obsługi, regulamin, polityka
-   - dokument opisuje produkt, usługę, lub proces z wieloma szczegółami
-   - akcja: "stwórz FAQ na podstawie treści"
-
-t) Debata / Argumenty 💬 — sugeruj gdy:
-   - treść dotyczy kontrowersyjnego tematu, opinii, eseju argumentacyjnego
-   - dokument prezentuje stanowisko które można przedyskutować z wielu stron
-   - akcja: "przedstaw argumenty obu stron"
-
-u) Słownik pojęć 📖 — sugeruj gdy:
-   - treść zawiera specjalistyczną terminologię, żargon branżowy
-   - dokument techniczny, medyczny, prawny z wieloma terminami do wyjaśnienia
-   - akcja: "stwórz słownik kluczowych pojęć"
-
-v) List motywacyjny / CV 💼 — sugeruj gdy:
-   - treść to oferta pracy, opis stanowiska, wymagania rekrutacyjne
-   - dokument to CV, portfolio, lub materiały do aplikacji
-   - akcja: "napisz list motywacyjny na podstawie oferty"
-
-w) Plan działania / Roadmap 🚩 — sugeruj gdy:
-   - treść opisuje cele, strategię, plan projektu, wizję
-   - dokument wymaga przełożenia na konkretne kroki z terminami
-   - akcja: "stwórz plan działania krok po kroku"
-
-x) Recenzja / Opinia ⭐ — sugeruj gdy:
-   - treść to produkt, książka, film, usługa, restauracja
-   - dokument zawiera doświadczenie użytkownika z czymś do oceny
-   - akcja: "napisz recenzję" lub "napisz opinię"
-
-y) Post na social media 📱 — sugeruj gdy:
-   - treść jest interesująca, newsowa, inspirująca, wizualna
-   - dokument nadaje się do podzielenia się z innymi online
-   - akcja: "napisz post na LinkedIn/Instagram/Twitter"
-
-z) Streszczenie wykonawcze 🎯 — sugeruj gdy:
-   - treść to długi raport, analiza, biznesplan, badanie
-   - dokument wymaga krótkiego, decyzyjnego streszczenia dla zarządu
-   - akcja: "stwórz streszczenie wykonawcze (executive summary)"
-
-aa) Scenariusz rozmowy / Dialog 🎬 — sugeruj gdy:
-   - treść dotyczy wywiadu, przesłuchania, spotkania, negocjacji
-   - dokument ma potencjał dramaturgiczny lub edukacyjny w formie dialogu
-   - akcja: "napisz scenariusz rozmowy / dialog"
-
-ab) Infografika (tekstowa) 📊 — sugeruj gdy:
-   - treść zawiera statystyki, dane liczbowe, fakty do zwizualizowania
-   - dokument nadaje się do prezentacji kluczowych liczb i faktów
-   - akcja: "stwórz tekstową infografikę z najważniejszymi danymi"
-
-ac) Piosenka / Tekst muzyczny 🎵 — sugeruj gdy:
-   - treść jest emocjonalna, opowiada historię, ma rymowany charakter
-   - dokument dotyczy muzyki, tekstów piosenek, lub ma potencjał liryczny
-   - akcja: "napisz inspirowaną piosenkę / tekst muzyczny"
-
-ad) Prezentacja / Slajdy 📽️ — sugeruj gdy:
-   - treść wymaga zaprezentowania publiczności, wykład, raport
-   - dokument ma strukturę nadającą się na slajdy (sekcje, punkty)
-   - akcja: "stwórz zarys prezentacji (outline slajdów)"
-
-ae) Bajka / Opowiadanie dla dzieci 🧚 — sugeruj gdy:
+d) Bajka / Opowiadanie dla dzieci 🧚 — sugeruj gdy:
    - treść zawiera moralne lekcje, przygody, postacie fantastyczne
    - dokument lub zdjęcie przedstawia zwierzęta, naturę, magiczne sceny
    - akcja: "napisz bajkę inspirowaną treścią"
 
-af) Wygeneruj obraz 🎨 — sugeruj gdy:
-   - treść opisuje sceny, krajobrazy, postacie, przedmioty wizualne
-   - zdjęcie lub dokument ma potencjał do wizualnej reinterpretacji
-   - użytkownik może chcieć zobaczyć artystyczną wizualizację treści
-   - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
-   - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
-
-ag) Postaw diagnozę / diagnoza 🔬 — sugeruj TYLKO gdy:
+e) Postaw diagnozę / diagnoza 🔬 — sugeruj TYLKO gdy:
    - dokument to FAKTYCZNIE wyniki badań laboratoryjnych konkretnego pacjenta: morfologia krwi, panel tarczycowy, lipidogram, wyniki od lekarza/szpitala/laboratorium (ALAB, Diagnostyka, Synevo itp.)
    - treść zawiera wartości numeryczne z zakresami referencyjnymi (np. TSH: 2.3 mIU/L [0.4-4.0]) lub jest wyraźnie dokumentem klinicznym: historia choroby, karta wypisowa, wyniki obrazowania (RTG, USG, MRI), opis histopatologiczny
    - treść zawiera typowe biomarkery: hemoglobina, leukocyty, cholesterol, glukoza, TSH, FT3, FT4, ferrytyna, witamina D, CRP, kreatynina, ALAT, ASPAT, HbA1c itp.
@@ -281,31 +164,172 @@ ag) Postaw diagnozę / diagnoza 🔬 — sugeruj TYLKO gdy:
      * dokument prawny, finansowy lub naukowy (chemia, fizyka, inżynieria), który przypadkowo zawiera medyczne słówka
    - UWAGA: sugeruj tylko gdy treść FAKTYCZNIE zawiera wyniki badań konkretnej osoby — nie wymuszaj na dokumentach niezwiązanych z medycyną
 
-ah) Napisz nowe wskazówki 💡 — sugeruj gdy:
+f) Napisz nowe wskazówki 💡 — sugeruj gdy:
    - dokument to poradnik, lista wskazówek, "N sposobów na...", "X wskazówek jak..."
    - treść to samorozwój, produktywność, pewność siebie, nawyki, motywacja
    - akcja: "Napisz 10 nowych wskazówek inspirowanych [Imię Nazwisko autora] 💡"
 
-ai) Stwórz ćwiczenia 🏋️ — sugeruj gdy:
+g) Stwórz ćwiczenia 🏋️ — sugeruj gdy:
    - dokument to workbook, materiał kursowy, przewodnik po ćwiczeniach, zbiór zadań
    - treść zawiera kroki do wykonania lub praktyczne elementy do ćwiczenia
    - akcja: "Stwórz 7 ćwiczeń inspirowanych [Imię Nazwisko autora] 🏋️"
 
-aj) Wygeneruj pytania refleksyjne 🤔 — sugeruj gdy:
+h) Wygeneruj pytania refleksyjne 🤔 — sugeruj gdy:
    - dokument jest introspekcyjny, dotyczący journalingu, coachingu, mindset, samorozwoju
    - treść skłania do autorefleksji lub głębszego myślenia
    - akcja: "Wygeneruj 12 pytań refleksyjnych inspirowanych [Imię Nazwisko autora] 🤔"
 
-ak) Scenariusze z życia 🎭 — sugeruj gdy:
+i) Scenariusze z życia 🎭 — sugeruj gdy:
    - dokument stosuje zasady do rzeczywistych sytuacji, zawiera case study, przykłady
    - treść dotyczy umiejętności społecznych, komunikacji, przywództwa, psychologii
    - akcja: "Napisz 5 scenariuszy z życia inspirowanych [Imię Nazwisko autora] 🎭"
 
-al) 14-dniowy plan działania 📅 — sugeruj gdy:
+j) 14-dniowy plan działania 📅 — sugeruj gdy:
    - dokument to przewodnik po samodoskonaleniu, wyzwanie lub ustrukturyzowany program
    - treść można przełożyć na codzienne zadania praktyczne
    - akcja: "Stwórz 14-dniowy plan działania inspirowany [Imię Nazwisko autora] 📅"
 
+k) Napisz cytaty inspirowane autorem 💬 — sugeruj gdy:
+   - dokument zawiera inspirujące, mądre, zabawne, lub głębokie cytaty
+   - treść jest podobna do znanych cytatów lub aforyzmów
+   - przykładowo, autorem książki jest Paulo Coelho albo Albert Einstein (słynął z mądrych powiedzeń)
+   - akcja: "napisz 5 nowych cytatów inspirowanych treścią" lub "napisz 5 nowych cytatów inspirowanych [Imię Nazwisko autora]"
+
+l) Quiz 🧠 — sugeruj gdy:
+   - dokument to długi ebook lub podręcznik
+   - PDF wygląda na materiał edukacyjny (wykład, kurs, tutorial)
+   - treść uczy jakiegoś tematu z faktami do sprawdzenia
+
+m) Checklista ✅ — sugeruj gdy:
+   - treść opisuje kroki do wykonania, procedurę, instrukcję
+   - użytkownik powinien "podjąć działanie" na podstawie tekstu
+   - dokument zawiera listę wymagań, zadań, rzeczy do zrobienia
+
+n) Diagram mermaid 🖼️ — sugeruj gdy:
+   - treść opisuje proces, przepływ, architekturę, hierarchię
+   - dokument zawiera relacje między elementami do zwizualizowania
+   - treść techniczna z komponentami do zobrazowania
+
+o) Podsumowanie 📝 — sugeruj gdy:
+   - dokument jest bardzo długi (wiele stron)
+   - treść jest gęsta, pełna szczegółów do skondensowania
+
+p) Oś czasu / timeline 📅 — sugeruj gdy:
+   - treść opisuje wydarzenia historyczne, biografię, kamienie milowe projektu
+   - dokument zawiera daty i sekwencję wydarzeń w czasie
+   - akcja: "stwórz oś czasu wydarzeń"
+
+q) Mapa myśli 🧩 — sugeruj gdy:
+   - treść przedstawia wiele powiązanych koncepcji lub tematów
+   - dokument nadaje się do wizualnego przeglądu relacji między ideami
+   - akcja: "stwórz mapę myśli" (wygeneruj jako diagram mermaid mindmap)
+
+r) Fiszki do nauki 🃏 — sugeruj gdy:
+   - treść zawiera definicje, terminy, słownictwo, kluczowe pojęcia
+   - dokument to materiał do nauki, podręcznik, notatki z wykładu
+   - akcja: "stwórz fiszki do nauki" z pytaniem na jednej stronie i odpowiedzią na drugiej
+
+s) Notatki do nauki 📓 — sugeruj gdy:
+   - treść to wykład, artykuł naukowy, rozdział podręcznika
+   - dokument jest gęsty i wymaga wyciągnięcia najważniejszych punktów
+   - akcja: "stwórz notatki do nauki" (skondensowane, z kluczowymi punktami)
+
+t) FAQ / Najczęstsze pytania ❓ — sugeruj gdy:
+   - treść to dokumentacja, instrukcja obsługi, regulamin, polityka
+   - dokument opisuje produkt, usługę, lub proces z wieloma szczegółami
+   - akcja: "stwórz FAQ na podstawie treści"
+
+u) Prezentacja / Slajdy 📽️ — sugeruj gdy:
+   - treść wymaga zaprezentowania publiczności, wykład, raport
+   - dokument ma strukturę nadającą się na slajdy (sekcje, punkty)
+   - akcja: "stwórz zarys prezentacji (outline slajdów)"
+
+v) Wyjaśnij jak dla dziecka 👶 — sugeruj gdy:
+   - treść jest techniczna, naukowa, lub pełna żargonu
+   - dokument wymaga uproszczenia dla zrozumienia
+
+w) Za i przeciw ⚖️ — sugeruj gdy:
+   - treść dotyczy decyzji, recenzji, oceny produktów lub opcji
+   - dokument prezentuje argumenty za i przeciw, lub porównuje podejścia
+   - akcja: "wypisz za i przeciw"
+
+x) Debata / Argumenty 💬 — sugeruj gdy:
+   - treść dotyczy kontrowersyjnego tematu, opinii, eseju argumentacyjnego
+   - dokument prezentuje stanowisko które można przedyskutować z wielu stron
+   - akcja: "przedstaw argumenty obu stron"
+
+y) Słownik pojęć 📖 — sugeruj gdy:
+   - treść zawiera specjalistyczną terminologię, żargon branżowy
+   - dokument techniczny, medyczny, prawny z wieloma terminami do wyjaśnienia
+   - akcja: "stwórz słownik kluczowych pojęć"
+
+z) Post na social media 📱 — sugeruj gdy:
+   - treść jest interesująca, newsowa, inspirująca, wizualna
+   - dokument nadaje się do podzielenia się z innymi online
+   - akcja: "napisz post na LinkedIn/Instagram/Twitter"
+
+aa) Recenzja / Opinia ⭐ — sugeruj gdy:
+   - treść to produkt, książka, film, usługa, restauracja
+   - dokument zawiera doświadczenie użytkownika z czymś do oceny
+   - akcja: "napisz recenzję" lub "napisz opinię"
+
+ab) Streszczenie wykonawcze 🎯 — sugeruj gdy:
+   - treść to długi raport, analiza, biznesplan, badanie
+   - dokument wymaga krótkiego, decyzyjnego streszczenia dla zarządu
+   - akcja: "stwórz streszczenie wykonawcze (executive summary)"
+
+ac) Tabela porównawcza 📊 — sugeruj gdy:
+   - treść porównuje produkty, opcje, cechy, wyniki
+   - dokument zawiera dane liczbowe do zestawienia
+
+ad) Plan działania / Roadmap 🚩 — sugeruj gdy:
+   - treść opisuje cele, strategię, plan projektu, wizję
+   - dokument wymaga przełożenia na konkretne kroki z terminami
+   - akcja: "stwórz plan działania krok po kroku"
+
+ae) Szkic emaila / listu 📧 — sugeruj gdy:
+   - treść zawiera informacje wymagające formalnej komunikacji
+   - dokument to reklamacja, wniosek, raport, lub wymaga odpowiedzi
+   - akcja: "napisz szkic emaila na podstawie treści"
+
+af) List motywacyjny / CV 💼 — sugeruj gdy:
+   - treść to oferta pracy, opis stanowiska, wymagania rekrutacyjne
+   - dokument to CV, portfolio, lub materiały do aplikacji
+   - akcja: "napisz list motywacyjny na podstawie oferty"
+
+ag) Scenariusz rozmowy / Dialog 🎬 — sugeruj gdy:
+   - treść dotyczy wywiadu, przesłuchania, spotkania, negocjacji
+   - dokument ma potencjał dramaturgiczny lub edukacyjny w formie dialogu
+   - akcja: "napisz scenariusz rozmowy / dialog"
+
+ah) Infografika (tekstowa) 📊 — sugeruj gdy:
+   - treść zawiera statystyki, dane liczbowe, fakty do zwizualizowania
+   - dokument nadaje się do prezentacji kluczowych liczb i faktów
+   - akcja: "stwórz tekstową infografikę z najważniejszymi danymi"
+
+ai) Piosenka / Tekst muzyczny 🎵 — sugeruj gdy:
+   - treść jest emocjonalna, opowiada historię, ma rymowany charakter
+   - dokument dotyczy muzyki, tekstów piosenek, lub ma potencjał liryczny
+   - akcja: "napisz inspirowaną piosenkę / tekst muzyczny"
+
+aj) Przetłumacz treść 🌍 — sugeruj gdy:
+   - treść jest w języku obcym dla użytkownika (np. dokument po angielsku dla polskiego użytkownika)
+   - dokument zawiera fragmenty w różnych językach
+   - akcja: "przetłumacz na [język]"
+
+ak) Metadane EXIF 📷 — sugeruj TYLKO gdy:
+   - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
+   - plik nie ma praktycznie treści (np. to PDF z 600 stronami po arabsku do OCR, autor Rumi, który jest poetą, ale dokument to tylko skan jego rękopisu bez żadnych danych tekstowych do analizy) — w takim przypadku sugeruj EXIF zamiast pytań o treść
+
+al) Rozpoznaj osobę 🔍 — sugeruj TYLKO gdy:
+   - na zdjęciu widać wyraźnie osobę/twarz ludzką
+   - NIE sugeruj dla zdjęć krajobrazów, zwierząt, przedmiotów
+   - format: "Kto jest kobietą/mężczyzną/osobą na zdjęciu nazwa_pliku? 🔍"
+
+am) Przepis 🍝 — sugeruj gdy:
+   - zdjęcie pokazuje składniki lub gotowe danie
+   - plik dotyczy gotowania, pieczenia chleba, przepisów kulinarnych
+   - widoczne są produkty spożywcze na zdjęciu
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}""",
                 ),
@@ -360,209 +384,232 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Replace [Author Full Name] with the actual author's name detected from the document. If no author is found, use "the author" or a short description like "this guide".
    Pick the remaining actions RANDOMLY from the list below.
 
-4. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
+4. PROBLEM DOCUMENTS — documents requiring action from the user (payment demands, official government letters from social security/tax authority/health insurance agencies, court orders, administrative decisions, debt collection letters, insurance denials, appeal documents, workplace disputes with employer, administrative fines and penalties, compensation claims, summons to submit documents or register, overdue payment notices, benefit or entitlement letters):
+   → MANDATORY: Generate ONLY questions and actions focused on SOLVING THE SPECIFIC PROBLEM described in the document.
+   ABSOLUTELY PROHIBITED: quiz, poem, fairy tale, image generation, fiction, song, presentation, any creative or entertainment content.
+   Natural questions (NO emoji, first 3) MUST cover:
+     - who is demanding what specifically
+     - deadline for responding or taking action
+     - required documents and evidence to submit
+     - consequences of inaction
+     - user's rights in this specific situation
+     - office/authority/company to contact or appeal to
+   Example natural questions: "What is the deadline to respond?", "What exactly do I need to submit and where?", "Can I appeal this decision?", "What happens if I don't respond?", "What do I need to do to register as unemployed?", "What documents prove health insurance coverage?", "Who issued this demand and what authority do they have?", "What are my options if I can't pay?"
+   Action prompts with emoji: "Step-by-step action plan ✅", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents 📋", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
+
+5. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
 
-Pick actions that BEST fit the nature of the content. Be creative and contextual:
+PRIORITY: The list below is sorted FROM HIGHEST TO LOWEST PRIORITY.
+When selecting actions, apply two principles:
+1. Priority (primary rule): prefer actions from the beginning of the list — earlier letters have higher priority.
+2. Context fit (secondary factor): if the content strongly matches a lower-priority action, it may appear earlier in the output list.
+Example: for a children's fairy tale — a) Generate image (highest priority), b) Write inspired chapter (high), d) Fairy tale (lower priority but strong context fit) → these three should appear as the first actions.
 
-a) Quiz 🧠 — suggest when:
-   - document is a long ebook or textbook
-   - PDF looks like educational material (lecture, course, tutorial)
-   - content teaches a subject with facts worth testing
+a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
+   - content describes scenes, landscapes, characters, visual objects
+   - photo or document has potential for visual reinterpretation
+   - encourage frequent image generation
+   - user may want to see an artistic visualization of the content
+   - action: MUST contain exactly the phrase "generate image" in the content
+   - action MUST reference a specific topic/scene/character from the document (e.g. "Generate image: dark forest with Harry Potter 🎨") — do NOT use generic "current mood"
 
-b) Checklist ✅ — suggest when:
-   - content describes steps to follow, a procedure, instructions
-   - user should "take action" based on the text
-   - document contains requirements, tasks, things to do
+b) Write inspired chapter ✏️ — suggest when:
+   - document is a fragment of a novel, story, or fiction book
+   - e.g. Stephen King book — "write an inspired chapter in the author's style"
+   - content has a distinct narrative style to emulate
+   - action: "write an inspired chapter" (not just "write a chapter")
 
 c) Write inspired poem 📜 — suggest when:
-   - author is a poet, writer, or content relates to poetry
+   - author is a poet, writer, or content is poetry-related
    - document is a collection of quotes, aphorisms, poems
-   - content has a literary, artistic character
-   - e.g. a Paolo Coelho book — "write inspired poem in the author's style"
-   - action: "write inspired poem" (not just "poem")
+   - content has literary, artistic character
+   - action: "write an inspired poem" (not just "write a poem")
 
-d) Write inspired chapter ✏️ — suggest when:
-   - document is a fragment of a novel, short story, fiction book
-   - e.g. a Stephen King book — "write inspired chapter in the author's style"
-   - content has a distinct narrative style worth imitating
-   - action: "write inspired chapter" (or "write chapter")
+d) Fairy tale / Children's story 🧚 — suggest when:
+   - content contains moral lessons, adventures, fantasy characters
+   - document or photo shows animals, nature, magical scenes
+   - action: "write a fairy tale inspired by the content"
 
-e) Recipe 🍝 — suggest when:
-   - image shows ingredients or a finished dish
-   - file is about cooking, baking bread, culinary recipes
-   - food products are visible in the photo
+e) Make a diagnosis 🔬 — suggest ONLY when:
+   - document ACTUALLY contains lab test results for a specific patient: blood count, thyroid panel, lipid panel, results from a doctor/hospital/laboratory
+   - content contains numerical values with reference ranges (e.g. TSH: 2.3 mIU/L [0.4-4.0]) or is clearly a clinical document: medical history, discharge summary, imaging results (X-ray, ultrasound, MRI), histopathology
+   - content contains typical biomarkers: hemoglobin, leukocytes, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, CRP, creatinine, ALT, AST, HbA1c, etc.
+   - action: "Make a diagnosis based on the results 🔬"
+   - EXCLUSION CONDITIONS (do NOT suggest this action when):
+     * document is unrelated to medicine/health (user manual, technical textbook, novel, recipes, vacuum cleaner manual)
+     * general medical knowledge (disease encyclopedia, health article) without specific patient data
+     * legal, financial, or scientific document (chemistry, physics, engineering) that incidentally contains medical words
+   - NOTE: suggest only when content ACTUALLY contains test results for a specific person — do not force on unrelated documents
 
-f) Recognize person 🔍 — suggest ONLY when:
-   - image clearly shows a person/human face
-   - do NOT suggest for landscapes, animals, objects
-   - format: "Who is the woman/man/person in filename? 🔍"
+f) Write new tips 💡 — suggest when:
+   - document is a how-to guide, tips list, "N ways to...", "X tips on how to..."
+   - content is about self-improvement, productivity, confidence, habits, motivation
+   - action: "Write 10 new tips inspired by [Author Full Name] 💡"
 
-g) EXIF metadata 📷 — suggest ONLY when:
-   - file is an image (photo) — never for PDF or text files
+g) Create exercises 🏋️ — suggest when:
+   - document is a workbook, course material, exercise guide, task collection
+   - content contains steps to follow or practical elements to practice
+   - action: "Create 7 exercises inspired by [Author Full Name] 🏋️"
 
-h) Mermaid diagram 🖼️ — suggest when:
+h) Generate reflection questions 🤔 — suggest when:
+   - document is introspective, about journaling, coaching, mindset, self-development
+   - content invites self-reflection or deeper thinking
+   - action: "Generate 12 reflection questions inspired by [Author Full Name] 🤔"
+
+i) Real-life scenarios 🎭 — suggest when:
+   - document applies principles to real situations, contains case studies, examples
+   - content is about social skills, communication, leadership, psychology
+   - action: "Write 5 real-life scenarios inspired by [Author Full Name] 🎭"
+
+j) 14-day action plan 📅 — suggest when:
+   - document is a self-improvement guide, challenge or structured program
+   - content can be translated into daily practical tasks
+   - action: "Create a 14-day action plan inspired by [Author Full Name] 📅"
+
+k) Write inspired quotes 💬 — suggest when:
+   - document contains inspiring, wise, funny, or deep quotes
+   - content is similar to well-known quotes or aphorisms
+   - for example, the book author is Paulo Coelho or Albert Einstein (known for wise sayings)
+   - action: "write 5 new quotes inspired by the content" or "write 5 new quotes inspired by [Author Full Name]"
+
+l) Quiz 🧠 — suggest when:
+   - document is a long ebook or textbook
+   - PDF looks like educational material (lecture, course, tutorial)
+   - content teaches a topic with facts to be tested
+
+m) Checklist ✅ — suggest when:
+   - content describes steps to follow, a procedure, or instructions
+   - user should "take action" based on the text
+   - document contains a list of requirements, tasks, or to-dos
+
+n) Mermaid diagram 🖼️ — suggest when:
    - content describes a process, flow, architecture, hierarchy
-   - document has relationships between elements to visualize
-   - technical content with components to diagram
+   - document contains relationships between elements to visualize
+   - technical content with components to illustrate
 
-i) Comparison table 📊 — suggest when:
-   - content compares products, options, features, results
-   - document contains numerical data to tabulate
-
-j) Summary 📝 — suggest when:
+o) Summary 📝 — suggest when:
    - document is very long (many pages)
    - content is dense, full of details to condense
 
-k) Explain like I'm 5 👶 — suggest when:
+p) Timeline 📅 — suggest when:
+   - content describes historical events, biography, project milestones
+   - document contains dates and sequence of events over time
+   - action: "create a timeline of events"
+
+q) Mind map 🧩 — suggest when:
+   - content presents many related concepts or topics
+   - document is suitable for a visual overview of idea relationships
+   - action: "create a mind map" (generate as mermaid mindmap diagram)
+
+r) Flashcards 🃏 — suggest when:
+   - content contains definitions, terms, vocabulary, key concepts
+   - document is study material, textbook, lecture notes
+   - action: "create flashcards" with question on one side and answer on the other
+
+s) Study notes 📓 — suggest when:
+   - content is a lecture, scientific article, textbook chapter
+   - document is dense and requires extracting the most important points
+   - action: "create study notes" (condensed, with key points)
+
+t) FAQ / Frequently Asked Questions ❓ — suggest when:
+   - content is documentation, user manual, terms of service, policy
+   - document describes a product, service, or process with many details
+   - action: "create an FAQ based on the content"
+
+u) Presentation / Slides 📽️ — suggest when:
+   - content needs to be presented to an audience, lecture, report
+   - document has structure suitable for slides (sections, bullet points)
+   - action: "create a presentation outline (slide outline)"
+
+v) Explain like I'm 5 👶 — suggest when:
    - content is technical, scientific, or full of jargon
    - document needs simplification for understanding
 
-l) Flashcards 🃏 — suggest when:
-   - content contains definitions, terms, vocabulary, key concepts
-   - document is study material, textbook, lecture notes
-   - action: "create study flashcards" with question on one side, answer on the other
-
-m) Timeline 📅 — suggest when:
-   - content describes historical events, biography, project milestones
-   - document contains dates and a sequence of events over time
-   - action: "create timeline of events"
-
-n) Mind map 🧩 — suggest when:
-   - content presents many related concepts or topics
-   - document is suitable for a visual overview of relationships between ideas
-   - action: "create mind map" (generate as mermaid mindmap diagram)
-
-o) Pros & Cons ⚖️ — suggest when:
-   - content is about decisions, reviews, product evaluations, or options
+w) Pros & Cons ⚖️ — suggest when:
+   - content is about a decision, review, product evaluation, or options
    - document presents arguments for and against, or compares approaches
    - action: "list pros and cons"
 
-p) Email / letter draft 📧 — suggest when:
-   - content contains info requiring formal communication
-   - document is a complaint, application, report, or needs a response
-   - action: "draft an email based on the content"
-
-q) Study notes 📓 — suggest when:
-   - content is a lecture, scientific article, textbook chapter
-   - document is dense and needs key points extracted
-   - action: "create study notes" (condensed, with key takeaways)
-
-r) Translate content 🌍 — suggest when:
-   - content is in a foreign language for the user
-   - document contains passages in different languages
-   - action: "translate to [language]"
-
-s) FAQ / Frequently asked questions ❓ — suggest when:
-   - content is documentation, user manual, terms of service, policy
-   - document describes a product, service, or process with many details
-   - action: "create FAQ from the content"
-
-t) Debate / Arguments 💬 — suggest when:
-   - content covers a controversial topic, opinion piece, argumentative essay
+x) Debate / Arguments 💬 — suggest when:
+   - content is about a controversial topic, opinion, argumentative essay
    - document presents a position that can be discussed from multiple sides
    - action: "present arguments from both sides"
 
-u) Glossary 📖 — suggest when:
+y) Glossary 📖 — suggest when:
    - content contains specialized terminology, industry jargon
-   - technical, medical, or legal document with many terms to explain
+   - technical, medical, legal document with many terms to explain
    - action: "create a glossary of key terms"
 
-v) Cover letter / CV 💼 — suggest when:
-   - content is a job offer, position description, recruitment requirements
-   - document is a CV, portfolio, or application materials
-   - action: "write a cover letter based on the job offer"
+z) Social media post 📱 — suggest when:
+   - content is interesting, newsworthy, inspiring, visual
+   - document is suitable for sharing with others online
+   - action: "write a LinkedIn/Instagram/Twitter post"
 
-w) Action plan / Roadmap 🚩 — suggest when:
-   - content describes goals, strategy, project plan, vision
-   - document needs to be translated into concrete steps with deadlines
-   - action: "create a step-by-step action plan"
-
-x) Review / Opinion ⭐ — suggest when:
+aa) Review / Opinion ⭐ — suggest when:
    - content is a product, book, film, service, restaurant
    - document contains a user experience with something to evaluate
    - action: "write a review" or "write an opinion"
 
-y) Social media post 📱 — suggest when:
-   - content is interesting, newsworthy, inspiring, visual
-   - document is suitable for sharing online with others
-   - action: "write a LinkedIn/Instagram/Twitter post"
-
-z) Executive summary 🎯 — suggest when:
+ab) Executive summary 🎯 — suggest when:
    - content is a long report, analysis, business plan, research
    - document needs a short, decision-oriented summary for management
    - action: "create an executive summary"
 
-aa) Dialogue / Script 🎬 — suggest when:
+ac) Comparison table 📊 — suggest when:
+   - content compares products, options, features, results
+   - document contains numerical data to tabulate
+
+ad) Action plan / Roadmap 🚩 — suggest when:
+   - content describes goals, strategy, project plan, vision
+   - document needs to be translated into concrete steps with deadlines
+   - action: "create a step-by-step action plan"
+
+ae) Email draft / Letter 📧 — suggest when:
+   - content contains information requiring formal communication
+   - document is a complaint, application, report, or requires a response
+   - action: "write an email draft based on the content"
+
+af) Cover letter / CV 💼 — suggest when:
+   - content is a job offer, position description, recruitment requirements
+   - document is a CV, portfolio, or application materials
+   - action: "write a cover letter based on the job offer"
+
+ag) Dialogue / Script 🎬 — suggest when:
    - content is about an interview, hearing, meeting, negotiation
    - document has dramatic or educational potential in dialogue form
    - action: "write a dialogue / script"
 
-ab) Text infographic 📊 — suggest when:
+ah) Text infographic 📊 — suggest when:
    - content contains statistics, numerical data, facts to visualize
    - document is suitable for presenting key numbers and facts
    - action: "create a text infographic with the most important data"
 
-ac) Song / Lyrics 🎵 — suggest when:
+ai) Song / Lyrics 🎵 — suggest when:
    - content is emotional, tells a story, has a rhyming character
    - document is about music, song lyrics, or has lyrical potential
    - action: "write an inspired song / lyrics"
 
-ad) Presentation / Slides 📽️ — suggest when:
-   - content needs to be presented to an audience, lecture, report
-   - document has a structure suitable for slides (sections, bullet points)
-   - action: "create a presentation outline (slide outline)"
+aj) Translate content 🌍 — suggest when:
+   - content is in a foreign language for the user (e.g. English document for a Polish user)
+   - document contains fragments in different languages
+   - action: "translate to [language]"
 
-ae) Fairy tale / Children's story 🧚 — suggest when:
-   - content contains moral lessons, adventures, fantastical characters
-   - document or photo shows animals, nature, magical scenes
-   - action: "write a fairy tale inspired by the content"
+ak) EXIF metadata 📷 — suggest ONLY when:
+   - file is a photo (image) — never for PDF or text
+   - file has practically no content (e.g. it is a PDF with 600 pages in Arabic for OCR, author Rumi who is a poet, but the document is only a scan of his manuscript with no textual data to analyze) — in that case suggest EXIF instead of content questions
 
-af) Generate image 🎨 — suggest when:
-   - content describes scenes, landscapes, characters, visual objects
-   - photo or document has potential for visual reinterpretation
-   - user might want to see an artistic visualization of the content
-   - action: MUST contain exactly the phrase "generate image" in the label
-   - action MUST reference the document's specific subject, character, or scene (e.g. "Generate image: stormy sea at sunset 🎨") — do NOT use the generic phrase "current mood"; tailor it to the actual content
+al) Recognize person 🔍 — suggest ONLY when:
+   - a person/human face is clearly visible in the photo
+   - do NOT suggest for photos of landscapes, animals, objects
+   - format: "Who is the woman/man/person in photo filename? 🔍"
 
-ag) Make a diagnosis 🔬 — suggest ONLY when:
-   - document IS GENUINELY lab test results for a specific patient: CBC, blood tests, thyroid panel, lipid panel, results from a doctor/hospital/lab
-   - content contains numerical values with reference ranges (e.g. TSH: 2.3 mIU/L [0.4-4.0]) or is clearly a clinical patient document: medical history, discharge summary, imaging results (X-ray, ultrasound, MRI), pathology report
-   - content contains typical biomarkers: hemoglobin, WBC, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, CRP, creatinine, ALT, AST, HbA1c, etc.
-   - action: "Make a diagnosis based on results 🔬"
-   - EXCLUSION CONDITIONS (do NOT suggest this action when):
-     * document has no connection to medicine/health (appliance manual, technical textbook, novel, cookbook, vacuum cleaner instruction)
-     * general medical knowledge (disease encyclopedia, health article) without specific patient data
-     * legal, financial, or scientific document (chemistry, physics, engineering) that incidentally contains medical terminology
-   - NOTE: suggest only when content ACTUALLY contains test results for a specific person — do not force this on unrelated documents
-
-ah) Write new tips 💡 — suggest when:
-   - document is a tips guide, advice collection, "X ways to...", "N tips for..."
-   - content is non-fiction self-help, productivity, confidence, habit-building, motivation
-   - action: "Write 10 new tips inspired by [Author Full Name] 💡"
-
-ai) Create exercises 🏋️ — suggest when:
-   - document is a workbook, course material, practice guide, or exercise collection
-   - content has step-by-step tasks or actionable practice elements
-   - action: "Create 7 exercises inspired by [Author Full Name] 🏋️"
-
-aj) Generate reflection questions 🤔 — suggest when:
-   - document is introspective, journaling, self-coaching, mindset, or personal growth focused
-   - content prompts self-examination or deeper thinking about one's life/habits
-   - action: "Generate 12 reflection questions inspired by [Author Full Name] 🤔"
-
-ak) Real-life scenarios 🎭 — suggest when:
-   - document applies principles to real situations, contains case studies, or practical examples
-   - content is about social skills, communication, leadership, or psychology
-   - action: "Draft 5 real-life scenarios inspired by [Author Full Name] 🎭"
-
-al) 14-day action plan 📅 — suggest when:
-   - document is a self-improvement guide, challenge program, or structured practice plan
-   - content can be translated into day-by-day practice tasks with clear goals
-   - action: "Build a 14-day action plan inspired by [Author Full Name] 📅"
-
+am) Recipe 🍝 — suggest when:
+   - photo shows ingredients or a finished dish
+   - file is about cooking, baking bread, culinary recipes
+   - food products are visible in the photo
 Uploaded files: {file_types_str}
 Document description: {description}""",
                 ),

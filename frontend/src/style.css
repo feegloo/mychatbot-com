@@ -1678,6 +1678,18 @@ h3 {
   border-color: #6d28d9;
 }
 
+.indexing-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.indexing-tooltip-pages {
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .v-popper--theme-tooltip .v-popper__arrow-inner {
   border-color: #2e1065;
 }

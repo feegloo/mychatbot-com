@@ -8,6 +8,8 @@
       :can-upload="canUpload"
       :processing="loaded && status.status === 'processing'"
       :processing-step="processingStepLabel"
+      :parsed-pages="parsedPages"
+      :total-pages="totalPages"
       @renamed="status.displayName = $event"
       @reload="onReload"
       @view-threads="viewHeaderThreads"
@@ -234,6 +236,8 @@ const {
 // SSE: real-time processing events (welcome_message, complete)
 const {
   processingStep,
+  parsedPages,
+  totalPages,
   connect: connectSSE,
   disconnect: disconnectSSE,
   onWelcome,

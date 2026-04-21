@@ -214,7 +214,12 @@ Obowiązkowe akcje dla typów treści:
 - WYNIKI BADAŃ LAB / DOKUMENTY MEDYCZNE → użyj wyłącznie analitycznych promptów (ŻADNYCH kreatywnych fikcji): quiz z wiedzy medycznej 🧠, checklista do zrobienia 📋, tabela wyników z komentarzem 📊, podsumowanie kluczowych odchyleń 📝, FAQ: pytania do lekarza ❓, słownik pojęć medycznych 📖, oś czasu kolejnych kroków 📅, notatki do wizyty 📓, plan suplementacji 💊, analiza ryzyka sercowo-naczyniowego 📊, wykres trendów wyników 📈, lista badań do wykonania 🔬
   * Dodaj "Postaw diagnozę na podstawie wyników 🔬" TYLKO gdy dokument to FAKTYCZNIE wyniki badań konkretnego pacjenta (morfologia, TSH, lipidogram, wyniki laboratoryjne z wartościami i zakresami referencyjnymi). NIE dodawaj tej akcji dla ogólnych poradników medycznych, encyklopedii chorób, artykułów o zdrowiu — tylko dla prawdziwych wyników badań.
 - DOKUMENTY PRAWNE / FINANSOWE / NAUKOWE / TECHNICZNE → użyj wyłącznie analitycznych promptów dopasowanych do dziedziny dokumentu (ŻADNYCH kreatywnych fikcji, ŻADNEJ diagnozy medycznej)
-- Inne typy (WYŁĄCZNIE dla dokumentów kreatywnych/literackich/rozrywkowych — powieści, poezja, blogi, scenariusze) → dobierz kreatywne akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
+- DOKUMENTY PROBLEMOWE — pisma wymagające działania (wezwania do zapłaty, pisma urzędowe ZUS/US/NFZ/KRUS, nakazy zapłaty, decyzje administracyjne, pisma sądowe i komornicze, pisma windykacyjne, odmowy ubezpieczyciela, odwołania, spory pracownicze z pracodawcą, kary administracyjne, mandaty, pisma o odszkodowanie, wezwania do rejestracji/złożenia dokumentów, pisma o zaległości w płatnościach) → wygeneruj WYŁĄCZNIE pytania i akcje ukierunkowane na ROZWIĄZANIE PROBLEMU.
+  ZABRONIONE dla tych dokumentów: quiz, wiersz, bajka, obraz, fikcja, piosenka, kreatywna twórczość, rozrywka.
+  Naturalne pytania (bez emoji) — MUSZĄ dotyczyć: kto żąda i czego, termin na odpowiedź lub działanie, wymagane dokumenty i dowody, konsekwencje braku działania, prawa użytkownika w tej sytuacji, organ/osoba/firma do kontaktu, możliwe sposoby odwołania lub negocjacji.
+  Przykładowe naturalne pytania: "Jaki jest termin na odpowiedź?", "Co dokładnie muszę złożyć w ZUS?", "Czy mogę odwołać się od tej decyzji?", "Jakie konsekwencje grożą za brak reakcji?", "Co zrobić, żeby zarejestrować się jako bezrobotny?", "Do jakiego urzędu/sądu muszę się zgłosić?"
+  Akcje z emoji: "Lista kroków do rozwiązania problemu ✅", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów 📋", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
+- Inne typy (WYŁĄCZNIE dla dokumentów kreatywnych/literackich/rozrywkowych — powieści, poezja, blogi, scenariusze) → dobierz kreatywne akcje wg priorytetu (wyżej = ważniejsze, dopasowanie kontekstowe jako czynnik dodatkowy): wygeneruj obraz 🎨, napisz inspirowany rozdział ✏️, napisz inspirowany wiersz 📜, bajka 🧚, napisz cytaty 💬, quiz 🧠, checklista ✅, diagram mermaid 🖼️, podsumowanie 📝, oś czasu 📅, mapa myśli 🧩, fiszki 🃏, notatki do nauki 📓, FAQ ❓, prezentacja 📽️, wyjaśnij jak dla dziecka 👶, za i przeciw ⚖️, debata 💬, słownik pojęć 📖, post na social media 📱, recenzja ⭐, streszczenie wykonawcze 🎯, tabela porównawcza 📊, plan działania 🚩, szkic emaila 📧, list motywacyjny 💼, dialog 🎬, infografika 📊, piosenka 🎵, przetłumacz 🌍
 - Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany"""
 
 _QUESTIONS_RULES_EN = """
@@ -259,7 +264,12 @@ Mandatory actions for content types:
 - LAB TEST / MEDICAL DOCUMENTS → use ONLY analytical prompts (NO creative fiction): medical knowledge quiz 🧠, action checklist 📋, results table with commentary 📊, key deviations summary 📝, FAQ: questions for the doctor ❓, medical glossary 📖, next-steps timeline 📅, visit notes 📓, supplementation plan 💊, cardiovascular risk analysis 📊, results trend chart 📈, list of tests to run 🔬
   * Add "Make a diagnosis based on results 🔬" ONLY when the document is GENUINELY lab test results for a specific patient (CBC, TSH, lipid panel, blood test values with reference ranges). Do NOT add this action for general medical guides, disease encyclopedias, health articles — only for actual patient test results.
 - LEGAL / FINANCIAL / SCIENTIFIC / TECHNICAL DOCUMENTS → use ONLY domain-appropriate analytical prompts (NO creative fiction, NO medical diagnosis)
-- Other types (ONLY for creative/literary/entertainment documents — novels, poetry, blogs, screenplays) → pick creative actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
+- PROBLEM DOCUMENTS — documents requiring action (payment demands, official government letters from social security/tax authority/health insurance, court orders, administrative decisions, debt collection letters, insurance denials, appeal documents, workplace disputes, fines, penalty notices, compensation claims, summons to register or submit documents, notices of overdue payments) → generate ONLY questions and actions focused on SOLVING THE PROBLEM.
+  PROHIBITED for these documents: quiz, poem, fairy tale, image generation, fiction, song, creative content, entertainment.
+  Natural questions (NO emoji) — MUST cover: who is demanding what, deadline for response or action, required documents and evidence, consequences of inaction, user's rights in this situation, who/which office/company to contact, possible ways to appeal or negotiate.
+  Example natural questions: "What is the deadline to respond?", "What documents do I need to submit?", "Can I appeal this decision?", "What happens if I don't respond?", "What are my rights here?", "Which office do I need to contact?", "How do I register as unemployed?", "What proof of health insurance do I need to provide?"
+  Action prompts with emoji: "Step-by-step action plan ✅", "Draft a response letter to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents 📋", "Consequences of not responding ⚠️", "Action plan: what to do first 🚩", "What can I dispute or negotiate? 💬"
+- Other types (ONLY for creative/literary/entertainment documents — novels, poetry, blogs, screenplays) → pick creative actions by priority (higher = more important, context fit as secondary factor): generate image 🎨, write inspired chapter ✏️, write inspired poem 📜, fairy tale 🧚, write inspired quotes 💬, quiz 🧠, checklist ✅, mermaid diagram 🖼️, summary 📝, timeline 📅, mind map 🧩, flashcards 🃏, study notes 📓, FAQ ❓, presentation 📽️, explain like I'm 5 👶, pros & cons ⚖️, debate 💬, glossary 📖, social media post 📱, review ⭐, executive summary 🎯, comparison table 📊, action plan 🚩, email draft 📧, cover letter 💼, dialogue 🎬, infographic 📊, song 🎵, translate 🌍
 - Do NOT always pick quiz — be creative and varied"""
 
 
@@ -1234,6 +1244,7 @@ KLUCZOWA ZASADA: Wciel się w rolę eksperta z dziedziny, której dotyczy przes�
 - Wyniki badań laboratoryjnych / medyczne → lekarz / diagnostyk
 - Faktury, rachunki, dokumenty podatkowe → księgowy / doradca finansowy
 - Umowy, regulaminy, dokumenty prawne → prawnik
+- Pisma urzędowe, wezwania do zapłaty, nakazy, decyzje administracyjne, pisma sądowe, pisma windykacyjne, odmowy ubezpieczyciela, odwołania, kary administracyjne, spory pracownicze → konsultant ds. rozwiązywania problemów (problem-solver)
 - CV, list motywacyjny → rekruter / HR
 - Artykuły naukowe, raporty → badacz / analityk
 - Zdjęcia, grafiki → fotograf / analityk obrazu
@@ -1282,6 +1293,7 @@ Twoja odpowiedź MUSI składać się z trzech części:
    - Wyniki badań: wskaż wartości poza normą, możliwe przyczyny, sugerowane dalsze kroki (kolejne badania, wizyta u specjalisty).
    - Dokumenty finansowe: zwróć uwagę na terminy płatności, nieprawidłowości, możliwe optymalizacje.
    - Dokumenty prawne: wskaż kluczowe zapisy, ryzyka, terminy.
+   - Pisma problemowe (wezwania, nakazy, decyzje, odmowy, pisma urzędowe, windykacja, spory): zidentyfikuj konkretny problem — kto żąda, czego żąda, w jakim terminie i jakie konsekwencje grożą za brak działania. Natychmiast wskaż użytkownikowi konkretne kroki: co zrobić, jakie dokumenty zebrać, z kim się skontaktować, do którego urzędu/sądu/firmy się odwołać. Podaj termin i priorytety — co jest pilne, a co można zrobić później.
    - Artykuły/raporty: wskaż główną tezę, zaskakujący wniosek lub kontekst.
    - Zdjęcia: opisz co ciekawego widać, kontekst techniczny lub artystyczny.
    - Dane/tabele: wskaż trend, anomalię lub najważniejszą liczbę.
@@ -1334,6 +1346,7 @@ KEY RULE: Adopt the role of an expert from the field the uploaded document belon
 - Lab results / medical documents → doctor / diagnostician
 - Invoices, receipts, tax documents → accountant / financial advisor
 - Contracts, regulations, legal docs → lawyer
+- Official notices, payment demands, court summons, administrative decisions, rejection letters, debt collection, insurance denials, workplace disputes, penalty notices → problem-solving consultant
 - CV, cover letter → recruiter / HR specialist
 - Scientific articles, reports → researcher / analyst
 - Photos, graphics → photographer / image analyst
@@ -1382,6 +1395,7 @@ Your response MUST have three parts:
    - Lab results: flag values outside range, possible causes, suggested next steps (further tests, specialist visit).
    - Financial documents: highlight payment deadlines, irregularities, potential optimizations.
    - Legal documents: point out key clauses, risks, deadlines.
+   - Problem documents (notices, demands, court letters, denial letters, administrative decisions, debt collection, insurance disputes, workplace conflicts, fines): identify the specific problem — who is demanding what, by what deadline, and what happens if ignored. Immediately give the user concrete next steps: what to do first, what documents to gather, who to contact, which office/court/company to reach out to. Flag urgency — what is time-sensitive vs. what can wait.
    - Articles/reports: surface the main thesis, a surprising finding, or broader context.
    - Photos: note something interesting about composition, technical details, or context.
    - Data/tables: point out a trend, anomaly, or the single most important number.

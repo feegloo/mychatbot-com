@@ -22,12 +22,15 @@ export function stepLabel(step: ProcessingStep): string {
  * Events from server:
  *   welcome_message — the welcome message has been saved to DB
  *   complete        — indexing finished, conversation is ready
+ *   page_progress   — live parsing progress: { parsed, total }
  *   error           — fatal error during indexing
  */
 export function useConversationEvents(conversationId: string) {
   const welcomeReceived = ref(false)
   const indexingComplete = ref(false)
   const processingStep: Ref<ProcessingStep> = ref('generating_welcome')
+  const parsedPages = ref(0)
+  const totalPages = ref(0)
 
   let eventSource: EventSource | null = null
   let onWelcomeCb: (() => void) | null = null
@@ -50,6 +53,16 @@ export function useConversationEvents(conversationId: string) {
       welcomeReceived.value = true
       processingStep.value = 'indexing_pages'
       onWelcomeCb?.()
+    })
+
+    eventSource.addEventListener('page_progress', (e: MessageEvent) => {
+      try {
+        const { parsed, total } = JSON.parse(e.data)
+        parsedPages.value = parsed
+        totalPages.value = total
+      } catch {
+        // ignore malformed events
+      }
     })
 
     eventSource.addEventListener('complete', () => {
@@ -75,6 +88,8 @@ export function useConversationEvents(conversationId: string) {
     welcomeReceived,
     indexingComplete,
     processingStep,
+    parsedPages,
+    totalPages,
     onWelcome,
     onComplete,
     connect,

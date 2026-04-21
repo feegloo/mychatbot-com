@@ -68,17 +68,29 @@
         {{ status.conversationThreadCount }}
         {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
       </div>
-      <div
+      <VTooltip
         v-if="processing"
-        class="indexing-bar"
-        role="status"
-        aria-live="polite"
-        :aria-label="processingStep || 'Processing files'"
-        :title="processingStep || 'Processing files…'"
+        :triggers="['hover']"
+        placement="bottom"
       >
-        <div class="indexing-spinner" aria-hidden="true"></div>
-        <span class="sr-only">{{ processingStep || 'Processing files' }}</span>
-      </div>
+        <div
+          class="indexing-bar"
+          role="status"
+          aria-live="polite"
+          :aria-label="processingStep || 'Processing files'"
+        >
+          <div class="indexing-spinner" aria-hidden="true"></div>
+          <span class="sr-only">{{ processingStep || 'Processing files' }}</span>
+        </div>
+        <template #popper>
+          <div class="indexing-tooltip">
+            <div>{{ processingStep || 'Processing files…' }}</div>
+            <div v-if="parsedPages > 0 && totalPages > 0" class="indexing-tooltip-pages">
+              Parsed {{ parsedPages }}/{{ totalPages }} pages
+            </div>
+          </div>
+        </template>
+      </VTooltip>
       <slot name="language-toggle"></slot>
       <slot name="auto-read-toggle"></slot>
       <button class="add-btn" @click="copyUrl">
@@ -106,6 +118,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { AxiosError } from 'axios'
+import { VTooltip } from 'floating-vue'
 import { renameConversation, uploadMoreFiles, type ConversationStatus } from '../api'
 
 const props = defineProps<{
@@ -115,6 +128,8 @@ const props = defineProps<{
   canUpload: boolean
   processing?: boolean
   processingStep?: string
+  parsedPages?: number
+  totalPages?: number
 }>()
 
 const emit = defineEmits<{
