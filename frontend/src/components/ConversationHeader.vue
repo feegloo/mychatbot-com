@@ -11,7 +11,7 @@
         pointer-events: none;
       "
     >
-      <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0">
+      <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0; display: inline-flex;align-items: center;margin-left: 2px;">
         <h1
           v-if="!editingName && conversationTitle"
           class="conv-title"

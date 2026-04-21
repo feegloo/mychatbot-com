@@ -1369,6 +1369,10 @@ textarea.big-input {
   transition: 0.15s;
 }
 
+.header-actions {
+  padding-left: 20px;
+}
+
 @media (hover: hover) {
   .conv-title:hover {
     color: #c4b5fd;
