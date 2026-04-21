@@ -192,13 +192,24 @@ function panDown() { panY.value += PAN_STEP }
 function panLeft() { panX.value -= PAN_STEP }
 function panRight() { panX.value += PAN_STEP }
 
-function onPointerDown(event: PointerEvent) {
+type DragPointerEvent = {
+  pointerId: number
+  pointerType?: string
+  button?: number
+  clientX: number
+  clientY: number
+  target: unknown
+  currentTarget: unknown
+  preventDefault: () => void
+}
+
+function onPointerDown(event: DragPointerEvent) {
   if (mode.value !== 'diagram' || !ready.value) return
   if (event.pointerType !== 'touch' && event.button !== 0) return
 
   const target = event.target
   if (
-    target instanceof Element
+    target instanceof HTMLElement
     && target.closest('.mermaid-controls, .mermaid-toolbar, .mermaid-ctrl-btn, .mermaid-tool-btn')
   ) {
     return
@@ -218,7 +229,7 @@ function onPointerDown(event: PointerEvent) {
   event.preventDefault()
 }
 
-function onPointerMove(event: PointerEvent) {
+function onPointerMove(event: DragPointerEvent) {
   if (!isDragging.value || event.pointerId !== activePointerId) return
   const deltaX = event.clientX - dragStartX
   const deltaY = event.clientY - dragStartY
@@ -226,7 +237,7 @@ function onPointerMove(event: PointerEvent) {
   panY.value = dragStartPanY + deltaY
 }
 
-function onPointerUp(event: PointerEvent) {
+function onPointerUp(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'>) {
   if (event.pointerId !== activePointerId) return
 
   const currentTarget = event.currentTarget
