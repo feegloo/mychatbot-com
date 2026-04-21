@@ -341,6 +341,8 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
 1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
    → MANDATORY: "Write inspired chapter like [Author Full Name] ✏️"
    Example: "Write inspired chapter like Stephen King ✏️"
+   Example: "Write chapter in voice of George R. R. Martin ✏️"
+   
    Pick the remaining actions RANDOMLY from the list below (quiz, timeline, mind map, etc.)
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
@@ -386,7 +388,7 @@ d) Write inspired chapter ✏️ — suggest when:
    - document is a fragment of a novel, short story, fiction book
    - e.g. a Stephen King book — "write inspired chapter in the author's style"
    - content has a distinct narrative style worth imitating
-   - action: "write inspired chapter" (not just "write chapter")
+   - action: "write inspired chapter" (or "write chapter")
 
 e) Recipe 🍝 — suggest when:
    - image shows ingredients or a finished dish
