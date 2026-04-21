@@ -138,6 +138,48 @@ class TestReferenceValidation:
         assert not mock_openai.images.edit.called
 
 
+class TestPdfCoverReference:
+    def test_pdf_reference_is_rendered_as_png_cover(self, mock_openai, tmp_path):
+        pdf = tmp_path / "book.pdf"
+        pdf.write_bytes(b"%PDF-fake")
+        cover = tmp_path / "book.pdf.cover.png"
+
+        def _fake_render(p):
+            cover.write_bytes(PNG_1x1)
+            return cover
+
+        with patch(
+            "shared.image_gen._render_pdf_cover_png", side_effect=_fake_render
+        ) as render:
+            image_gen.generate_image(
+                prompt="illustrate this book",
+                storage_dir=str(tmp_path),
+                reference_image_paths=[str(pdf)],
+            )
+
+        render.assert_called_once()
+        assert cover.is_file()
+        assert mock_openai.images.edit.called
+        assert not mock_openai.images.generate.called
+
+    def test_pdf_render_failure_drops_reference(self, mock_openai, tmp_path):
+        pdf = tmp_path / "book.pdf"
+        pdf.write_bytes(b"%PDF-fake")
+
+        with patch(
+            "shared.image_gen._render_pdf_cover_png", return_value=None
+        ):
+            image_gen.generate_image(
+                prompt="p",
+                storage_dir=str(tmp_path),
+                reference_image_paths=[str(pdf)],
+            )
+
+        # No usable references -> plain generate endpoint
+        assert mock_openai.images.generate.called
+        assert not mock_openai.images.edit.called
+
+
 class TestOutput:
     def test_saves_png_and_returns_file_name(self, mock_openai, tmp_path):
         result = image_gen.generate_image(prompt="p", storage_dir=str(tmp_path))

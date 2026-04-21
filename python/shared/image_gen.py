@@ -31,11 +31,35 @@ from shared.otel import get_tracer
 logger = logging.getLogger(__name__)
 
 
+def _render_pdf_cover_png(pdf_path: Path) -> Path | None:
+    """Render the first page of ``pdf_path`` to a cached PNG next to it.
+
+    The rendered cover is cached as ``<pdf>.cover.png`` so repeated image
+    generations reuse the same file. Returns ``None`` if rendering fails.
+    """
+    cover_path = pdf_path.with_suffix(pdf_path.suffix + ".cover.png")
+    if cover_path.is_file() and cover_path.stat().st_size > 0:
+        return cover_path
+    try:
+        # Lazy import — fitz is only needed when a PDF reference is requested.
+        from .extractors import _render_pdf_page_to_png
+
+        png_bytes = _render_pdf_page_to_png(str(pdf_path), 0, dpi=150)
+        cover_path.write_bytes(png_bytes)
+        logger.info(f"📘 Rendered PDF cover for reference: {cover_path.name}")
+        return cover_path
+    except Exception as exc:
+        logger.warning(f"⚠️ Failed to render PDF cover for {pdf_path.name}: {exc}")
+        return None
+
+
 def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
     """Normalize and validate reference image paths for the edit endpoint.
 
     Filters out missing files, unsupported mime types, and anything above
-    ``MAX_REFERENCE_IMAGES``. Returns resolved Path objects in input order.
+    ``MAX_REFERENCE_IMAGES``. PDF inputs are transparently replaced with a
+    rendered PNG of their first page (the "book cover"). Returns resolved
+    Path objects in input order.
     """
     if not paths:
         return []
@@ -46,6 +70,11 @@ def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
         if not p.is_file():
             logger.warning(f"⚠️ Reference image not found, skipping: {raw}")
             continue
+        if p.suffix.lower() == ".pdf":
+            cover = _render_pdf_cover_png(p)
+            if cover is None:
+                continue
+            p = cover
         mime, _ = mimetypes.guess_type(p.name)
         if mime not in _ALLOWED_REFERENCE_MIME:
             logger.warning(

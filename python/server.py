@@ -457,6 +457,29 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _discover_uploaded_reference_files(storage_dir: str) -> list[str]:
+    """Pick uploaded PDFs from ``storage_dir`` to use as reference images.
+
+    When the caller does not specify explicit reference images, we attach
+    the cover (first page) of any uploaded PDF so the image generator can
+    visually ground the result in the source document. Previously generated
+    images (``generated-*.png``) and rendered cover caches (``*.cover.png``)
+    are excluded. Capped at ``MAX_REFERENCE_IMAGES``.
+    """
+    from pathlib import Path as _Path
+
+    from shared.image_gen import MAX_REFERENCE_IMAGES
+
+    base = _Path(storage_dir)
+    if not base.is_dir():
+        return []
+    pdfs = sorted(
+        p for p in base.iterdir()
+        if p.is_file() and p.suffix.lower() == ".pdf"
+    )
+    return [str(p) for p in pdfs[:MAX_REFERENCE_IMAGES]]
+
+
 @app.post("/generate-image")
 async def generate_image_endpoint(req: GenerateImageRequest):
     """Generate an image from a text prompt using DALL-E.
@@ -469,6 +492,17 @@ async def generate_image_endpoint(req: GenerateImageRequest):
     try:
 
         def _generate():
+            # If no explicit references were passed and the conversation has
+            # uploaded PDFs, use their first page (book cover) as a visual
+            # anchor for the generated image.
+            reference_image_paths = req.reference_image_paths
+            if not reference_image_paths:
+                reference_image_paths = _discover_uploaded_reference_files(req.storage_dir)
+                if reference_image_paths:
+                    logger.info(
+                        f"📎 Auto-attaching {len(reference_image_paths)} uploaded PDF(s) "
+                        "as image-gen references"
+                    )
             # Retrieve top-10 document chunks relevant to the image request
             rag_chunks: list[dict] = []
             if req.collection_name and req.conversation_id:
@@ -502,7 +536,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 storage_dir=req.storage_dir,
                 size=req.size,
                 quality=req.quality,
-                reference_image_paths=req.reference_image_paths,
+                reference_image_paths=reference_image_paths,
             )
             result["image_prompt"] = image_prompt
             result["image_title"] = image_title

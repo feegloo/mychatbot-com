@@ -6,7 +6,7 @@ export type ProcessingStep =
   | ''
 
 const STEP_LABELS: Record<ProcessingStep, string> = {
-  generating_welcome: 'Generating welcome message…',
+  generating_welcome: 'Processing',
   indexing_pages: 'Indexing pages for Q&A…',
   '': '',
 }
