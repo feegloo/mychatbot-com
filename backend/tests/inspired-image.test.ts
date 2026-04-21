@@ -1,0 +1,153 @@
+import { describe, it, expect } from 'vitest'
+import {
+  isInspiredCreativeQuestion,
+  shouldAutoGenerateImage,
+  buildAutoImageQuestion,
+  renderAutoImageMarkdown,
+  mergeCitationsWithImage,
+} from '../src/utils/inspired-image'
+
+describe('isInspiredCreativeQuestion', () => {
+  it('matches the action-button phrasings produced by the suggestion engine', () => {
+    expect(isInspiredCreativeQuestion('Write inspired chapter like Stephen King ✏️')).toBe(true)
+    expect(isInspiredCreativeQuestion('Write inspired poem like Paulo Coelho 📜')).toBe(true)
+    expect(
+      isInspiredCreativeQuestion('Draft a fairy tale inspired by the story of Hermione'),
+    ).toBe(true)
+    expect(isInspiredCreativeQuestion('Write a short story inspired by this book')).toBe(true)
+  })
+
+  it('ignores ordinary Q&A and generic requests', () => {
+    expect(isInspiredCreativeQuestion('What is the main theme of this book?')).toBe(false)
+    expect(isInspiredCreativeQuestion('Summarize chapter 3')).toBe(false)
+    expect(isInspiredCreativeQuestion('Give me 10 new tips inspired by the author')).toBe(false)
+    expect(isInspiredCreativeQuestion('Generate image of a forest 🎨')).toBe(false)
+  })
+})
+
+describe('shouldAutoGenerateImage', () => {
+  const longAnswer = 'x'.repeat(800)
+  const shortAnswer = 'x'.repeat(100)
+
+  it('returns true when question is creative, answer is long and random < probability', () => {
+    expect(
+      shouldAutoGenerateImage(
+        'Write inspired chapter like Stephen King ✏️',
+        longAnswer,
+        0.5,
+        () => 0.1,
+      ),
+    ).toBe(true)
+  })
+
+  it('returns false when random roll exceeds probability', () => {
+    expect(
+      shouldAutoGenerateImage(
+        'Write inspired chapter like Stephen King ✏️',
+        longAnswer,
+        0.5,
+        () => 0.9,
+      ),
+    ).toBe(false)
+  })
+
+  it('returns false when question is not a creative inspired prompt', () => {
+    expect(shouldAutoGenerateImage('Summarize chapter 3', longAnswer, 1, () => 0)).toBe(false)
+  })
+
+  it('returns false when the answer is too short to be a substantial chunk', () => {
+    expect(
+      shouldAutoGenerateImage(
+        'Write inspired poem like Rumi 📜',
+        shortAnswer,
+        1,
+        () => 0,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('buildAutoImageQuestion', () => {
+  it('concatenates user question with the (trimmed) assistant answer', () => {
+    const q = 'Write inspired chapter like Stephen King ✏️'
+    const a = 'Once upon a midnight dreary, while I pondered, weak and weary'
+    const prompt = buildAutoImageQuestion(q, a)
+    expect(prompt.startsWith(q)).toBe(true)
+    expect(prompt).toContain(a)
+  })
+
+  it('caps the answer snippet length to keep the payload bounded', () => {
+    const q = 'Write inspired poem like Rumi 📜'
+    const huge = 'y'.repeat(5000)
+    const prompt = buildAutoImageQuestion(q, huge)
+    // 1500 cap + question + separator, well under 5000.
+    expect(prompt.length).toBeLessThan(2000)
+  })
+
+  it('falls back to the question alone if the answer is empty', () => {
+    expect(buildAutoImageQuestion('Write inspired chapter', '')).toBe('Write inspired chapter')
+  })
+})
+
+describe('renderAutoImageMarkdown', () => {
+  const baseResult = {
+    fileName: 'img-123.png',
+    imageUrl: '/api/storage/abc/img-123.png',
+    imageTitle: 'Moonlit Tower',
+    imagePrompt: 'a moonlit tower',
+    revisedPrompt: 'a moonlit tower at dusk',
+    imageSources: [] as Array<{
+      fileName: string
+      chunkId: string
+      text: string
+      section?: string | null
+      page?: number | null
+    }>,
+  }
+
+  it('renders image + quoted caption + "generated image" sublabel', () => {
+    const md = renderAutoImageMarkdown(baseResult, 0)
+    expect(md).toContain('![Moonlit Tower](/api/storage/abc/img-123.png)')
+    expect(md).toContain('<p class="image-caption">"Moonlit Tower"</p>')
+    expect(md).toContain('<p class="image-caption-sublabel">generated image</p>')
+  })
+
+  it('offsets source markers by the number of original citations', () => {
+    const md = renderAutoImageMarkdown(
+      {
+        ...baseResult,
+        imageSources: [
+          { fileName: 'a.pdf', chunkId: 'c1', text: '...' },
+          { fileName: 'b.pdf', chunkId: 'c2', text: '...' },
+        ],
+      },
+      3,
+    )
+    expect(md).toContain('"Moonlit Tower" [4][5]')
+  })
+})
+
+describe('mergeCitationsWithImage', () => {
+  const autoResult = {
+    fileName: 'img.png',
+    imageUrl: '/x/img.png',
+    imageTitle: 'Tower',
+    imagePrompt: 'prompt',
+    revisedPrompt: 'revised prompt',
+    imageSources: [{ fileName: 'a.pdf', chunkId: 'c1', text: 't' }],
+  }
+
+  it('keeps the original citations array under `citations` and tracks image metadata', () => {
+    const original = [{ fileName: 'book.pdf', chunkId: 'c0', text: 'original' }]
+    const merged = mergeCitationsWithImage(original, autoResult)
+    expect(merged.citations).toEqual(original)
+    expect(merged._imageSources).toEqual(autoResult.imageSources)
+    expect(merged._generatedImageDescription).toBe('revised prompt')
+    expect(merged._autoGeneratedImage).toBe(true)
+  })
+
+  it('tolerates a missing/invalid original citations payload', () => {
+    const merged = mergeCitationsWithImage(null, autoResult)
+    expect(merged.citations).toEqual([])
+  })
+})

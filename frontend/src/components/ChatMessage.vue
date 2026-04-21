@@ -92,7 +92,7 @@
           @change="onUploadFilesChange"
         />
       </div>
-      <div v-if="msg.role === 'assistant' && !msg.content && asking && !isWelcome">
+      <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
         <div v-if="msg.generatingImage" class="image-generating-label">
           🎨 Generating image, please wait...
         </div>
@@ -378,7 +378,7 @@
           </div>
         </div>
         <div
-          v-if="asking && !isWelcome && (msg.generatingImage || imagesPending)"
+          v-if="!msg.id && !isWelcome && (msg.generatingImage || imagesPending)"
           class="typing-dots"
         >
           <span></span><span></span><span></span>

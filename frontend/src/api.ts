@@ -398,6 +398,21 @@ export async function getFullPrompt(username: string, password: string, promptId
   return response.data as { prompt_text: string; response_text: string }
 }
 
+export async function runDebugSql(username: string, password: string, sql: string) {
+  const response = await api.post(
+    '/debug/sql',
+    { sql },
+    { auth: { username, password } },
+  )
+  return response.data as {
+    rows: Record<string, unknown>[]
+    fields: string[]
+    rowCount: number | null
+    command: string
+    durationMs: number
+  }
+}
+
 export async function translateTexts(texts: string[], targetLang: string, sourceLang?: string) {
   const body: { texts: string[]; targetLang: string; sourceLang?: string } = { texts, targetLang }
   if (sourceLang) body.sourceLang = sourceLang

@@ -96,7 +96,7 @@
             aria-live="polite"
             aria-atomic="true"
           >
-            <UploadingDots text="Processing" />
+            <UploadingDots :text="processingLoaderLabel" />
           </div>
           <ChatMessageItem
             v-for="(msg, index) in displayedMessages"
@@ -125,6 +125,15 @@
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
           />
+          <div
+            v-if="showInlineProcessing"
+            class="chat-log-inline-processing"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <UploadingDots :text="processingLoaderLabel" />
+          </div>
         </div>
 
         <div v-if="roleLoaded && canReply" class="chat-input-bar">
@@ -271,6 +280,17 @@ onSSEComplete(() => loadConversation())
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
+// Loader text shown in the centered (empty state) and inline (below messages)
+// processing indicators.  Reflects live SSE page-progress updates so users see
+// "Parsed pages: 400 / 650" rather than a static "Processing…" label.
+const processingLoaderLabel = computed(() => {
+  const baseLabel = processingStepLabel.value || 'Processing'
+  if (totalPages.value > 0) {
+    return `${baseLabel} — parsed ${parsedPages.value} / ${totalPages.value} pages`
+  }
+  return baseLabel
+})
+
 const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null)
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
 const loaded = ref(false)
@@ -378,6 +398,13 @@ const canReply = computed(
 )
 const showCenteredProcessing = computed(
   () => loaded.value && status.value.status === 'processing' && messages.value.length === 0,
+)
+// Once the early welcome message arrives we still want to show a live
+// progress indicator until indexing completes.  The centered one disappears
+// as soon as there are messages, so render an inline loader right after the
+// last message with live "Parsed X / Y pages" stats.
+const showInlineProcessing = computed(
+  () => loaded.value && status.value.status === 'processing' && messages.value.length > 0,
 )
 
 function isUploadMessage(index: number): boolean {

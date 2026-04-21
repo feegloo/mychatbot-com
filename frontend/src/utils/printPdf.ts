@@ -1,11 +1,60 @@
 import type jsPDF from 'jspdf'
 import { ensureFontsLoaded, registerFonts, PDF_FONT } from './pdfFonts'
 
+/**
+ * Properties we must inline on every SVG element so the serialized SVG is
+ * self-contained when rendered via `<img>` for canvas rasterization.
+ *
+ * When an SVG is loaded via `<img src="data:...">`, external CSS is ignored
+ * and `currentColor` / CSS custom property resolution differs from in-document
+ * rendering. Mermaid's default styling relies on both, which caused text to
+ * disappear in exported PDFs while boxes (with explicit fills) still rendered.
+ */
+const INLINE_STYLE_PROPS = [
+  'fill',
+  'stroke',
+  'stroke-width',
+  'stroke-dasharray',
+  'color',
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'text-anchor',
+  'dominant-baseline',
+  'opacity',
+  'fill-opacity',
+  'stroke-opacity',
+] as const
+
+function inlineComputedStyles(root: SVGElement) {
+  const all = root.querySelectorAll<SVGElement>('*')
+  const apply = (el: SVGElement) => {
+    const computed = window.getComputedStyle(el)
+    for (const prop of INLINE_STYLE_PROPS) {
+      const value = computed.getPropertyValue(prop)
+      if (value && value !== 'none' && value !== 'normal') {
+        el.style.setProperty(prop, value)
+      }
+    }
+  }
+  apply(root)
+  all.forEach(apply)
+}
+
 /** Render mermaid code to a PNG data URL suitable for embedding in jsPDF. */
 async function renderMermaidToPng(
   code: string,
   maxWidth: number,
 ): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  // Off-screen host so the browser lays out the SVG and computes styles.
+  // Must be attached to the document with non-zero size for getComputedStyle
+  // and text measurement to produce real values.
+  const host = document.createElement('div')
+  host.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:2000px;height:auto;visibility:hidden;pointer-events:none;'
+  document.body.appendChild(host)
+
   try {
     const [{ default: mermaid }] = await Promise.all([import('mermaid')])
     const id = `mermaid-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -15,8 +64,8 @@ async function renderMermaidToPng(
       securityLevel: 'strict',
       // Disable HTML labels so SVG uses <text> instead of <foreignObject>.
       // <foreignObject> taints the canvas and prevents PNG export.
-      flowchart: { htmlLabels: false },
-      sequence: { useMaxWidth: true },
+      flowchart: { htmlLabels: false, useMaxWidth: false },
+      sequence: { useMaxWidth: false },
       themeVariables: {
         nodeBorder: '#666666',
         mainBkg: '#f4f4f4',
@@ -30,31 +79,40 @@ async function renderMermaidToPng(
       },
     })
     const { svg } = await mermaid.render(id, code)
+    host.innerHTML = svg
 
-    // Strip any remaining <foreignObject> elements to guarantee canvas safety
-    const cleanSvg = svg.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
-
-    // Parse SVG to get intrinsic size
-    const parser = new DOMParser()
-    const svgDoc = parser.parseFromString(cleanSvg, 'image/svg+xml')
-    const svgEl = svgDoc.querySelector('svg')
+    const svgEl = host.querySelector('svg') as SVGSVGElement | null
     if (!svgEl) return null
 
-    // Force all <text> and <tspan> elements to use dark fill via inline style.
-    // Mermaid sets text color via CSS classes in <style> blocks which can result
-    // in invisible (white/transparent) text when rendered to canvas for PDF export.
-    svgEl.querySelectorAll('text, tspan').forEach((el) => {
-      ;(el as SVGElement).style.setProperty('fill', '#1a1a1a', 'important')
-    })
-    // Also force edge/link labels
-    svgEl.querySelectorAll('.edgeLabel, .label, .nodeLabel, .labelText').forEach((el) => {
-      ;(el as SVGElement).style.setProperty('color', '#1a1a1a', 'important')
-      ;(el as SVGElement).style.setProperty('fill', '#1a1a1a', 'important')
+    // Strip foreignObject (belt-and-suspenders; htmlLabels:false should prevent them)
+    svgEl.querySelectorAll('foreignObject').forEach((fo) => fo.remove())
+
+    // Inline every computed style so the serialized SVG does not depend on
+    // embedded <style> class resolution or `currentColor` inheritance when
+    // rendered inside an <img> element.
+    inlineComputedStyles(svgEl)
+
+    // Force readable fill on text nodes as a final guarantee.
+    svgEl.querySelectorAll<SVGElement>('text, tspan').forEach((el) => {
+      el.setAttribute('fill', '#1a1a1a')
+      el.style.setProperty('fill', '#1a1a1a', 'important')
     })
 
-    // Get dimensions from SVG attributes or viewBox
-    let svgW = parseFloat(svgEl.getAttribute('width') || '0')
-    let svgH = parseFloat(svgEl.getAttribute('height') || '0')
+    // Get dimensions from bounding box (reliable after layout), fall back to
+    // attributes / viewBox.
+    let svgW = 0
+    let svgH = 0
+    try {
+      const bbox = svgEl.getBBox()
+      svgW = bbox.width
+      svgH = bbox.height
+    } catch {
+      // noop — fall through to attribute-based sizing below
+    }
+    if (!svgW || !svgH) {
+      svgW = parseFloat(svgEl.getAttribute('width') || '0')
+      svgH = parseFloat(svgEl.getAttribute('height') || '0')
+    }
     const viewBox = svgEl.getAttribute('viewBox')
     if ((!svgW || !svgH) && viewBox) {
       const parts = viewBox.split(/[\s,]+/).map(Number)
@@ -75,6 +133,13 @@ async function renderMermaidToPng(
     // Ensure SVG has explicit dimensions for the canvas
     svgEl.setAttribute('width', String(canvasW))
     svgEl.setAttribute('height', String(canvasH))
+    if (!viewBox) {
+      svgEl.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`)
+    }
+    // xmlns is required when serializing for <img> consumption.
+    if (!svgEl.getAttribute('xmlns')) {
+      svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    }
     const serialized = new XMLSerializer().serializeToString(svgEl)
 
     // Use a data URL instead of blob URL for reliable cross-browser SVG→canvas rendering
@@ -103,6 +168,8 @@ async function renderMermaidToPng(
   } catch (e) {
     console.warn('Failed to render mermaid diagram for PDF:', e)
     return null
+  } finally {
+    host.remove()
   }
 }
 

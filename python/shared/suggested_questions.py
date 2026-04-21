@@ -952,14 +952,19 @@ def _append_contextual_prompts(
         else f"Generate image inspired by: {subject} 🎨"
     )
 
-    # Build contextual action prompts (higher priority than LLM actions)
+    # Build contextual action prompts (higher priority than LLM actions).
+    # Person / ingredient / lab-test detection scans both welcome_message AND
+    # description because vision models often place the subject description
+    # (e.g. "showing a woman in a white swimsuit") in the longer description
+    # paragraph rather than the short welcome headline.
+    detection_text = f"{welcome_message}\n{description}"
     contextual: list[str] = []
-    has_lab_tests = bool(_LAB_TEST_PATTERN.search(welcome_message))
+    has_lab_tests = bool(_LAB_TEST_PATTERN.search(detection_text))
     if file_names and file_types:
-        has_person = bool(_PERSON_PATTERN.search(welcome_message))
-        is_woman = bool(_WOMAN_PATTERN.search(welcome_message))
-        is_man = bool(_MAN_PATTERN.search(welcome_message))
-        has_ingredients = bool(_INGREDIENT_PATTERN.search(welcome_message))
+        has_person = bool(_PERSON_PATTERN.search(detection_text))
+        is_woman = bool(_WOMAN_PATTERN.search(detection_text))
+        is_man = bool(_MAN_PATTERN.search(detection_text))
+        has_ingredients = bool(_INGREDIENT_PATTERN.search(detection_text))
 
         for name in file_names:
             if len(contextual) >= MAX_ACTION_PROMPTS:

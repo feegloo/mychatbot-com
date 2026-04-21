@@ -308,10 +308,95 @@ def _estimate_word_count(text: str) -> int:
     return len(re.findall(r"\S+", text))
 
 
+# ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
+# OpenAI / Anthropic hard per-request cap is 300K tokens for many models.
+# We leave ~50K headroom for the system prompt, rules, and completion.
+_MAX_REQUEST_TOKENS = 250_000
+# Safe budget for the *content* portion of a single LLM call.  The system
+# prompts in this module are large (~5-15K tokens of rules), so we reserve
+# extra headroom when packing raw text.
+_MAX_CONTENT_TOKENS = 180_000
+
+_tiktoken_enc = None
+
+
+def _get_tiktoken_encoder():
+    """Lazy-load the tiktoken cl100k_base encoder (None if unavailable)."""
+    global _tiktoken_enc
+    if _tiktoken_enc is None:
+        try:
+            import tiktoken
+
+            _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+        except Exception as e:  # pragma: no cover - tiktoken is a hard dep
+            logger.warning(f"⚠️ tiktoken unavailable ({e}); falling back to char estimate")
+            _tiktoken_enc = False
+    return _tiktoken_enc or None
+
+
+def _count_tokens_accurate(text: str) -> int:
+    """Accurate tiktoken-based count.  Critical for Arabic / CJK scripts
+    where each character often maps to a full token, making char/4 estimates
+    drastically too low and causing 300K-token per-request limits to hit."""
+    if not text:
+        return 0
+    enc = _get_tiktoken_encoder()
+    if enc is None:
+        # Conservative fallback: treat each char as ~1 token for non-Latin.
+        if any(ord(c) > 0x7F for c in text[:2000]):
+            return len(text)
+        return max(len(text) // 4, 1)
+    return len(enc.encode(text, disallowed_special=()))
+
+
 def _estimate_token_count(text: str, word_count: int | None = None) -> int:
-    """Estimate tokens conservatively from chars and words."""
-    words = word_count if word_count is not None else _estimate_word_count(text)
-    return max(len(text) // 4, int(words * 1.35))
+    """Accurate token count (uses tiktoken when available).
+
+    Kept for back-compat with earlier call sites that passed ``word_count``;
+    the word_count argument is ignored when the tokenizer is available.
+    """
+    try:
+        return _count_tokens_accurate(text)
+    except Exception:
+        words = word_count if word_count is not None else _estimate_word_count(text)
+        return max(len(text) // 4, int(words * 1.35))
+
+
+def _truncate_text_to_token_budget(text: str, max_tokens: int) -> str:
+    """Truncate text so its tiktoken count is ≤ max_tokens.
+
+    Used to enforce a hard safety cap on per-call content.  Uses binary
+    search on character length since encoding is roughly monotonic in
+    prefix length.
+    """
+    if max_tokens <= 0 or not text:
+        return ""
+    tokens = _count_tokens_accurate(text)
+    if tokens <= max_tokens:
+        return text
+
+    low, high = 0, len(text)
+    # Start from a char-ratio estimate to avoid many iterations for huge docs
+    ratio = max_tokens / max(tokens, 1)
+    best = int(len(text) * ratio * 0.95)
+    while low < high:
+        if _count_tokens_accurate(text[:best]) <= max_tokens:
+            low = best + 1
+            result = best
+            best = min(high, best + max(1, (high - best) // 2))
+        else:
+            high = best
+            best = max(low, best - max(1, (best - low) // 2))
+        if best == low or best == high:
+            break
+    # Final safety: linear shrink if still over budget
+    while best > 0 and _count_tokens_accurate(text[:best]) > max_tokens:
+        best = int(best * 0.9)
+    logger.info(
+        f"✂️  Truncated text from {len(text):,} chars → {best:,} chars "
+        f"to fit {max_tokens:,} token budget (was ~{tokens:,} tokens)"
+    )
+    return text[:best]
 
 
 def _extract_pages(text: str) -> list[tuple[int, str]]:
@@ -443,8 +528,9 @@ def _summarize_text_chunk(text: str, chunk_label: str, language: str) -> str:
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
-    result = _invoke_with_retry(chain, {"text": text}, label=f"2-pass summary ({chunk_label})")
-    logger.info(f"📝 2-pass summary for {chunk_label}: {len(text)} chars → {len(result)} chars")
+    safe_text = _truncate_text_to_token_budget(text, _MAX_CONTENT_TOKENS)
+    result = _invoke_with_retry(chain, {"text": safe_text}, label=f"2-pass summary ({chunk_label})")
+    logger.info(f"📝 2-pass summary for {chunk_label}: {len(safe_text)} chars → {len(result)} chars")
     return result.strip()
 
 
@@ -692,6 +778,11 @@ def _generate_partial_welcome(
         ]
     )
 
+    # Hard-cap the part text so this single request cannot exceed the per-call
+    # token limit (critical for non-Latin scripts like Arabic where
+    # char/4 estimates drastically undercount).
+    safe_part_text = _truncate_text_to_token_budget(part_text, _MAX_CONTENT_TOKENS)
+
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
     result = _invoke_with_retry(
@@ -700,14 +791,14 @@ def _generate_partial_welcome(
             "file_list": file_list,
             "part_num": str(part_index + 1),
             "total": str(total_parts),
-            "content": part_text,
+            "content": safe_part_text,
             "metadata_section": metadata_section,
         },
         label=f"partial summary {part_index + 1}/{total_parts}",
     )
     logger.info(
         f"📝 Detailed summary {part_index + 1}/{total_parts}: "
-        f"{len(part_text)} chars text → {len(result)} chars summary"
+        f"{len(safe_part_text)} chars text → {len(result)} chars summary"
     )
     return result.strip()
 
@@ -764,20 +855,24 @@ def _generate_compacted_book_group(
         ]
     )
 
+    # Hard-cap the group text so this single request cannot exceed the per-call
+    # token limit (critical for non-Latin scripts like Arabic).
+    safe_group_text = _truncate_text_to_token_budget(group_text, _MAX_CONTENT_TOKENS)
+
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
     result = _invoke_with_retry(
         chain,
         {
             "file_list": file_list,
-            "content": group_text,
+            "content": safe_group_text,
             "metadata_section": metadata_section if group_index == 0 else "",
         },
         label=f"book compact {group_index + 1}/{total_groups}",
     )
     logger.info(
         f"📝 Book compact {group_index + 1}/{total_groups}: "
-        f"{len(group_text)} chars → {len(result)} chars"
+        f"{len(safe_group_text)} chars → {len(result)} chars"
     )
     return result.strip()
 
@@ -806,16 +901,56 @@ def _synthesize_welcome_messages(
         for i, msg in enumerate(partial_messages)
     )
 
+    # ── Budget raw_beginning / raw_ending to fit the per-call token limit ──
+    # Partials and metadata are always included in full.  Raw text is a
+    # best-effort addition — trimmed (or dropped) to fit _MAX_CONTENT_TOKENS.
+    partials_tokens = _count_tokens_accurate(combined_partials)
+    metadata_tokens = _count_tokens_accurate(metadata_section)
+    remaining_budget = _MAX_CONTENT_TOKENS - partials_tokens - metadata_tokens
+    if remaining_budget < 0:
+        # Partials alone exceed the budget — recursively compress them by
+        # halving into two shorter summaries, then continue.
+        logger.warning(
+            f"⚠️ Partials exceed budget ({partials_tokens} > {_MAX_CONTENT_TOKENS} tokens); "
+            f"recursively compressing before synthesis"
+        )
+        midpoint = len(partial_messages) // 2 or 1
+        left = _summarize_text_chunk(
+            "\n\n---\n\n".join(partial_messages[:midpoint]),
+            "first half of summaries",
+            language,
+        )
+        right = _summarize_text_chunk(
+            "\n\n---\n\n".join(partial_messages[midpoint:]),
+            "second half of summaries",
+            language,
+        )
+        partial_messages = [m for m in (left, right) if m.strip()]
+        combined_partials = "\n\n---\n\n".join(
+            f"[Detailed summary of section {i + 1} of {len(partial_messages)}]\n{msg}"
+            for i, msg in enumerate(partial_messages)
+        )
+        partials_tokens = _count_tokens_accurate(combined_partials)
+        remaining_budget = _MAX_CONTENT_TOKENS - partials_tokens - metadata_tokens
+
+    # Split remaining budget between beginning (70%) and ending (30%) — keeping
+    # context about how the document opens is usually more valuable than how it
+    # ends, but both help the synthesizer.
+    begin_budget = max(0, int(remaining_budget * 0.7))
+    end_budget = max(0, remaining_budget - begin_budget)
+    safe_beginning = _truncate_text_to_token_budget(raw_beginning, begin_budget) if raw_beginning else ""
+    safe_ending = _truncate_text_to_token_budget(raw_ending, end_budget) if raw_ending else ""
+
     raw_parts: list[str] = []
-    if raw_beginning:
+    if safe_beginning:
         raw_parts.append(
             f"Raw text from the beginning of the document "
-            f"(first ~{len(raw_beginning) // 1000}K chars):\n{raw_beginning}"
+            f"(first ~{len(safe_beginning) // 1000}K chars):\n{safe_beginning}"
         )
-    if raw_ending:
+    if safe_ending:
         raw_parts.append(
             f"Raw text from the ending of the document "
-            f"(last ~{len(raw_ending) // 1000}K chars):\n{raw_ending}"
+            f"(last ~{len(safe_ending) // 1000}K chars):\n{safe_ending}"
         )
 
     raw_block = ""
@@ -883,7 +1018,7 @@ def _synthesize_welcome_messages(
     )
     logger.info(
         f"📝 Synthesized {len(partial_messages)} summaries "
-        f"(+ {len(raw_beginning)} chars raw start, {len(raw_ending)} chars raw end) → {len(result)} chars final"
+        f"(+ {len(safe_beginning)} chars raw start, {len(safe_ending)} chars raw end) → {len(result)} chars final"
     )
     return _parse_describe_response(result)
 
@@ -1474,6 +1609,12 @@ Reply in the same language as the document's primary content (see LANGUAGE DETEC
             f"4. If almost no text was found yet, tell the user this honestly and describe the nature of the document from metadata/filename.\n"
             f"Use a warm, reassuring tone. Do NOT pretend you have full text when you don't.\n====="
         )
+
+    # Final safety: cap the full content to the per-call token budget.  This
+    # protects the whole-book path (Strategy 1) and the large/small paths from
+    # ever exceeding the model's 300K-token per-request limit — essential for
+    # Arabic/CJK scripts where char-based estimates under-count severely.
+    combined = _truncate_text_to_token_budget(combined, _MAX_CONTENT_TOKENS)
 
     raw = _invoke_with_retry(
         chain,

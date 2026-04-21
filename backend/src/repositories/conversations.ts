@@ -358,6 +358,35 @@ export async function insertConversationMessage(params: {
   return id
 }
 
+/**
+ * Append text to an existing assistant message's content and replace its
+ * citations payload. Used by the auto-image background job that augments a
+ * just-returned answer with a companion image.
+ */
+export async function appendToMessageContent(params: {
+  messageId: string
+  contentToAppend: string
+  citations: unknown
+}) {
+  await query(
+    `UPDATE conversation_messages
+     SET content = content || $2,
+         citations_json = $3::jsonb
+     WHERE id = $1`,
+    [params.messageId, params.contentToAppend, JSON.stringify(params.citations ?? null)],
+  )
+}
+
+export async function updateConversationMessageContent(
+  messageId: string,
+  content: string,
+): Promise<void> {
+  await query(
+    `UPDATE conversation_messages SET content = $2 WHERE id = $1`,
+    [messageId, content],
+  )
+}
+
 export async function getMessageById(messageId: string) {
   const msgResult = await query<ConversationMessageRecord & { display_name: string | null }>(
     `SELECT m.id, m.conversation_id, m.role, m.content, m.citations_json, c.display_name

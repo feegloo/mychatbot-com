@@ -789,6 +789,17 @@ a {
   font-weight: 600;
 }
 
+.chat-log-inline-processing {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 4px;
+  margin-top: 4px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1146,6 +1157,15 @@ li:has(.checklist-box) {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
   margin: 4px 0 8px;
+}
+
+.markdown-content .image-caption-sublabel {
+  text-align: center;
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.4);
+  margin: -4px 0 10px;
 }
 
 .markdown-content th,

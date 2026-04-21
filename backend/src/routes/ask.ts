@@ -6,14 +6,22 @@ import {
   getConversation,
   insertConversationMessage,
   resolveConversationRole,
+  appendToMessageContent,
 } from '../repositories/conversations.js'
 import { answerQuestion } from '../python/answering.js'
+import { generateImage } from '../python/image-gen.js'
 import { ensureCollectionIndexed } from '../python/reindex.js'
 import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
 import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
 import { IMAGE_EXTENSIONS, SHORT_ID_RE } from '../constants.js'
 import logger from '../logger.js'
+import {
+  shouldAutoGenerateImage,
+  buildAutoImageQuestion,
+  renderAutoImageMarkdown,
+  mergeCitationsWithImage,
+} from '../utils/inspired-image.js'
 
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
@@ -158,4 +166,66 @@ askRouter.post('/ask', async (ctx) => {
   })
 
   ctx.body = { ...payload, userMessageId: userMsgId, assistantMessageId: assistantMsgId }
+
+  // Fire-and-forget: for "inspired chapter/poem/story" style answers, roll a coin
+  // and (on 50% by default) kick off an image-generation in parallel. When it
+  // finishes, we append the image to the message content so the frontend picks
+  // it up on its next poll. We intentionally do NOT await this — the user
+  // already has their text answer.
+  if (shouldAutoGenerateImage(question, payload.answer || '')) {
+    const imageQuestion = buildAutoImageQuestion(question, payload.answer || '')
+    ;(async () => {
+      try {
+        logger.info(
+          { conversationId, assistantMsgId, answerLen: (payload.answer || '').length },
+          'auto-image generation start',
+        )
+        const result = await generateImage({
+          question: imageQuestion,
+          storageDir,
+          welcomeMessages,
+          collectionName: data.conversation!.vector_collection_name,
+          conversationId,
+          chatHistory: chatHistory.slice(-6),
+          quality: 'auto',
+        })
+        const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
+        const imageSources = (result.rag_sources || []).map((s) => ({
+          fileName: s.file_name,
+          chunkId: s.chunk_id,
+          text: s.text,
+          section: s.section ?? null,
+          page: s.page ?? null,
+        }))
+        const autoResult = {
+          fileName: result.file_name,
+          imageUrl,
+          imageTitle: result.image_title || 'Generated Image',
+          imagePrompt: result.image_prompt,
+          revisedPrompt: result.revised_prompt,
+          imageSources,
+        }
+        const originalCitations = payload.citations || []
+        const contentToAppend = renderAutoImageMarkdown(
+          autoResult,
+          Array.isArray(originalCitations) ? originalCitations.length : 0,
+        )
+        await appendToMessageContent({
+          messageId: assistantMsgId,
+          contentToAppend,
+          citations: mergeCitationsWithImage(originalCitations, autoResult),
+        })
+        logger.info(
+          { conversationId, assistantMsgId, fileName: result.file_name },
+          'auto-image generation done',
+        )
+      } catch (err) {
+        logger.error({ err, conversationId, assistantMsgId }, 'auto-image generation failed')
+        Sentry.captureException(err, {
+          tags: { feature: 'auto-image' },
+          extra: { conversationId, assistantMsgId },
+        })
+      }
+    })()
+  }
 })

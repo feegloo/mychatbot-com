@@ -31,6 +31,9 @@
           >
             {{ table }} <span class="count">({{ data[table].length }})</span>
           </button>
+          <button :class="{ active: activeTable === SQL_TAB }" @click="activeTable = SQL_TAB">
+            Run SQL query
+          </button>
         </div>
         <div class="view-toggle">
           <button
@@ -42,30 +45,80 @@
         </div>
       </div>
 
-      <div class="table-section">
+      <div v-if="activeTable === SQL_TAB" class="sql-panel">
+        <textarea
+          v-model="sqlInput"
+          class="sql-input"
+          spellcheck="false"
+          placeholder="SELECT * FROM conversations ORDER BY created_at DESC LIMIT 50"
+          @keydown.meta.enter.prevent="runSql"
+          @keydown.ctrl.enter.prevent="runSql"
+        />
+        <div class="sql-actions">
+          <button class="run-btn" :disabled="sqlLoading || !sqlInput.trim()" @click="runSql">
+            {{ sqlLoading ? 'Running…' : 'RUN' }}
+          </button>
+          <span v-if="sqlResult" class="sql-meta">
+            {{ sqlResult.command }} · {{ sqlResult.rows.length }} rows ·
+            {{ sqlResult.durationMs }} ms
+          </span>
+        </div>
+        <p v-if="sqlError" class="error">{{ sqlError }}</p>
+
+        <div class="table-section">
+          <template v-if="sqlResult && view === 'json'">
+            <div class="table-wrapper">
+              <pre class="json-block">{{ JSON.stringify(sqlResult.rows, null, 2) }}</pre>
+            </div>
+          </template>
+          <template v-else-if="sqlResult && sqlResult.rows.length">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th v-for="col in sqlResult.fields" :key="col">{{ col }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, i) in sqlResult.rows" :key="i">
+                    <td v-for="col in sqlResult.fields" :key="col">
+                      <span class="cell" :title="String(row[col] ?? '')">{{
+                        formatCell(row[col])
+                      }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+          <p v-else-if="sqlResult" class="empty">No rows</p>
+        </div>
+      </div>
+
+      <div v-else class="table-section">
         <template v-if="view === 'json'">
           <div class="table-wrapper">
-            <pre class="json-block">{{ JSON.stringify(data[activeTable], null, 2) }}</pre>
+            <pre class="json-block">{{ JSON.stringify(currentRows, null, 2) }}</pre>
           </div>
         </template>
 
         <template v-else>
-          <div v-if="data[activeTable].length" class="table-wrapper">
+          <div v-if="currentRows.length" class="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th v-for="col in columns(activeTable)" :key="col">{{ col }}</th>
+                  <th v-for="col in currentColumns" :key="col">{{ col }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="(row, i) in data[activeTable]"
+                  v-for="(row, i) in currentRows"
                   :key="i"
                   :class="{ 'row-expanded': isRowExpanded(i) }"
                   class="data-row"
                   @click="toggleRow(i, row as Record<string, unknown>)"
                 >
-                  <td v-for="col in columns(activeTable)" :key="col">
+                  <td v-for="col in currentColumns" :key="col">
                     <span
                       class="cell"
                       :class="{ expanded: isRowExpanded(i) }"
@@ -96,9 +149,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { getDebugTables, getFullPrompt } from '../api'
+import { getDebugTables, getFullPrompt, runDebugSql } from '../api'
 
 type Tables = Awaited<ReturnType<typeof getDebugTables>>
+type SqlResult = Awaited<ReturnType<typeof runDebugSql>>
+
+const SQL_TAB = '__sql__' as const
+type TabKey = keyof Tables | typeof SQL_TAB
 
 const authenticated = ref(false)
 const username = ref('')
@@ -109,7 +166,7 @@ const loginError = ref('')
 const loading = ref(true)
 const error = ref('')
 const view = ref<'formatted' | 'json'>('formatted')
-const activeTable = ref<keyof Tables>('conversations')
+const activeTable = ref<TabKey>('conversations')
 const loadingMore = ref(false)
 const currentOffset = ref(0)
 const data = ref<Tables>({
@@ -134,6 +191,15 @@ watch(activeTable, () => {
 })
 
 const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[])
+
+const currentRows = computed(() =>
+  activeTable.value === SQL_TAB ? [] : data.value[activeTable.value as keyof Tables],
+)
+
+const currentColumns = computed(() => {
+  if (activeTable.value === SQL_TAB) return [] as string[]
+  return columns(activeTable.value as keyof Tables)
+})
 
 function columns(table: keyof Tables) {
   const rows = data.value[table]
@@ -234,12 +300,37 @@ const paginatedTables: (keyof Tables)[] = [
 ]
 
 const canLoadMore = computed(() => {
+  if (activeTable.value === SQL_TAB) return false
   if (activeTable.value === 'users') return false
+  const rows = data.value[activeTable.value as keyof Tables]
   // Show button if the last fetch returned a full page (1000) for this table
-  return (
-    data.value[activeTable.value].length > 0 && data.value[activeTable.value].length % 1000 === 0
-  )
+  return rows.length > 0 && rows.length % 1000 === 0
 })
+
+const sqlInput = ref('SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT 50;')
+const sqlLoading = ref(false)
+const sqlError = ref('')
+const sqlResult = ref<SqlResult | null>(null)
+
+async function runSql() {
+  const sql = sqlInput.value.trim()
+  if (!sql) return
+  sqlLoading.value = true
+  sqlError.value = ''
+  try {
+    sqlResult.value = await runDebugSql(username.value, password.value, sql)
+  } catch (e: unknown) {
+    sqlResult.value = null
+    if (e instanceof Error && 'response' in e) {
+      const resp = (e as { response?: { data?: { error?: string }; status?: number } }).response
+      sqlError.value = resp?.data?.error ?? e.message
+    } else {
+      sqlError.value = e instanceof Error ? e.message : 'Query failed'
+    }
+  } finally {
+    sqlLoading.value = false
+  }
+}
 
 async function loadMore() {
   loadingMore.value = true
@@ -509,5 +600,48 @@ td:has(.cell.expanded) {
 .load-more-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.sql-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+}
+.sql-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.sql-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.run-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #818cf8;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.run-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.sql-meta {
+  color: #94a3b8;
+  font-size: 0.8rem;
 }
 </style>

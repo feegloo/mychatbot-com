@@ -14,6 +14,8 @@ import {
   insertConversationMessage,
   updateFileMetadata,
   resolveConversationRole,
+  updateConversationMessageContent,
+  getMessageById,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
 import {
@@ -35,6 +37,32 @@ import { MAX_FILE_SIZE } from '../constants.js'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } })
 export const uploadRouter = new Router()
+
+/**
+ * When the initial OCR-prefetch welcome is later replaced by a richer,
+ * full-OCR-synthesized welcome, keep the user's original message intact
+ * and append the richer version below an UPDATE separator.  This matches
+ * the "initial welcome + UPDATE after full OCR" UX contract.
+ */
+async function appendWelcomeUpdate(
+  messageId: string,
+  updatedWelcome: string,
+  parsedPages: number,
+  totalPages: number,
+): Promise<void> {
+  if (!updatedWelcome.trim()) return
+  const current = await getMessageById(messageId)
+  if (!current) return
+  const original = current.content || ''
+  // Guard against duplicate updates when the same synthesized text is re-emitted.
+  if (original.includes(updatedWelcome.trim())) return
+  const pagesInfo =
+    totalPages > 0
+      ? `after OCR-ing ${parsedPages || totalPages} of ${totalPages} pages`
+      : 'after full OCR'
+  const merged = `${original}\n\n---\n**UPDATE** — ${pagesInfo}:\n\n${updatedWelcome.trim()}`
+  await updateConversationMessageContent(messageId, merged)
+}
 
 uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
   const files = (ctx.files as multer.File[]) || []
@@ -114,6 +142,8 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
   // falls back to local on delegation error.
   ;(async () => {
     let welcomeMessageId: string | undefined
+    let latestParsed = 0
+    let latestTotal = 0
     try {
       const jobIndex = uploadJobCounter++
       const canDelegate = Boolean(config.indexerUrl && config.indexerSecret && jobIndex % 2 === 1)
@@ -183,13 +213,13 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
             },
           )
           const suggestedQuestions = (data.suggested_questions as string[]) || []
+          const finalWelcomeMessage = (data.welcome_message as string) || ''
           // If welcome message was not emitted earlier (no on_progress callback hit),
           // insert it now as a fallback
           if (!welcomeMessageId) {
-            const welcomeMessage = (data.welcome_message as string) || ''
             const fileMetadata = (data.file_metadata as Record<string, any>) || {}
             const fallbackMessage =
-              welcomeMessage ||
+              finalWelcomeMessage ||
               `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
             welcomeMessageId = await insertConversationMessage({
               conversationId,
@@ -205,6 +235,21 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
                 console.error(`[metadata update error for ${fileName}]:`, err.message)
               }
             }
+          } else if (finalWelcomeMessage) {
+            // A richer synthesized welcome message arrived after the initial
+            // OCR-prefetch version — merge it into the original under an UPDATE
+            // section so the user sees both the warm first-impression and the
+            // full-document synthesis.
+            try {
+              await appendWelcomeUpdate(
+                welcomeMessageId,
+                finalWelcomeMessage,
+                latestParsed,
+                latestTotal,
+              )
+            } catch (err: any) {
+              console.error('[welcome update error]:', err.message)
+            }
           }
           await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
           await updateConversationStatus(conversationId, 'ready')
@@ -213,6 +258,8 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
             data: { suggestedQuestions },
           })
         } else if (event === 'page_progress') {
+          latestParsed = Number(data.parsed) || latestParsed
+          latestTotal = Number(data.total) || latestTotal
           emitConversationEvent(conversationId, {
             event: 'page_progress',
             data: { parsed: data.parsed, total: data.total },
@@ -392,6 +439,8 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
   // falls back to local on delegation error.
   ;(async () => {
     let welcomeMessageId: string | undefined
+    let latestParsed = 0
+    let latestTotal = 0
     try {
       const jobIndex = uploadJobCounter++
       const canDelegate = Boolean(config.indexerUrl && config.indexerSecret && jobIndex % 2 === 1)
@@ -452,11 +501,11 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           })
         } else if (event === 'complete') {
           const suggestedQuestions = (data.suggested_questions as string[]) || []
+          const finalWelcomeMessage = (data.welcome_message as string) || ''
           if (!welcomeMessageId) {
-            const welcomeMessage = (data.welcome_message as string) || ''
             const fileMetadata = (data.file_metadata as Record<string, any>) || {}
             const fallbackMessage =
-              welcomeMessage ||
+              finalWelcomeMessage ||
               `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
             welcomeMessageId = await insertConversationMessage({
               conversationId,
@@ -472,12 +521,30 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
                 console.error(`[metadata update error for ${fileName}]:`, err.message)
               }
             }
+          } else if (finalWelcomeMessage) {
+            try {
+              await appendWelcomeUpdate(
+                welcomeMessageId,
+                finalWelcomeMessage,
+                latestParsed,
+                latestTotal,
+              )
+            } catch (err: any) {
+              console.error('[welcome update error]:', err.message)
+            }
           }
           await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
           await updateConversationStatus(conversationId, 'ready')
           emitConversationEvent(conversationId, {
             event: 'complete',
             data: { suggestedQuestions },
+          })
+        } else if (event === 'page_progress') {
+          latestParsed = Number(data.parsed) || latestParsed
+          latestTotal = Number(data.total) || latestTotal
+          emitConversationEvent(conversationId, {
+            event: 'page_progress',
+            data: { parsed: data.parsed, total: data.total },
           })
         } else if (event === 'page_progress') {
           emitConversationEvent(conversationId, {

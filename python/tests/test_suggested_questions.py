@@ -122,6 +122,33 @@ def test_contextual_action_not_dropped_when_present():
     assert any("Generate image inspired by:" in q for q in result)
 
 
+def test_recognize_person_prompt_detected_from_description_body():
+    """When welcome_message is terse (just a filename/title) but description
+    describes a woman, the 'Who is the woman in ...' contextual prompt must
+    still appear. Regression for prompts not surfacing on image portraits."""
+    result = _append_contextual_prompts(
+        questions=[
+            "What is shown in this image?",
+            "How is the subject posed?",
+            "What does the indoor setting suggest?",
+            "Assess the image quality 🔎",
+            "Create a caption for this photo 📝",
+            "Write a short image analysis report 📊",
+            "Suggest improvements for the framing 🎯",
+        ],
+        file_names=["portrait.jpeg"],
+        file_types={"portrait.jpeg": "image"},
+        language="en",
+        welcome_message="EuroGirlsEscorts - Unknown author",
+        description=(
+            "This JPEG is a simple indoor portrait at 359x532 px showing a "
+            "woman standing in a white one-piece swimsuit against an interior "
+            "background."
+        ),
+    )
+    assert any(q.startswith("Who is the woman in") and "🔍" in q for q in result)
+
+
 def test_generic_fallback_when_no_context():
     result = _append_contextual_prompts(
         questions=["Q1", "Q2", "Q3", "Action A 🧠", "Action B 📓"],

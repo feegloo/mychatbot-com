@@ -1,6 +1,6 @@
 import Router from '@koa/router'
 import { timingSafeEqual } from 'node:crypto'
-import { query } from '../db.js'
+import { pool, query } from '../db.js'
 import { config } from '../config.js'
 
 function safeEq(a: string, b: string): boolean {
@@ -8,6 +8,21 @@ function safeEq(a: string, b: string): boolean {
   const bufB = Buffer.from(b)
   if (bufA.length !== bufB.length) return false
   return timingSafeEqual(bufA, bufB)
+}
+
+function isAuthorized(ctx: any): boolean {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) return false
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  return !!(
+    config.debugUser &&
+    config.debugPass &&
+    safeEq(user, config.debugUser) &&
+    safeEq(pass, config.debugPass)
+  )
 }
 
 export const debugRouter = new Router()
@@ -386,4 +401,58 @@ debugRouter.get('/debug/prompt-full/:promptId', async (ctx) => {
     return
   }
   ctx.body = result.rows[0]
+})
+
+/**
+ * POST /debug/sql
+ *
+ * Executes an arbitrary SQL statement from the debug UI.
+ * Protected by basic auth; intended for admin-only ad-hoc inspection.
+ * Enforces a per-statement timeout and row cap to keep the UI responsive.
+ */
+debugRouter.post('/debug/sql', async (ctx) => {
+  if (!isAuthorized(ctx)) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const body = (ctx.request.body ?? {}) as { sql?: unknown }
+  const sql = typeof body.sql === 'string' ? body.sql.trim() : ''
+  if (!sql) {
+    ctx.status = 400
+    ctx.body = { error: 'Missing "sql" string in request body' }
+    return
+  }
+
+  const client = await pool.connect()
+  const startedAt = Date.now()
+  try {
+    // Read-only transaction with 10s timeout. Prevents accidental writes and
+    // runaway queries. SET LOCAL only applies within a transaction.
+    await client.query('BEGIN READ ONLY')
+    await client.query('SET LOCAL statement_timeout = 10000')
+    const result = await client.query(sql)
+    await client.query('COMMIT')
+    ctx.body = {
+      rows: result.rows,
+      fields: result.fields.map((f) => f.name),
+      rowCount: result.rowCount,
+      command: result.command,
+      durationMs: Date.now() - startedAt,
+    }
+  } catch (err: unknown) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    ctx.status = 400
+    ctx.body = {
+      error: err instanceof Error ? err.message : 'Query failed',
+      durationMs: Date.now() - startedAt,
+    }
+  } finally {
+    client.release()
+  }
 })
