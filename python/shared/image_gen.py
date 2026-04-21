@@ -134,33 +134,59 @@ def build_image_prompt(
     question: str,
     context: str = "",
     welcome_messages: list[str] | None = None,
+    rag_chunks: list[dict] | None = None,
+    chat_history: list[dict] | None = None,
 ) -> dict:
-    """Build a DALL-E prompt and short title from the user's question and context.
+    """Build a DALL-E prompt, title, and source references from the user's question and context.
 
-    Returns dict with 'prompt' (detailed visual prompt) and 'title' (short image title).
-    A random creative seed is injected each call so repeated requests for the same
-    topic produce meaningfully different images and titles.
+    Uses top RAG chunks and recent conversation history to produce a richer, more grounded
+    image prompt. Returns a dict with 'prompt', 'title', and 'source_indices' (0-based
+    indices into rag_chunks that informed the image concept).
+
+    A random creative seed is injected each call so repeated requests produce unique images.
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
     system = (
         "You are an expert prompt engineer for AI image generation. "
-        "Given the user's request, context, and the CREATIVE DIRECTION provided, create:\n"
+        "Given the user's request, document sources, conversation history, and the CREATIVE DIRECTION, create:\n"
         "1. A detailed, vivid image generation prompt (max 200 words). "
         "Follow the creative direction — style, mood, lighting, and perspective — closely. "
+        "Ground the image in the actual content from the provided sources when relevant. "
         "Focus on visual elements: composition, style, colors, mood, lighting. "
         "Do NOT produce the most literal or predictable interpretation of the subject.\n"
         "2. A short, evocative title for the image (max 8 words) that reflects the "
-        "specific creative angle chosen — NOT a generic description of the subject.\n\n"
-        'Output ONLY valid JSON: {"prompt": "...", "title": "..."}'
+        "specific creative angle chosen — NOT a generic description of the subject.\n"
+        "3. A list of source indices (0-based integers) from the provided chunks that "
+        "most directly informed the image concept. Include 1–5 indices; use [] if none apply.\n\n"
+        'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2]}'
     )
 
     creative_seed = _random_creative_seed()
     user_content = f"User request: {question}\n\n{creative_seed}\n"
+
     if welcome_messages:
-        user_content += f"\nDocument context:\n{chr(10).join(welcome_messages[:3])}\n"
-    if context:
+        user_content += f"\nDocument summary:\n{chr(10).join(welcome_messages[:3])}\n"
+
+    # Include top RAG chunks as numbered source passages
+    if rag_chunks:
+        user_content += "\nRelevant document passages (use source_indices to cite which ones informed the image):\n"
+        for i, chunk in enumerate(rag_chunks[:10]):
+            file_label = chunk.get("file_name", "")
+            page = chunk.get("page")
+            loc = f" (p.{page})" if page else ""
+            user_content += f"\n[{i}] {file_label}{loc}:\n{chunk.get('text', '')[:600]}\n"
+
+    # Include recent conversation history (last 6 exchanges) for context continuity
+    if chat_history:
+        user_content += "\nRecent conversation:\n"
+        for msg in chat_history[-6:]:
+            role = msg.get("role", "")
+            content = msg.get("content", "")[:400]
+            user_content += f"{role}: {content}\n"
+    elif context:
+        # Fallback to the pre-formatted context string
         user_content += f"\nRecent conversation:\n{context[:1000]}\n"
 
     messages = [
@@ -172,7 +198,7 @@ def build_image_prompt(
         messages=messages,
         model=settings.openai_chat_model,
         operation="image_prompt_build",
-        max_completion_tokens=400,
+        max_completion_tokens=500,
         temperature=1.0,
     )
     try:
@@ -182,6 +208,7 @@ def build_image_prompt(
         return {
             "prompt": parsed["prompt"],
             "title": parsed.get("title", "Generated Image"),
+            "source_indices": parsed.get("source_indices", []),
         }
     except (json.JSONDecodeError, KeyError):
-        return {"prompt": raw, "title": "Generated Image"}
+        return {"prompt": raw, "title": "Generated Image", "source_indices": []}

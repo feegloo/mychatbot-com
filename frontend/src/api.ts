@@ -391,6 +391,13 @@ export async function getDebugTables(username: string, password: string, offset 
   }
 }
 
+export async function getFullPrompt(username: string, password: string, promptId: string) {
+  const response = await api.get(`/debug/prompt-full/${promptId}`, {
+    auth: { username, password },
+  })
+  return response.data as { prompt_text: string; response_text: string }
+}
+
 export async function translateTexts(texts: string[], targetLang: string, sourceLang?: string) {
   const body: { texts: string[]; targetLang: string; sourceLang?: string } = { texts, targetLang }
   if (sourceLang) body.sourceLang = sourceLang

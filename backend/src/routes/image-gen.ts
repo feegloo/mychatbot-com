@@ -58,25 +58,37 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     : getWelcomeMessages(data.messages)
 
   const chatHistory = buildChatHistory(data.messages)
-  const context = chatHistory
-    .slice(-6)
-    .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
-    .join('\n')
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
 
   const result = await generateImage({
     question,
     storageDir,
-    context,
     welcomeMessages,
+    collectionName: data.conversation.vector_collection_name,
+    conversationId,
+    chatHistory: chatHistory.slice(-6),
     quality: 'auto',
   })
 
   // Build the assistant answer with the image
   const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
   const title = result.image_title || 'Generated Image'
-  const answer = `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"</p>`
+
+  // Map RAG sources returned by the model to citation objects
+  const citations = (result.rag_sources || []).map((s) => ({
+    fileName: s.file_name,
+    chunkId: s.chunk_id,
+    text: s.text,
+    section: s.section ?? null,
+    page: s.page ?? null,
+  }))
+
+  // Append [1][2]... source markers to the caption so they render as clickable source buttons
+  const sourceMarkers = citations.length
+    ? ' ' + citations.map((_, i) => `[${i + 1}]`).join('')
+    : ''
+  const answer = `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"${sourceMarkers}</p>`
 
   const assistantMsgId = await insertConversationMessage({
     conversationId,
@@ -84,12 +96,13 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     content: answer,
     citations: {
       _generatedImageDescription: result.revised_prompt || result.image_prompt,
+      _imageSources: citations,
     },
   })
 
   ctx.body = {
     answer,
-    citations: [],
+    citations,
     userMessageId: userMsgId,
     assistantMessageId: assistantMsgId,
     generatedImage: {

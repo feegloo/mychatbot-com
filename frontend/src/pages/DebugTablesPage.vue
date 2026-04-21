@@ -58,17 +58,22 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in data[activeTable]" :key="i">
+                <tr
+                  v-for="(row, i) in data[activeTable]"
+                  :key="i"
+                  :class="{ 'row-expanded': isRowExpanded(i) }"
+                  class="data-row"
+                  @click="toggleRow(i, row as Record<string, unknown>)"
+                >
                   <td v-for="col in columns(activeTable)" :key="col">
                     <span
                       class="cell"
-                      :class="{ expanded: isCellExpanded(i, col) }"
-                      :title="isCellExpanded(i, col) ? '' : String(row[col] ?? '')"
-                      @click="toggleCell(i, col, row[col])"
+                      :class="{ expanded: isRowExpanded(i) }"
+                      :title="isRowExpanded(i) ? '' : String(row[col] ?? '')"
                       >{{
-                        isCellExpanded(i, col)
-                          ? expandedCellContent(row[col])
-                          : formatCell(row[col])
+                        isRowExpanded(i)
+                          ? fullCellContent(row as Record<string, unknown>, col)
+                          : formatCell(row[col], col)
                       }}</span
                     >
                   </td>
@@ -91,7 +96,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { getDebugTables } from '../api'
+import { getDebugTables, getFullPrompt } from '../api'
 
 type Tables = Awaited<ReturnType<typeof getDebugTables>>
 
@@ -120,10 +125,12 @@ const data = ref<Tables>({
   prompt_history: [],
 })
 
-const expandedCells = ref<Set<string>>(new Set())
+const expandedRows = ref<Set<number>>(new Set())
+// keyed by prompt_history row id → full text fields
+const fullPromptCache = ref<Map<string, { prompt_text: string; response_text: string }>>(new Map())
 
 watch(activeTable, () => {
-  expandedCells.value = new Set()
+  expandedRows.value = new Set()
 })
 
 const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[])
@@ -134,23 +141,42 @@ function columns(table: keyof Tables) {
   return Object.keys(rows[0])
 }
 
-function cellKey(row: number, col: string) {
-  return `${row}:${col}`
+function isRowExpanded(rowIdx: number) {
+  return expandedRows.value.has(rowIdx)
 }
 
-function isCellExpanded(row: number, col: string) {
-  return expandedCells.value.has(cellKey(row, col))
-}
-
-function toggleCell(row: number, col: string, _value: unknown) {
-  const key = cellKey(row, col)
-  const next = new Set(expandedCells.value)
-  if (next.has(key)) {
-    next.delete(key)
-  } else {
-    next.add(key)
+async function toggleRow(rowIdx: number, row: Record<string, unknown>) {
+  const next = new Set(expandedRows.value)
+  if (next.has(rowIdx)) {
+    next.delete(rowIdx)
+    expandedRows.value = next
+    return
   }
-  expandedCells.value = next
+  next.add(rowIdx)
+  expandedRows.value = next
+
+  if (activeTable.value === 'prompt_history') {
+    const id = String(row.id ?? '')
+    if (id && !fullPromptCache.value.has(id)) {
+      try {
+        const full = await getFullPrompt(username.value, password.value, id)
+        const updated = new Map(fullPromptCache.value)
+        updated.set(id, full)
+        fullPromptCache.value = updated
+      } catch {
+        // fallback: already have 300-char preview in the row
+      }
+    }
+  }
+}
+
+function fullCellContent(row: Record<string, unknown>, col: string): string {
+  if (activeTable.value === 'prompt_history' && TEXT_PREVIEW_COLS.has(col)) {
+    const id = String(row.id ?? '')
+    const cached = fullPromptCache.value.get(id)
+    if (cached) return String(cached[col as keyof typeof cached] ?? '—')
+  }
+  return expandedCellContent(row[col])
 }
 
 function isJsonString(value: unknown): boolean {
@@ -184,11 +210,14 @@ function expandedCellContent(value: unknown): string {
   return s
 }
 
-function formatCell(value: unknown): string {
+const TEXT_PREVIEW_COLS = new Set(['prompt_text', 'response_text'])
+
+function formatCell(value: unknown, col?: string): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'object') return JSON.stringify(value)
   const s = String(value)
-  return s.length > 120 ? s.slice(0, 120) + '…' : s
+  const limit = col && TEXT_PREVIEW_COLS.has(col) ? 300 : 120
+  return s.length > limit ? s.slice(0, limit) + '…' : s
 }
 
 // "users" is an aggregate query, not paginated
@@ -425,6 +454,17 @@ td {
 td:has(.cell.expanded) {
   white-space: normal;
   max-width: none;
+}
+.data-row {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .data-row:hover {
+    background: #1a2437;
+  }
+}
+.data-row.row-expanded {
+  background: #1a2d4a;
 }
 .json-block {
   background: #0f172a;

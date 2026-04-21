@@ -7,6 +7,9 @@ export async function generateImage(options: {
   storageDir: string
   context?: string
   welcomeMessages?: string[]
+  collectionName?: string
+  conversationId?: string
+  chatHistory?: Array<{ role: string; content: string }>
   size?: string
   quality?: ImageQuality
 }) {
@@ -18,6 +21,9 @@ export async function generateImage(options: {
       storage_dir: options.storageDir,
       context: options.context || '',
       welcome_messages: options.welcomeMessages || [],
+      collection_name: options.collectionName || '',
+      conversation_id: options.conversationId || '',
+      chat_history: options.chatHistory || [],
       size: options.size || '1024x1024',
       quality: options.quality || 'low',
     }),
@@ -33,5 +39,12 @@ export async function generateImage(options: {
     revised_prompt: string
     image_prompt: string
     image_title: string
+    rag_sources?: Array<{
+      chunk_id: string
+      text: string
+      file_name: string
+      section?: string | null
+      page?: number | null
+    }>
   }
 }

@@ -685,25 +685,29 @@ _AUTHOR_FROM_STYLE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Matches "by Paulo Coelho" or "autor: Paulo Coelho" in descriptions/welcome messages
+# Matches "by Paulo Coelho" in descriptions/welcome messages.
+# No re.IGNORECASE so [A-Z] truly means uppercase, preventing greedy capture of
+# lowercase words that follow (e.g. "by Paulo Coelho follows Santiago" → "Paulo Coelho").
 _AUTHOR_BY_PATTERN = re.compile(
-    r"\bby\s+([A-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇ][a-zA-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇáéíóúàâäčęňšžůýæøèùêëìîïðñõœüç'\-]+(?:\s+[A-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇ][a-zA-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇáéíóúàâäčęňšžůýæøèùêëìîïðñõœüç'\-]+)*)",
-    re.IGNORECASE,
+    r"\bby\s+([A-Z][a-zA-Z\xC0-\xFF'\-]+(?:\s+[A-Z][a-zA-Z\xC0-\xFF'\-]+){0,2})"
 )
 
 
 def _is_valid_author_name(name: str) -> bool:
     """Return True if the extracted string looks like a real author name.
 
-    Rejects single-character initials (e.g. "P", "J.") that LLMs sometimes
-    generate when abbreviating author names.
+    Rejects:
+    - Single-character initials ("P", "J.") that LLMs sometimes generate
+    - Multi-word phrases containing lowercase words ("rozdział w stylu R")
+    - Strings that are too long to be a name (> 4 words)
     """
     if not name or len(name) < 3:
         return False
-    # At least one word part must be 2+ letters (not just "P." or "J. K.")
-    parts = re.split(r"[\s.]+", name)
-    real_words = [p for p in parts if len(p) >= 2 and re.search(r"[a-zA-ZÀ-ÿ]", p)]
-    return len(real_words) >= 1
+    words = [w for w in name.split() if w]
+    if len(words) > 4:
+        return False
+    # Every word must start with an uppercase letter — proper nouns only
+    return all(w[0].isupper() for w in words)
 
 
 def _extract_author_from_llm_actions(
@@ -725,7 +729,7 @@ def _extract_author_from_llm_actions(
 
     # 2. "Who is/was [Name]?" pattern in questions and welcome message
     who_pattern = re.compile(
-        r"(?:Kim (?:jest|był[a]?)|Who (?:is|was))\s+(.+?)\??",
+        r"(?:Kim (?:jest|był[a]?)|Who (?:is|was))\s+(.+?)(?:\?|$)",
         re.IGNORECASE,
     )
     for text in llm_actions:

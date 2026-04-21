@@ -54,7 +54,7 @@ debugRouter.get('/debug/tables', async (ctx) => {
       offset,
     ]),
     query(
-      `SELECT id, conversation_id, role, LEFT(content, 500) AS content, model,
+      `SELECT id, conversation_id, role, LEFT(content, 500) AS content,
               created_at, user_id
        FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset],
@@ -91,9 +91,9 @@ debugRouter.get('/debug/tables', async (ctx) => {
     ]),
     query(
       `SELECT id, conversation_id, operation, model,
-              LEFT(prompt_text, 2000) AS prompt_text,
+              LEFT(prompt_text, 300) AS prompt_text,
               LENGTH(prompt_text) AS prompt_chars,
-              LEFT(response_text, 2000) AS response_text,
+              LEFT(response_text, 300) AS response_text,
               LENGTH(response_text) AS response_chars,
               prompt_tokens, completion_tokens, total_tokens, cached_tokens,
               duration_ms, created_at
@@ -254,7 +254,9 @@ async function handlePromptHistory(ctx: any) {
 
   let sql = `
     SELECT id, conversation_id, operation, model,
+           LEFT(prompt_text, 300) AS prompt_text,
            LENGTH(prompt_text) AS prompt_chars,
+           LEFT(response_text, 300) AS response_text,
            LENGTH(response_text) AS response_chars,
            prompt_tokens, completion_tokens, total_tokens, cached_tokens,
            duration_ms, created_at
@@ -339,6 +341,48 @@ debugRouter.get('/debug/prompt-history/:conversationId/:promptId/full', async (c
   if (result.rows.length === 0) {
     ctx.status = 404
     ctx.body = { error: 'Prompt not found' }
+    return
+  }
+  ctx.body = result.rows[0]
+})
+
+/**
+ * GET /debug/prompt-full/:promptId
+ *
+ * Returns only the full prompt_text and response_text for a prompt_history row.
+ * Simpler alternative to the /conversationId/:promptId/full endpoint — used by the
+ * debug table UI when expanding a row to show the raw strings.
+ */
+debugRouter.get('/debug/prompt-full/:promptId', async (ctx) => {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
+  }
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const { promptId } = ctx.params
+  const result = await query(
+    'SELECT prompt_text, response_text FROM prompt_history WHERE id = $1',
+    [promptId],
+  )
+  if (result.rows.length === 0) {
+    ctx.status = 404
+    ctx.body = { error: 'Not found' }
     return
   }
   ctx.body = result.rows[0]

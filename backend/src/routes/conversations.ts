@@ -187,7 +187,8 @@ conversationsRouter.get('/conversations/:conversationId', async (ctx) => {
     messages: data.messages.map((message) => {
       const raw = message.citations_json
       const uploadedFileNames = raw && !Array.isArray(raw) ? raw._uploadedFileNames : undefined
-      const citations = Array.isArray(raw) ? raw : []
+      // Regular citations stored as array; image-gen stores as object with _imageSources
+      const citations = Array.isArray(raw) ? raw : (raw?._imageSources || [])
       // Attach per-message suggested questions
       const msgQuestions = data.suggestedQuestions
         .filter((q) => q.message_id === message.id)

@@ -141,6 +141,7 @@ def main():
         logger.info(f"📥 Downloaded {pdf_path} → {local_pdf}")
 
     seen_xrefs: set[int] = set()
+    document_context = os.environ.get("WORKER_DOCUMENT_CONTEXT", "")
 
     try:
         result = process_pdf_page(
@@ -151,6 +152,7 @@ def main():
             conversation_id,
             seen_xrefs,
             worker_id,
+            document_context,
         )
 
         if result.error:

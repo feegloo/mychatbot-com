@@ -132,6 +132,10 @@ def page_needs_ocr(page_text: str) -> bool:
 
 MIN_IMAGE_SIZE = 5_000  # Skip tiny images (icons, bullets) under 5 KB
 MIN_IMAGE_DIM = 50  # Skip images smaller than 50px in either dimension
+# Skip decorative images with extreme aspect ratios (lines, borders, separators).
+# A ratio > 10:1 reliably catches thin horizontal/vertical rules while keeping
+# narrow-but-meaningful images (e.g. a tall infographic with 8:1 proportions).
+MAX_IMAGE_ASPECT_RATIO = 10
 
 
 # Thread count: use 2× CPU cores (hyper-threading) for IO-bound tasks
@@ -200,6 +204,92 @@ def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
     )
 
 
+# Maximum chars of page text passed as context to the vision model.
+# Keeps the prompt focused without exceeding token limits.
+_IMAGE_CONTEXT_PAGE_TEXT_MAX = 800
+
+
+def _describe_image_with_context(
+    image_bytes: bytes,
+    *,
+    document_context: str = "",
+    page_text: str = "",
+    mime_type: str = "image/png",
+) -> str:
+    """Describe an image with document and page context for richer RAG embeddings.
+
+    Passes the document title/topic and surrounding page text so the vision
+    model can produce descriptions that use domain vocabulary (e.g. part names,
+    procedure steps) matching what users will actually search for.
+
+    Falls back to plain `_describe_image` when no context is available.
+    """
+    if not document_context and not page_text:
+        return _describe_image(image_bytes, mime_type=mime_type)
+
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key)
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    # Trim page text to avoid prompt bloat
+    page_excerpt = page_text[:_IMAGE_CONTEXT_PAGE_TEXT_MAX].strip() if page_text else ""
+
+    context_lines: list[str] = []
+    if document_context:
+        context_lines.append(f"Document: {document_context}")
+    if page_excerpt:
+        context_lines.append(f"Surrounding page text:\n{page_excerpt}")
+
+    context_block = "\n".join(context_lines)
+
+    system_prompt = (
+        "You are a document image analyst creating searchable descriptions for RAG indexing.\n"
+        "Your descriptions must be specific and use the vocabulary of the document's domain "
+        "so they match the words users will type when searching.\n\n"
+        "Rules:\n"
+        "1. If meaningful text is visible (labels, captions, step numbers, part names), "
+        "transcribe it exactly first.\n"
+        "2. Identify the image type: diagram, photo, exploded view, warning symbol, "
+        "chart, illustration, procedure step, etc.\n"
+        "3. Describe the content concretely using domain terminology from the document context.\n"
+        "4. For assembly/maintenance diagrams: name the part or action being shown.\n"
+        "5. For instructional images: describe what step or procedure is illustrated.\n"
+        "6. Do NOT start with 'This image shows' or 'This is a picture of'.\n"
+        "7. Output 2–5 focused sentences."
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        f"{context_block}\n\n"
+                        "Describe the image below using domain-specific vocabulary "
+                        "from the document context above."
+                    ),
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{b64}", "detail": "auto"},
+                },
+            ],
+        },
+    ]
+
+    text, _usage = traced_openai_call(
+        client=client,
+        messages=messages,
+        model=settings.openai_chat_model,
+        operation="vision_describe_with_context",
+        max_completion_tokens=1200,
+        reasoning_effort=settings.openai_reasoning_effort,
+    )
+    return text.strip()
+
+
 def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
     """Extract raw images from PDF and save as .png (CPU-bound, no API calls).
 
@@ -238,6 +328,8 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
             if len(image_bytes) < MIN_IMAGE_SIZE:
                 continue
             if width < MIN_IMAGE_DIM or height < MIN_IMAGE_DIM:
+                continue
+            if min(width, height) > 0 and max(width, height) / min(width, height) > MAX_IMAGE_ASPECT_RATIO:
                 continue
 
             # Save image (extract_image returns native format bytes)

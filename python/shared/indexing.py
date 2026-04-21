@@ -15,7 +15,7 @@ from .chapters import (
 from .chunkers import Chunk, split_into_chunks
 from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
 from .describe import DescribeResult, describe_documents
-from .extractors import extract_pdf, ocr_pdf_page
+from .extractors import clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
@@ -32,6 +32,35 @@ _MIN_PAGE_TEXT_CHARS_FOR_SUMMARY = 50
 _MIN_PAGE_SUMMARY_CHARS = 200
 _MAX_PAGE_SUMMARY_CHARS = 600
 _PAGE_SUMMARY_RATIO = 10
+
+
+def _build_document_context(file_path: str, file_metadata: dict[str, dict] | None) -> str:
+    """Build a short document context string for image description prompts.
+
+    Combines title, author, and cleaned file name so the vision model knows
+    what domain vocabulary to use when describing extracted images.
+    """
+    p = Path(file_path)
+    display_name = clean_file_name(p.name)
+    parts: list[str] = []
+
+    if file_metadata:
+        meta = file_metadata.get(p.name, {})
+        if isinstance(meta, dict):
+            title = meta.get("title", "")
+            author = meta.get("author", "")
+            if title:
+                parts.append(title)
+            if author:
+                parts.append(f"by {author}")
+
+    # Always include the cleaned filename as a fallback hint
+    if not parts:
+        parts.append(display_name)
+    elif display_name and display_name not in " ".join(parts):
+        parts.append(f"(file: {display_name})")
+
+    return " — ".join(parts)
 
 # OCR-first welcome strategy for scanned / image-based PDFs
 # (tunable via environment variables for production)
@@ -174,24 +203,33 @@ def _ocr_prefetch_welcome(
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
     """Convert extracted image dicts into Chunk objects.
 
-    The chunk text is the vision-model description so it gets embedded
-    alongside regular text chunks in the same vector space.
+    The chunk text prefixes the description with an image context header so
+    the embedded vector carries semantic signals about both what the image shows
+    and where it came from.  This header mirrors what the RAG prompt sees when
+    the chunk is retrieved, making the model more likely to reference the image.
     """
     chunks = []
     for idx, img in enumerate(images):
-        # Store image_path relative to storage root (conversationId/filename.png)
         abs_path = Path(img["image_path"])
-        # The image sits in storage/<conversationId>/<image_name>
-        # We store just the filename; the backend route resolves the rest
         image_name = abs_path.name
 
         page = img["page"]
         section = f"Image (page {page})" if page is not None else "Image"
+
+        # Prefix the description with a searchable header.
+        # The header repeats the page and filename so retrieval scores improve
+        # for queries like "show me the diagram on page 5" or topic-based searches.
+        display_file = clean_file_name(img.get("file_name", file_name))
+        page_label = f"page {page}" if page is not None else "unknown page"
+        chunk_text = (
+            f"[Image — {display_file}, {page_label}]\n{img['description']}"
+        )
+
         chunks.append(
             Chunk(
                 chunk_id=f"{Path(img['file_name']).stem}_img_{idx}",
                 file_name=img["file_name"],
-                text=img["description"],
+                text=chunk_text,
                 section=section,
                 page=page,
                 metadata={
@@ -466,6 +504,7 @@ def index_documents(
                 result = process_pdf_parallel(
                     file_path, output_dir, conversation_id,
                     on_early_text=_on_early_text,
+                    document_context=_build_document_context(file_path, file_metadata),
                 )
         else:
             result = process_standalone_file(file_path, conversation_id)

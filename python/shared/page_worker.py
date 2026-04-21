@@ -30,9 +30,10 @@ import fitz  # PyMuPDF
 from .chunkers import Chunk, split_into_chunks
 from .extractors import (
     IMAGE_EXTENSIONS,
+    MAX_IMAGE_ASPECT_RATIO,
     MIN_IMAGE_DIM,
     MIN_IMAGE_SIZE,
-    _describe_image,
+    _describe_image_with_context,
     _reflow_pdf_text,
     _sanitize_text,
     extract_text,
@@ -163,6 +164,8 @@ def _extract_page_images(
 
         if len(image_bytes) < MIN_IMAGE_SIZE or width < MIN_IMAGE_DIM or height < MIN_IMAGE_DIM:
             continue
+        if min(width, height) > 0 and max(width, height) / min(width, height) > MAX_IMAGE_ASPECT_RATIO:
+            continue
 
         img_ext = base_image.get("ext", "png")
         image_name = f"{pdf_stem}_page{page_idx + 1}_img{img_idx + 1}.png"
@@ -191,7 +194,12 @@ def _extract_page_images(
 
 
 def _describe_images_parallel(
-    images: list[dict], conversation_id: str, file_name: str
+    images: list[dict],
+    conversation_id: str,
+    file_name: str,
+    *,
+    document_context: str = "",
+    page_text: str = "",
 ) -> list[dict]:
     """Describe a batch of images in parallel using Vision API."""
     if not images:
@@ -208,7 +216,11 @@ def _describe_images_parallel(
                 page_number=item["page"],
                 detail=f"image={item['image_name']} size={len(item['png_bytes'])} bytes",
             ):
-                description = _describe_image(item["png_bytes"])
+                description = _describe_image_with_context(
+                    item["png_bytes"],
+                    document_context=document_context,
+                    page_text=page_text,
+                )
         except Exception as e:
             logger.warning(f"⚠️ Failed to describe {item['image_name']}: {e}")
             description = f"Image from page {item['page']} of {item['file_name']}"
@@ -237,6 +249,7 @@ def process_pdf_page(
     conversation_id: str,
     seen_xrefs: set[int],
     worker_id: str | None = None,
+    document_context: str = "",
 ) -> PageResult:
     """Process a single PDF page: extract text, images, chunk, describe.
 
@@ -318,7 +331,13 @@ def process_pdf_page(
                 detail=f"{len(raw_images)} images",
                 worker_id=worker_id,
             ):
-                described = _describe_images_parallel(raw_images, conversation_id, file_name)
+                described = _describe_images_parallel(
+                    raw_images,
+                    conversation_id,
+                    file_name,
+                    document_context=document_context,
+                    page_text=page_text,
+                )
                 result.images = described
 
         # Step 4: Chunk the page text
@@ -366,6 +385,7 @@ def process_pdf_parallel(
     early_text_timeout_s: float = 5.0,
     early_text_target_pages: int = 100,
     on_early_text: Callable[[str, list[dict]], None] | None = None,
+    document_context: str = "",
 ) -> FileProcessingResult:
     """Process all pages of a PDF in parallel using ThreadPoolExecutor.
 
@@ -425,6 +445,7 @@ def process_pdf_parallel(
                 conversation_id,
                 seen_xrefs,
                 worker_id,
+                document_context,
             )
             futures[future] = page_idx
 
@@ -520,6 +541,7 @@ def process_pdf_parallel(
                     conversation_id,
                     seen_xrefs,
                     worker_id,
+                    document_context,
                 )
                 if not result.error:
                     page_results[page_idx] = result

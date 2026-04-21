@@ -46,6 +46,9 @@ spec:
               value: europe-west1
             - name: FRONTEND_DIST_PATH
               value: /app/frontend/dist
+            # No OTLP collector in Cloud Run — disable to avoid deadline timeout errors
+            - name: OTEL_ENABLED
+              value: "false"
             - name: PYTHON_BIN
               value: /app/python/.venv/bin/python3
             - name: PYTHON_PROJECT_ROOT

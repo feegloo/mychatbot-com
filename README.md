@@ -233,7 +233,7 @@ get latest error logs from production:
 
 ```
 # App errors (Cloud Run)
-gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=200 --freshness=1h --format='value(timestamp, severity, textPayload)'
+gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=2000 --freshness=1h --format='value(timestamp, severity, textPayload)'
 
 # PostgreSQL logs (Cloud SQL)
 gcloud logging read 'resource.type="cloudsql_database" AND resource.labels.database_id="chatbotqa-app:chatrag-db-instance" AND log_name="projects/chatbotqa-app/logs/cloudsql.googleapis.com%2Fpostgres.log"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'

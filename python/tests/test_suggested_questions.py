@@ -161,3 +161,61 @@ def test_action_cap_is_enforced_after_dedup():
     # - max 7 action prompts
     assert len(result) <= 8
     assert any("Generate image inspired by:" in q for q in result)
+
+
+# ---------------------------------------------------------------------------
+# _extract_author_from_llm_actions — regression tests for name truncation
+# ---------------------------------------------------------------------------
+
+
+from shared.suggested_questions import _extract_author_from_llm_actions, _is_valid_author_name
+
+
+def test_extract_author_falls_through_single_char_abbreviation():
+    """When LLM abbreviates 'Paulo Coelho' to 'P', the who-pattern fallback
+    should recover the full name from the questions list."""
+    questions = [
+        "What is Santiago's Personal Legend?",
+        "Who is Paulo Coelho?",
+        "How does Fatima affect Santiago's journey?",
+        "Write inspired chapter like P \u270f\ufe0f",
+    ]
+    welcome = "This 136-page novel by Paulo Coelho follows Santiago..."
+    result = _extract_author_from_llm_actions(questions, welcome)
+    assert result == "Paulo Coelho"
+
+
+def test_extract_author_full_name_in_action():
+    """When LLM generates the full name in the action, it is returned directly."""
+    questions = [
+        "What is Santiago's Personal Legend?",
+        "Write inspired chapter like Paulo Coelho \u270f\ufe0f",
+    ]
+    welcome = "This 136-page novel by Paulo Coelho follows Santiago..."
+    result = _extract_author_from_llm_actions(questions, welcome)
+    assert result == "Paulo Coelho"
+
+
+def test_extract_author_by_pattern_fallback():
+    """Falls back to 'by [Name]' pattern in welcome message when LLM provides no action."""
+    questions = ["What is Santiago's Personal Legend?"]
+    welcome = "This 136-page novel by Paulo Coelho follows Santiago..."
+    result = _extract_author_from_llm_actions(questions, welcome)
+    assert result == "Paulo Coelho"
+
+
+def test_is_valid_author_name_rejects_single_char():
+    assert _is_valid_author_name("P") is False
+    assert _is_valid_author_name("J.") is False
+    assert _is_valid_author_name("") is False
+
+
+def test_is_valid_author_name_accepts_real_names():
+    assert _is_valid_author_name("Paulo Coelho") is True
+    assert _is_valid_author_name("Stephen King") is True
+    assert _is_valid_author_name("J.K. Rowling") is True
+
+
+def test_is_valid_author_name_rejects_mixed_case_phrase():
+    # "rozdział w stylu R" must not be treated as an author name
+    assert _is_valid_author_name("rozdział w stylu R") is False

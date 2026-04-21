@@ -61,7 +61,7 @@ from shared.metadata import enrich_metadata_web  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
 from shared.telemetry import close_db_pool  # noqa: E402
 from shared.url_fetch import _extract_visible_text, describe_url, fetch_url  # noqa: E402
-from shared.vector_store import collection_count  # noqa: E402
+from shared.vector_store import collection_count, query_chunks  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -148,6 +148,9 @@ class GenerateImageRequest(BaseModel):
     storage_dir: str
     context: str = ""
     welcome_messages: list[str] | None = None
+    collection_name: str = ""
+    conversation_id: str = ""
+    chat_history: list[dict] | None = None
     size: str = "1024x1024"
     quality: Literal["auto", "high", "low"] = "low"
 
@@ -442,23 +445,40 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
 async def generate_image_endpoint(req: GenerateImageRequest):
     """Generate an image from a text prompt using DALL-E.
 
-    1. Builds a visual prompt from the user's question + context
-    2. Calls OpenAI image generation API
-    3. Saves the image to the conversation's storage directory
-    4. Returns the file name (served via /api/storage/)
+    1. Queries top-10 RAG chunks matching the user's request for grounding
+    2. Builds a visual prompt from question + chunks + conversation history
+    3. Calls OpenAI image generation API
+    4. Saves the image and returns file name + source chunk references
     """
     try:
 
         def _generate():
-            # Build a detailed visual prompt from the user's request + context
+            # Retrieve top-10 document chunks relevant to the image request
+            rag_chunks: list[dict] = []
+            if req.collection_name and req.conversation_id:
+                try:
+                    rag_chunks = query_chunks(
+                        collection_name=req.collection_name,
+                        conversation_id=req.conversation_id,
+                        question=req.question,
+                        top_k=10,
+                    )
+                    logger.info(f"🔍 Retrieved {len(rag_chunks)} RAG chunks for image generation")
+                except Exception as exc:
+                    logger.warning(f"⚠️ Could not query RAG chunks for image: {exc}")
+
+            # Build a detailed visual prompt grounded in the retrieved sources
             prompt_result = build_image_prompt(
                 question=req.question,
                 context=req.context,
                 welcome_messages=req.welcome_messages,
+                rag_chunks=rag_chunks if rag_chunks else None,
+                chat_history=req.chat_history,
             )
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
-            logger.info(f"🎨 Image prompt: {image_prompt[:150]}...")
+            source_indices = prompt_result.get("source_indices", [])
+            logger.info(f"🎨 Image prompt: {image_prompt[:150]}... (sources: {source_indices})")
 
             # Generate and save the image
             result = generate_image(
@@ -469,6 +489,14 @@ async def generate_image_endpoint(req: GenerateImageRequest):
             )
             result["image_prompt"] = image_prompt
             result["image_title"] = image_title
+
+            # Resolve which chunks were cited by the model
+            cited_sources = [
+                rag_chunks[i]
+                for i in source_indices
+                if isinstance(i, int) and 0 <= i < len(rag_chunks)
+            ]
+            result["rag_sources"] = cited_sources
             return result
 
         result = await asyncio.to_thread(_generate)
