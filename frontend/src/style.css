@@ -1694,6 +1694,32 @@ h3 {
   border-color: #2e1065;
 }
 
+/* More-questions dropdown theme (VDropdown for suggested questions "More..." button) */
+.v-popper--theme-more-questions .v-popper__inner {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.v-popper--theme-more-questions .v-popper__arrow-container {
+  display: none;
+}
+
+.welcome-more-popper {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: min(420px, calc(100vw - 24px));
+  align-content: flex-start;
+}
+
+.welcome-more-popper .question-pill {
+  margin: 0;
+  white-space: normal;
+}
+
 /* ── Text-selection speech tooltip ── */
 .speech-tooltip {
   display: none;
