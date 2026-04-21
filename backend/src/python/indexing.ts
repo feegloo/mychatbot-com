@@ -75,7 +75,7 @@ export async function indexConversation(options: {
 }
 
 export type IndexStreamEvent = {
-  event: 'welcome_message' | 'complete' | 'error'
+  event: 'welcome_message' | 'page_progress' | 'complete' | 'error'
   data: Record<string, any>
 }
 

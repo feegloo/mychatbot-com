@@ -31,8 +31,21 @@ def _before_send(event, hint):
     if "ClientCreateCollectionEvent" in event.get("logentry", {}).get("message", ""):
         return None
     exc_info = hint.get("exc_info")
-    if exc_info and "ClientCreateCollectionEvent" in str(exc_info[1]):
-        return None
+    if exc_info:
+        exc_str = str(exc_info[1])
+        if "ClientCreateCollectionEvent" in exc_str:
+            return None
+        # Drop OpenTelemetry exporter noise (OTLP collector not reachable in Cloud Run)
+        module = getattr(exc_info[0], "__module__", "") or ""
+        if module.startswith("opentelemetry") or "opentelemetry" in exc_str.lower():
+            return None
+        if "ECONNREFUSED" in exc_str and ":4318" in exc_str:
+            return None
+    # Also scan stack frames for opentelemetry origin
+    for values in event.get("exception", {}).get("values", []) or []:
+        for frame in (values.get("stacktrace") or {}).get("frames", []) or []:
+            if "opentelemetry" in (frame.get("module") or "") or "opentelemetry" in (frame.get("filename") or ""):
+                return None
     return event
 
 
