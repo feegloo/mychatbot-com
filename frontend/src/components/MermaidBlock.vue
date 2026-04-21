@@ -72,10 +72,19 @@
         Fullscreen
       </button>
     </div>
-    <div v-show="mode === 'diagram' && ready" class="mermaid-diagram">
+    <div
+      v-show="mode === 'diagram' && ready"
+      class="mermaid-diagram"
+      :class="{ 'is-dragging': isDragging }"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+    >
       <div
         ref="diagramEl"
         class="mermaid-svg-wrapper"
+        :class="{ 'is-dragging': isDragging }"
         :style="{ transform: svgTransform }"
       ></div>
       <div class="mermaid-controls">
@@ -155,6 +164,13 @@ let renderCounter = 0
 const scale = ref(1)
 const panX = ref(0)
 const panY = ref(0)
+const isDragging = ref(false)
+
+let activePointerId: number | null = null
+let dragStartX = 0
+let dragStartY = 0
+let dragStartPanX = 0
+let dragStartPanY = 0
 
 const svgTransform = computed(
   () => `translate(${panX.value}px, ${panY.value}px) scale(${scale.value})`,
@@ -175,6 +191,52 @@ function panUp() { panY.value -= PAN_STEP }
 function panDown() { panY.value += PAN_STEP }
 function panLeft() { panX.value -= PAN_STEP }
 function panRight() { panX.value += PAN_STEP }
+
+function onPointerDown(event: PointerEvent) {
+  if (mode.value !== 'diagram' || !ready.value) return
+  if (event.pointerType !== 'touch' && event.button !== 0) return
+
+  const target = event.target
+  if (
+    target instanceof Element
+    && target.closest('.mermaid-controls, .mermaid-toolbar, .mermaid-ctrl-btn, .mermaid-tool-btn')
+  ) {
+    return
+  }
+
+  activePointerId = event.pointerId
+  dragStartX = event.clientX
+  dragStartY = event.clientY
+  dragStartPanX = panX.value
+  dragStartPanY = panY.value
+  isDragging.value = true
+
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement) {
+    currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  event.preventDefault()
+}
+
+function onPointerMove(event: PointerEvent) {
+  if (!isDragging.value || event.pointerId !== activePointerId) return
+  const deltaX = event.clientX - dragStartX
+  const deltaY = event.clientY - dragStartY
+  panX.value = dragStartPanX + deltaX
+  panY.value = dragStartPanY + deltaY
+}
+
+function onPointerUp(event: PointerEvent) {
+  if (event.pointerId !== activePointerId) return
+
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement) {
+    currentTarget.releasePointerCapture?.(event.pointerId)
+  }
+
+  isDragging.value = false
+  activePointerId = null
+}
 
 let mermaid: typeof mermaidType | null = null
 
@@ -309,11 +371,22 @@ watch(
   justify-content: center;
   overflow: hidden;
   min-height: 80px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mermaid-diagram.is-dragging {
+  cursor: grabbing;
 }
 
 .mermaid-svg-wrapper {
   transform-origin: center center;
-  transition: transform 0.12s ease;
+  transition: transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+
+.mermaid-svg-wrapper.is-dragging {
+  transition: none;
 }
 
 .mermaid-svg-wrapper :deep(svg) {
