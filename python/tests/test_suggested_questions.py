@@ -322,8 +322,9 @@ def test_quiz_pinned_first_for_language_learning_book_pl():
 
 
 def test_quiz_not_pinned_for_fiction_novel():
-    """Pure fiction novels should NOT get a pinned quiz — quiz belongs to educational
-    content. Fiction gets image + inspired-chapter; nothing else from us."""
+    """Fiction novels are outside the educational scope of this feature — we must
+    NOT inject a quiz for them. They still get the existing image + inspired-chapter
+    pins from the pre-existing logic."""
     welcome = (
         "## A Game of Thrones\n\n"
         "A novel by George R. R. Martin — fantasy series, chapter one, protagonist..."
@@ -342,10 +343,13 @@ def test_quiz_not_pinned_for_fiction_novel():
         welcome_message=welcome,
     )
 
-    # Quiz may legitimately be present for a novel under the new rule too, since
-    # fiction benefits from recall. Guard instead against language-learning logic
-    # misfiring: image must still be in slot 4, NOT quiz.
+    # Image prompt pinned in slot 4 (first action), inspired-chapter in slot 5,
+    # but our new quiz pin must NOT fire for fiction.
     assert result[3].startswith("Generate image inspired by:")
+    assert "inspired chapter" in result[4].lower()
+    assert not any(
+        q == "Create a quiz from the key facts 🧠" for q in result
+    ), f"Fiction must not get the pinned quiz prompt, got: {result}"
 
 
 def test_quiz_not_pinned_for_problem_document():

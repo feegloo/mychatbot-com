@@ -1040,9 +1040,11 @@ def _append_contextual_prompts(
         pinned_creative_prompt = random.choice(options)
 
     # Quiz pinning: educational ebooks / subject-matter guides benefit strongly from
-    # a quiz action. Problem documents explicitly prohibit creative content, so we
-    # never inject a quiz when a diagnosis/problem-doc contextual prompt has already
-    # taken the top slot, and the language-learning branch below handles its own case.
+    # a quiz action. We intentionally keep this scoped to educational content
+    # (self-help guides, ebooks, minibooks, textbooks) — fiction novels and poetry
+    # collections are not the target of this feature. Problem documents explicitly
+    # prohibit creative content, but they never match the patterns below so they
+    # are safe by construction. The language-learning branch is handled separately.
     quiz_prompt = (
         "Stwórz quiz z najważniejszych faktów 🧠"
         if language == "pl"
@@ -1050,10 +1052,9 @@ def _append_contextual_prompts(
     )
     should_pin_quiz = (
         not is_language_learning
-        and (is_educational_ebook or is_selfhelp or is_poetry_quotes or is_fiction)
+        and (is_educational_ebook or is_selfhelp)
     )
 
-    pinned: list[str]
     if is_language_learning:
         # Language-learning / teaching materials → quiz is the single most useful action,
         # so it takes the very first slot, ahead of the image prompt.
@@ -1065,12 +1066,20 @@ def _append_contextual_prompts(
         if should_pin_quiz:
             pinned.append(quiz_prompt)
 
-    # When we've pinned a quiz ourselves, filter out LLM-generated quiz duplicates
-    # (they often phrase the same action slightly differently and would sneak past
-    # the case-insensitive dedup below).
+    # When we've pinned a quiz ourselves, filter out LLM-generated quiz duplicates.
+    # Match only on the distinctive quiz emoji (🧠) or an action clearly starting
+    # with a quiz verb — this avoids dropping unrelated actions that happen to
+    # mention the word "quiz" in a different sense.
     quiz_is_pinned = quiz_prompt in pinned
     if quiz_is_pinned:
-        llm_actions = [a for a in llm_actions if "quiz" not in a.lower()]
+        def _is_quiz_action(action: str) -> bool:
+            stripped = action.lstrip()
+            return (
+                "🧠" in action
+                or stripped.lower().startswith(("quiz", "stwórz quiz", "create a quiz", "create quiz"))
+            )
+
+        llm_actions = [a for a in llm_actions if not _is_quiz_action(a)]
 
     actions = pinned + contextual + llm_actions
 
