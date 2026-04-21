@@ -51,9 +51,14 @@ askRouter.post('/ask', async (ctx) => {
   }
 
   if (data.conversation.status !== 'ready') {
-    ctx.status = 409
-    ctx.body = { error: 'Conversation is not ready yet', status: data.conversation.status }
-    return
+    // Allow questions once the welcome message exists (indexing still in progress).
+    // The RAG answers with whatever chunks are available at that point.
+    const hasWelcome = data.messages.some((m: { role: string }) => m.role === 'assistant')
+    if (!hasWelcome) {
+      ctx.status = 409
+      ctx.body = { error: 'Conversation is not ready yet', status: data.conversation.status }
+      return
+    }
   }
 
   const userMsgId = await insertConversationMessage({

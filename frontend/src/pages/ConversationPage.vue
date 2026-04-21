@@ -579,8 +579,13 @@ function scrollToBottom(smooth = false) {
 async function ask() {
   if (!question.value.trim()) return
   if (status.value.status !== 'ready') {
-    await loadConversation()
-    return
+    // Allow questions once the welcome message has arrived (indexing still in progress).
+    // The RAG will answer with whatever chunks are available so far.
+    const hasWelcome = messages.value.some((m) => m.role === 'assistant')
+    if (!hasWelcome) {
+      await loadConversation()
+      return
+    }
   }
 
   // Viewer mode: create a new conversation thread and navigate to it
