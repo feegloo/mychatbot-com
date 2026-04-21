@@ -378,7 +378,7 @@
           </div>
         </div>
         <div
-          v-if="(msg.generatingImage && asking && !isWelcome) || imagesPending"
+          v-if="asking && !isWelcome && (msg.generatingImage || imagesPending)"
           class="typing-dots"
         >
           <span></span><span></span><span></span>
