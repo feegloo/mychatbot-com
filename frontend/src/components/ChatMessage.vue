@@ -493,7 +493,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
-import { createTooltip, destroyTooltip } from 'floating-vue'
+import { createTooltip, destroyTooltip, Dropdown as VDropdownType } from 'floating-vue'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
@@ -666,7 +666,7 @@ const renderedSuggestedQuestions = computed(() =>
     html: renderInlineMarkdown(question),
   })),
 )
-const welcomeMoreDropdown = ref<any>(null)
+const welcomeMoreDropdown = ref<InstanceType<typeof VDropdownType> | null>(null)
 const welcomeVisibleQuestions = computed(() =>
   renderedSuggestedQuestions.value.slice(0, MAX_VISIBLE_WELCOME_PROMPTS),
 )
@@ -1079,6 +1079,8 @@ function onContentClick(e: MouseEvent) {
     if (!isOpen) {
       const menu = wrap.querySelector<HTMLElement>('.action-more-menu')
       if (menu) {
+        // Hide temporarily to avoid flash of incorrectly-positioned content
+        // while computePosition runs its async DOM measurements
         menu.style.visibility = 'hidden'
         wrap.classList.add('open')
         actionMoreBtn.setAttribute('aria-expanded', 'true')
@@ -1090,11 +1092,16 @@ function onContentClick(e: MouseEvent) {
             flip({ fallbackPlacements: ['left-start', 'bottom-start', 'top-start'] }),
             shift({ padding: 8 }),
           ],
-        }).then(({ x, y }) => {
-          menu.style.left = `${x}px`
-          menu.style.top = `${y}px`
-          menu.style.visibility = ''
         })
+          .then(({ x, y }) => {
+            menu.style.left = `${x}px`
+            menu.style.top = `${y}px`
+            menu.style.visibility = ''
+          })
+          .catch(() => {
+            // Ensure the menu is always visible even if positioning fails
+            menu.style.visibility = ''
+          })
       } else {
         wrap.classList.add('open')
         actionMoreBtn.setAttribute('aria-expanded', 'true')
