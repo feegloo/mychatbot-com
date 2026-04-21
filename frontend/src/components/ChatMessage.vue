@@ -199,19 +199,15 @@
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span class="suggested-question-markdown" v-html="question.html"></span>
             </div>
-            <div
+            <VDropdown
               v-if="welcomeHiddenQuestions.length"
-              class="question-pill welcome-more-wrap"
-              role="button"
-              tabindex="0"
-              aria-haspopup="menu"
-              :aria-expanded="welcomeMoreOpen"
-              @click.stop="toggleWelcomeMore"
-              @keydown="onWelcomeMoreKeydown"
+              ref="welcomeMoreDropdown"
+              theme="more-questions"
+              :distance="6"
             >
-              More ...
-              <transition name="fade-right">
-                <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
+              <div class="question-pill" role="button" tabindex="0">More ...</div>
+              <template #popper>
+                <div class="welcome-more-popper" role="menu">
                   <div
                     v-for="question in welcomeHiddenQuestions"
                     :key="`more-${question.raw}`"
@@ -225,8 +221,8 @@
                     <span class="suggested-question-markdown" v-html="question.html"></span>
                   </div>
                 </div>
-              </transition>
-            </div>
+              </template>
+            </VDropdown>
           </div>
 
           <div
@@ -401,19 +397,15 @@
           <!-- eslint-disable-next-line vue/no-v-html -->
           <span class="suggested-question-markdown" v-html="question.html"></span>
         </div>
-        <div
+        <VDropdown
           v-if="welcomeHiddenQuestions.length"
-          class="question-pill welcome-more-wrap"
-          role="button"
-          tabindex="0"
-          aria-haspopup="menu"
-          :aria-expanded="welcomeMoreOpen"
-          @click.stop="toggleWelcomeMore"
-          @keydown="onWelcomeMoreKeydown"
+          ref="welcomeMoreDropdown"
+          theme="more-questions"
+          :distance="6"
         >
-          More ...
-          <transition name="fade-right">
-            <div v-if="welcomeMoreOpen" class="welcome-more-menu" role="menu" @click.stop>
+          <div class="question-pill" role="button" tabindex="0">More ...</div>
+          <template #popper>
+            <div class="welcome-more-popper" role="menu">
               <div
                 v-for="question in welcomeHiddenQuestions"
                 :key="`more-${question.raw}`"
@@ -427,8 +419,8 @@
                 <span class="suggested-question-markdown" v-html="question.html"></span>
               </div>
             </div>
-          </transition>
-        </div>
+          </template>
+        </VDropdown>
       </div>
 
       <!-- Upload files button (first message only, non-2-col fallback) -->
@@ -501,7 +493,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
-import { createTooltip, destroyTooltip } from 'floating-vue'
+import { createTooltip, destroyTooltip, Dropdown as VDropdownType } from 'floating-vue'
+import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
@@ -673,7 +666,7 @@ const renderedSuggestedQuestions = computed(() =>
     html: renderInlineMarkdown(question),
   })),
 )
-const welcomeMoreOpen = ref(false)
+const welcomeMoreDropdown = ref<InstanceType<typeof VDropdownType> | null>(null)
 const welcomeVisibleQuestions = computed(() =>
   renderedSuggestedQuestions.value.slice(0, MAX_VISIBLE_WELCOME_PROMPTS),
 )
@@ -705,21 +698,7 @@ function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
 }
 
 function closeWelcomeMore() {
-  welcomeMoreOpen.value = false
-}
-
-function toggleWelcomeMore() {
-  welcomeMoreOpen.value = !welcomeMoreOpen.value
-}
-
-function onWelcomeMoreKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    closeWelcomeMore()
-    return
-  }
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  if (event.key === ' ') event.preventDefault()
-  toggleWelcomeMore()
+  welcomeMoreDropdown.value?.hide()
 }
 
 const messageContentEl = ref<HTMLElement | null>(null)
@@ -1008,6 +987,12 @@ function closeActionMenus() {
     wrap.classList.remove('open')
     const btn = wrap.querySelector<HTMLElement>('.action-more-btn')
     if (btn) btn.setAttribute('aria-expanded', 'false')
+    const menu = wrap.querySelector<HTMLElement>('.action-more-menu')
+    if (menu) {
+      menu.style.left = ''
+      menu.style.top = ''
+      menu.style.visibility = ''
+    }
   })
 }
 
@@ -1092,8 +1077,35 @@ function onContentClick(e: MouseEvent) {
     const isOpen = wrap.classList.contains('open')
     closeActionMenus()
     if (!isOpen) {
-      wrap.classList.add('open')
-      actionMoreBtn.setAttribute('aria-expanded', 'true')
+      const menu = wrap.querySelector<HTMLElement>('.action-more-menu')
+      if (menu) {
+        // Hide temporarily to avoid flash of incorrectly-positioned content
+        // while computePosition runs its async DOM measurements
+        menu.style.visibility = 'hidden'
+        wrap.classList.add('open')
+        actionMoreBtn.setAttribute('aria-expanded', 'true')
+        computePosition(actionMoreBtn, menu, {
+          placement: 'right-start',
+          strategy: 'fixed',
+          middleware: [
+            offset(8),
+            flip({ fallbackPlacements: ['left-start', 'bottom-start', 'top-start'] }),
+            shift({ padding: 8 }),
+          ],
+        })
+          .then(({ x, y }) => {
+            menu.style.left = `${x}px`
+            menu.style.top = `${y}px`
+            menu.style.visibility = ''
+          })
+          .catch(() => {
+            // Ensure the menu is always visible even if positioning fails
+            menu.style.visibility = ''
+          })
+      } else {
+        wrap.classList.add('open')
+        actionMoreBtn.setAttribute('aria-expanded', 'true')
+      }
     }
     return
   }
@@ -1669,34 +1681,6 @@ function openFilePreview(file: FileInfo) {
   margin: 0 6px 8px 0;
 }
 
-.welcome-more-wrap {
-  position: relative;
-}
-
-.welcome-more-menu {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 8px);
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6px;
-  z-index: 7;
-  align-content: flex-start;
-}
-
-@media (max-width: 768px) {
-  .welcome-more-menu {
-    left: auto;
-    right: 0;
-    top: calc(100% + 8px);
-  }
-}
-
-.welcome-more-menu .welcome-more-item {
-  margin: 0;
-}
-
 @keyframes fade-in-right {
   from {
     opacity: 0;
@@ -1706,14 +1690,6 @@ function openFilePreview(file: FileInfo) {
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.fade-right-enter-active {
-  animation: fade-in-right 0.2s ease-out;
-}
-
-.fade-right-leave-active {
-  animation: fade-in-right 0.15s ease-in reverse;
 }
 
 .welcome-suggested-questions .question-pill:focus-visible {
@@ -1832,25 +1808,17 @@ function openFilePreview(file: FileInfo) {
 }
 
 :deep(.action-more-menu) {
-  position: absolute;
+  position: fixed;
+  left: 0;
   top: 0;
-  left: calc(100% + 8px);
   display: none;
   flex-direction: column;
   gap: 6px;
-  z-index: 7;
+  z-index: 100;
   min-width: 240px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   padding: 8px;
-}
-
-@media (max-width: 768px) {
-  :deep(.action-more-menu) {
-    left: auto;
-    right: 0;
-    top: calc(100% + 8px);
-  }
 }
 
 :deep(.action-more-wrap.open .action-more-menu) {

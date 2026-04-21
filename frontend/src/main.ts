@@ -37,4 +37,9 @@ Sentry.lazyLoadIntegration('replayIntegration').then((replay) => {
   )
 })
 
+FloatingVue.options.themes['more-questions'] = {
+  $extend: 'dropdown',
+  placement: 'top-start',
+}
+
 app.use(router).use(FloatingVue).mount('#app')
