@@ -290,8 +290,10 @@ def test_quiz_pinned_first_for_language_learning_book_en():
         "Which grammar points are explained?",
         "What level is this book for?",
     ]
-    # 4th slot (first action) MUST be the quiz — ahead of the image prompt
-    assert result[3] == "Create a quiz from the key facts 🧠"
+    # 4th slot (first action) MUST be a quiz — ahead of the image prompt. The EN
+    # welcome mentions both "grammar" and "vocabulary", so the generic
+    # "material" variant is selected.
+    assert result[3] == "Create a quiz from the material 🧠"
     # Image prompt follows in 5th slot
     assert result[4].startswith("Generate image inspired by:")
 
@@ -317,8 +319,105 @@ def test_quiz_pinned_first_for_language_learning_book_pl():
         welcome_message=welcome,
     )
 
-    assert result[3] == "Stwórz quiz z najważniejszych faktów 🧠"
+    # PL welcome mentions both "gramatycznymi" (→ grammar) and "słownictwem"
+    # (→ vocabulary), so the generic "materiału" variant is selected.
+    assert result[3] == "Stwórz quiz z materiału 🧠"
     assert result[4].startswith("Wygeneruj obraz inspirowany:")
+
+
+def test_language_learning_quiz_prompt_specialises_to_vocabulary():
+    """When only vocabulary keywords are present, the pinned quiz uses the
+    vocabulary variant — aligning with the updated PL/EN prompt guidance."""
+    welcome = (
+        "## English Vocabulary for Intermediate Learners\n\n"
+        "A workbook to expand your English vocabulary with themed lessons."
+    )
+    result = _append_contextual_prompts(
+        questions=["Q1", "Q2", "Q3", "Action 📓", "Action 🃏"],
+        file_names=None,
+        file_types=None,
+        language="en",
+        welcome_message=welcome,
+    )
+    assert result[3] == "Create a vocabulary quiz 🧠"
+
+
+def test_language_learning_quiz_prompt_specialises_to_grammar_pl():
+    """When only grammar keywords are present (PL), the pinned quiz uses the
+    grammar variant."""
+    welcome = (
+        "## Gramatyka hiszpańska\n\n"
+        "Podręcznik do nauki hiszpańskiego — omawia gramatykę i reguły składniowe."
+    )
+    result = _append_contextual_prompts(
+        questions=["P1", "P2", "P3", "Akcja 📓", "Akcja 🃏"],
+        file_names=None,
+        file_types=None,
+        language="pl",
+        welcome_message=welcome,
+    )
+    assert result[3] == "Stwórz quiz z gramatyki 🧠"
+
+
+def test_educational_ebook_without_author_keeps_quiz_at_third_slot():
+    """Educational ebook that matches neither the fiction/poetry/self-help
+    with-author branches still has the quiz pinned in the 3rd action slot
+    (via a non-author creative fallback)."""
+    welcome = (
+        "## Introduction to Social Psychology\n\n"
+        "An educational ebook / textbook covering the foundations of social psychology."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What does this textbook cover?",
+            "Which schools of thought are discussed?",
+            "How is the material structured?",
+            "Create study notes 📓",
+            "Draw a mind map 🧩",
+        ],
+        file_names=["intro-social-psych.pdf"],
+        file_types={"intro-social-psych.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+    # 4th slot: image prompt
+    assert result[3].startswith("Generate image inspired by:")
+    # 5th slot: non-author creative fallback prompt (inspired chapter based on subject)
+    assert "inspired chapter based on" in result[4].lower()
+    # 6th slot: quiz — still 3rd of the pinned actions, not 2nd
+    assert result[5] == "Create a quiz from the key facts 🧠"
+
+
+def test_educational_ebook_multi_word_introduction_title_is_detected():
+    """Regression: `introduction to social psychology` (multi-word subject)
+    must satisfy `_EDUCATIONAL_EBOOK_PATTERN` so the quiz gets pinned."""
+    from shared.suggested_questions import _EDUCATIONAL_EBOOK_PATTERN
+    assert _EDUCATIONAL_EBOOK_PATTERN.search("Introduction to Social Psychology")
+    assert _EDUCATIONAL_EBOOK_PATTERN.search("Wprowadzenie do psychologii społecznej")
+
+
+def test_quiz_dedup_spares_brainstorm_actions_with_brain_emoji():
+    """🧠 alone (without a 'quiz' keyword) must not be enough to drop an LLM
+    action — otherwise brainstorm/think prompts get wiped when we pin a quiz."""
+    welcome = "## Minibook o nawykach\n\nEbook o produktywności i samorozwoju."
+    result = _append_contextual_prompts(
+        questions=[
+            "O czym jest minibook?",
+            "Jakie nawyki są omówione?",
+            "Dla kogo jest?",
+            "Burza mózgów: nowe nawyki 🧠",  # brainstorm, not a quiz — must survive
+            "Napisz post 📱",
+        ],
+        file_names=None,
+        file_types=None,
+        language="pl",
+        welcome_message=welcome,
+    )
+    assert any("Burza mózgów" in q for q in result), (
+        f"Brainstorm action was incorrectly dropped by quiz dedup: {result}"
+    )
+    # Exactly one quiz must remain (the pinned one)
+    assert sum(1 for q in result if "quiz" in q.lower()) == 1
 
 
 def test_quiz_not_pinned_for_fiction_novel():

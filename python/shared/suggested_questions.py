@@ -785,7 +785,7 @@ _EDUCATIONAL_EBOOK_PATTERN = re.compile(
     r"ebook|e-book|minibook|mini-book|podręcznik|textbook|"
     r"(?:study|course|learning|teaching)\s+guide|course\s+material|lecture\s+notes|"
     r"lesson\s+plan|curriculum|edukacyjn[yaąe]|educational\s+(?:material|book|content|resource)|"
-    r"introduction\s+to\s+\w+|wprowadzenie\s+do\s+\w+|"
+    r"introduction\s+to\s+\w+(?:\s+\w+){0,5}|wprowadzenie\s+do\s+\w+(?:\s+\w+){0,5}|"
     r"wszystko,?\s+co\s+musisz\s+wiedzieć|everything\s+you\s+(?:need|have)\s+to\s+know"
     r")\b",
     re.IGNORECASE,
@@ -1045,39 +1045,79 @@ def _append_contextual_prompts(
     # collections are not the target of this feature. Problem documents explicitly
     # prohibit creative content, but they never match the patterns below so they
     # are safe by construction. The language-learning branch is handled separately.
-    quiz_prompt = (
+    generic_quiz_prompt = (
         "Stwórz quiz z najważniejszych faktów 🧠"
         if language == "pl"
         else "Create a quiz from the key facts 🧠"
     )
+
+    # For language-learning material, tailor the quiz prompt to the detected
+    # sub-topic so the pinned action aligns with the updated prompt guidance
+    # ("Create a vocabulary quiz", "Create a grammar quiz", etc.).
+    def _language_learning_quiz_prompt() -> str:
+        text_lower = combined_text.lower()
+        # "gramaty" covers gramatyka/gramatyki/gramatyczny/gramatycznymi; "grammar"
+        # covers the English side. "słownictw" covers słownictwo/słownictwa/słownictwem.
+        has_grammar = "grammar" in text_lower or "gramaty" in text_lower
+        has_vocabulary = "vocabulary" in text_lower or "słownictw" in text_lower
+        if language == "pl":
+            if has_grammar and not has_vocabulary:
+                return "Stwórz quiz z gramatyki 🧠"
+            if has_vocabulary and not has_grammar:
+                return "Stwórz quiz ze słownictwa 🧠"
+            return "Stwórz quiz z materiału 🧠"
+        if has_grammar and not has_vocabulary:
+            return "Create a grammar quiz 🧠"
+        if has_vocabulary and not has_grammar:
+            return "Create a vocabulary quiz 🧠"
+        return "Create a quiz from the material 🧠"
+
     should_pin_quiz = (
         not is_language_learning
         and (is_educational_ebook or is_selfhelp)
     )
 
+    # For educational ebooks / self-help without an author-dependent creative prompt,
+    # fall back to a neutral creative action so the quiz still lands in the 3rd pinned
+    # slot (matching the documented "image → inspired … → quiz" ordering).
+    if (
+        should_pin_quiz
+        and pinned_creative_prompt is None
+        and (is_educational_ebook or is_selfhelp)
+    ):
+        subject_for_creative = subject if len(subject) <= 45 else subject[:42] + "..."
+        pinned_creative_prompt = (
+            f"Napisz inspirowany rozdział na podstawie: {subject_for_creative} ✏️"
+            if language == "pl"
+            else f"Write inspired chapter based on: {subject_for_creative} ✏️"
+        )
+
     if is_language_learning:
         # Language-learning / teaching materials → quiz is the single most useful action,
         # so it takes the very first slot, ahead of the image prompt.
+        quiz_prompt = _language_learning_quiz_prompt()
         pinned = [quiz_prompt, pinned_image_prompt]
     else:
+        quiz_prompt = generic_quiz_prompt
         pinned = [pinned_image_prompt]
         if pinned_creative_prompt:
             pinned.append(pinned_creative_prompt)
         if should_pin_quiz:
             pinned.append(quiz_prompt)
 
-    # When we've pinned a quiz ourselves, filter out LLM-generated quiz duplicates.
-    # Match only on the distinctive quiz emoji (🧠) or an action clearly starting
-    # with a quiz verb — this avoids dropping unrelated actions that happen to
-    # mention the word "quiz" in a different sense.
+    # Treat an action as quiz-related only when it shows quiz intent. The 🧠 emoji
+    # alone is not enough, because unrelated "brainstorm"/"think" actions may also
+    # use it.
     quiz_is_pinned = quiz_prompt in pinned
     if quiz_is_pinned:
         def _is_quiz_action(action: str) -> bool:
             stripped = action.lstrip()
-            return (
-                "🧠" in action
-                or stripped.lower().startswith(("quiz", "stwórz quiz", "create a quiz", "create quiz"))
+            lowered = stripped.lower()
+            has_quiz_keyword = re.search(r"\bquiz\b", lowered) is not None
+            starts_like_quiz = lowered.startswith(
+                ("quiz", "stwórz quiz", "create a quiz", "create quiz")
             )
+            return starts_like_quiz or ("🧠" in action and has_quiz_keyword)
 
         llm_actions = [a for a in llm_actions if not _is_quiz_action(a)]
 
