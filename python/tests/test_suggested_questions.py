@@ -219,3 +219,282 @@ def test_is_valid_author_name_accepts_real_names():
 def test_is_valid_author_name_rejects_mixed_case_phrase():
     # "rozdział w stylu R" must not be treated as an author name
     assert _is_valid_author_name("rozdział w stylu R") is False
+
+
+# ---------------------------------------------------------------------------
+# Quiz pinning — educational ebooks & language-learning materials
+# ---------------------------------------------------------------------------
+
+
+def test_quiz_pinned_as_third_action_for_educational_ebook_pl():
+    """Minibook/ebook about a concrete subject → quiz appears as the 3rd pinned action,
+    right after the generate-image prompt and the creative "inspired chapter" prompt.
+    Screenshot scenario: 'Minibook o granicach' by Matylda Kozakiewicz."""
+    welcome = (
+        "## Minibook o granicach\n\n"
+        "Minibook autorstwa Matyldy Kozakiewicz — poradnik i ebook o zdrowym "
+        "stawianiu granic. Wszystko, co musisz wiedzieć o granicach w relacjach."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "O czym jest ten minibook?",
+            "Jak Matylda Kozakiewicz definiuje granice?",
+            "Kim jest Matylda Kozakiewicz?",
+            "Stwórz oś czasu wydarzeń 📅",
+            "Napisz post na LinkedIn 📱",
+        ],
+        file_names=["Minibook-o-granicach.pdf"],
+        file_types={"Minibook-o-granicach.pdf": "document"},
+        language="pl",
+        welcome_message=welcome,
+    )
+
+    # First 3 are the natural questions
+    assert result[:3] == [
+        "O czym jest ten minibook?",
+        "Jak Matylda Kozakiewicz definiuje granice?",
+        "Kim jest Matylda Kozakiewicz?",
+    ]
+    # 4th slot: pinned image prompt
+    assert result[3].startswith("Wygeneruj obraz inspirowany:")
+    # 5th slot: creative "inspired" prompt (chapter, tips, exercises, etc.)
+    assert "Matyld" in result[4]
+    # 6th slot: pinned quiz
+    assert result[5] == "Stwórz quiz z najważniejszych faktów 🧠"
+
+
+def test_quiz_pinned_first_for_language_learning_book_en():
+    """English-language textbook → quiz is the TOP action, even before the image prompt."""
+    welcome = (
+        "## English Grammar for Beginners\n\n"
+        "A textbook for learners of English as a second language — vocabulary, "
+        "grammar exercises, and reading practice."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What topics are covered?",
+            "Which grammar points are explained?",
+            "What level is this book for?",
+            "Create study notes 📓",
+            "Create flashcards 🃏",
+        ],
+        file_names=["english-grammar.pdf"],
+        file_types={"english-grammar.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+
+    # First 3 are natural questions
+    assert result[:3] == [
+        "What topics are covered?",
+        "Which grammar points are explained?",
+        "What level is this book for?",
+    ]
+    # 4th slot (first action) MUST be a quiz — ahead of the image prompt. The EN
+    # welcome mentions both "grammar" and "vocabulary", so the generic
+    # "material" variant is selected.
+    assert result[3] == "Create a quiz from the material 🧠"
+    # Image prompt follows in 5th slot
+    assert result[4].startswith("Generate image inspired by:")
+
+
+def test_quiz_pinned_first_for_language_learning_book_pl():
+    """Polish-language textbook for learning a foreign language → quiz is first."""
+    welcome = (
+        "## Podręcznik do angielskiego\n\n"
+        "Kurs języka angielskiego dla początkujących. Nauka angielskiego z "
+        "ćwiczeniami gramatycznymi i słownictwem."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "Jakie tematy są omówione?",
+            "Jaki poziom prezentuje książka?",
+            "Dla kogo jest przeznaczona?",
+            "Stwórz fiszki 🃏",
+            "Stwórz notatki 📓",
+        ],
+        file_names=["angielski.pdf"],
+        file_types={"angielski.pdf": "document"},
+        language="pl",
+        welcome_message=welcome,
+    )
+
+    # PL welcome mentions both "gramatycznymi" (→ grammar) and "słownictwem"
+    # (→ vocabulary), so the generic "materiału" variant is selected.
+    assert result[3] == "Stwórz quiz z materiału 🧠"
+    assert result[4].startswith("Wygeneruj obraz inspirowany:")
+
+
+def test_language_learning_quiz_prompt_specialises_to_vocabulary():
+    """When only vocabulary keywords are present, the pinned quiz uses the
+    vocabulary variant — aligning with the updated PL/EN prompt guidance."""
+    welcome = (
+        "## English Vocabulary for Intermediate Learners\n\n"
+        "A workbook to expand your English vocabulary with themed lessons."
+    )
+    result = _append_contextual_prompts(
+        questions=["Q1", "Q2", "Q3", "Action 📓", "Action 🃏"],
+        file_names=None,
+        file_types=None,
+        language="en",
+        welcome_message=welcome,
+    )
+    assert result[3] == "Create a vocabulary quiz 🧠"
+
+
+def test_language_learning_quiz_prompt_specialises_to_grammar_pl():
+    """When only grammar keywords are present (PL), the pinned quiz uses the
+    grammar variant."""
+    welcome = (
+        "## Gramatyka hiszpańska\n\n"
+        "Podręcznik do nauki hiszpańskiego — omawia gramatykę i reguły składniowe."
+    )
+    result = _append_contextual_prompts(
+        questions=["P1", "P2", "P3", "Akcja 📓", "Akcja 🃏"],
+        file_names=None,
+        file_types=None,
+        language="pl",
+        welcome_message=welcome,
+    )
+    assert result[3] == "Stwórz quiz z gramatyki 🧠"
+
+
+def test_educational_ebook_without_author_keeps_quiz_at_third_slot():
+    """Educational ebook that matches neither the fiction/poetry/self-help
+    with-author branches still has the quiz pinned in the 3rd action slot
+    (via a non-author creative fallback)."""
+    welcome = (
+        "## Introduction to Social Psychology\n\n"
+        "An educational ebook / textbook covering the foundations of social psychology."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What does this textbook cover?",
+            "Which schools of thought are discussed?",
+            "How is the material structured?",
+            "Create study notes 📓",
+            "Draw a mind map 🧩",
+        ],
+        file_names=["intro-social-psych.pdf"],
+        file_types={"intro-social-psych.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+    # 4th slot: image prompt
+    assert result[3].startswith("Generate image inspired by:")
+    # 5th slot: non-author creative fallback prompt (inspired chapter based on subject)
+    assert "inspired chapter based on" in result[4].lower()
+    # 6th slot: quiz — still 3rd of the pinned actions, not 2nd
+    assert result[5] == "Create a quiz from the key facts 🧠"
+
+
+def test_educational_ebook_multi_word_introduction_title_is_detected():
+    """Regression: `introduction to social psychology` (multi-word subject)
+    must satisfy `_EDUCATIONAL_EBOOK_PATTERN` so the quiz gets pinned."""
+    from shared.suggested_questions import _EDUCATIONAL_EBOOK_PATTERN
+    assert _EDUCATIONAL_EBOOK_PATTERN.search("Introduction to Social Psychology")
+    assert _EDUCATIONAL_EBOOK_PATTERN.search("Wprowadzenie do psychologii społecznej")
+
+
+def test_quiz_dedup_spares_brainstorm_actions_with_brain_emoji():
+    """🧠 alone (without a 'quiz' keyword) must not be enough to drop an LLM
+    action — otherwise brainstorm/think prompts get wiped when we pin a quiz."""
+    welcome = "## Minibook o nawykach\n\nEbook o produktywności i samorozwoju."
+    result = _append_contextual_prompts(
+        questions=[
+            "O czym jest minibook?",
+            "Jakie nawyki są omówione?",
+            "Dla kogo jest?",
+            "Burza mózgów: nowe nawyki 🧠",  # brainstorm, not a quiz — must survive
+            "Napisz post 📱",
+        ],
+        file_names=None,
+        file_types=None,
+        language="pl",
+        welcome_message=welcome,
+    )
+    assert "Burza mózgów: nowe nawyki 🧠" in result, (
+        f"Brainstorm action was incorrectly dropped by quiz dedup: {result}"
+    )
+    # Exactly one quiz must remain (the pinned one)
+    assert sum(1 for q in result if "quiz" in q.lower()) == 1
+
+
+def test_quiz_not_pinned_for_fiction_novel():
+    """Fiction novels are outside the educational scope of this feature — we must
+    NOT inject a quiz for them. They still get the existing image + inspired-chapter
+    pins from the pre-existing logic."""
+    welcome = (
+        "## A Game of Thrones\n\n"
+        "A novel by George R. R. Martin — fantasy series, chapter one, protagonist..."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What is this novel about?",
+            "Who is the protagonist?",
+            "Who is George R. R. Martin?",
+            "Create a mind map 🧩",
+            "Create a timeline 📅",
+        ],
+        file_names=["got.pdf"],
+        file_types={"got.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+
+    # Image prompt pinned in slot 4 (first action), inspired-chapter in slot 5,
+    # but our new quiz pin must NOT fire for fiction.
+    assert result[3].startswith("Generate image inspired by:")
+    assert "inspired chapter" in result[4].lower()
+    assert not any(
+        q == "Create a quiz from the key facts 🧠" for q in result
+    ), f"Fiction must not get the pinned quiz prompt, got: {result}"
+
+
+def test_quiz_not_pinned_for_problem_document():
+    """Problem documents (ZUS, wezwania etc.) must not get a creative quiz prompt
+    injected — they don't match any of our content-type patterns."""
+    welcome = (
+        "## Wezwanie do zapłaty\n\n"
+        "Pismo z ZUS w sprawie zaległości składek. Termin odpowiedzi 14 dni."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "Jaki jest termin na odpowiedź?",
+            "Co dokładnie muszę złożyć?",
+            "Czy mogę odwołać się?",
+            "Lista kroków do rozwiązania problemu ✅",
+            "Napisz odpowiedź na to pismo 📝",
+        ],
+        file_names=["wezwanie.pdf"],
+        file_types={"wezwanie.pdf": "document"},
+        language="pl",
+        welcome_message=welcome,
+    )
+
+    assert not any(
+        "quiz" in q.lower() for q in result
+    ), f"Problem document should not have a quiz pinned, got: {result}"
+
+
+def test_llm_generated_quiz_deduplicated_when_pinned():
+    """When we pin our own quiz prompt, a near-duplicate quiz action from the LLM
+    should be filtered out so users don't see two quiz entries."""
+    welcome = "## Minibook o nawykach\n\nEbook o produktywności i samorozwoju."
+    result = _append_contextual_prompts(
+        questions=[
+            "O czym jest minibook?",
+            "Jakie nawyki są omówione?",
+            "Dla kogo jest?",
+            "Stwórz quiz ze szczegółów 🧠",  # LLM-generated quiz — should be filtered
+            "Stwórz oś czasu 📅",
+            "Napisz post 📱",
+        ],
+        file_names=["nawyki.pdf"],
+        file_types={"nawyki.pdf": "document"},
+        language="pl",
+        welcome_message=welcome,
+    )
+
+    quiz_count = sum(1 for q in result if "quiz" in q.lower())
+    assert quiz_count == 1, f"Expected exactly 1 quiz prompt, got {quiz_count}: {result}"
