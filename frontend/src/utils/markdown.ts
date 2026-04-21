@@ -194,10 +194,12 @@ export function renderMarkdown(content: string): string {
       '<line x1="12" y1="3" x2="12" y2="15"/>' +
       '</svg>Upload more files</button>',
   )
-  // Wrap consecutive action buttons in an inline container (like welcome message pills)
+  // Wrap consecutive action buttons in a block container — the AI outputs all [action:]
+  // markers on a single line so they arrive as siblings with only whitespace between them.
+  // Using a <div> makes the button row block-level so it sits on its own line after the answer.
   const withActionsWrapped = withUpload.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
-    '<span class="action-btns-row">$1</span>',
+    '<div class="action-btns-row">$1</div>',
   )
   // Add target="_blank" to all <a> tags that don't already have it
   const withTargetBlank = withActionsWrapped.replace(

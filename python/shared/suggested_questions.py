@@ -685,18 +685,45 @@ _AUTHOR_FROM_STYLE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Matches "by Paulo Coelho" or "autor: Paulo Coelho" in descriptions/welcome messages
+_AUTHOR_BY_PATTERN = re.compile(
+    r"\bby\s+([A-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇ][a-zA-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇáéíóúàâäčęňšžůýæøèùêëìîïðñõœüç'\-]+(?:\s+[A-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇ][a-zA-ZÁÉÍÓÚÀÂÄČĘŇŠŽŮÝÆØÈÙÊËÌÎÏÐÑÕŒÜÇáéíóúàâäčęňšžůýæøèùêëìîïðñõœüç'\-]+)*)",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_author_name(name: str) -> bool:
+    """Return True if the extracted string looks like a real author name.
+
+    Rejects single-character initials (e.g. "P", "J.") that LLMs sometimes
+    generate when abbreviating author names.
+    """
+    if not name or len(name) < 3:
+        return False
+    # At least one word part must be 2+ letters (not just "P." or "J. K.")
+    parts = re.split(r"[\s.]+", name)
+    real_words = [p for p in parts if len(p) >= 2 and re.search(r"[a-zA-ZÀ-ÿ]", p)]
+    return len(real_words) >= 1
+
 
 def _extract_author_from_llm_actions(
     llm_actions: list[str],
     welcome_message: str,
 ) -> str | None:
-    """Try to extract author name from LLM-generated action prompts or welcome message."""
+    """Try to extract author name from LLM-generated action prompts or welcome message.
+
+    Falls through each strategy in priority order, skipping any result that looks
+    like a truncated initial (e.g. "P") rather than a real name.
+    """
+    # 1. Style pattern in LLM actions (e.g. "Write chapter like Paulo Coelho ✏️")
     for action in llm_actions:
         m = _AUTHOR_FROM_STYLE_PATTERN.search(action)
         if m:
-            return m.group(1).strip()
+            candidate = m.group(1).strip()
+            if _is_valid_author_name(candidate):
+                return candidate
 
-    # Fallback: look for "Kim jest/był [Name]?" pattern in questions or welcome
+    # 2. "Who is/was [Name]?" pattern in questions and welcome message
     who_pattern = re.compile(
         r"(?:Kim (?:jest|był[a]?)|Who (?:is|was))\s+(.+?)\??",
         re.IGNORECASE,
@@ -704,10 +731,23 @@ def _extract_author_from_llm_actions(
     for text in llm_actions:
         m = who_pattern.search(text)
         if m:
-            return m.group(1).strip().rstrip("?")
+            candidate = m.group(1).strip().rstrip("?")
+            if _is_valid_author_name(candidate):
+                return candidate
     m = who_pattern.search(welcome_message)
     if m:
-        return m.group(1).strip().rstrip("?")
+        candidate = m.group(1).strip().rstrip("?")
+        if _is_valid_author_name(candidate):
+            return candidate
+
+    # 3. "by [Author Name]" pattern in the description / welcome message — catches
+    #    phrases like "This novel by Paulo Coelho..." when the LLM output is unhelpful.
+    m = _AUTHOR_BY_PATTERN.search(welcome_message)
+    if m:
+        candidate = m.group(1).strip()
+        if _is_valid_author_name(candidate):
+            return candidate
+
     return None
 
 

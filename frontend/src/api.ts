@@ -104,6 +104,8 @@ export type ChatMessage = {
   userId?: number
   threadReplyCount?: number
   isParentMessage?: boolean
+  /** Set to true while an image is being generated, to show the animated loading state. */
+  generatingImage?: boolean
 }
 
 export type ConversationStatus = {

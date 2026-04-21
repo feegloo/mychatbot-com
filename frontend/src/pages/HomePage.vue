@@ -284,7 +284,7 @@ async function submitQuestion() {
     )
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     if (isImageGen) {
-      reactiveMsg.content = '🎨 Generating image, please wait...'
+      reactiveMsg.generatingImage = true
     }
     const response = await Promise.race([
       isImageGen ? generateImage(convId, currentQuestion) : askQuestion(convId, currentQuestion),

@@ -1175,6 +1175,12 @@ li:has(.checklist-box) {
   height: 24px;
 }
 
+.image-generating-label {
+  color: #a78bfa;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
 .typing-dots span {
   width: 7px;
   height: 7px;
@@ -1297,6 +1303,11 @@ textarea.big-input {
 
 .action-btn {
     text-wrap: nowrap !important;
+    background: #242832;
+}
+
+.question-pill {
+  background: #242832;
 }
 
 .live-toggle.active {

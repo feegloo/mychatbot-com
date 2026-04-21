@@ -92,8 +92,13 @@
           @change="onUploadFilesChange"
         />
       </div>
-      <div v-if="msg.role === 'assistant' && !msg.content && asking && !isWelcome" class="typing-dots">
-        <span></span><span></span><span></span>
+      <div v-if="msg.role === 'assistant' && !msg.content && asking && !isWelcome">
+        <div v-if="msg.generatingImage" class="image-generating-label">
+          🎨 Generating image, please wait...
+        </div>
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
       </div>
 
       <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
@@ -1790,7 +1795,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 :deep(.action-btns-row) {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 4px;
