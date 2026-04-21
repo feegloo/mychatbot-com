@@ -11,6 +11,24 @@ vi.mock('mermaid', () => ({
   },
 }))
 
+type SetupState = {
+  onPointerDown: (event: PointerEventLike) => void
+  onPointerMove: (event: PointerEventLike) => void
+  onPointerUp: (event: Pick<PointerEventLike, 'pointerId' | 'currentTarget'>) => void
+  ready: boolean
+}
+
+type PointerEventLike = {
+  pointerId: number
+  pointerType?: string
+  button?: number
+  clientX: number
+  clientY: number
+  target: HTMLElement
+  currentTarget: HTMLElement
+  preventDefault: () => void
+}
+
 describe('MermaidBlock drag panning', () => {
   it('pans diagram via pointer drag', async () => {
     const wrapper = mount(MermaidBlock, {
@@ -23,24 +41,18 @@ describe('MermaidBlock drag panning', () => {
     await new Promise((resolve) => requestAnimationFrame(resolve))
 
     const setupState = (wrapper.vm as unknown as {
-      $: {
-        setupState: {
-          onPointerDown: (event: unknown) => void
-          onPointerMove: (event: unknown) => void
-          onPointerUp: (event: unknown) => void
-          ready: boolean
-          mode: 'diagram' | 'text'
-        }
-      }
+      $: { setupState: SetupState }
     }).$.setupState
     setupState.ready = true
-    const currentTarget = {
-      setPointerCapture: vi.fn(),
-      releasePointerCapture: vi.fn(),
-    } as unknown
-    const target = {
-      closest: vi.fn(() => null),
-    } as unknown
+    const currentTarget = document.createElement('div')
+    const target = document.createElement('div')
+    target.closest = vi.fn(() => null)
+
+    const preventDefault = vi.fn()
+    const setPointerCapture = vi.fn()
+    const releasePointerCapture = vi.fn()
+    currentTarget.setPointerCapture = setPointerCapture
+    currentTarget.releasePointerCapture = releasePointerCapture
 
     setupState.onPointerDown({
       pointerId: 10,
@@ -50,7 +62,7 @@ describe('MermaidBlock drag panning', () => {
       clientY: 100,
       target,
       currentTarget,
-      preventDefault: vi.fn(),
+      preventDefault,
     })
     setupState.onPointerMove({
       pointerId: 10,
@@ -58,7 +70,7 @@ describe('MermaidBlock drag panning', () => {
       clientY: 130,
       target,
       currentTarget,
-      preventDefault: vi.fn(),
+      preventDefault,
     })
     setupState.onPointerUp({
       pointerId: 10,
@@ -68,5 +80,8 @@ describe('MermaidBlock drag panning', () => {
 
     const style = wrapper.find('.mermaid-svg-wrapper').attributes('style')
     expect(style).toContain('translate(40px, 30px)')
+    expect(preventDefault).toHaveBeenCalled()
+    expect(setPointerCapture).toHaveBeenCalledWith(10)
+    expect(releasePointerCapture).toHaveBeenCalledWith(10)
   })
 })

@@ -235,6 +235,7 @@ function onPointerMove(event: DragPointerEvent) {
   const deltaY = event.clientY - dragStartY
   panX.value = dragStartPanX + deltaX
   panY.value = dragStartPanY + deltaY
+  event.preventDefault()
 }
 
 function onPointerUp(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'>) {
