@@ -1243,6 +1243,10 @@ function onDocumentClick(event: MouseEvent) {
   if (!target) return
   const clickedMenu = target.closest('.action-more-wrap, .welcome-more-wrap')
   if (clickedMenu && messageRootEl.value?.contains(clickedMenu)) return
+  // The welcome "More ..." uses floating-vue VDropdown with theme "more-questions".
+  // Both the trigger wrapper (inside this message) and the teleported popper carry
+  // the theme class, so we skip closing when either is clicked.
+  if (target.closest('.v-popper--theme-more-questions')) return
   closeActionMenus()
   closeWelcomeMore()
 }

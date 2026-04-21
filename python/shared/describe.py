@@ -236,7 +236,7 @@ Then output valid JSON (no markdown, no ```json):
 Rules:
 - Generate up to 10 suggested prompts (target 10 when context allows)
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
-- If the document is by or about a well-known person, ONE of the first 3 MUST be "Who was [Full Name]?" (if deceased) or "Who is [Full Name]?" (if alive)
+- If the document is by or about a well-known person, ONE of the first 3 MUST be "Who is [Full Name]?" (if the person is currently alive) or "Who was [Full Name]?" (ONLY if the person is confirmed deceased). CRITICAL: Default to "Who is" (present tense) unless you are certain the person has died. Living authors/figures (e.g. Stephen King, Paulo Coelho, George R. R. Martin) MUST use "Who is" — never "Who was".
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - Each prompt max 10 words, no numbering, no explanations
 - ALL prompts MUST be written 100% in the language of the document content
