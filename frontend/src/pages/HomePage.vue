@@ -6,7 +6,7 @@
       <p class="home-subtitle">
         Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, use semantic search & RAG, share answers<br />
         <span style="font-size: 12px; padding-top: 6px"
-          >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!</span
+          >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!</span
         >
       </p>
     </div>

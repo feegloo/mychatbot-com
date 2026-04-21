@@ -396,7 +396,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           logger.info({ conversationId }, 'Delegating finalize-indexing to chatrag-indexer')
           try {
             yield* delegateIndexConversationStream({
-              conversationId,
+              conversationId: conversationId as string,
               collectionName,
               files: absolutePaths,
               indexerUrl: config.indexerUrl!,
@@ -405,12 +405,12 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
             return
           } catch (delegateErr: any) {
             logger.warn(
-              { conversationId, err: delegateErr.message },
+              { conversationId: conversationId as string, err: delegateErr.message },
               'Indexer delegation failed — falling back to local processing',
             )
           }
         }
-        yield* indexConversationStream({ conversationId, collectionName, files: absolutePaths })
+        yield* indexConversationStream({ conversationId: conversationId as string, collectionName, files: absolutePaths })
       }
 
       for await (const { event, data } of getStream()) {
@@ -422,7 +422,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
             welcomeMessage ||
             `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
           welcomeMessageId = await insertConversationMessage({
-            conversationId,
+            conversationId: conversationId as string,
             role: 'assistant',
             content: fallbackMessage,
             citations: { _uploadedFileNames: uploadedFileNames },
@@ -430,7 +430,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           for (const [fileName, metadata] of Object.entries(fileMetadata)) {
             try {
               const origName = storedToOriginal[fileName] || fileName
-              await updateFileMetadata(conversationId, origName, metadata)
+              await updateFileMetadata(conversationId as string, origName, metadata)
             } catch (err: any) {
               console.error(`[metadata update error for ${fileName}]:`, err.message)
             }
