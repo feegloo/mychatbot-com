@@ -224,7 +224,7 @@ function onPointerDown(event: DragPointerEvent) {
 
   const currentTarget = event.currentTarget
   if (currentTarget instanceof HTMLElement) {
-    currentTarget.setPointerCapture?.(event.pointerId)
+    currentTarget.setPointerCapture(event.pointerId)
   }
   event.preventDefault()
 }
@@ -242,7 +242,7 @@ function onPointerUp(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'
 
   const currentTarget = event.currentTarget
   if (currentTarget instanceof HTMLElement) {
-    currentTarget.releasePointerCapture?.(event.pointerId)
+    currentTarget.releasePointerCapture(event.pointerId)
   }
 
   isDragging.value = false

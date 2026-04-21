@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import MermaidBlock from '../../src/components/MermaidBlock.vue'
 
 vi.mock('mermaid', () => ({
@@ -38,10 +37,10 @@ describe('MermaidBlock drag panning', () => {
     const currentTarget = {
       setPointerCapture: vi.fn(),
       releasePointerCapture: vi.fn(),
-    } as unknown as EventTarget
+    } as unknown
     const target = {
       closest: vi.fn(() => null),
-    } as unknown as EventTarget
+    } as unknown
 
     setupState.onPointerDown({
       pointerId: 10,
@@ -65,7 +64,7 @@ describe('MermaidBlock drag panning', () => {
       pointerId: 10,
       currentTarget,
     })
-    await nextTick()
+    await Promise.resolve()
 
     const style = wrapper.find('.mermaid-svg-wrapper').attributes('style')
     expect(style).toContain('translate(40px, 30px)')
