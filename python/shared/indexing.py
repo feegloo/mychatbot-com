@@ -35,9 +35,9 @@ _PAGE_SUMMARY_RATIO = 10
 
 # OCR-first welcome strategy for scanned / image-based PDFs
 # (tunable via environment variables for production)
-_OCR_PREFETCH_PAGES = int(os.getenv("OCR_PREFETCH_PAGES", "50"))
+_OCR_PREFETCH_PAGES = int(os.getenv("OCR_PREFETCH_PAGES", "0"))  # 0 = all pages
 _OCR_PREFETCH_WORKERS = int(os.getenv("OCR_PREFETCH_WORKERS", "8"))
-_OCR_MIN_CHARS_PER_PAGE = 50  # Avg OCR chars/page below this → not enough for welcome
+_OCR_MIN_CHARS_PER_PAGE = 10  # Very low threshold — any OCR text is useful for welcome
 
 
 def _build_page_summary(page_text: str) -> str | None:
@@ -85,7 +85,8 @@ def _ocr_prefetch_welcome(
         # Single-page documents are handled fast enough by the regular path.
         return None
 
-    pages_to_ocr = min(_OCR_PREFETCH_PAGES, total_pages)
+    # 0 means "all pages"; otherwise respect the configured cap.
+    pages_to_ocr = total_pages if _OCR_PREFETCH_PAGES == 0 else min(_OCR_PREFETCH_PAGES, total_pages)
     logger.info(
         f"⏱️  Scanned PDF '{p.name}': OCR-prefetching "
         f"{pages_to_ocr}/{total_pages} pages "
@@ -106,12 +107,42 @@ def _ocr_prefetch_welcome(
     total_chars = sum(len(t) for t in page_texts.values())
     avg_chars = total_chars / pages_to_ocr
 
+    # Even if OCR yielded little text (heavily scanned / low-quality scan), we
+    # still generate a welcome so the user is not left waiting in silence.  The
+    # system prompt will tell the model to describe what it found and explain
+    # that more OCR is underway.
     if avg_chars < _OCR_MIN_CHARS_PER_PAGE:
         logger.info(
-            f"⏱️  OCR prefetch: too little text for {p.name} "
-            f"(avg {avg_chars:.0f} chars/page) — not enough for welcome"
+            f"⏱️  OCR prefetch: very little text for {p.name} "
+            f"(avg {avg_chars:.0f} chars/page) — generating minimal OCR-in-progress welcome"
         )
-        return None
+        # Build a tiny "in progress" placeholder combined text
+        sparse_text = "\n\n".join(
+            f"# Page {idx + 1}\n\n{t}"
+            for idx, t in sorted(page_texts.items())
+            if t.strip()
+        )
+        # Fall back to metadata-only describe so the describe prompt gets the
+        # "scanned_no_text" signal injected by the caller.
+        combined = sparse_text or ""
+        ocr_lang = detect_language(combined[:2000]) if combined else None
+        logger.info(
+            f"⏱️  OCR prefetch minimal done for {p.name}: "
+            f"{total_chars} chars, lang={ocr_lang}, "
+            f"{pages_to_ocr}/{total_pages} pages prefetched"
+        )
+        return describe_documents(
+            [{"file_path": file_path, "file_name": p.name, "text": combined}],
+            [],
+            language=ocr_lang,
+            file_metadata=file_metadata,
+            file_names=file_name_list,
+            file_types=file_types,
+            # Signal to describe_documents that this is an OCR-in-progress result
+            ocr_in_progress=True,
+            total_pages_hint=total_pages,
+            ocr_pages_done=pages_to_ocr,
+        )
 
     combined = "\n\n".join(
         f"# Page {idx + 1}\n\n{t}"
@@ -124,6 +155,9 @@ def _ocr_prefetch_welcome(
         f"{total_chars} chars, lang={ocr_lang}, "
         f"{pages_to_ocr}/{total_pages} pages prefetched"
     )
+    # If we only processed a subset of pages, flag that OCR is still ongoing
+    # so describe_documents can include that context in the welcome message.
+    still_processing = pages_to_ocr < total_pages
     return describe_documents(
         [{"file_path": file_path, "file_name": p.name, "text": combined}],
         [],
@@ -131,6 +165,9 @@ def _ocr_prefetch_welcome(
         file_metadata=file_metadata,
         file_names=file_name_list,
         file_types=file_types,
+        ocr_in_progress=still_processing,
+        total_pages_hint=total_pages,
+        ocr_pages_done=pages_to_ocr,
     )
 
 

@@ -1,5 +1,6 @@
 import { config } from '../config.js'
 import { runPythonScript } from './run-python.js'
+import logger from '../logger.js'
 
 export async function enrichMetadata(options: {
   filePaths: string[]
@@ -168,5 +169,81 @@ export async function describeUrl(options: {
     parsedJson,
     stdoutLogPath: '',
     stderrLogPath: '',
+  }
+}
+
+/**
+ * Delegates an indexing job to the chatrag-indexer Cloud Run Service via HTTP.
+ * Streams NDJSON events back, identical in shape to indexConversationStream.
+ *
+ * Throws if the indexer is unavailable — callers should catch and fall back to
+ * local indexConversationStream.
+ */
+export async function* delegateIndexConversationStream(options: {
+  conversationId: string
+  collectionName: string
+  files: string[]
+  indexerUrl: string
+  indexerSecret: string
+}): AsyncGenerator<IndexStreamEvent> {
+  const url = `${options.indexerUrl}/api/internal/index-stream`
+
+  logger.info(
+    { conversationId: options.conversationId, fileCount: options.files.length, indexerUrl: options.indexerUrl },
+    'Delegating indexing to chatrag-indexer',
+  )
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Indexer-Secret': options.indexerSecret,
+    },
+    body: JSON.stringify({
+      conversationId: options.conversationId,
+      collectionName: options.collectionName,
+      files: options.files,
+    }),
+    signal: AbortSignal.timeout(10 * 60 * 1000),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Indexer delegation error (${response.status}): ${text}`)
+  }
+
+  if (!response.body) {
+    throw new Error('No response body from indexer service')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const lines = buffer.split('\n')
+    buffer = lines.pop()!
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        yield JSON.parse(trimmed) as IndexStreamEvent
+      } catch {
+        // skip malformed keepalive lines
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    try {
+      yield JSON.parse(buffer.trim()) as IndexStreamEvent
+    } catch {
+      // skip
+    }
   }
 }

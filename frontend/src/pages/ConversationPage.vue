@@ -185,6 +185,7 @@ import UploadingDots from '../components/UploadingDots.vue'
 import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useConversationEvents, stepLabel } from '../composables/useConversationEvents'
+import { IMAGE_GEN_REGEX } from '../utils/markdown'
 
 const props = defineProps<{ conversationId: string }>()
 
@@ -621,9 +622,10 @@ async function ask() {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
-    const isImageGen = /generat\w*\s+image|wygeneruj\s+obraz|generate\s+image|stwórz\s+obraz/i.test(
-      currentQuestion,
-    )
+    const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
+    if (isImageGen) {
+      reactiveMsg.content = '🎨 Generating image, please wait...'
+    }
     const response = await Promise.race([
       isImageGen
         ? generateImage(conversationId, currentQuestion, getUserId() || undefined)

@@ -35,4 +35,9 @@ export const config = {
   debugPass: process.env.DEBUG_PASS || 'chatragadmin',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+  // chatrag-indexer Cloud Run Service for offloading CPU-heavy PDF parsing.
+  // When set, 50% of indexing jobs are delegated to this service.
+  // The indexer calls back via /internal/index-stream authenticated with indexerSecret.
+  indexerUrl: process.env.INDEXER_URL || '',
+  indexerSecret: process.env.INDEXER_SECRET || '',
 }

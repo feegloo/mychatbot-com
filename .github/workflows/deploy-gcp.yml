@@ -60,10 +60,10 @@ jobs:
             --subnet default \
             --vpc-egress private-ranges-only \
             --port 8080 \
-            --memory 4Gi \
-            --cpu 4 \
-            --min-instances 0 \
-            --max-instances 3 \
+            --memory 16Gi \
+            --cpu 8 \
+            --min-instances 2 \
+            --max-instances 4 \
             --timeout 300 \
             --update-env-vars "\
           NODE_ENV=production,\
@@ -84,10 +84,47 @@ jobs:
           DEBUG_PASS=${{ secrets.DEBUG_PASS }},\
           STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},\
           SENTRY_DSN=${{ secrets.SENTRY_DSN }},\
-          WORKER_MODE=cloud_run,\
+          WORKER_MODE=local,\
           WORKER_JOB_NAME=chatrag-worker,\
           WORKER_REGION=europe-west1,\
-          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}"
+          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},\
+          INDEXER_SECRET=${{ secrets.INDEXER_SECRET }},\
+          INDEXER_URL=${{ secrets.INDEXER_URL }}"
+
+      - name: Deploy chatrag-indexer worker service
+        run: |
+          gcloud run deploy chatrag-indexer \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --ingress internal-and-cloud-load-balancing \
+            --network default \
+            --subnet default \
+            --vpc-egress private-ranges-only \
+            --port 8080 \
+            --memory 4Gi \
+            --cpu 4 \
+            --min-instances 1 \
+            --max-instances 2 \
+            --concurrency 4 \
+            --timeout 600 \
+            --update-env-vars "\
+          NODE_ENV=production,\
+          DATABASE_URL=${{ secrets.DATABASE_URL }},\
+          CHROMA_MODE=local,\
+          ANONYMIZED_TELEMETRY=False,\
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
+          STORAGE_PROVIDER=gcs,\
+          GCS_BUCKET=${{ secrets.GCS_BUCKET }},\
+          FRONTEND_DIST_PATH=,\
+          PYTHON_BIN=/app/python/.venv/bin/python3,\
+          PYTHON_PROJECT_ROOT=/app/python,\
+          PYTHON_SERVER_URL=http://localhost:8321,\
+          WORKER_MODE=local,\
+          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},\
+          INDEXER_SECRET=${{ secrets.INDEXER_SECRET }}"
 
       - name: Get service URL
         run: |

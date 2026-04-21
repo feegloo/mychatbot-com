@@ -16,7 +16,17 @@ import {
   resolveConversationRole,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
-import { indexConversation, indexConversationStream, describeUrl } from '../python/indexing.js'
+import {
+  indexConversation,
+  indexConversationStream,
+  delegateIndexConversationStream,
+  describeUrl,
+} from '../python/indexing.js'
+import logger from '../logger.js'
+
+// Round-robin counter: odd uploads are delegated to chatrag-indexer, even processed locally.
+// Module-level so it persists across requests on the same instance.
+let uploadJobCounter = 0
 import { emitConversationEvent } from '../events.js'
 import { deriveToken } from '../security.js'
 import { generateSignedUploadUrl, downloadGcsFileToLocal } from '../storage/gcs-storage.js'
@@ -99,17 +109,38 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     }
   }
 
-  // Fire-and-forget: stream indexing events and emit SSE updates
+  // Fire-and-forget: stream indexing events and emit SSE updates.
+  // Every other upload is delegated to chatrag-indexer (when INDEXER_URL is set);
+  // falls back to local on delegation error.
   ;(async () => {
     let welcomeMessageId: string | undefined
     try {
-      const stream = indexConversationStream({
-        conversationId,
-        collectionName,
-        files: absolutePaths,
-      })
+      const jobIndex = uploadJobCounter++
+      const canDelegate = Boolean(config.indexerUrl && config.indexerSecret && jobIndex % 2 === 1)
 
-      for await (const { event, data } of stream) {
+      async function* getStream() {
+        if (canDelegate) {
+          logger.info({ conversationId }, 'Delegating indexing to chatrag-indexer')
+          try {
+            yield* delegateIndexConversationStream({
+              conversationId,
+              collectionName,
+              files: absolutePaths,
+              indexerUrl: config.indexerUrl,
+              indexerSecret: config.indexerSecret,
+            })
+            return
+          } catch (delegateErr: any) {
+            logger.warn(
+              { conversationId, err: delegateErr.message },
+              'Indexer delegation failed — falling back to local processing',
+            )
+          }
+        }
+        yield* indexConversationStream({ conversationId, collectionName, files: absolutePaths })
+      }
+
+      for await (const { event, data } of getStream()) {
         if (event === 'welcome_message') {
           const welcomeMessage = (data.welcome_message as string) || ''
           const fileMetadata = (data.file_metadata as Record<string, any>) || {}
@@ -351,17 +382,38 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
 
   const collectionName = `conversation_${conversationId}`
 
-  // Fire-and-forget: stream indexing events and emit SSE updates
+  // Fire-and-forget: stream indexing events and emit SSE updates.
+  // Every other upload is delegated to chatrag-indexer (when INDEXER_URL is set);
+  // falls back to local on delegation error.
   ;(async () => {
     let welcomeMessageId: string | undefined
     try {
-      const stream = indexConversationStream({
-        conversationId,
-        collectionName,
-        files: absolutePaths,
-      })
+      const jobIndex = uploadJobCounter++
+      const canDelegate = Boolean(config.indexerUrl && config.indexerSecret && jobIndex % 2 === 1)
 
-      for await (const { event, data } of stream) {
+      async function* getStream() {
+        if (canDelegate) {
+          logger.info({ conversationId }, 'Delegating finalize-indexing to chatrag-indexer')
+          try {
+            yield* delegateIndexConversationStream({
+              conversationId,
+              collectionName,
+              files: absolutePaths,
+              indexerUrl: config.indexerUrl,
+              indexerSecret: config.indexerSecret,
+            })
+            return
+          } catch (delegateErr: any) {
+            logger.warn(
+              { conversationId, err: delegateErr.message },
+              'Indexer delegation failed — falling back to local processing',
+            )
+          }
+        }
+        yield* indexConversationStream({ conversationId, collectionName, files: absolutePaths })
+      }
+
+      for await (const { event, data } of getStream()) {
         if (event === 'welcome_message') {
           const welcomeMessage = (data.welcome_message as string) || ''
           const fileMetadata = (data.file_metadata as Record<string, any>) || {}

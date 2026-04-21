@@ -82,6 +82,43 @@ describe('ChatMessage suggested prompt overflow', () => {
     expect(wrapper.find('.welcome-more-menu').exists()).toBe(false)
   })
 
+  it('still shows More after streaming completes (was prematurely locked with few buttons)', async () => {
+    vi.useFakeTimers()
+    try {
+      const fewActions = 'Streaming...\n\n[action:First] [action:Second]'
+      const manyActions =
+        'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth] [action:Fifth]'
+
+      const wrapper = mount(ChatMessage, {
+        attachTo: document.body,
+        props: {
+          ...baseProps(),
+          asking: true,
+          msg: { role: 'assistant' as const, content: fewActions },
+        },
+      })
+
+      // Simulate timer firing mid-stream with only 2 buttons — should NOT lock the row
+      vi.runAllTimers()
+      await nextTick()
+      expect(wrapper.find('.action-more-btn').exists()).toBe(false)
+
+      // Streaming finishes — full content arrives, asking = false
+      await wrapper.setProps({
+        asking: false,
+        msg: { role: 'assistant' as const, content: manyActions },
+      })
+      vi.runAllTimers()
+      await nextTick()
+
+      expect(wrapper.find('.action-more-btn').exists()).toBe(true)
+      expect(wrapper.findAll('.action-visible-row > .action-btn[data-action]').length).toBe(3)
+      expect(wrapper.findAll('.action-more-menu .action-btn[data-action]').length).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('collapses multiple [action:] buttons and keeps outside-click behavior scoped per instance', async () => {
     vi.useFakeTimers()
     try {

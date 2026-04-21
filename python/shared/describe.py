@@ -33,24 +33,76 @@ def _fallback_from_metadata(
     file_metadata: dict[str, dict] | None,
     language: str | None,
 ) -> str:
-    """Generate a minimal welcome message when no text could be extracted."""
+    """Generate a welcome message from metadata when no text could be extracted.
+
+    Builds a human-friendly message that surfaces whatever identifying information
+    is available (title, author, page count, file dates) so the user can at least
+    understand what document they uploaded.
+    """
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     name_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn)) or "document"
 
+    # Collect useful identifying fields from metadata
     title_from_meta = ""
+    author_from_meta = ""
+    page_count = None
+    file_size_bytes = None
+    file_created = ""
+
     if file_metadata:
         for meta in file_metadata.values():
-            if isinstance(meta, dict) and meta.get("title"):
+            if not isinstance(meta, dict):
+                continue
+            if not title_from_meta and meta.get("title"):
                 title_from_meta = meta["title"]
-                break
+            if not author_from_meta and meta.get("author"):
+                author_from_meta = meta["author"]
+            if page_count is None and meta.get("page_count"):
+                try:
+                    page_count = int(meta["page_count"])
+                except (TypeError, ValueError):
+                    pass
+            if file_size_bytes is None and meta.get("file_size_bytes"):
+                try:
+                    file_size_bytes = int(meta["file_size_bytes"])
+                except (TypeError, ValueError):
+                    pass
+            if not file_created and meta.get("file_created"):
+                file_created = str(meta["file_created"])[:10]  # date only
 
-    title = title_from_meta or name_list
-    msg = f"# {title}\n\n"
+    display_title = title_from_meta or name_list
+    msg = f"# {display_title}\n\n"
+
+    # Build context lines for what we know about the document
+    known_facts: list[str] = []
+    if author_from_meta:
+        known_facts.append(f"**Author / Creator:** {author_from_meta}")
+    if page_count:
+        known_facts.append(f"**Pages:** {page_count}")
+    if file_size_bytes:
+        size_mb = file_size_bytes / (1024 * 1024)
+        if size_mb >= 1:
+            known_facts.append(f"**File size:** {size_mb:.1f} MB")
+        else:
+            known_facts.append(f"**File size:** {file_size_bytes // 1024} KB")
+    if file_created:
+        known_facts.append(f"**Created:** {file_created}")
+
     if language == "pl":
-        msg += f"Plik **{name_list}** został przesłany. Nie udało się wyodrębnić treści tekstowej — dokument może zawierać wyłącznie obrazy lub być zabezpieczony. Możesz zadać pytanie, a postaram się pomóc."
+        msg += f"Plik **{name_list}** został przesłany, ale nie udało się wyodrębnić treści tekstowej — dokument prawdopodobnie składa się ze skanów lub obrazów."
+        if known_facts:
+            msg += "\n\nCo udało się odczytać z metadanych pliku:\n" + "\n".join(f"- {f}" for f in known_facts)
+            msg += "\n\nNa podstawie nazwy pliku i metadanych można spróbować określić, co to za dokument — zadaj pytanie lub poczekaj, aż OCR przetworzy strony."
+        else:
+            msg += " Możesz zadać pytanie, a postaram się pomóc."
     else:
-        msg += f"**{name_list}** has been uploaded. Text extraction was not possible — the document may contain only images or be protected. Feel free to ask a question and I'll do my best to help."
+        msg += f"**{name_list}** was uploaded, but no text could be extracted — this document likely consists of scanned pages or images."
+        if known_facts:
+            msg += "\n\nHere's what the file metadata tells us:\n" + "\n".join(f"- {f}" for f in known_facts)
+            msg += "\n\nBased on the filename and metadata, we may be able to identify this document — feel free to ask, or wait for OCR to process the pages."
+        else:
+            msg += " Feel free to ask a question and I'll do my best to help."
     return msg
 
 
@@ -73,6 +125,16 @@ _META_EXCLUDE_KEYS = {
 # We keep the content budget generous but respect TPM constraints.
 # ~30K tokens ≈ 120K chars is safe for a single call.
 _DESCRIBE_MAX_CONTENT_CHARS = 120_000
+
+# Placeholder used when no readable text was extracted but metadata is available.
+# The LLM is instructed to use the metadata block to describe the document.
+_NO_TEXT_PLACEHOLDER = (
+    "[NO READABLE TEXT WAS EXTRACTED — the document likely consists of scanned "
+    "images or photographed pages. Use the file metadata section below to identify "
+    "the document and describe what it is, who created it, and what it is likely about. "
+    "Be warm and helpful. If the filename or metadata hints at a well-known work, "
+    "mention it and give useful cultural/historical context.]"
+)
 # When a document is large, we split the budget: 50% for raw text from start,
 # 20% for 2-pass summaries of remaining content, 30% for page summaries.
 _TEXT_BUDGET_RATIO = 0.50
@@ -146,11 +208,12 @@ ZABRONIONE dla takich dokumentów: bajki, piosenki, wiersze niezwiązane z treś
     "Które markery wskazują na stan zapalny? 🔬"
 
 Obowiązkowe akcje dla typów treści:
-- POWIEŚĆ/BELETRYSTYKA → "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
-- POEZJA/FILOZOFIA/CYTATY → "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
-- PORADNIK/SAMOROZWÓJ → losowo jedno z: "Napisz 10 nowych wskazówek inspirowanych [autor] 💡", "Stwórz 7 ćwiczeń inspirowanych [autor] 🏋️", "Wygeneruj 12 pytań refleksyjnych inspirowanych [autor] 🤔", "Napisz 5 scenariuszy z życia inspirowanych [autor] 🎭", "Stwórz 14-dniowy plan działania inspirowany [autor] 📅"
-- WYNIKI BADAŃ LAB / DOKUMENTY MEDYCZNE / PRAWNE / FINANSOWE / NAUKOWE / TECHNICZNE → użyj wyłącznie analitycznych promptów z tej listy (ŻADNYCH kreatywnych fikcji): quiz z wiedzy medycznej 🧠, checklista do zrobienia 📋, tabela wyników z komentarzem 📊, podsumowanie kluczowych odchyleń 📝, FAQ: pytania do lekarza ❓, słownik pojęć medycznych 📖, oś czasu kolejnych kroków 📅, notatki do wizyty 📓, plan suplementacji 💊, analiza ryzyka sercowo-naczyniowego 📊, wykres trendów wyników 📈, lista badań do wykonania 🔬
-  * Zawsze obowiązkowo: "Postaw diagnozę na podstawie wyników 🔬" jako jeden z promptów
+- POWIEŚĆ/BELETRYSTYKA → użyj prawdziwego imienia i nazwiska autora (nigdy nawiasów zastępczych). Zróżnicuj wording — wybierz jedno z: "Napisz inspirowany rozdział w stylu IMIĘ ✏️", "Stwórz stronę w stylu IMIĘ ✏️", "Improwizuj scenę jak IMIĘ ✏️", "Napisz nowy rozdział inspirowany IMIĘ ✏️". Np. jeśli autorem jest Rumi: "Napisz inspirowany rozdział w stylu Rumiego ✏️" — NIE "[Rumi]" ani "[Imię Nazwisko autora]".
+- POEZJA/FILOZOFIA/CYTATY → użyj prawdziwego imienia autora. Zróżnicuj: "Napisz inspirowany wiersz w stylu IMIĘ 📜", "Skomponuj strofę w duchu IMIĘ 📜", "Stwórz wiersz głosem IMIĘ 📜".
+- PORADNIK/SAMOROZWÓJ → użyj prawdziwego imienia autora. Losowo jedno z: "Napisz 10 nowych wskazówek inspirowanych IMIĘ 💡", "Stwórz 7 ćwiczeń inspirowanych IMIĘ 🏋️", "Wygeneruj 12 pytań refleksyjnych inspirowanych IMIĘ 🤔", "Napisz 5 scenariuszy z życia inspirowanych IMIĘ 🎭", "Stwórz 14-dniowy plan działania inspirowany IMIĘ 📅"
+- WYNIKI BADAŃ LAB / DOKUMENTY MEDYCZNE → użyj wyłącznie analitycznych promptów (ŻADNYCH kreatywnych fikcji): quiz z wiedzy medycznej 🧠, checklista do zrobienia 📋, tabela wyników z komentarzem 📊, podsumowanie kluczowych odchyleń 📝, FAQ: pytania do lekarza ❓, słownik pojęć medycznych 📖, oś czasu kolejnych kroków 📅, notatki do wizyty 📓, plan suplementacji 💊, analiza ryzyka sercowo-naczyniowego 📊, wykres trendów wyników 📈, lista badań do wykonania 🔬
+  * Dodaj "Postaw diagnozę na podstawie wyników 🔬" TYLKO gdy dokument to FAKTYCZNIE wyniki badań konkretnego pacjenta (morfologia, TSH, lipidogram, wyniki laboratoryjne z wartościami i zakresami referencyjnymi). NIE dodawaj tej akcji dla ogólnych poradników medycznych, encyklopedii chorób, artykułów o zdrowiu — tylko dla prawdziwych wyników badań.
+- DOKUMENTY PRAWNE / FINANSOWE / NAUKOWE / TECHNICZNE → użyj wyłącznie analitycznych promptów dopasowanych do dziedziny dokumentu (ŻADNYCH kreatywnych fikcji, ŻADNEJ diagnozy medycznej)
 - Inne typy (WYŁĄCZNIE dla dokumentów kreatywnych/literackich/rozrywkowych — powieści, poezja, blogi, scenariusze) → dobierz kreatywne akcje losowo z: quiz 🧠, checklista ✅, diagram mermaid 🖼️, tabela porównawcza 📊, podsumowanie 📝, wyjaśnij jak dla dziecka 👶, fiszki 🃏, oś czasu 📅, mapa myśli 🧩, za i przeciw ⚖️, szkic emaila 📧, notatki do nauki 📓, FAQ ❓, debata 💬, słownik pojęć 📖, plan działania 🚩, post na social media 📱, streszczenie wykonawcze 🎯, dialog 🎬, infografika 📊, piosenka 🎵, prezentacja 📽️, bajka 🧚, wygeneruj obraz 🎨
 - Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany"""
 
@@ -190,11 +253,12 @@ PROHIBITED for such documents: fairy tales, songs, poems unrelated to content, f
     "Which markers indicate inflammation? 🔬"
 
 Mandatory actions for content types:
-- NOVEL/FICTION → "Write inspired chapter like [Author Full Name] ✏️"
-- POETRY/PHILOSOPHY/QUOTES → "Write inspired poem like [Author Full Name] 📜"
-- SELF-HELP/GUIDE → randomly pick one of: "Write 10 new tips inspired by [author] 💡", "Create 7 exercises inspired by [author] 🏋️", "Generate 12 reflection questions inspired by [author] 🤔", "Draft 5 real-life scenarios inspired by [author] 🎭", "Build a 14-day action plan inspired by [author] 📅"
-- LAB TEST RESULTS / MEDICAL / LEGAL / FINANCIAL / SCIENTIFIC / TECHNICAL DOCUMENTS → use ONLY analytical prompts from this list (NO creative fiction): medical knowledge quiz 🧠, action checklist 📋, results table with commentary 📊, key deviations summary 📝, FAQ: questions for the doctor ❓, medical glossary 📖, next-steps timeline 📅, visit notes 📓, supplementation plan 💊, cardiovascular risk analysis 📊, results trend chart 📈, list of tests to run 🔬
-  * Always mandatory: "Make a diagnosis based on results 🔬" as one of the prompts
+- NOVEL/FICTION → Use the actual author's name (never placeholder brackets). Vary the phrasing — pick one of: "Write inspired chapter like NAME ✏️", "Create a page in NAME's style ✏️", "Improvise a scene like NAME ✏️", "Write a new chapter inspired by NAME ✏️". For example, if the author is Rumi write "Write inspired chapter like Rumi ✏️" — NOT "[Rumi]" or "[Author Full Name]".
+- POETRY/PHILOSOPHY/QUOTES → Use the actual author's name. Vary among: "Write inspired poem like NAME 📜", "Compose a verse in NAME's spirit 📜", "Create a poem in NAME's voice 📜". Use the real name directly.
+- SELF-HELP/GUIDE → Use the real author name. Randomly pick one of: "Write 10 new tips inspired by NAME 💡", "Create 7 exercises inspired by NAME 🏋️", "Generate 12 reflection questions inspired by NAME 🤔", "Draft 5 real-life scenarios inspired by NAME 🎭", "Build a 14-day action plan inspired by NAME 📅"
+- LAB TEST / MEDICAL DOCUMENTS → use ONLY analytical prompts (NO creative fiction): medical knowledge quiz 🧠, action checklist 📋, results table with commentary 📊, key deviations summary 📝, FAQ: questions for the doctor ❓, medical glossary 📖, next-steps timeline 📅, visit notes 📓, supplementation plan 💊, cardiovascular risk analysis 📊, results trend chart 📈, list of tests to run 🔬
+  * Add "Make a diagnosis based on results 🔬" ONLY when the document is GENUINELY lab test results for a specific patient (CBC, TSH, lipid panel, blood test values with reference ranges). Do NOT add this action for general medical guides, disease encyclopedias, health articles — only for actual patient test results.
+- LEGAL / FINANCIAL / SCIENTIFIC / TECHNICAL DOCUMENTS → use ONLY domain-appropriate analytical prompts (NO creative fiction, NO medical diagnosis)
 - Other types (ONLY for creative/literary/entertainment documents — novels, poetry, blogs, screenplays) → pick creative actions randomly from: quiz 🧠, checklist ✅, mermaid diagram 🖼️, comparison table 📊, summary 📝, explain like I'm 5 👶, flashcards 🃏, timeline 📅, mind map 🧩, pros & cons ⚖️, email draft 📧, study notes 📓, FAQ ❓, debate 💬, glossary 📖, action plan 🚩, social media post 📱, executive summary 🎯, dialogue 🎬, infographic 📊, song 🎵, presentation 📽️, fairy tale 🧚, generate image 🎨
 - Do NOT always pick quiz — be creative and varied"""
 
@@ -753,7 +817,7 @@ def _synthesize_welcome_messages(
             "Twoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
             "2. **Opis**: 2-3 zdania podsumowujące CAŁY dokument. Zachowaj najważniejsze "
-            "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia**.\n"
+            "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia** selektywnie — tylko liczby, nazwy własne i najważniejszy 1-2 termin na akapit.\n"
             "3. **Ekspercki wgląd**: 1-2 zdania wartościowej analizy.\n\n"
             "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH streszczeń, nie tylko pierwszego. "
             "Celuj w 150-250 słów łącznie (1-4 akapitów, najczęściej 3, czasem 2, rzadko 4). NIE pytaj użytkownika. NIE używaj [source:N]. "
@@ -771,7 +835,7 @@ def _synthesize_welcome_messages(
             "Your response MUST have three parts:\n"
             "1. **Title**: # Document Title - Author Name\n"
             "2. **Description**: 2-3 sentences summarizing the ENTIRE document. Preserve the key "
-            "facts, names, places from ALL parts. Use **bold** for key terms.\n"
+            "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
             "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
             "Aim for 150-250 words total (1-4 paragraphs, usually 3, sometimes 2, rarely 4). Do NOT ask the user anything. Do NOT use [source:N]. "
@@ -817,6 +881,9 @@ def describe_documents(
     file_names: list[str] | None = None,
     file_types: dict[str, str] | None = None,
     chapters: list[dict] | None = None,
+    ocr_in_progress: bool = False,
+    total_pages_hint: int | None = None,
+    ocr_pages_done: int | None = None,
 ) -> DescribeResult:
     """Generate a welcome message with a # Title, description, and expert insight,
     plus up to 10 suggested questions — all from a single LLM call.
@@ -851,6 +918,28 @@ def describe_documents(
         metadata_section = (
             f"\n\n=====\nFile metadata (from EXIF / PDF info):\n{metadata_block}\n====="
         )
+
+    # Build a supplemental identification block with normally-excluded fields
+    # (file size, creation date).  Appended only when there is no text to read,
+    # so the LLM has maximum identifying information for "mystery document" cases.
+    _META_IDENTIFY_KEYS = {"file_size_bytes", "file_created", "file_modified"}
+    identification_parts: list[str] = []
+    if file_metadata:
+        for fname, meta in file_metadata.items():
+            if not isinstance(meta, dict):
+                continue
+            ident = {k: v for k, v in meta.items() if k in _META_IDENTIFY_KEYS and v}
+            if ident:
+                identification_parts.append(
+                    f"[{fname}]\n{json.dumps(ident, ensure_ascii=False, default=str)}"
+                )
+    _identification_section = (
+        "\n\n=====\nFile identification hints (size / dates):\n"
+        + "\n\n".join(identification_parts)
+        + "\n====="
+        if identification_parts
+        else ""
+    )
 
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
@@ -1092,10 +1181,14 @@ def describe_documents(
 
         combined = "\n\n---\n\n".join(parts)
         if not combined.strip():
-            return DescribeResult(
-                welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
-                suggested_questions=[],
-            )
+            # If metadata is available, let the LLM generate a contextual message;
+            # otherwise return the static fallback immediately.
+            if not metadata_block:
+                return DescribeResult(
+                    welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
+                    suggested_questions=[],
+                )
+            combined = _NO_TEXT_PLACEHOLDER
         logger.info(
             f"📝 Large-doc describe: {total_chars} chars total → "
             f"{len(combined)} chars context (text {text_budget}, 2-pass {len(two_pass_summary)}, summaries {len(summary_text)})"
@@ -1112,13 +1205,22 @@ def describe_documents(
         snippets.extend(image_snippets)
 
         if not snippets:
-            # No text extracted — return a minimal fallback from metadata
-            return DescribeResult(
-                welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
-                suggested_questions=[],
-            )
+            # If metadata is available, let the LLM generate a contextual message;
+            # otherwise return the static fallback immediately.
+            if not metadata_block:
+                return DescribeResult(
+                    welcome_message=_fallback_from_metadata(extracted, images, file_metadata, language),
+                    suggested_questions=[],
+                )
+            combined = _NO_TEXT_PLACEHOLDER
+        else:
+            combined = "\n\n---\n\n".join(snippets)[:_DESCRIBE_MAX_CONTENT_CHARS]
 
-        combined = "\n\n---\n\n".join(snippets)[:_DESCRIBE_MAX_CONTENT_CHARS]
+    # For the no-text case, enrich metadata_section with file size and date hints
+    # so the LLM has the best chance of identifying the document.
+    effective_metadata_section = metadata_section
+    if combined == _NO_TEXT_PLACEHOLDER and _identification_section:
+        effective_metadata_section = metadata_section + _identification_section
 
     if language == "pl":
         prompt = ChatPromptTemplate.from_messages(
@@ -1148,13 +1250,13 @@ Twoja odpowiedź MUSI składać się z trzech części:
    Jeśli autor nie jest znany z treści ani metadanych, napisz: # Tytuł dokumentu - Nieznany autor
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
 
-2. **Opis** (po tytule): 2-3 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** dla kluczowych terminów.
+2. **Opis** (po tytule): 2-3 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** SELEKTYWNIE — tylko dla liczb/statystyk, kluczowych nazw własnych (osób, miejsc, firm) i najważniejszego 1-2 terminu na akapit. Nie pogrubiaj każdego pojęcia — bold traci siłę gdy jest wszędzie.
    AUTOR W OPISIE: Jeśli znasz autora dokumentu, wspomnij o nim naturalnie w pierwszym zdaniu opisu — tak jakbyś opisywał książkę znajomemu. Na przykład: "Ten 611-stronicowy zbiór poezji **Rumiego** to klasyczne wydanie arabskie Mathnawi." albo "Stephen King w tym **350-stronicowym** thrillerze zabiera czytelnika w mroczną podróż po Nowej Anglii." NIE powtarzaj suchego zapisu z tytułu — wpleć autora w naturalny sposób w treść opisu.
    KLUCZOWE — ZACHOWAJ PRECYZYJNE SZCZEGÓŁY: Zawsze podawaj dokładne liczby, zakresy, nazwy substancji, składników, terminów i konkretne wartości z dokumentu. Na przykład: jeśli tekst mówi o "bliznach do 12 miesięcy (z zaleceniami do 2 lat)", napisz właśnie tak — nie upraszczaj do "blizny do roku". Jeśli wymienione są konkretne składniki jak "witamina C, białko, cynk i selen", wymień je wszystkie. Jeśli podane są zakresy czasowe jak "9–12 miesięcy dla ciała i około 1 rok dla twarzy", podaj te dokładne przedziały. Szczegółowe dane liczbowe i nazwy własne to najcenniejsza informacja w opisie.
    NAZWY PRODUKTÓW, MAREK I OSÓB: Gdy dokument wymienia konkretne marki, produkty lub znane osoby, UŻYWAJ ICH Z NAZWY — nie uogólniaj. Na przykład: pisz "krem RegimA Forte Scar Cream" zamiast "krem na blizny"; "minerały Jane Iredale" zamiast "makijaż mineralny". Dotyczy to leków (Accutane, Retin-A), narzędzi (Photoshop, Figma), firm (Tesla, Google), osób (Warren Buffett, Marie Curie), miejsc (Klinika Mayo, MIT), produktów (iPhone 16, Model Y) i wszystkiego co nosi nazwę własną w treści dokumentu.
    OBOWIĄZKOWE MIERZALNE FAKTY — oprócz powyższego, KONIECZNIE wymień jak najwięcej z poniższych (jeśli występują w treści):
    - Liczba stron/rozdziałów/części (np. "**266-stronicowy** kryminał w **12 rozdziałach**")
-   - Wszystkie imiona i nazwiska głównych postaci/osób, pogrubione (np. **Joanna Chyłka**, **Kordian Oryński**)
+   - Imiona i nazwiska kluczowych postaci/osób (do 3-4 głównych), pogrubione (np. **Joanna Chyłka**, **Kordian Oryński**)
    - Kluczowe daty, lata, okresy (np. "akcja rozgrywa się w **2019 roku**")
    - Miejsca i lokalizacje (np. "wydarzenia w **Warszawie** i pod **Augustowem**")
    - Kwoty, procenty, statystyki (np. "**3,5 mln zł** odszkodowania")
@@ -1186,6 +1288,30 @@ Twoja odpowiedź MUSI składać się z trzech części:
 
 Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, tytuł, aparat itp.
 NIGDY nie wspominaj o wewnętrznych technicznych metadanych — pomijaj informacje typu: nazwa generatora PDF (np. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), wersja producenta, ID dokumentu, format zapisu. Te dane są bezwartościowe dla użytkownika i brzmią jak wyciek z systemu.
+
+ZESKANOWANE / DOKUMENTY OPARTE NA OBRAZACH — SPECJALNA OBSŁUGA:
+Jeśli w kontekście poniżej znajdziesz [SYSTEM NOTE — OCR IN PROGRESS], dokument to zeskanowany lub fotografowany PDF bez warstwy tekstowej (lub z bardzo małą ilością wyodrębnionego tekstu). OCR działa w tle na wszystkich stronach.
+Koniecznie poinformuj użytkownika:
+  a) Że materiał składa się ze skanów/fotografii stron (np. arabska kaligrafia, rękopiśmienne manuskrypty, historyczne teksty).
+  b) Że OCR przetwarza wszystkie strony i wiadomość powitalna zostanie rozszerzona gdy pojawi się więcej tekstu.
+  c) Co możesz powiedzieć o dokumencie z tytułu, nazwy pliku, metadanych lub częściowego tekstu — bądź konkretny i serdeczny.
+  d) Jeśli naprawdę nie wyodrębniono żadnego tekstu, powiedz to szczerze — ale daj użytkownikowi bogaty kontekst i utrzymaj jego zaangażowanie.
+Ton: ciepły, cierpliwy, ciekawy — jak bibliotekarz, który właśnie otrzymał starożytny rękopis do digitalizacji.
+Użyj raz emoji ⏳ lub 🔄 by zaznaczyć trwający proces OCR.
+
+TYLKO METADANE — BRAK TEKSTU (przed OCR):
+Jeśli treść zaczyna się od [NO READABLE TEXT WAS EXTRACTED], nie udało się wyodrębnić żadnego tekstu (OCR jeszcze nie uruchomiony lub plik nie ma warstwy tekstowej). W takim przypadku:
+  a) Użyj nazwy pliku, metadanych (liczba stron, autor, tytuł, data utworzenia, rozmiar pliku) i wiedzy kulturowej, by zidentyfikować czym prawdopodobnie jest ten dokument.
+  b) Daj użytkownikowi naprawdę przydatne — ale niespecjalistyczne — fakty o dokumencie:
+     - Ile stron liczy (świetne przy identyfikacji książek: "rękopis liczący **~700 stron**")
+     - Kto prawdopodobnie jest autorem lub twórcą (z metadanych lub wskazówek w nazwie pliku)
+     - O czym jest dzieło i jakie ma znaczenie historyczne/kulturowe, jeśli to znany klasyk
+     - Kiedy prawdopodobnie powstało lub zostało zdigitalizowane (data pliku, jeśli dostępna)
+  c) Unikaj żargonu: "metadane PDF", "pola EXIF", "znacznik czasu", "bajty pliku" — przetłumacz na język zrozumiały: "ten plik waży **~45 MB**", "powstał około **2019 roku**", "liczy **~600 stron**".
+  d) Formułuj ciepło: "Na podstawie nazwy pliku..." / "Wygląda na to, że..." / "Na razie możemy powiedzieć..."
+  e) Bądź szczery, że tekst jeszcze nie został odczytany — ale utrzymaj zaangażowanie i daj użytkownikowi poczucie, co przesłał.
+  f) Jeśli nazwa pliku lub metadane sugerują znane lub kulturowo istotne dzieło (np. Koran, Mathnawi, Biblia, Talmud, klasyczna poezja), powiedz to wprost i daj 1-2 zdania kontekstu kulturowo-historycznego.
+Ton: jak bibliotekarz, który właśnie otrzymał tajemniczą starą księgę i bada jej okładkę i wagę przed otwarciem.
 
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
 Bądź zwięzły — to ma być szybka analiza, nie rozprawka. Celuj w około 150-250 słów łącznie (opis + wgląd), używając 1-4 akapitów (najczęściej 3, czasem 2, rzadko 4). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
@@ -1224,13 +1350,13 @@ Your response MUST have three parts:
    If the author is not known from the content or metadata, write: # Document Title - Unknown author
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
 
-2. **Description** (after the title): 2-3 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** for key terms.
+2. **Description** (after the title): 2-3 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** SELECTIVELY — only for exact numbers/statistics, key proper names (people, places, organizations), and the single most critical term per paragraph. Do not bold every concept — bold loses its impact when overused.
    AUTHOR IN DESCRIPTION: If you know the author, mention them naturally in the first sentence of the description — as if describing a book to a friend. For example: "This **611-page** collection of poetry by **Rumi** is a classic Arabic edition of the Mathnawi." or "Stephen King takes readers on a dark journey through New England in this **350-page** thriller." Do NOT just repeat the dry title format — weave the author into the description naturally.
    CRITICAL — PRESERVE PRECISE DETAILS: Always include exact numbers, ranges, substance names, ingredient lists, and specific values from the document. For example: if the text says "scars under 12 months old (with some guidance extending to 2 years)", write exactly that — do not simplify to "scars under a year". If specific nutrients are listed like "vitamin C, protein, zinc, and selenium", name them all. If timeframes are given like "9–12 months for the body and about 1 year for the face", include those exact ranges. Specific numbers, names, and precise data are the most valuable part of the description.
    NAME-DROP PRODUCTS, BRANDS, AND PEOPLE: When the document mentions specific brands, products, or notable people, USE THEM BY NAME — do not genericize. For example: write "RegimA Forte Scar Cream" instead of "a scar cream"; "Jane Iredale mineral makeup" instead of "mineral makeup for cover-up". This applies to medications (Accutane, Retin-A), tools (Photoshop, Figma), companies (Tesla, Google), people (Warren Buffett, Marie Curie), places (Mayo Clinic, MIT), products (iPhone 16, Model Y), and anything else with a proper name in the document content.
    MANDATORY MEASURABLE FACTS — in addition to the above, you MUST mention as many of these as possible (if present in the content):
    - Page/chapter/part count (e.g. "This **266-page** crime novel spans **12 chapters**")
-   - All main character/person names, bolded (e.g. **Joanna Chyłka**, **Kordian Oryński**)
+   - Key character/person names (up to 3-4 main ones), bolded (e.g. **Joanna Chyłka**, **Kordian Oryński**)
    - Key dates, years, time periods (e.g. "set in **2019**")
    - Places and locations (e.g. "events in **Warsaw** and near **Augustów**")
    - Amounts, percentages, statistics (e.g. "**$3.5M** in damages")
@@ -1259,6 +1385,40 @@ Your response MUST have three parts:
    - Articles/reports: surface the main thesis, a surprising finding, or broader context.
    - Photos: note something interesting about composition, technical details, or context.
    - Data/tables: point out a trend, anomaly, or the single most important number.
+   - Classical/religious/philosophical texts: place the work in its historical and cultural context — mention the tradition, the era, and why it remains relevant. For example: "The Masnavi (مثنوی) is considered the greatest work of Persian Sufi poetry — Rumi dictated its ~25,000 verses to his disciple **Husam Chelebi** over many years, and classical scholars called it 'the Quran in Persian'." Be specific and scholarly.
+
+LANGUAGE DETECTION RULE — CRITICAL:
+If the document contains a mix of English and one or more non-Latin / exotic languages (Arabic, Persian, Chinese, Japanese, Korean, Hebrew, Hindi, Thai, etc.), you MUST respond in the exotic / non-Latin language, not English. English often appears as a structural scaffold in non-English books (chapter numbers, table of contents, headers) but the true language is the one with the most meaningful content or the cultural/thematic core.
+Examples:
+- A book of Arabic poetry with English page headers → respond in Arabic
+- A Chinese novel with English footnotes → respond in Chinese
+- An English textbook teaching French → respond in French
+- A bilingual Arabic-English Quran → respond in Arabic
+- If truly ambiguous, prefer the language representing the cultural/thematic core.
+
+SCANNED / IMAGE-BASED DOCUMENTS — SPECIAL HANDLING:
+If you receive a [SYSTEM NOTE — OCR IN PROGRESS] in the context below, the document is an image-based or scanned PDF with no native text layer (or very little text extracted so far). OCR is running in the background on all pages.
+You MUST explicitly tell the user:
+  a) That the material consists of scanned/photographed pages (e.g. Arabic calligraphy, handwritten manuscripts, historic printed text).
+  b) That you are OCR-ing all pages and will extend this welcome message with the extracted text as it becomes available.
+  c) Acknowledge what you CAN tell about the document from its title, filename, metadata, or any partial text — be specific and warm. For example: "From the filename 'Mathnawi_Rumi.pdf' and the **~700 pages**, this appears to be a scanned edition of **Jalāl ad-Dīn Rūmī's** Masnavi — one of the greatest masterpieces of Sufi literature."
+  d) If truly no text was extracted yet, say so honestly — but still give the user rich context and keep them engaged.
+Tone: warm, patient, curious — like a librarian who has just received an ancient manuscript for digitization.
+Use a ⏳ or 🔄 emoji once to indicate the ongoing OCR process.
+
+PRE-OCR / NO TEXT YET — METADATA-ONLY IDENTIFICATION:
+If the content starts with [NO READABLE TEXT WAS EXTRACTED], NO text could be extracted at all (OCR has not run yet or the file has no text layer). In this case:
+  a) Use the filename, file metadata (page count, author, title, creation date, file size), and any cultural knowledge to identify what this document likely is.
+  b) Give the user genuinely useful — but non-technical — facts about the document:
+     - How many pages it has (great for identifying books: "a **~700-page** manuscript")
+     - Who likely authored or created it (from metadata or filename clues)
+     - What the work is about, its historical/cultural significance if it's a known classic
+     - When it was likely created or digitized (file date, if available)
+  c) Avoid jargon like "PDF metadata", "EXIF fields", "creation timestamp", "file bytes" — translate these into plain language: "this **~45 MB** file", "created around **2019**", "appears to be **~600 pages**".
+  d) Frame the message warmly: "Based on the filename..." / "This appears to be..." / "From what we can tell so far..."
+  e) Be honest that the text hasn't been read yet — but keep the user engaged and give them a sense of what they've uploaded.
+  f) If the filename or metadata hints at a famous or culturally significant work (e.g. Quran, Mathnawi, Bible, Talmud, classical poetry), say so explicitly and give a 1-2 sentence cultural/historical context.
+Tone: like a librarian who just received a mysterious old book and is examining its cover and weight before opening it.
 
 If file metadata is provided below (JSON block marked with =====), you MUST use it — e.g. author, creation date, title, camera info, etc.
 NEVER mention internal technical metadata — skip information like: PDF generator name (e.g. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), producer version, document ID, encoding format. This data is worthless to the user and reads like a system leak.
@@ -1267,7 +1427,7 @@ Write like a human briefly telling another human what this document is about —
 Be concise — this is a quick analysis, not an essay. Aim for roughly 150-250 words total (description + insight), using 1-4 paragraphs (usually 3, sometimes 2, rarely 4). Don't pad — every sentence must carry concrete value.
 Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
-Reply in the same language as the content.""" + _QUESTIONS_RULES_EN,
+Reply in the same language as the document's primary content (see LANGUAGE DETECTION RULE above).""" + _QUESTIONS_RULES_EN,
                 ),
                 ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
             ]
@@ -1275,9 +1435,29 @@ Reply in the same language as the content.""" + _QUESTIONS_RULES_EN,
 
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
+
+    # Build an OCR-in-progress note to append to the human message when the
+    # welcome is generated from a partial OCR pass (e.g. Mathnawi Rumi scan).
+    ocr_context_note = ""
+    if ocr_in_progress or (ocr_pages_done is not None and total_pages_hint and ocr_pages_done < total_pages_hint):
+        pages_done_str = str(ocr_pages_done) if ocr_pages_done is not None else "some"
+        pages_total_str = str(total_pages_hint) if total_pages_hint else "many"
+        ocr_context_note = (
+            f"\n\n=====\n[SYSTEM NOTE — OCR IN PROGRESS]\n"
+            f"OCR has been run on {pages_done_str} of {pages_total_str} pages so far. "
+            f"The text above is what was extracted. "
+            f"If the text is sparse, incomplete, or only partial, still produce the best welcome message you can "
+            f"based on what is available — and explicitly tell the user in your welcome message that:\n"
+            f"1. The material contains photos/scans of handwritten or printed text (e.g. Arabic calligraphy, classical manuscripts).\n"
+            f"2. OCR is still running on all {pages_total_str} pages in the background.\n"
+            f"3. The welcome message will be extended as more text becomes available.\n"
+            f"4. If almost no text was found yet, tell the user this honestly and describe the nature of the document from metadata/filename.\n"
+            f"Use a warm, reassuring tone. Do NOT pretend you have full text when you don't.\n====="
+        )
+
     raw = _invoke_with_retry(
         chain,
-        {"file_list": file_list, "content": combined, "metadata_section": metadata_section},
+        {"file_list": file_list, "content": combined, "metadata_section": effective_metadata_section + ocr_context_note},
         label="describe",
     )
     welcome_message, suggested_questions = _parse_describe_response(raw)

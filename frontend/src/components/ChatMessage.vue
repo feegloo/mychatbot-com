@@ -953,7 +953,8 @@ function transformActionButtonGroups() {
       if (row.dataset.moreReady === '1') return
       const buttons = Array.from(row.querySelectorAll<HTMLElement>(':scope > .action-btn'))
       if (buttons.length <= MAX_VISIBLE_ASSISTANT_ACTIONS) {
-        row.dataset.moreReady = '1'
+        // Only lock this row when streaming is done — during streaming more buttons may still arrive
+        if (!props.asking) row.dataset.moreReady = '1'
         return
       }
       const visibleButtons = buttons.slice(0, MAX_VISIBLE_ASSISTANT_ACTIONS)
@@ -1218,7 +1219,7 @@ function openFilePreview(file: FileInfo) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #242832;
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #64748b;
   border-radius: 8px;

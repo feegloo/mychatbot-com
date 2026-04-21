@@ -6,7 +6,7 @@
       <p class="home-subtitle">
         Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, use semantic search & RAG, share answers<br />
         <span style="font-size: 12px; padding-top: 6px"
-          >Generate checklist ✅ quiz 🧠 recipe 🍝 book chapter 📖 poem 📜 PDF 📄 and more!</span
+          >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!</span
         >
       </p>
     </div>
@@ -120,6 +120,7 @@ import {
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import UploadingDots from '../components/UploadingDots.vue'
+import { IMAGE_GEN_REGEX } from '../utils/markdown'
 
 onMounted(() => {
   document.title = 'chatrag.app'
@@ -281,9 +282,10 @@ async function submitQuestion() {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
-    const isImageGen = /generat\w*\s+image|wygeneruj\s+obraz|generate\s+image|stwórz\s+obraz/i.test(
-      currentQuestion,
-    )
+    const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
+    if (isImageGen) {
+      reactiveMsg.content = '🎨 Generating image, please wait...'
+    }
     const response = await Promise.race([
       isImageGen ? generateImage(convId, currentQuestion) : askQuestion(convId, currentQuestion),
       timeout,

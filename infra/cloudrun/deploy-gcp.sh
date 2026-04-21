@@ -194,6 +194,9 @@ DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NA
 
 warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
+# Generate a shared secret for the indexer if not already set
+INDEXER_SECRET="${INDEXER_SECRET:-$(openssl rand -hex 32)}"
+
 gcloud run deploy "$SERVICE_NAME" \
   --image "${IMAGE}:latest" \
   --region "$REGION" \
@@ -203,10 +206,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --subnet default \
   --vpc-egress private-ranges-only \
   --port 8080 \
-  --memory 4Gi \
-  --cpu 4 \
-  --min-instances 0 \
-  --max-instances 3 \
+  --memory 16Gi \
+  --cpu 8 \
+  --min-instances 2 \
+  --max-instances 4 \
   --timeout 300 \
   --set-env-vars "\
 NODE_ENV=production,\
@@ -226,10 +229,57 @@ GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-chatrag},\
 DEBUG_PASS=${DEBUG_PASS:-chatragadmin},\
 STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY},\
-WORKER_MODE=${WORKER_MODE:-cloud_run},\
+WORKER_MODE=${WORKER_MODE:-local},\
 WORKER_JOB_NAME=${WORKER_JOB_NAME:-chatrag-worker},\
 WORKER_REGION=${WORKER_REGION:-europe-west1},\
-GCP_PROJECT_ID=${GCP_PROJECT_ID}"
+GCP_PROJECT_ID=${GCP_PROJECT_ID},\
+INDEXER_SECRET=${INDEXER_SECRET}"
+
+# ── Step 8b: Deploy chatrag-indexer service ─────────────────────────────────
+info "Step 8b/9: Deploying chatrag-indexer (dedicated PDF worker)..."
+
+INDEXER_SERVICE_NAME="chatrag-indexer"
+
+gcloud run deploy "$INDEXER_SERVICE_NAME" \
+  --image "${IMAGE}:latest" \
+  --region "$REGION" \
+  --platform managed \
+  --no-allow-unauthenticated \
+  --ingress internal-and-cloud-load-balancing \
+  --network default \
+  --subnet default \
+  --vpc-egress private-ranges-only \
+  --port 8080 \
+  --memory 4Gi \
+  --cpu 4 \
+  --min-instances 1 \
+  --max-instances 2 \
+  --concurrency 4 \
+  --timeout 600 \
+  --set-env-vars "\
+NODE_ENV=production,\
+DATABASE_URL=${DATABASE_URL},\
+CHROMA_MODE=local,\
+ANONYMIZED_TELEMETRY=False,\
+OPENAI_API_KEY=${OPENAI_API_KEY},\
+STORAGE_PROVIDER=gcs,\
+GCS_BUCKET=${GCS_BUCKET},\
+FRONTEND_DIST_PATH=,\
+PYTHON_BIN=/app/python/.venv/bin/python3,\
+PYTHON_PROJECT_ROOT=/app/python,\
+PYTHON_SERVER_URL=http://localhost:8321,\
+WORKER_MODE=local,\
+GCP_PROJECT_ID=${GCP_PROJECT_ID},\
+INDEXER_SECRET=${INDEXER_SECRET}"
+
+INDEXER_URL=$(gcloud run services describe "$INDEXER_SERVICE_NAME" --region "$REGION" --format='value(status.url)')
+info "  chatrag-indexer deployed at: ${INDEXER_URL}"
+
+# Wire the indexer URL back into the main service
+info "  Updating chatrag with INDEXER_URL..."
+gcloud run services update "$SERVICE_NAME" \
+  --region "$REGION" \
+  --update-env-vars "INDEXER_URL=${INDEXER_URL}"
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
 info "Step 9/9: Getting service URL..."
@@ -238,5 +288,9 @@ SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
-echo "  DB password: $DB_PASSWORD  (save this!)"
+echo "  DB password:    $DB_PASSWORD  (save this!)"
+echo "  Indexer URL:    $INDEXER_URL  (internal only)"
+echo "  Indexer secret: $INDEXER_SECRET  (save this!)"
+echo "  Min instances:  2 (chatrag), 1 (chatrag-indexer)"
+echo "  PDF offload:    50% of uploads delegated to chatrag-indexer"
 echo "═══════════════════════════════════════════════════════════════"

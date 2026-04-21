@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 # Max chars of full matched pages to include in answer prompts.
 _MATCHED_PAGES_MAX_CHARS = 40_000
 
+# Hard cap on total prompt tokens sent to the LLM.
+# Leaves headroom for the model's max output.  300 000 is the observed
+# per-request limit for GPT-4.1 / o-series; we stay 20 k below to be safe.
+_MAX_PROMPT_TOKENS = 280_000
+
 # Module-level cache for LLM instance
 _llm_instance = None
 _llm_provider_key = None
@@ -236,28 +241,30 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - Colored text: use color markers with [c:color]word[/c] when they add meaning, mood, or scanning clarity. Prefer meaningful color accents in most medium/long answers.
     - Color usage should be natural but not too rare: many medium/long answers should include color markers when terms map clearly to the color dictionary.
     - Keep emphasis readable: usually 2-6 colored words/phrases in longer answers, and 1-3 in short/medium answers.
-    - You may color short phrases (2-3 words) when it improves clarity, but never color full sentences or paragraphs.
-  - Color dictionary (common meanings; pick the closest fit):
-    * [c:green]word[/c] — correct, growth, nature, hope, life, healing, ready, spring, envy, go-signal
-    * [c:red]word[/c] — wrong, danger, love, passion, fire, alarm, urgency, stop, blood, anger
-    * [c:yellow]word[/c] — sun, joy, optimism, happiness, warning, summer, lemon, sunflower, bee, radiance
-    * [c:amber]word[/c] — caution, transition, pending, harvest, in-between, autumn, whiskey, tiger, fossil, risk
-    * [c:blue]word[/c] — ocean, sky, calm, sadness, trust, depth, melancholy, rain, tranquility, ice
-    * [c:brown]word[/c] — earth, wood, stability, warmth, chocolate, coffee, leather, autumn, rustic, soil
-    * [c:orange]word[/c] — energy, warmth, excitement, sunset, fox, pumpkin, citrus, enthusiasm, harvest, glow
-    * [c:purple]word[/c] — creativity, mystery, royalty, magic, wisdom, twilight, lavender, premium, mystical, grape
-    * [c:pink]word[/c] — affection, tenderness, romance, flamingo, blossom, blush, sweetness, beauty, cotton candy, warmth
-    * [c:cyan]word[/c] — science, precision, data, tech, aqua, fresh, turquoise, clarity, cool, Caribbean
-    * [c:lime]word[/c] — freshness, eco, vitality, youth, kiwi, spring, neon, growth, tangy, new-beginnings
-    * [c:rose]word[/c] — elegance, nostalgia, delicate, romantic, soft, gentle-emotion, grace, flower, nuance, sunset
-    * [c:black]word[/c] — power, finality, night, shadow, sophistication, void, death, formal, contrast, coal
-    * [c:white]word[/c] — clarity, purity, peace, snow, simplicity, neutrality, dove, blank-canvas, milk, clean
-    * [c:gray]word[/c] — uncertainty, ambiguity, fog, ash, wolf, balance, smoke, stone, indifference, neutrality
-    * [c:teal]word[/c] — healing, balance, calm-water, serenity, reef, ocean-life, medical, clarity, sophistication, harmony
-    * [c:indigo]word[/c] — intuition, night-sky, depth, meditation, insight, dusk, cosmos, wisdom, inner-truth, contemplation
-    * [c:gold]word[/c] — achievement, wealth, victory, treasure, luxury, success, radiance, medal, excellence, value
-    * [c:silver]word[/c] — technology, modernity, precision, moon, sleek, grace, metal, futurism, innovation, elegance
-    * [c:magenta]word[/c] — intensity, boldness, innovation, transformation, vivid, audacity, disruption, power, shock, energy
+    - You may color a phrase of 2–5 neighboring words when the whole phrase belongs to one concept — treat it like a student's highlighter stroke: color "warm summer sand" in yellow, not just "sand". Never color full sentences or paragraphs.
+    - **Contrast rule**: When the answer contains two clearly opposing concepts, use contrasting colors to make the opposition visually striking. Standard contrast pairs (adapt freely to context):
+        * good vs evil / right vs wrong / truth vs lie → [c:green]good[/c] vs [c:red]evil[/c]
+        * life vs death → [c:green]life[/c] vs [c:gray]death[/c]
+        * love vs hate → [c:pink]love[/c] vs [c:blue]hate[/c]
+        * cold vs warm / ice vs fire → [c:blue]cold[/c] vs [c:orange]warm[/c]
+        * hope vs despair → [c:yellow]hope[/c] vs [c:gray]despair[/c]
+        * victory vs defeat / success vs failure → [c:gold]victory[/c] vs [c:gray]defeat[/c]
+        * creation vs destruction → [c:green]creation[/c] vs [c:red]destruction[/c]
+        * light vs darkness → [c:yellow]light[/c] vs [c:gray]darkness[/c]
+        * wisdom vs ignorance / knowledge vs confusion → [c:purple]wisdom[/c] vs [c:gray]ignorance[/c]
+        * Use your judgment — any clear duality deserves contrasting color treatment.
+    - **Student marker rule**: When the uploaded material is a learning resource — language course, exam preparation, homework, textbook, vocabulary list, grammar guide, certificate preparation, or anything the user is studying — use color as a student would use a highlighter pen: mark key terms, definitions, rules, and important concepts with color to make them stand out. In creative writing or casual answers, use this sparingly or not at all.
+  - Color dictionary — 10 colors; pick the closest fit:
+    * [c:green]word[/c] — correct, life, nature, plants, grass, slow life, positive, enthusiasm, health, bacteria, virus, growth, hope, go-signal, freshness, eco, spring, healing
+    * [c:red]word[/c] — wrong, danger, alarm, strong love, aggression, anger, rage, speed, passion, fire, blood, stop
+    * [c:yellow]word[/c] — sun, gold - money, warmth, summer, flame, sand, cheese, honey, bees, pause, light, too slow, radiance, warning, flowers, leaves
+    * [c:blue]word[/c] — water, cold, ice, slow, trust, sky, ocean, depth, sadness, melancholy, tranquility, calm, winter, night, technology, precision
+    * [c:purple]word[/c] — creativity, mystery, royalty, magic, wisdom, twilight, meditation, intuition, cosmos, night
+    * [c:orange]word[/c] — energy, organge fruit, excitement, caution, harvest, glow, transition, enthusiasm, sunset, pumpkin, citrus
+    * [c:gold]word[/c] — achievement, wealth, victory, success, luxury, excellence, treasure, radiance, medal, technology
+    * [c:teal]word[/c] — healing, balance, science, precision, tech, serenity, clarity, medical, harmony, aqua
+    * [c:pink]word[/c] — love, affection, tenderness, romance, sweetness, beauty, girly, blush, elegance, grace, blossom
+    * [c:gray]word[/c] — uncertainty, death, ambiguity, fog, neutrality, indifference, shadow, smoke, ash, silence
     - If a concept does not naturally map to a color, leave it uncolored rather than forcing a random color.
 - Math / LaTeX: Use KaTeX syntax not just for math — use it as a STYLE TOOL whenever it adds elegance or visual punch. The frontend renders beautiful LaTeX.
   * Obvious: $E = mc^2$, $\sum_{{i=1}}^{{n}} x_i$, $$\int_0^\infty e^{{-x}} dx = 1$$
@@ -304,12 +311,18 @@ d) Action Buttons:
   * CREATIVE/LITERARY documents where the rules below apply normally: novels, short stories, poetry collections, screenplays, song lyrics, memoirs, comic books, personal essays with narrative voice.
 
 - **"generate image" encouragement**: Actively look for opportunities to suggest image generation. If the answer discusses a scene, character, place, concept, emotion, or anything visual, one of the 3 action buttons SHOULD be a "generate image" prompt with specific context about WHAT to generate. For example: "Generate image of the castle at sunset 🎨" or "Wygeneruj obraz sceny pojedynku 🎨". Be specific — include key details (who, where, what mood, what style) so the image generation has clear direction. **Skip this entirely for factual documents (medical, legal, financial, scientific) — see grounding rule above.**
-- **"creative writing" encouragement for literary content**: If the uploaded document is a novel, fiction, or has a strong narrative voice (thriller, horror, fantasy, romance, crime, sci-fi, etc.), one action button SHOULD suggest writing an inspired chapter in the author's style: "Napisz inspirowany rozdział w stylu [Author] ✏️" or "Write inspired chapter like [Author] ✏️". If the content is poetry, quotes, aphorisms, or philosophy, suggest writing an inspired poem instead: "Napisz inspirowany wiersz w stylu [Author] 📜" or "Write inspired poem like [Author] 📜". Prioritize these creative writing actions for literary content — they should appear alongside the image generation action. **Do NOT apply to factual documents — see grounding rule above.**
+- **CRITICAL — if the user's request contains "generate image", "create image", "make image", "show image", or "wygeneruj obraz", "stwórz obraz", or any clear intent to produce an image**: DO NOT respond with instructions, prompt examples, or suggestions. Instead respond very briefly — one short sentence about what image you will generate (e.g. "Generating an image of Rumi meditating by candlelight...") — and nothing else. The image generation happens automatically; your text is just an acknowledgment. Do not add action buttons in this case.
+- **"creative writing" encouragement for literary content**: If the uploaded document is a novel, fiction, or has a strong narrative voice (thriller, horror, fantasy, romance, crime, sci-fi, etc.), one action button SHOULD suggest writing creative text in the author's style. Use the ACTUAL author name — never use placeholder brackets like [Author]. Vary the phrasing naturally (do not always say "Write inspired chapter like"):
+  * For novels/fiction — vary among: "Write inspired chapter like NAME ✏️", "Create a page in NAME's style ✏️", "Improvise a scene like NAME ✏️", "Write a new chapter inspired by NAME ✏️", "Create opening lines in NAME's voice ✏️"
+  * For poetry/philosophy/quotes — vary among: "Write inspired poem like NAME 📜", "Compose a verse in NAME's spirit 📜", "Create a poem in NAME's voice 📜", "Write a new aphorism like NAME 📜"
+  * The creative writing button should describe WHAT to write (chapter, scene, page, verse, poem) and reference the real author name — the user should be able to click it and immediately understand what they will get.
+  * Prioritize these creative writing actions for literary content — they should appear alongside the image generation action.
+  * **Do NOT apply to factual documents — see grounding rule above.**
 
 - **"złota myśl" (wisdom quote) encouragement**: When source material contains aphorisms, quotes, maxims, or philosophical statements — OR when the author/thinker is well-known for memorable one-liners (e.g. Einstein, Seneca, Marcus Aurelius, Lao Tzu, Oscar Wilde, Nietzsche, Confucius, Buddha, Epictetus, Pascal, Voltaire) — suggest generating a brand-new wisdom quote inspired by the source:
   * **TOP-LEVEL (one of the first 3 buttons, visible without "More...")**: Use this placement when the source IS primarily quotes/aphorisms, or the person is famous for their wit and wisdom. Examples: a collection of Einstein quotes, Stoic philosophy, Tao Te Ching, Oscar Wilde's wit. The "złota myśl" button should be immediately discoverable here.
   * **In "More..." (positions 4–7)**: Use this placement for general authors/writers who have some notable quotes but are not primarily known for aphorisms (e.g. a novelist who occasionally writes beautifully). Hide it in the overflow menu.
-  * Label format (MUST stay under 10 words): "Wygeneruj złotą myśl w stylu [Author] 💡" (Polish) or "Generate wisdom quote in [Author]'s voice 💡" (English). Replace [Author] with the actual name from the source.
+  * Label format (MUST stay under 10 words): Use the ACTUAL author name — never placeholder brackets. Polish: "Wygeneruj złotą myśl w stylu NAME 💡". English: "Generate wisdom quote in NAME's voice 💡".
   * When this action is triggered, generate ONE original sentence of wisdom — pithy, resonant, memorable — that captures the author's worldview, voice, and philosophy, as if they wrote it themselves. It should feel like a genuine "złota myśl": timeless, quotable, thought-provoking. NOT a summary or paraphrase of a real quote — a newly invented one in the same spirit.
   * Examples of good "złote myśli" output style:
     - (Einstein-style) "Imagination is the universe folding itself into a mind small enough to wonder." 💡
@@ -1154,6 +1167,67 @@ def _extract_chapter_context(storage_dir: str | None, rows: list[dict]) -> str:
         return ""
 
 
+def _trim_prompt_to_budget(
+    prompt_vars: dict,
+    prompt: ChatPromptTemplate,
+    max_tokens: int = _MAX_PROMPT_TOKENS,
+) -> dict:
+    """Ensure the rendered prompt stays within the per-request token budget.
+
+    Sections are trimmed in order of decreasing size impact:
+      chapter_context → matched_pages → context (source chunks)
+    Each trimming pass cuts the offending section to 60 % of its current
+    length until the budget is met or nothing more can be cut.
+    """
+    _TRIM_SENTINELS = frozenset({
+        "(no chapter structure detected)",
+        "(no full page text available)",
+        "(no matching sources found)",
+        "(matched sources have no page numbers)",
+        "(could not extract full page text)",
+        "(error extracting page text)",
+    })
+
+    vars_copy = dict(prompt_vars)
+    for attempt in range(12):
+        rendered_messages = prompt.format_messages(**vars_copy)
+        full_text = "\n".join(m.content for m in rendered_messages)
+        total_tokens = _count_tokens(full_text)
+
+        if total_tokens <= max_tokens:
+            if attempt > 0:
+                logger.warning(
+                    f"✂️ Prompt trimmed after {attempt} reduction(s): "
+                    f"{total_tokens:,} tokens (budget={max_tokens:,})"
+                )
+            return vars_copy
+
+        logger.warning(
+            f"⚠️ Prompt too large: {total_tokens:,} tokens "
+            f"(budget={max_tokens:,}), trimming (attempt {attempt + 1})"
+        )
+
+        trimmed = False
+        for key in ("chapter_context", "matched_pages", "context"):
+            val = vars_copy.get(key, "")
+            if not val or val in _TRIM_SENTINELS:
+                continue
+            new_len = max(500, int(len(val) * 0.6))
+            if new_len < len(val):
+                vars_copy[key] = val[:new_len] + "\n\n[... trimmed to fit token budget]"
+                trimmed = True
+                break
+
+        if not trimmed:
+            logger.error(
+                f"🚨 Cannot reduce prompt further — sending {total_tokens:,} tokens "
+                f"(over budget by {total_tokens - max_tokens:,})"
+            )
+            break
+
+    return vars_copy
+
+
 def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     """Format EXIF metadata for all files into a prompt section."""
     if not file_metadata:
@@ -1311,6 +1385,9 @@ def answer_with_citations(
                 "conversation_name": conv_name,
                 "conversation_id": conversation_id,
             }
+
+        # Trim context sections if total prompt would exceed the per-request token limit
+        prompt_vars = _trim_prompt_to_budget(prompt_vars, prompt)
 
         # Render the full prompt string and log it for debugging
         rendered_messages = prompt.format_messages(**prompt_vars)

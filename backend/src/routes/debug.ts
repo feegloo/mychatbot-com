@@ -54,7 +54,9 @@ debugRouter.get('/debug/tables', async (ctx) => {
       offset,
     ]),
     query(
-      'SELECT * FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      `SELECT id, conversation_id, role, LEFT(content, 500) AS content, model,
+              created_at, user_id
+       FROM public.conversation_messages ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset],
     ),
     query('SELECT * FROM public.suggested_questions ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
@@ -89,9 +91,9 @@ debugRouter.get('/debug/tables', async (ctx) => {
     ]),
     query(
       `SELECT id, conversation_id, operation, model,
-              LEFT(prompt_text, 1048576) AS prompt_text,
+              LEFT(prompt_text, 2000) AS prompt_text,
               LENGTH(prompt_text) AS prompt_chars,
-              LEFT(response_text, 1048576) AS response_text,
+              LEFT(response_text, 2000) AS response_text,
               LENGTH(response_text) AS response_chars,
               prompt_tokens, completion_tokens, total_tokens, cached_tokens,
               duration_ms, created_at

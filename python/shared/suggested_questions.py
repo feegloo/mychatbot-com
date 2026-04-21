@@ -270,12 +270,16 @@ af) Wygeneruj obraz 🎨 — sugeruj gdy:
    - akcja: MUSI zawierać dokładnie frazy "wygeneruj obraz" lub "generate image" w treści
    - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
 
-ag) Postaw diagnozę / diagnoza 🔬 — sugeruj gdy:
-   - dokument to wyniki badań laboratoryjnych, badania krwi, panel tarczycowy, lipidogram
-   - treść zawiera wartości takie jak: morfologia, hemoglobina, leukocyty, cholesterol, glukoza, TSH, FT3, FT4, ferrytyna, witamina D, witamina B12, homocysteina, magnez, żelazo, CRP, D-dimery, kreatynina, bilirubina, ALAT, ASPAT, HbA1c, kwas foliowy, estradiol, testosteron itp.
-   - plik wygląda jak sprawozdanie z badań z laboratorium (ALAB, Diagnostyka, Synevo itp.)
+ag) Postaw diagnozę / diagnoza 🔬 — sugeruj TYLKO gdy:
+   - dokument to FAKTYCZNIE wyniki badań laboratoryjnych konkretnego pacjenta: morfologia krwi, panel tarczycowy, lipidogram, wyniki od lekarza/szpitala/laboratorium (ALAB, Diagnostyka, Synevo itp.)
+   - treść zawiera wartości numeryczne z zakresami referencyjnymi (np. TSH: 2.3 mIU/L [0.4-4.0]) lub jest wyraźnie dokumentem klinicznym: historia choroby, karta wypisowa, wyniki obrazowania (RTG, USG, MRI), opis histopatologiczny
+   - treść zawiera typowe biomarkery: hemoglobina, leukocyty, cholesterol, glukoza, TSH, FT3, FT4, ferrytyna, witamina D, CRP, kreatynina, ALAT, ASPAT, HbA1c itp.
    - akcja: "Postaw diagnozę na podstawie wyników 🔬"
-   - UWAGA: to ma WYSOKI PRIORYTET — jeśli treść to wyniki badań, ta akcja MUSI być jedną z dwóch
+   - WARUNKI WYKLUCZAJĄCE (NIE sugeruj tej akcji gdy):
+     * dokument nie ma związku z medycyną/zdrowiem (instrukcja obsługi, podręcznik techniczny, powieść, przepisy kulinarne, instrukcja odkurzacza)
+     * ogólna wiedza medyczna (encyklopedia chorób, artykuł o zdrowiu) bez danych konkretnego pacjenta
+     * dokument prawny, finansowy lub naukowy (chemia, fizyka, inżynieria), który przypadkowo zawiera medyczne słówka
+   - UWAGA: sugeruj tylko gdy treść FAKTYCZNIE zawiera wyniki badań konkretnej osoby — nie wymuszaj na dokumentach niezwiązanych z medycyną
 
 ah) Napisz nowe wskazówki 💡 — sugeruj gdy:
    - dokument to poradnik, lista wskazówek, "N sposobów na...", "X wskazówek jak..."
@@ -521,12 +525,16 @@ af) Generate image 🎨 — suggest when:
    - action: MUST contain exactly the phrase "generate image" in the label
    - action MUST reference the document's specific subject, character, or scene (e.g. "Generate image: stormy sea at sunset 🎨") — do NOT use the generic phrase "current mood"; tailor it to the actual content
 
-ag) Make a diagnosis 🔬 — suggest when:
-   - document is lab test results, blood tests, thyroid panel, lipid panel
-   - content contains values like: CBC, hemoglobin, WBC, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, vitamin B12, homocysteine, magnesium, iron, CRP, D-dimers, creatinine, bilirubin, ALT, AST, HbA1c, folic acid, estradiol, testosterone, etc.
-   - file looks like a laboratory report
+ag) Make a diagnosis 🔬 — suggest ONLY when:
+   - document IS GENUINELY lab test results for a specific patient: CBC, blood tests, thyroid panel, lipid panel, results from a doctor/hospital/lab
+   - content contains numerical values with reference ranges (e.g. TSH: 2.3 mIU/L [0.4-4.0]) or is clearly a clinical patient document: medical history, discharge summary, imaging results (X-ray, ultrasound, MRI), pathology report
+   - content contains typical biomarkers: hemoglobin, WBC, cholesterol, glucose, TSH, FT3, FT4, ferritin, vitamin D, CRP, creatinine, ALT, AST, HbA1c, etc.
    - action: "Make a diagnosis based on results 🔬"
-   - NOTE: this has HIGH PRIORITY — if the content is lab results, this action MUST appear in the action prompts
+   - EXCLUSION CONDITIONS (do NOT suggest this action when):
+     * document has no connection to medicine/health (appliance manual, technical textbook, novel, cookbook, vacuum cleaner instruction)
+     * general medical knowledge (disease encyclopedia, health article) without specific patient data
+     * legal, financial, or scientific document (chemistry, physics, engineering) that incidentally contains medical terminology
+   - NOTE: suggest only when content ACTUALLY contains test results for a specific person — do not force this on unrelated documents
 
 ah) Write new tips 💡 — suggest when:
    - document is a tips guide, advice collection, "X ways to...", "N tips for..."
@@ -635,6 +643,18 @@ _LAB_TEST_PATTERN = re.compile(
     r"triglyceride|glucose|magnesium|iron.*serum|thyroid|cortisol|"
     r"lab.{0,5}result|blood.{0,5}test|wynik.{0,5}bada[nń]|sprawozdanie z bada[nń]|"
     r"zakres referencyjny|reference range|laboratorium|laboratory)\b",
+    re.IGNORECASE,
+)
+
+# Documents that match _LAB_TEST_PATTERN incidentally but are not medical patient records
+_NON_MEDICAL_CONTEXT_PATTERN = re.compile(
+    r"\b(instrukcja obs\u0142ugi|podr\u0119cznik|encyklopedia|s\u0142ownik|powie\u015b\u0107|"
+    r"powieści|beletrystyk|kryminał|thriller|romans|fantasy|scenariusz|"
+    r"przepis|kucharsk|odkurzacz|zmywarka|pralka|lodówka|urządzeni[ae]|"
+    r"manual|handbook|encyclopedia|dictionary|novel|fiction|recipe|cookbook|"
+    r"appliance|vacuum.*cleaner|washing.*machine|dishwasher|user.*guide|"
+    r"owner.*manual|technical.*manual|engineering|physics|chemistry|"
+    r"history.*of|biography|autobiography)\b",
     re.IGNORECASE,
 )
 
@@ -811,8 +831,11 @@ def _append_contextual_prompts(
                                 contextual.append(f"Who is the person in {short_name}? 🔍")
             # PDF metadata prompt removed — LLM-generated creative actions are more valuable
 
-    # Lab test / blood test results → diagnosis prompt (highest priority)
-    if has_lab_tests and len(contextual) < MAX_ACTION_PROMPTS:
+    # Lab test / blood test results → diagnosis prompt
+    # Only inject when the document is genuinely medical patient data, not just any
+    # document that happens to contain medical terminology (manuals, textbooks, etc.)
+    is_non_medical = bool(_NON_MEDICAL_CONTEXT_PATTERN.search(welcome_message))
+    if has_lab_tests and not is_non_medical and len(contextual) < MAX_ACTION_PROMPTS:
         if language == "pl":
             contextual.insert(0, "Postaw diagnozę na podstawie wyników 🔬")
         else:

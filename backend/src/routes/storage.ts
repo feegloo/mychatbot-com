@@ -140,46 +140,55 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
       ? `${namespace}/${resolvedStoredName}`
       : `${namespace}/${safeName}`
     try {
-      const signedUrl = await generateSignedReadUrl(gcsKey)
-      // For PDF previews, proxy through same-origin endpoint so pdf.js can use range requests
-      // without cross-origin/CORS issues from signed GCS URLs.
+      // For PDF range requests (pdf.js fetching page chunks), proxy through so
+      // the same-origin URL is used consistently. Range responses are small and
+      // won't hit Cloud Run's 32 MiB response body limit.
+      // For full-file PDF requests redirect to a GCS signed URL — the bucket
+      // CORS config exposes Content-Range/Accept-Ranges so pdf.js can subsequently
+      // issue range requests to GCS directly without size issues.
       if (ext === '.pdf') {
         const range = ctx.get('range')
-        const upstream = await fetch(signedUrl, {
-          headers: range ? { Range: range } : {},
-        })
-        if (!upstream.ok && upstream.status !== 206) {
-          ctx.status = upstream.status || 502
-          ctx.body = { error: `Failed to read file from storage (status: ${upstream.status})` }
+        if (range) {
+          const signedUrl = await generateSignedReadUrl(gcsKey, 'application/pdf')
+          const upstream = await fetch(signedUrl, { headers: { Range: range } })
+          if (!upstream.ok && upstream.status !== 206) {
+            ctx.status = upstream.status || 502
+            ctx.body = { error: `Failed to read file from storage (status: ${upstream.status})` }
+            return
+          }
+          if (!upstream.body) {
+            ctx.status = 502
+            ctx.body = { error: 'Empty storage response' }
+            return
+          }
+          ctx.status = upstream.status
+          const passthroughHeaders = [
+            'content-type',
+            'content-length',
+            'content-range',
+            'accept-ranges',
+            'etag',
+            'last-modified',
+          ]
+          for (const header of passthroughHeaders) {
+            const value = upstream.headers.get(header)
+            if (value) ctx.set(header, value)
+          }
+          ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`)
+          ctx.set('X-Content-Type-Options', 'nosniff')
+          ctx.set('Cache-Control', 'public, max-age=86400')
+          const webStream = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
+          ctx.body = Readable.fromWeb(webStream)
           return
         }
-        if (!upstream.body) {
-          ctx.status = 502
-          ctx.body = { error: 'Empty storage response' }
-          return
-        }
-
-        ctx.status = upstream.status
-        const passthroughHeaders = [
-          'content-type',
-          'content-length',
-          'content-range',
-          'accept-ranges',
-          'etag',
-          'last-modified',
-        ]
-        for (const header of passthroughHeaders) {
-          const value = upstream.headers.get(header)
-          if (value) ctx.set(header, value)
-        }
-        ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`)
-        ctx.set('X-Content-Type-Options', 'nosniff')
-        ctx.set('Cache-Control', 'public, max-age=86400')
-        const webStream = upstream.body as unknown as Parameters<typeof Readable.fromWeb>[0]
-        ctx.body = Readable.fromWeb(webStream)
+        // No Range header — redirect to signed URL so the full file is served
+        // directly from GCS, avoiding Cloud Run's response size limit for large PDFs.
+        const signedUrl = await generateSignedReadUrl(gcsKey, 'application/pdf')
+        ctx.redirect(signedUrl)
         return
       }
 
+      const signedUrl = await generateSignedReadUrl(gcsKey)
       ctx.redirect(signedUrl)
       return
     } catch {

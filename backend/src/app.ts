@@ -16,6 +16,7 @@ import { translateRouter } from './routes/translate.js'
 import { synthesizeRouter } from './routes/synthesize.js'
 import { donateRouter } from './routes/donate.js'
 import { imageGenRouter } from './routes/image-gen.js'
+import { internalRouter } from './routes/internal.js'
 import { config } from './config.js'
 import logger from './logger.js'
 
@@ -41,6 +42,7 @@ export function createApp() {
     .use(synthesizeRouter.routes())
     .use(donateRouter.routes())
     .use(imageGenRouter.routes())
+    .use(internalRouter.routes())
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith('/api')) {

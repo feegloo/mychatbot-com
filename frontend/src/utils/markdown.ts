@@ -149,27 +149,19 @@ export function renderMarkdown(content: string): string {
   // Replace ++underline++ markers with <u> tags
   const withUnderline = withPoems.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
   // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
+  // Palette matches the 10 colors defined in the AI system prompt:
+  // green, red, yellow, blue, purple, orange, gold, teal, pink, gray
   const allowedColors = new Set([
     'green',
     'red',
     'yellow',
-    'amber',
     'blue',
-    'brown',
     'purple',
-    'pink',
-    'cyan',
     'orange',
-    'lime',
-    'rose',
-    'black',
-    'white',
-    'gray',
-    'teal',
-    'indigo',
     'gold',
-    'silver',
-    'magenta',
+    'teal',
+    'pink',
+    'gray',
   ])
   const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c\]/g, (_, color, text) =>
     allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
@@ -263,3 +255,11 @@ export function renderInlineMarkdown(content: string): string {
     '<a target="_blank" rel="noopener noreferrer" ',
   )
 }
+
+/**
+ * Returns true when a user message is an image generation request.
+ * Matches common English and Polish phrasings that trigger the /generate-image API.
+ */
+export const IMAGE_GEN_REGEX =
+  /generat\w*\s+(?:an?\s+)?image|creat\w*\s+(?:an?\s+)?image|make\s+(?:an?\s+)?image|draw\s+(?:an?\s+)?image|show\s+(?:an?\s+)?image|wygeneruj\s+(?:obraz|obrazek|zdjęcie)|stwórz\s+(?:obraz|obrazek|zdjęcie)|narysuj\s+(?:obraz|obrazek|zdjęcie)|zrób\s+(?:obraz|obrazek|zdjęcie)/i
+
