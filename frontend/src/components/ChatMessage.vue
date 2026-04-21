@@ -381,6 +381,9 @@
             <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
           </div>
         </div>
+        <div v-if="msg.generatingImage && asking" class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
       </template>
       <span v-else class="user-text" :class="{ 'animate-in': animateIn }">{{ msg.content }}</span>
 
