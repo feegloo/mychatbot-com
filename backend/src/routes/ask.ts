@@ -22,6 +22,7 @@ import {
   renderAutoImageMarkdown,
   mergeCitationsWithImage,
 } from '../utils/inspired-image.js'
+import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
 
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
@@ -189,6 +190,16 @@ askRouter.post('/ask', async (ctx) => {
           chatHistory: chatHistory.slice(-6),
           quality: 'auto',
         })
+        // Persist to GCS so it survives Cloud Run instance turnover.
+        if (config.storageProvider === 'gcs' && config.gcsBucket) {
+          try {
+            const localPath = path.join(storageDir, result.file_name)
+            const gcsKey = `${data.conversation!.storage_namespace}/${result.file_name}`
+            await uploadLocalFileToGcs(localPath, gcsKey, 'image/png')
+          } catch (err) {
+            logger.error({ err, fileName: result.file_name }, 'failed to upload auto-image to GCS')
+          }
+        }
         const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
         const imageSources = (result.rag_sources || []).map((s) => ({
           fileName: s.file_name,

@@ -86,8 +86,7 @@ export function renderAutoImageMarkdown(
     : ''
   return (
     `\n\n![${result.imageTitle}](${result.imageUrl})\n` +
-    `<p class="image-caption">"${result.imageTitle}"${markers}</p>\n` +
-    `<p class="image-caption-sublabel">generated image</p>`
+    `<p class="image-caption">"${result.imageTitle}"${markers}</p>\n`
   )
 }
 

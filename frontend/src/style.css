@@ -1150,6 +1150,26 @@ li:has(.checklist-box) {
   height: auto;
   max-width: none;
   max-height: min(70vh, 420px);
+  margin: 0 auto;
+}
+
+/* Fade-in for images that appear dynamically (e.g. post-generation), not for
+   pre-existing images rendered on initial mount. The .animate-in class is
+   added by ChatMessage only for images inserted after the first tracking pass. */
+@keyframes markdown-image-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.markdown-content .markdown-image-scroll img.animate-in {
+  animation: markdown-image-fade-in 450ms ease-out both;
+  transform-origin: 50% 0;
 }
 
 .markdown-content .image-caption {

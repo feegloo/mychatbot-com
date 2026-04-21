@@ -89,6 +89,24 @@ export async function downloadGcsFileToLocal(gcsKey: string, namespace: string):
 }
 
 /**
+ * Upload a local file to GCS under the given key. Used for server-side
+ * generated artifacts (e.g. DALL-E images) that Python wrote to local disk.
+ * Safe to skip via `config.storageProvider !== 'gcs'`.
+ */
+export async function uploadLocalFileToGcs(
+  localPath: string,
+  gcsKey: string,
+  contentType?: string,
+): Promise<void> {
+  const bucket = getGcsClient().bucket(config.gcsBucket)
+  await bucket.upload(localPath, {
+    destination: gcsKey,
+    resumable: false,
+    ...(contentType ? { metadata: { contentType } } : {}),
+  })
+}
+
+/**
  * Download a file from GCS to a local path. Returns the local path.
  */
 export async function downloadFromGcs(gcsKey: string, localPath: string): Promise<string> {

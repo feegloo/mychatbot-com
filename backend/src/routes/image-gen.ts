@@ -11,6 +11,8 @@ import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
 import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
 import { SHORT_ID_RE } from '../constants.js'
+import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
+import logger from '../logger.js'
 
 // File names are resolved against the conversation's storage dir server-side.
 // We reject anything that could escape the storage dir (slashes, `..`) to
@@ -84,6 +86,19 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     quality: 'auto',
     referenceImagePaths,
   })
+
+  // Persist generated image to GCS so it survives Cloud Run instance turnover.
+  // Local disk is ephemeral and per-instance — without this, the /api/storage
+  // route falls back to a GCS signed URL for a key that does not exist.
+  if (config.storageProvider === 'gcs' && config.gcsBucket) {
+    try {
+      const localPath = path.join(storageDir, result.file_name)
+      const gcsKey = `${data.conversation.storage_namespace}/${result.file_name}`
+      await uploadLocalFileToGcs(localPath, gcsKey, 'image/png')
+    } catch (err) {
+      logger.error({ err, fileName: result.file_name }, 'failed to upload generated image to GCS')
+    }
+  }
 
   // Build the assistant answer with the image
   const imageUrl = `/api/storage/${conversationId}/${result.file_name}`

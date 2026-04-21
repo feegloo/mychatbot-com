@@ -883,6 +883,11 @@ const pendingImages = new Set<HTMLImageElement>()
 const imageRetryTimers = new Set<ReturnType<typeof setTimeout>>()
 const IMG_MAX_ATTEMPTS = 8
 let componentUnmounted = false
+// First tracking pass corresponds to images already present when the component
+// mounts (conversation history). Images added in subsequent passes are the
+// ones that arrive dynamically (e.g. post-generation polling) and should
+// animate into view.
+let initialImageTrackingDone = false
 
 function updateImagesPending() {
   imagesPending.value = pendingImages.size > 0
@@ -890,6 +895,9 @@ function updateImagesPending() {
 
 function revealImage(img: HTMLImageElement) {
   img.style.removeProperty('display')
+  if (img.dataset.animateIn === 'true') {
+    img.classList.add('animate-in')
+  }
   pendingImages.delete(img)
   updateImagesPending()
 }
@@ -945,12 +953,18 @@ function trackContentImages() {
     imgs.forEach((img) => {
       if (trackedImages.has(img)) return
       trackedImages.add(img)
+      // Only flag images that appear after the initial mount pass so we don't
+      // animate conversation history on page load.
+      if (initialImageTrackingDone) {
+        img.dataset.animateIn = 'true'
+      }
       // Hide until decode succeeds so users never see a broken-image icon.
       img.style.display = 'none'
       pendingImages.add(img)
       attachImgListeners(img, 0)
     })
   }
+  initialImageTrackingDone = true
   updateImagesPending()
 }
 
