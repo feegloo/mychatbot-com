@@ -117,7 +117,18 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Przykładowe pytania: "Jaki jest termin na odpowiedź?", "Co dokładnie muszę złożyć i gdzie?", "Czy mogę odwołać się od tej decyzji?", "Jakie konsekwencje grożą za brak działania?", "Co muszę zrobić, by zarejestrować się jako bezrobotny?", "Jakie dokumenty potwierdzają ubezpieczenie zdrowotne?"
    Akcje z emoji: "Lista kroków do rozwiązania problemu ✅", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów 📋", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
 
-5. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
+5. EBOOK / MINIBOOK / PODRĘCZNIK / PRZEWODNIK O KONKRETNYM TEMACIE (np. minibook o granicach, ebook o żywieniu, podręcznik psychologii, przewodnik po ogrodnictwie — książka, która uczy czegoś o danym temacie):
+   → OBOWIĄZKOWO jako 3. akcja (zaraz po "Wygeneruj obraz…" i po akcji "Napisz inspirowany rozdział/wskazówki…") DODAJ: "Stwórz quiz z najważniejszych faktów 🧠".
+   Przykład dla "Minibook o granicach" Matyldy Kozakiewicz: 4. "Wygeneruj obraz inspirowany: Minibook o granicach 🎨", 5. "Napisz inspirowany rozdział w stylu Matyldy Kozakiewicz ✏️", 6. "Stwórz quiz z najważniejszych faktów 🧠".
+   Pozostałe akcje dobierz losowo z listy poniżej.
+
+6. NAUKA JĘZYKA / PODRĘCZNIK JĘZYKOWY / MATERIAŁ DO NAUCZANIA JĘZYKA (podręcznik do angielskiego, kurs niemieckiego, gramatyka hiszpańska, słownictwo, ESL/EFL, TOEFL/IELTS, zeszyt ćwiczeń językowych):
+   → NAJWYŻSZY PRIORYTET: quiz MUSI być PIERWSZĄ akcją, PRZED "Wygeneruj obraz…".
+   Format: "Stwórz quiz z materiału 🧠", "Stwórz quiz ze słownictwa 🧠" lub "Stwórz quiz z gramatyki 🧠" — dopasuj do treści dokumentu.
+   Quiz jest kluczowy dla utrwalenia i sprawdzenia wiedzy językowej.
+   Pozostałe akcje dobierz losowo z listy poniżej.
+
+7. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -397,7 +408,18 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Example natural questions: "What is the deadline to respond?", "What exactly do I need to submit and where?", "Can I appeal this decision?", "What happens if I don't respond?", "What do I need to do to register as unemployed?", "What documents prove health insurance coverage?", "Who issued this demand and what authority do they have?", "What are my options if I can't pay?"
    Action prompts with emoji: "Step-by-step action plan ✅", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents 📋", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
 
-5. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
+5. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
+   → MANDATORY: as the 3rd action (right after "Generate image…" and the "Write inspired chapter/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
+   Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate image inspired by: Minibook about boundaries 🎨", 5. "Write inspired chapter like Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
+   Pick the remaining actions RANDOMLY from the list below.
+
+6. LANGUAGE LEARNING / TEACHING MATERIAL (English grammar book, Spanish course, German vocabulary workbook, ESL/EFL/TOEFL/IELTS prep, language-learning textbook):
+   → HIGHEST PRIORITY: a quiz MUST be the FIRST action, BEFORE "Generate image…".
+   Format: "Create a quiz from the material 🧠", "Create a vocabulary quiz 🧠" or "Create a grammar quiz 🧠" — fit it to the document.
+   Quizzes are essential for language retention and self-check.
+   Pick the remaining actions RANDOMLY from the list below.
+
+7. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
@@ -729,6 +751,46 @@ _SELFHELP_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Language-learning / language-teaching materials. Quiz is the single most valuable
+# action for this type of content (practice & self-check), so when this matches the
+# quiz prompt is pinned at the very top — even before the image prompt.
+_LANGUAGE_LEARNING_PATTERN = re.compile(
+    r"\b("
+    # Polish phrasing
+    r"nauka\s+(?:j\.\s*|języka\s+)?(?:angielski\w*|niemieck\w*|hiszpańsk\w*|francusk\w*|włosk\w*|"
+    r"rosyjsk\w*|japońsk\w*|chińsk\w*|portugalsk\w*|obcego)|"
+    r"(?:podręcznik|kurs|samouczek|repetytorium|ćwiczenia|lekcje)\s+(?:do\s+|z\s+|j\.\s*|języka\s+)"
+    r"(?:angielsk\w*|niemieck\w*|hiszpańsk\w*|francusk\w*|włosk\w*)|"
+    r"gramatyk[aąięey]\s+(?:angielsk\w*|niemieck\w*|hiszpańsk\w*|francusk\w*|włosk\w*)|"
+    r"słownictw[oa]\s+(?:angielsk\w*|niemieck\w*|hiszpańsk\w*|francusk\w*|włosk\w*)|"
+    # Standardised proficiency tests and ELT acronyms
+    r"(?:ESL|EFL|ELT|TESOL|TOEFL|IELTS|CAE|FCE|CPE|CELTA)\b|"
+    # English phrasing
+    r"(?:english|german|spanish|french|italian|russian|japanese|chinese|portuguese|polish)\s+"
+    r"(?:grammar|vocabulary|course|textbook|workbook|lesson|lessons|learner|learners|learning|"
+    r"for\s+beginners|as\s+a\s+(?:second|foreign)\s+language)|"
+    r"(?:learn(?:ing)?|teach(?:ing)?|study(?:ing)?|master(?:ing)?)\s+"
+    r"(?:english|german|spanish|french|italian|russian|japanese|chinese|portuguese|polish)\b|"
+    r"\blanguage\s+(?:course|textbook|learning|learner|acquisition|book|school)\b|"
+    r"\b(?:foreign|second)\s+language\b"
+    r")",
+    re.IGNORECASE,
+)
+
+# Educational ebook / mini-book / textbook / subject-matter guide about a concrete topic.
+# When content matches this (or the broader self-help pattern), the quiz action is pinned
+# after generate-image and the creative "inspired chapter / poem / tips" prompt.
+_EDUCATIONAL_EBOOK_PATTERN = re.compile(
+    r"\b("
+    r"ebook|e-book|minibook|mini-book|podręcznik|textbook|"
+    r"(?:study|course|learning|teaching)\s+guide|course\s+material|lecture\s+notes|"
+    r"lesson\s+plan|curriculum|edukacyjn[yaąe]|educational\s+(?:material|book|content|resource)|"
+    r"introduction\s+to\s+\w+|wprowadzenie\s+do\s+\w+|"
+    r"wszystko,?\s+co\s+musisz\s+wiedzieć|everything\s+you\s+(?:need|have)\s+to\s+know"
+    r")\b",
+    re.IGNORECASE,
+)
+
 _AUTHOR_FROM_STYLE_PATTERN = re.compile(
     r"(?:w stylu|like|inspired by|inspirowany?)\s+(.+?)(?:\s*[✏📜💡🏋🤔🎭📅]|$)",
     re.IGNORECASE,
@@ -944,6 +1006,8 @@ def _append_contextual_prompts(
     is_fiction = bool(_FICTION_PATTERN.search(combined_text))
     is_poetry_quotes = bool(_POETRY_QUOTES_PATTERN.search(combined_text))
     is_selfhelp = bool(_SELFHELP_PATTERN.search(combined_text))
+    is_language_learning = bool(_LANGUAGE_LEARNING_PATTERN.search(combined_text))
+    is_educational_ebook = bool(_EDUCATIONAL_EBOOK_PATTERN.search(combined_text))
 
     if is_fiction and author_name:
         pinned_creative_prompt = (
@@ -975,9 +1039,39 @@ def _append_contextual_prompts(
         options = _selfhelp_options_pl if language == "pl" else _selfhelp_options_en
         pinned_creative_prompt = random.choice(options)
 
-    pinned = [pinned_image_prompt]
-    if pinned_creative_prompt:
-        pinned.append(pinned_creative_prompt)
+    # Quiz pinning: educational ebooks / subject-matter guides benefit strongly from
+    # a quiz action. Problem documents explicitly prohibit creative content, so we
+    # never inject a quiz when a diagnosis/problem-doc contextual prompt has already
+    # taken the top slot, and the language-learning branch below handles its own case.
+    quiz_prompt = (
+        "Stwórz quiz z najważniejszych faktów 🧠"
+        if language == "pl"
+        else "Create a quiz from the key facts 🧠"
+    )
+    should_pin_quiz = (
+        not is_language_learning
+        and (is_educational_ebook or is_selfhelp or is_poetry_quotes or is_fiction)
+    )
+
+    pinned: list[str]
+    if is_language_learning:
+        # Language-learning / teaching materials → quiz is the single most useful action,
+        # so it takes the very first slot, ahead of the image prompt.
+        pinned = [quiz_prompt, pinned_image_prompt]
+    else:
+        pinned = [pinned_image_prompt]
+        if pinned_creative_prompt:
+            pinned.append(pinned_creative_prompt)
+        if should_pin_quiz:
+            pinned.append(quiz_prompt)
+
+    # When we've pinned a quiz ourselves, filter out LLM-generated quiz duplicates
+    # (they often phrase the same action slightly differently and would sneak past
+    # the case-insensitive dedup below).
+    quiz_is_pinned = quiz_prompt in pinned
+    if quiz_is_pinned:
+        llm_actions = [a for a in llm_actions if "quiz" not in a.lower()]
+
     actions = pinned + contextual + llm_actions
 
     # Build the final list with explicit caps per group:
