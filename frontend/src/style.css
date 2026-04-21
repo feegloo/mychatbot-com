@@ -1713,6 +1713,9 @@ h3 {
   gap: 6px;
   max-width: min(420px, calc(100vw - 24px));
   align-content: flex-start;
+  background: #191d27;
+  width: min-content;
+  border-radius: 10px;
 }
 
 .welcome-more-popper .question-pill {
