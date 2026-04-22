@@ -24,12 +24,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { loadStripe, type Stripe, type PaymentRequest } from '@stripe/stripe-js'
 import axios from 'axios'
 
 const api = axios.create({
-
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
 })
 

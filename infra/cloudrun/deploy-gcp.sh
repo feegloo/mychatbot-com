@@ -33,6 +33,8 @@ GCS_BUCKET="${GCS_BUCKET:-chatrag-storage-${PROJECT_ID}}"
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
+VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
+VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
 # CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
@@ -178,6 +180,8 @@ info "Step 6/9: Building Docker image..."
 gcloud auth configure-docker --quiet
 docker build \
   --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+  --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+  --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
   --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
   --build-arg SENTRY_ORG="${SENTRY_ORG}" \
   --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \

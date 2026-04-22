@@ -8,6 +8,10 @@ COPY frontend/ ./
 # Stripe publishable key is a public client-side key, not a secret
 ARG VITE_STRIPE_PUBLISHABLE_KEY
 ENV VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ARG VITE_SENTRY_DSN
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
 # Sentry source map upload (build-time only, not embedded in client bundle)
 ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG
