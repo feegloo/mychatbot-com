@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -36,6 +37,7 @@ from .extractors import (
     _describe_image_with_context,
     _reflow_pdf_text,
     _sanitize_text,
+    claim_xref_if_drawn_on_page,
     extract_text,
     ocr_pdf_page,
     page_needs_ocr,
@@ -141,31 +143,24 @@ def _extract_page_images(
     output_dir: Path,
     pdf_stem: str,
     seen_xrefs: set[int],
+    seen_xrefs_lock: threading.Lock,
 ) -> list[dict]:
-    """Extract images from a single PDF page, deduplicating by xref."""
+    """Extract images from a single PDF page, deduplicating by xref.
+
+    ``seen_xrefs`` is shared across page threads; ``seen_xrefs_lock`` makes
+    the check-and-claim step atomic so two threads can't both extract the
+    same xref. See ``claim_xref_if_drawn_on_page`` for the page-attribution
+    logic that fixes images mislabelled with the wrong page number.
+    """
     page = doc[page_idx]
     image_list = page.get_images(full=True)
     saved: list[dict] = []
 
     for img_idx, img_info in enumerate(image_list):
         xref = img_info[0]
-        if xref in seen_xrefs:
-            continue
 
-        # get_images() lists everything in the page's resource dict, which is
-        # often inherited from the Pages tree root and therefore reports images
-        # on every page — even if they are only rendered on one.  Skip pages
-        # where the image has no actual draw rectangles so we attribute the
-        # image to the page it is visually on, not the first page that merely
-        # references its resource dict.
-        try:
-            rects = page.get_image_rects(xref)
-        except Exception:
-            rects = None
-        if rects is not None and len(rects) == 0:
+        if not claim_xref_if_drawn_on_page(page, xref, seen_xrefs, seen_xrefs_lock):
             continue
-
-        seen_xrefs.add(xref)
 
         try:
             base_image = doc.extract_image(xref)
@@ -264,11 +259,19 @@ def process_pdf_page(
     seen_xrefs: set[int],
     worker_id: str | None = None,
     document_context: str = "",
+    seen_xrefs_lock: threading.Lock | None = None,
 ) -> PageResult:
     """Process a single PDF page: extract text, images, chunk, describe.
 
     This is the unit of work that can run in a thread or Cloud Run Job task.
+
+    ``seen_xrefs_lock`` makes the shared-``seen_xrefs`` check-and-claim atomic
+    across page threads. A private lock is created when not supplied (e.g. the
+    standalone Cloud Run worker, which runs one task per process).
     """
+    if seen_xrefs_lock is None:
+        seen_xrefs_lock = threading.Lock()
+
     p = Path(pdf_path)
     file_name = p.name
     page_num = page_idx + 1
@@ -329,6 +332,7 @@ def process_pdf_page(
                 Path(output_dir),
                 p.stem,
                 seen_xrefs,
+                seen_xrefs_lock,
             )
             ctx["detail"] = f"{len(raw_images)} images found"
 
@@ -432,8 +436,10 @@ def process_pdf_parallel(
     ):
         pass  # Just mark the start
 
-    # Shared xref set for cross-page image deduplication (thread-safe via GIL for set.add)
+    # Shared xref set for cross-page image deduplication. The accompanying
+    # lock makes check-and-claim atomic across page threads.
     seen_xrefs: set[int] = set()
+    seen_xrefs_lock = threading.Lock()
     worker_id = f"local-{uuid.uuid4().hex[:8]}"
 
     file_result = FileProcessingResult(
@@ -464,6 +470,7 @@ def process_pdf_parallel(
                 seen_xrefs,
                 worker_id,
                 document_context,
+                seen_xrefs_lock,
             )
             futures[future] = page_idx
 
@@ -566,6 +573,7 @@ def process_pdf_parallel(
                     seen_xrefs,
                     worker_id,
                     document_context,
+                    seen_xrefs_lock,
                 )
                 if not result.error:
                     page_results[page_idx] = result

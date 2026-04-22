@@ -17,6 +17,7 @@ from shared.extractors import (
     _describe_image,
     _describe_one,
     _extract_and_save_images,
+    claim_xref_if_drawn_on_page,
     extract_pdf_images,
 )
 
@@ -142,6 +143,117 @@ class TestExtractAndSaveImages:
             f"Image should be attributed to page 3 (where it is drawn), "
             f"got page {results[0]['page']}"
         )
+
+
+# ── Shared xref-claim helper ────────────────────────────────────────
+
+
+class TestClaimXrefIfDrawnOnPage:
+    """Unit tests for ``claim_xref_if_drawn_on_page``.
+
+    These exercise exactly the precondition described in the bug report —
+    ``get_images()`` lists an xref whose ``get_image_rects`` is empty on some
+    pages — without relying on a PDF writer that actually emits inherited
+    Resources (PyMuPDF's builder gives each page its own resource dict).
+    """
+
+    def _make_lock(self):
+        import threading
+
+        return threading.Lock()
+
+    def test_skips_page_with_empty_draw_rects(self):
+        """Image listed in the page's resource dict but not drawn → skipped."""
+        import threading
+
+        page = MagicMock()
+        page.get_image_rects.return_value = []  # listed but not drawn
+
+        seen: set[int] = set()
+        claimed = claim_xref_if_drawn_on_page(page, 42, seen, threading.Lock())
+
+        assert claimed is False
+        assert 42 not in seen, "xref must not be claimed when image isn't drawn"
+
+    def test_claims_page_with_draw_rects(self):
+        """Image drawn on the page → claimed and added to seen_xrefs."""
+        import threading
+
+        page = MagicMock()
+        page.get_image_rects.return_value = [(0, 0, 100, 100)]
+
+        seen: set[int] = set()
+        claimed = claim_xref_if_drawn_on_page(page, 42, seen, threading.Lock())
+
+        assert claimed is True
+        assert 42 in seen
+
+    def test_skips_already_claimed_xref(self):
+        """Previously claimed xref is short-circuited without re-extracting."""
+        import threading
+
+        page = MagicMock()
+        page.get_image_rects.return_value = [(0, 0, 100, 100)]
+
+        seen: set[int] = {42}
+        claimed = claim_xref_if_drawn_on_page(page, 42, seen, threading.Lock())
+
+        assert claimed is False
+        # Fast path avoids the fitz call entirely for already-claimed xrefs.
+        page.get_image_rects.assert_not_called()
+
+    def test_get_image_rects_exception_falls_through(self):
+        """Unexpected errors from fitz must not drop the image; claim on page."""
+        import threading
+
+        page = MagicMock()
+        page.get_image_rects.side_effect = RuntimeError("boom")
+
+        seen: set[int] = set()
+        claimed = claim_xref_if_drawn_on_page(page, 42, seen, threading.Lock())
+
+        assert claimed is True
+        assert 42 in seen
+
+    def test_concurrent_claims_only_succeed_once(self):
+        """Two threads racing on the same xref must produce exactly one claim.
+
+        Guards the regression from the review: without locking, both threads
+        could pass ``xref in seen_xrefs`` and both extract the same image.
+        """
+        import threading
+
+        # Slow down get_image_rects so both threads reach the claim block
+        # concurrently, maximising the race window.
+        start_barrier = threading.Barrier(2)
+
+        def _slow_rects(_xref):
+            start_barrier.wait()
+            return [(0, 0, 100, 100)]
+
+        page = MagicMock()
+        page.get_image_rects.side_effect = _slow_rects
+
+        seen: set[int] = set()
+        lock = threading.Lock()
+        results: list[bool] = []
+        result_lock = threading.Lock()
+
+        def _worker():
+            claimed = claim_xref_if_drawn_on_page(page, 42, seen, lock)
+            with result_lock:
+                results.append(claimed)
+
+        threads = [threading.Thread(target=_worker) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert sorted(results) == [False, True], (
+            f"Exactly one thread must claim the xref, got {results}"
+        )
+        assert seen == {42}
 
 
 # ── Description pipeline (mocked API) ───────────────────────────────

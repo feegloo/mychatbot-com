@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import threading
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -290,6 +291,47 @@ def _describe_image_with_context(
     return text.strip()
 
 
+def claim_xref_if_drawn_on_page(
+    page: "fitz.Page",
+    xref: int,
+    seen_xrefs: set[int],
+    seen_xrefs_lock: threading.Lock,
+) -> bool:
+    """Atomically claim ``xref`` on ``page`` if the image is rendered there.
+
+    ``page.get_images(full=True)`` returns every image in the page's resource
+    dict, which in many PDFs is inherited from the Pages tree root — so the
+    same xref is reported on every page regardless of where it is drawn.
+    Using ``page.get_image_rects(xref)`` confirms the image is visually
+    present on this page, so we attribute the image to the page it is
+    actually rendered on instead of the first page that merely lists it.
+
+    Returns True when the caller should extract the image on this page.
+    Returns False when either:
+      - the xref is already claimed by another page (cross-page dedup), or
+      - the image is only referenced via the page's (inherited) resource
+        dict and has no draw rectangles on this page.
+
+    ``get_image_rects`` is treated as best-effort: unexpected exceptions
+    preserve pre-fix behaviour (the image is claimed on this page) rather
+    than silently dropping the image entirely.
+    """
+    # Lockless fast path: skip xrefs already claimed by another page.
+    if xref in seen_xrefs:
+        return False
+    try:
+        rects = page.get_image_rects(xref)
+    except Exception:
+        rects = None
+    if rects is not None and len(rects) == 0:
+        return False
+    with seen_xrefs_lock:
+        if xref in seen_xrefs:
+            return False
+        seen_xrefs.add(xref)
+    return True
+
+
 def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
     """Extract raw images from PDF and save as .png (CPU-bound, no API calls).
 
@@ -301,6 +343,9 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
     doc = fitz.open(str(pdf_path))
     saved: list[dict] = []
     seen_xrefs: set[int] = set()
+    # Single-threaded path, but use a lock so the dedup helper is shared with
+    # the parallel worker path without code duplication.
+    seen_xrefs_lock = threading.Lock()
     stem = pdf_path.stem
 
     for page_idx in range(len(doc)):
@@ -310,24 +355,8 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
         for img_idx, img_info in enumerate(image_list):
             xref = img_info[0]
 
-            # Skip already-extracted images (same xref = same bytes)
-            if xref in seen_xrefs:
+            if not claim_xref_if_drawn_on_page(page, xref, seen_xrefs, seen_xrefs_lock):
                 continue
-
-            # get_images() lists everything in the page's resource dict, which
-            # is often inherited from the Pages tree root and therefore reports
-            # images on every page — even if they are only rendered on one.
-            # Skip pages where the image has no actual draw rectangles so we
-            # attribute the image to the page it is visually on, not the first
-            # page that merely references its resource dict.
-            try:
-                rects = page.get_image_rects(xref)
-            except Exception:
-                rects = None
-            if rects is not None and len(rects) == 0:
-                continue
-
-            seen_xrefs.add(xref)
 
             try:
                 base_image = doc.extract_image(xref)
