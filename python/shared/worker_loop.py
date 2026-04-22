@@ -305,18 +305,30 @@ def _ensure_files_local(job: IndexingJob) -> list[str]:
     """
     resolved: list[str] = []
     for entry in job.file_paths:
-        if entry.startswith("gs://"):
-            try:
-                resolved.append(_download_gcs_blob(entry))
-            except Exception as e:
-                logger.warning(
-                    f"⚠️ Job {job.id}: failed to download {entry}: {e}"
-                )
-        elif os.path.exists(entry):
-            resolved.append(entry)
+        # Entries may be a single path/URI or pipe-separated candidates
+        # (e.g. "/app/storage/foo.pdf|gs://bucket/key") so the worker can
+        # prefer a local copy when it happens to be on the same instance
+        # and fall back to GCS download otherwise.
+        candidates = [c for c in entry.split("|") if c]
+        chosen: str | None = None
+        last_error: Exception | None = None
+        for candidate in candidates:
+            if candidate.startswith("gs://"):
+                try:
+                    chosen = _download_gcs_blob(candidate)
+                    break
+                except Exception as e:
+                    last_error = e
+                    continue
+            elif os.path.exists(candidate):
+                chosen = candidate
+                break
+        if chosen is not None:
+            resolved.append(chosen)
         else:
             logger.warning(
-                f"⚠️ Job {job.id}: local file missing and not a gs:// URI: {entry}"
+                f"⚠️ Job {job.id}: no readable candidate for {entry}"
+                + (f" (last error: {last_error})" if last_error else "")
             )
     if not resolved:
         raise RuntimeError(

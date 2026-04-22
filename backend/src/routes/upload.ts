@@ -108,6 +108,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
   })
 
   const absolutePaths: string[] = []
+  const jobFilePaths: string[] = []
   const uploadedFileNames: string[] = []
   const storedToOriginal: Record<string, string> = {}
 
@@ -136,6 +137,19 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     if (saved.absolutePath) {
       absolutePaths.push(saved.absolutePath)
     }
+    // In cloud_run worker mode the indexer usually runs on a separate
+    // instance with its own ephemeral FS. Send the local path AND a
+    // gs:// URI (pipe-separated) so the worker uses the local file when
+    // it happens to be on the same instance (e.g. shared volume / warm
+    // reuse) and falls back to downloading from GCS otherwise.
+    if (config.workerMode === 'cloud_run' && config.storageProvider === 'gcs') {
+      const gsUri = `gs://${config.gcsBucket}/${saved.storageKey}`
+      jobFilePaths.push(
+        saved.absolutePath ? `${saved.absolutePath}|${gsUri}` : gsUri,
+      )
+    } else if (saved.absolutePath) {
+      jobFilePaths.push(saved.absolutePath)
+    }
   }
 
   // Fire-and-forget: stream indexing events and emit SSE updates.
@@ -149,7 +163,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     enqueueIndexingJob({
       conversationId,
       collectionName,
-      filePaths: absolutePaths,
+      filePaths: jobFilePaths,
       storageNamespace: namespace,
       metadata: { uploadedFileNames, storedToOriginal },
     }).catch(async (err: Error) => {
@@ -420,6 +434,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
   await updateConversationStatus(conversationId, 'processing')
 
   const absolutePaths: string[] = []
+  const jobFilePaths: string[] = []
   const uploadedFileNames: string[] = []
   const storedToOriginal: Record<string, string> = {}
   const namespace = conversationId
@@ -452,6 +467,15 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
     uploadedFileNames.push(originalName)
     storedToOriginal[storedName] = originalName
     absolutePaths.push(absolutePath)
+    if (config.workerMode === 'cloud_run') {
+      // Prefer local (cached on this instance after downloadGcsFileToLocal)
+      // and fall back to gs:// for workers on other instances.
+      jobFilePaths.push(
+        `${absolutePath}|gs://${config.gcsBucket}/${entry.gcsKey}`,
+      )
+    } else {
+      jobFilePaths.push(absolutePath)
+    }
   }
 
   const collectionName = `conversation_${conversationId}`
@@ -462,7 +486,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
     enqueueIndexingJob({
       conversationId: conversationId as string,
       collectionName,
-      filePaths: absolutePaths,
+      filePaths: jobFilePaths,
       storageNamespace: conversationId as string,
       metadata: { uploadedFileNames, storedToOriginal },
     }).catch(async (err: Error) => {
