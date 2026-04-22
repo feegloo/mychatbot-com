@@ -25,7 +25,7 @@ function makeFile(
 }
 
 describe('pickAutoReferenceFiles', () => {
-  it('keeps only image-mime extensions supported by gpt-image-1 edits', () => {
+  it('keeps only image file extensions supported by gpt-image-1 edits', () => {
     const files = [
       makeFile({ original_name: 'notes.pdf' }),
       makeFile({ original_name: 'photo.PNG' }),
