@@ -18,7 +18,7 @@
         </svg>
         Switch to text
       </button>
-      <button v-else class="mermaid-tool-btn" @click="mode = 'diagram'">
+      <button v-else class="mermaid-tool-btn" @click="switchToDiagram">
         <svg
           width="14"
           height="14"
@@ -36,7 +36,7 @@
         </svg>
         Switch to diagram
       </button>
-      <button v-if="mode === 'diagram' && ready" class="mermaid-tool-btn" title="Download SVG" @click="downloadSvg">
+      <button v-if="mode === 'diagram' && ready && !renderError" class="mermaid-tool-btn" title="Download SVG" @click="downloadSvg">
         <svg
           width="14"
           height="14"
@@ -53,7 +53,7 @@
         </svg>
         Download
       </button>
-      <button v-if="mode === 'diagram' && ready" class="mermaid-tool-btn" title="Fullscreen" @click="fullscreen = true">
+      <button v-if="mode === 'diagram' && ready && !renderError" class="mermaid-tool-btn" title="Fullscreen" @click="fullscreen = true">
         <svg
           width="14"
           height="14"
@@ -73,7 +73,7 @@
       </button>
     </div>
     <div
-      v-show="mode === 'diagram' && ready"
+      v-show="mode === 'diagram' && ready && !renderError"
       class="mermaid-diagram"
       :class="{ 'is-dragging': isDragging }"
       @pointerdown="onPointerDown"
@@ -127,6 +127,11 @@
       <span class="mermaid-loading-dot"></span>
       <span class="mermaid-loading-dot"></span>
     </div>
+    <div v-if="mode === 'diagram' && ready && renderError" class="mermaid-error">
+      <p class="mermaid-error-title">Could not render diagram</p>
+      <p class="mermaid-error-message">{{ renderError }}</p>
+      <pre class="mermaid-source"><code>{{ code }}</code></pre>
+    </div>
     <pre v-show="mode === 'text'" class="mermaid-source"><code>{{ code }}</code></pre>
   </div>
 
@@ -158,6 +163,7 @@ const hovered = ref(false)
 const ready = ref(false)
 const fullscreen = ref(false)
 const renderedSvg = ref('')
+const renderError = ref<string | null>(null)
 const diagramEl = ref<HTMLElement | null>(null)
 let renderCounter = 0
 
@@ -270,14 +276,26 @@ async function getMermaid() {
       tertiaryColor: '#1e293b',
     },
     flowchart: { htmlLabels: true, curve: 'basis' },
-    securityLevel: 'strict',
+    securityLevel: 'loose',
   })
   return mermaid
 }
 
+/**
+ * Renders the mermaid source into an SVG and mounts it into the diagram
+ * container. On failure we surface an error but stay in diagram mode so the
+ * user can retry once the source updates (e.g. during streaming) or by
+ * toggling the diagram view.
+ */
 async function renderDiagram() {
   if (!diagramEl.value) return
+  if (props.code.trim().length === 0) {
+    ready.value = false
+    renderError.value = null
+    return
+  }
   ready.value = false
+  renderError.value = null
   try {
     const m = await getMermaid()
     const id = `mermaid-${Date.now()}-${renderCounter++}`
@@ -288,10 +306,23 @@ async function renderDiagram() {
     requestAnimationFrame(() => {
       ready.value = true
     })
-  } catch {
-    // If mermaid render fails, fall back to text mode
-    mode.value = 'text'
+  } catch (err) {
+    // Stay in diagram mode and surface the error so failing renders don't
+    // silently flip the view to text and trap the user there.
+    console.error('[MermaidBlock] Failed to render diagram', err)
+    renderError.value = err instanceof Error ? err.message : String(err)
+    renderedSvg.value = ''
+    if (diagramEl.value) diagramEl.value.innerHTML = ''
     ready.value = true
+  }
+}
+
+function switchToDiagram() {
+  mode.value = 'diagram'
+  // Re-render if we don't yet have a successful render (previous attempt
+  // failed, component mounted while hidden, etc.).
+  if (!renderedSvg.value) {
+    nextTick(renderDiagram)
   }
 }
 
@@ -459,6 +490,25 @@ watch(
   font-size: 13px;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   color: #e2e8f0;
+}
+
+.mermaid-error {
+  padding: 12px 16px;
+  color: #fca5a5;
+}
+
+.mermaid-error-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mermaid-error-message {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #f87171;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .mermaid-loading {

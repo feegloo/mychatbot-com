@@ -15,7 +15,11 @@ type SetupState = {
   onPointerDown: (event: PointerEventLike) => void
   onPointerMove: (event: PointerEventLike) => void
   onPointerUp: (event: Pick<PointerEventLike, 'pointerId' | 'currentTarget'>) => void
+  switchToDiagram: () => void
+  mode: 'diagram' | 'text'
   ready: boolean
+  renderError: string | null
+  renderedSvg: string
 }
 
 type PointerEventLike = {
@@ -83,5 +87,73 @@ describe('MermaidBlock drag panning', () => {
     expect(preventDefault).toHaveBeenCalled()
     expect(setPointerCapture).toHaveBeenCalledWith(10)
     expect(releasePointerCapture).toHaveBeenCalledWith(10)
+  })
+})
+
+describe('MermaidBlock render failure handling', () => {
+  it('stays in diagram mode and records error when render fails', async () => {
+    const mermaid = (await import('mermaid')).default as unknown as {
+      render: ReturnType<typeof vi.fn>
+    }
+    mermaid.render.mockRejectedValueOnce(new Error('bad syntax'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const wrapper = mount(MermaidBlock, {
+      props: { code: 'graph TD; A-->B;' },
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    const state = (wrapper.vm as unknown as {
+      $: { setupState: SetupState }
+    }).$.setupState
+
+    expect(state.mode).toBe('diagram')
+    expect(state.renderError).toBe('bad syntax')
+    expect(state.renderedSvg).toBe('')
+    expect(consoleSpy).toHaveBeenCalled()
+
+    consoleSpy.mockRestore()
+    mermaid.render.mockResolvedValue({
+      svg: '<svg xmlns="http://www.w3.org/2000/svg"><g /></svg>',
+    })
+  })
+
+  it('re-renders when user toggles back to diagram after a failed render', async () => {
+    const mermaid = (await import('mermaid')).default as unknown as {
+      render: ReturnType<typeof vi.fn>
+    }
+    mermaid.render.mockRejectedValueOnce(new Error('bad syntax'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const wrapper = mount(MermaidBlock, {
+      props: { code: 'graph TD; A-->B;' },
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    const state = (wrapper.vm as unknown as {
+      $: { setupState: SetupState }
+    }).$.setupState
+
+    state.mode = 'text'
+    mermaid.render.mockResolvedValueOnce({
+      svg: '<svg xmlns="http://www.w3.org/2000/svg"><g class="retry" /></svg>',
+    })
+
+    state.switchToDiagram()
+    await Promise.resolve()
+    await Promise.resolve()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    expect(state.mode).toBe('diagram')
+    expect(state.renderError).toBeNull()
+    expect(state.renderedSvg).toContain('retry')
+
+    consoleSpy.mockRestore()
   })
 })

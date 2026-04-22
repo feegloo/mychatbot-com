@@ -31,6 +31,7 @@ DB_NAME="chatrag"
 GCS_BUCKET="${GCS_BUCKET:-chatrag-storage-${PROJECT_ID}}"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+REPLICATE_API_TOKEN="${REPLICATE_API_TOKEN:-}"
 STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
@@ -52,6 +53,7 @@ source infra/cloudrun/.env.gcp
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 [[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
 [[ -z "$OPENAI_API_KEY" ]] && error "Set OPENAI_API_KEY env var"
+[[ -z "$REPLICATE_API_TOKEN" ]] && warn "REPLICATE_API_TOKEN not set — /generate-video and /generate-music will fail at runtime"
 
 # ── Step 1: Install prerequisites ────────────────────────────────────────────
 info "Step 1/8: Checking prerequisites..."
@@ -223,6 +225,7 @@ ANONYMIZED_TELEMETRY=False,\
 OTEL_ENABLED=false,\
 OTEL_SDK_DISABLED=true,\
 OPENAI_API_KEY=${OPENAI_API_KEY},\
+REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN},\
 STORAGE_PROVIDER=gcs,
 GCS_BUCKET=${GCS_BUCKET},
 FRONTEND_DIST_PATH=/app/frontend/dist,\
@@ -270,6 +273,7 @@ ANONYMIZED_TELEMETRY=False,\
 OTEL_ENABLED=false,\
 OTEL_SDK_DISABLED=true,\
 OPENAI_API_KEY=${OPENAI_API_KEY},\
+REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN},\
 STORAGE_PROVIDER=gcs,\
 GCS_BUCKET=${GCS_BUCKET},\
 FRONTEND_DIST_PATH=,\

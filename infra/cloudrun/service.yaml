@@ -36,6 +36,8 @@ spec:
               value: "False"
             - name: OPENAI_API_KEY
               value: "REPLACE_WITH_OPENAI_KEY"
+            - name: REPLICATE_API_TOKEN
+              value: "REPLACE_WITH_REPLICATE_TOKEN"
             - name: STORAGE_PROVIDER
               value: disk
             - name: WORKER_MODE

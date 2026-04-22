@@ -886,6 +886,17 @@ const imagesPending = ref(false)
 const trackedImages = new Set<HTMLImageElement>()
 const pendingImages = new Set<HTMLImageElement>()
 const imageRetryTimers = new Set<ReturnType<typeof setTimeout>>()
+// URLs of images we've successfully revealed once. When v-html re-renders the
+// markdown (e.g. after a translation swap) the <img> is a brand new DOM node
+// even though the resource is identical. We use this set to skip the
+// hide-until-loaded + fade-in treatment for repeated sources so translations
+// don't visibly re-animate the picture.
+const seenImageSources = new Set<string>()
+
+function imageSrcKey(img: HTMLImageElement): string {
+  const raw = img.getAttribute('src') || ''
+  return raw.split('?')[0].split('#')[0]
+}
 const IMG_MAX_ATTEMPTS = 8
 let componentUnmounted = false
 // First tracking pass corresponds to images already present when the component
@@ -908,6 +919,8 @@ function revealImage(img: HTMLImageElement, success = true) {
   if (wasDynamic && success) {
     img.classList.add('animate-in')
   }
+  const key = imageSrcKey(img)
+  if (key) seenImageSources.add(key)
   pendingImages.delete(img)
   updateImagesPending()
   // Notify parent so it can re-scroll to focus on the newly visible image,
@@ -968,6 +981,13 @@ function trackContentImages() {
     imgs.forEach((img) => {
       if (trackedImages.has(img)) return
       trackedImages.add(img)
+      const key = imageSrcKey(img)
+      // Same resource we've already shown (e.g. v-html re-render after a
+      // translation swap): display it immediately without the fade-in
+      // treatment so the picture appears stable across translations.
+      if (key && seenImageSources.has(key)) {
+        return
+      }
       // Only flag images that appear after the initial mount pass so we don't
       // animate conversation history on page load.
       if (initialImageTrackingDone) {
@@ -988,6 +1008,7 @@ function clearImageTracking() {
   imageRetryTimers.clear()
   trackedImages.clear()
   pendingImages.clear()
+  seenImageSources.clear()
   imagesPending.value = false
 }
 
@@ -1809,8 +1830,10 @@ function openFilePreview(file: FileInfo) {
 }
 
 /* Translation fade: applies to assistant content, user text, and suggested questions.
-   Duration matches FADE_MIN_MS in LanguageToggle.vue so cached translations still animate. */
-.message-content-wrap,
+   Duration matches FADE_MIN_MS in LanguageToggle.vue so cached translations still animate.
+   Image-containing blocks are deliberately excluded via :not(:has(img)) so pictures
+   remain stable while surrounding text re-renders in the new language. */
+.message-content-wrap :deep(.markdown-content) > *:not(:has(img)),
 .user-text,
 .welcome-suggested-questions {
   transition:
@@ -1818,11 +1841,30 @@ function openFilePreview(file: FileInfo) {
     filter 200ms ease;
 }
 
-.message-content-wrap.is-translating,
+.message-content-wrap.is-translating :deep(.markdown-content) > *:not(:has(img)),
 .user-text.is-translating,
 .welcome-suggested-questions.is-translating {
   opacity: 0;
   filter: blur(2px);
+}
+
+/* Fade-in for images that arrive dynamically after first render
+   (e.g. freshly generated images). The `animate-in` class is only added by
+   trackContentImages() for images that were not present on initial mount and
+   whose src has not been seen before, so page-load images stay static. */
+:deep(.markdown-content img.animate-in) {
+  animation: img-fade-in 0.35s ease-out both;
+}
+
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .welcome-suggested-questions .question-pill {

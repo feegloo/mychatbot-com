@@ -711,8 +711,13 @@ async function ask() {
     scrollToBottom(true)
     await loadConversation()
   } catch (err: unknown) {
-    const { message, raw } = extractError(err)
-    reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
+    reactiveMsg.generatingImage = false
+    if (IMAGE_GEN_REGEX.test(currentQuestion)) {
+      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+    } else {
+      const { message, raw } = extractError(err)
+      reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
+    }
     hasLocalError.value = true
   } finally {
     asking.value = false

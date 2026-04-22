@@ -5,6 +5,7 @@
       :title="translating ? 'Translating…' : buttonTitle"
       :disabled="translating"
       @click="onButtonClick"
+      @pointerup="(e) => (e.currentTarget as HTMLElement).blur()"
     >
       <span class="lang-flag" :class="{ translating }">{{ currentFlag }}</span>
       <svg
@@ -40,20 +41,37 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { translateTexts, detectLanguage } from '../api'
 
-// Protect special markers like [source:1], [action:...] from being translated
-const MARKER_RE = /\[(source|action):[^\]]*\]/gi
+// Marker handling for translation:
+// - [source:N] markers are fully opaque (numeric id, must not change)
+// - [action:Label] markers are also opaque during translation, but their Label
+//   text is translated separately and re-inserted so suggested-action buttons
+//   appear in the target language.
+const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
+
+type MarkerInfo = {
+  placeholder: string
+  kind: 'source' | 'action'
+  original: string
+  label?: string // only for action markers; gets replaced with translated label
+}
 
 function extractMarkers(texts: string[]): {
   cleaned: string[]
-  markers: Map<number, { placeholder: string; original: string }[]>
+  markers: Map<number, MarkerInfo[]>
 } {
-  const markers = new Map<number, { placeholder: string; original: string }[]>()
+  const markers = new Map<number, MarkerInfo[]>()
   const cleaned = texts.map((text, i) => {
-    const found: { placeholder: string; original: string }[] = []
+    const found: MarkerInfo[] = []
     let counter = 0
-    const result = text.replace(MARKER_RE, (match) => {
+    const result = text.replace(MARKER_RE, (match, kind: string, inner: string) => {
       const placeholder = `__MRK${i}_${counter++}__`
-      found.push({ placeholder, original: match })
+      const info: MarkerInfo = {
+        placeholder,
+        kind: kind.toLowerCase() === 'action' ? 'action' : 'source',
+        original: match,
+      }
+      if (info.kind === 'action') info.label = inner.trim()
+      found.push(info)
       return placeholder
     })
     if (found.length) markers.set(i, found)
@@ -64,22 +82,60 @@ function extractMarkers(texts: string[]): {
 
 function restoreMarkers(
   translations: string[],
-  markers: Map<number, { placeholder: string; original: string }[]>,
+  markers: Map<number, MarkerInfo[]>,
 ): string[] {
   return translations.map((text, i) => {
     const m = markers.get(i)
     if (!m) return text
     let result = text
-    for (const { placeholder, original } of m) {
-      result = result.replace(placeholder, original)
+    for (const info of m) {
+      const replacement =
+        info.kind === 'action' && info.label !== undefined
+          ? `[action:${info.label}]`
+          : info.original
+      result = result.replace(info.placeholder, replacement)
     }
     return result
   })
 }
 
+async function translateActionLabels(
+  markers: Map<number, MarkerInfo[]>,
+  targetLang: string,
+  sourceLang?: string,
+) {
+  // Collect unique action labels across all messages, then translate once and
+  // write the translated label back onto every marker instance.
+  const unique = new Map<string, MarkerInfo[]>()
+  for (const list of markers.values()) {
+    for (const info of list) {
+      if (info.kind !== 'action' || !info.label) continue
+      const existing = unique.get(info.label)
+      if (existing) existing.push(info)
+      else unique.set(info.label, [info])
+    }
+  }
+  if (!unique.size) return
+  const labels = [...unique.keys()]
+  const translated: string[] = []
+  for (let batch = 0; batch < labels.length; batch += 20) {
+    const chunk = labels.slice(batch, batch + 20)
+    const result = await translateTexts(chunk, targetLang, sourceLang)
+    translated.push(...result.translations)
+  }
+  labels.forEach((label, i) => {
+    const t = translated[i]
+    if (!t) return
+    for (const info of unique.get(label)!) info.label = t
+  })
+}
+
 async function translateWithMarkers(texts: string[], targetLang: string, sourceLang?: string) {
   const { cleaned, markers } = extractMarkers(texts)
-  const result = await translateTexts(cleaned, targetLang, sourceLang)
+  const [result] = await Promise.all([
+    translateTexts(cleaned, targetLang, sourceLang),
+    translateActionLabels(markers, targetLang, sourceLang),
+  ])
   result.translations = restoreMarkers(result.translations, markers)
   return result
 }
@@ -481,9 +537,11 @@ defineExpose({ detectedLang, isTranslated, currentLang, availableLangs })
   color: #e2e8f0;
 }
 
-.lang-toggle-btn:hover:not(:disabled) {
-  border-color: #a78bfa;
-  background: rgba(167, 139, 250, 0.1);
+@media (hover: hover) {
+  .lang-toggle-btn:hover:not(:disabled) {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+  }
 }
 
 .lang-toggle-btn:disabled {
@@ -527,8 +585,10 @@ defineExpose({ detectedLang, isTranslated, currentLang, availableLangs })
   transition: background 0.1s;
 }
 
-.lang-dropdown-item:hover {
-  background: rgba(167, 139, 250, 0.15);
+@media (hover: hover) {
+  .lang-dropdown-item:hover {
+    background: rgba(167, 139, 250, 0.15);
+  }
 }
 
 @keyframes spin {

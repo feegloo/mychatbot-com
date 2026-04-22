@@ -264,8 +264,13 @@ async function ask() {
     scrollToBottom(true)
     await loadConversation()
   } catch (err: any) {
-    const detail = err?.response?.data?.error || err?.message || 'Unknown error'
-    reactiveMsg.content = `⚠️ Error: ${detail}`
+    reactiveMsg.generatingImage = false
+    if (IMAGE_GEN_REGEX.test(currentQuestion)) {
+      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+    } else {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      reactiveMsg.content = `⚠️ Error: ${detail}`
+    }
     hasLocalError.value = true
     console.error(`[chatrag] Ask error:`, err)
   } finally {

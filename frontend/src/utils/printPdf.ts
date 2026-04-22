@@ -387,10 +387,8 @@ export async function printContentAsPdf(markdown: string, title: string) {
         tableLines.push(lines[i])
         i++
       }
-      renderTable(doc, tableLines, marginLeft, contentWidth, y, checkNewPage)
-      // Estimate height: each row ~6mm
-      const dataRows = tableLines.filter((l) => !/^[\s|:-]+$/.test(l))
-      y += dataRows.length * 6 + 4
+      y = renderTable(doc, tableLines, marginLeft, contentWidth, y, checkNewPage)
+      y += 4
       continue
     }
 
@@ -543,7 +541,9 @@ function stripInlineFormatting(text: string): string {
     .trim()
 }
 
-/** Render a markdown table using jsPDF drawing primitives */
+/** Render a markdown table using jsPDF drawing primitives.
+ *  Cells wrap to multiple lines and row height adapts so text is never clipped.
+ *  Returns the Y coordinate after the last row. */
 function renderTable(
   doc: jsPDF,
   tableLines: string[],
@@ -551,51 +551,69 @@ function renderTable(
   contentWidth: number,
   startY: number,
   checkNewPage: (needed: number) => void,
-) {
+): number {
   // Parse table rows (skip separator line)
   const rows: string[][] = []
-  const isHeader = true
   for (const line of tableLines) {
     const trimmed = line.trim().replace(/^\||\|$/g, '')
     if (/^[\s|:-]+$/.test(trimmed)) continue // separator
     const cells = trimmed.split('|').map((c) => stripInlineFormatting(c.trim()))
     rows.push(cells)
   }
-  if (rows.length === 0) return
+  if (rows.length === 0) return startY
 
   const colCount = Math.max(...rows.map((r) => r.length))
+  // Shrink font for wide (many-column) tables so each cell has room to wrap.
+  const fontSize = colCount >= 8 ? 7.5 : colCount >= 6 ? 8.5 : 9.5
+  const lineHeight = fontSize * 0.42 // mm per wrapped line
+  const cellPaddingX = 1.5
+  const cellPaddingY = 2
   const colWidth = contentWidth / colCount
-  const rowHeight = 6
+  const textWidth = colWidth - cellPaddingX * 2
   let y = startY
 
+  doc.setFontSize(fontSize)
+
   for (let ri = 0; ri < rows.length; ri++) {
-    checkNewPage(rowHeight + 2)
     const row = rows[ri]
-    const isHeaderRow = ri === 0 && isHeader
+    const isHeaderRow = ri === 0
+
+    doc.setFont(PDF_FONT, isHeaderRow ? 'bold' : 'normal')
+
+    // Pre-wrap every cell and compute this row's height from the tallest cell.
+    const wrapped: string[][] = []
+    let maxLines = 1
+    for (let ci = 0; ci < colCount; ci++) {
+      const cellText = row[ci] || ''
+      const lines = cellText ? doc.splitTextToSize(cellText, textWidth) : ['']
+      wrapped.push(lines)
+      if (lines.length > maxLines) maxLines = lines.length
+    }
+    const rowHeight = maxLines * lineHeight + cellPaddingY * 2
+
+    checkNewPage(rowHeight + 2)
+
+    const rowTop = y - lineHeight
 
     if (isHeaderRow) {
       doc.setFillColor(240, 240, 240)
-      doc.rect(marginLeft, y - 4, contentWidth, rowHeight, 'F')
+      doc.rect(marginLeft, rowTop, contentWidth, rowHeight, 'F')
     }
 
     doc.setDrawColor(160, 160, 160)
     doc.setLineWidth(0.2)
-    doc.rect(marginLeft, y - 4, contentWidth, rowHeight)
+    doc.rect(marginLeft, rowTop, contentWidth, rowHeight)
 
-    doc.setFont(PDF_FONT, isHeaderRow ? 'bold' : 'normal')
-    doc.setFontSize(9.5)
     doc.setTextColor(0, 0, 0)
 
     for (let ci = 0; ci < colCount; ci++) {
-      const cellText = row[ci] || ''
-      const x = marginLeft + ci * colWidth + 2
-      // Draw cell border
+      const x = marginLeft + ci * colWidth + cellPaddingX
       if (ci > 0) {
-        doc.line(marginLeft + ci * colWidth, y - 4, marginLeft + ci * colWidth, y - 4 + rowHeight)
+        doc.line(marginLeft + ci * colWidth, rowTop, marginLeft + ci * colWidth, rowTop + rowHeight)
       }
-      const clipped = doc.splitTextToSize(cellText, colWidth - 4)
-      doc.text(clipped[0] || '', x, y)
+      doc.text(wrapped[ci], x, y)
     }
     y += rowHeight
   }
+  return y
 }

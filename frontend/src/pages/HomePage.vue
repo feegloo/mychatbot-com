@@ -299,8 +299,13 @@ async function submitQuestion() {
     await nextTick()
     scrollToBottom(true)
   } catch (err: any) {
-    const { message, raw } = extractError(err)
-    reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
+    reactiveMsg.generatingImage = false
+    if (IMAGE_GEN_REGEX.test(currentQuestion)) {
+      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+    } else {
+      const { message, raw } = extractError(err)
+      reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
+    }
   } finally {
     asking.value = false
   }

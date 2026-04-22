@@ -187,3 +187,35 @@ class TestOutput:
         assert result["file_name"].endswith(".png")
         assert result["revised_prompt"] == "revised"
         assert (tmp_path / result["file_name"]).is_file()
+
+
+class TestInspiredRetry:
+    def test_retries_once_with_inspired_emphasis_on_failure(self, mock_openai, tmp_path):
+        # First call fails (e.g. OpenAI content filter block), second succeeds.
+        fake_response = MagicMock(
+            data=[MagicMock(b64_json=base64.b64encode(PNG_1x1).decode(), url=None)]
+        )
+        fake_response.data[0].revised_prompt = "revised"
+        mock_openai.images.generate.side_effect = [
+            Exception("request blocked"),
+            fake_response,
+        ]
+
+        result = image_gen.generate_image(
+            prompt="Daenerys in the Great Pyramid",
+            storage_dir=str(tmp_path),
+        )
+
+        assert mock_openai.images.generate.call_count == 2
+        retry_prompt = mock_openai.images.generate.call_args_list[1].kwargs["prompt"]
+        assert "inspired" in retry_prompt.lower()
+        assert result["file_name"].endswith(".png")
+
+    def test_propagates_error_when_retry_also_fails(self, mock_openai, tmp_path):
+        mock_openai.images.generate.side_effect = Exception("still blocked")
+
+        with pytest.raises(Exception, match="still blocked"):
+            image_gen.generate_image(prompt="anything", storage_dir=str(tmp_path))
+
+        # Exactly two attempts: original + one inspired-retry.
+        assert mock_openai.images.generate.call_count == 2

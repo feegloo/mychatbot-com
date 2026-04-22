@@ -69,6 +69,8 @@ from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402
 
 from shared.image_gen import build_image_prompt, generate_image  # noqa: E402
+from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
+from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.indexing import index_documents  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
@@ -169,6 +171,26 @@ class GenerateImageRequest(BaseModel):
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
     reference_image_paths: list[str] | None = None
+
+
+class GenerateVideoRequest(BaseModel):
+    question: str
+    storage_dir: str
+    welcome_messages: list[str] | None = None
+    collection_name: str = ""
+    conversation_id: str = ""
+    chat_history: list[dict] | None = None
+    duration_seconds: int | None = None
+
+
+class GenerateMusicRequest(BaseModel):
+    question: str
+    storage_dir: str
+    welcome_messages: list[str] | None = None
+    collection_name: str = ""
+    conversation_id: str = ""
+    chat_history: list[dict] | None = None
+    duration_seconds: int | None = None
 
 
 @app.get("/health")
@@ -554,6 +576,111 @@ async def generate_image_endpoint(req: GenerateImageRequest):
         return result
     except Exception as e:
         logger.exception("Error generating image")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _gather_av_context(
+    collection_name: str, conversation_id: str, question: str
+) -> list[dict]:
+    """Helper shared by /generate-video and /generate-music to retrieve
+    RAG chunks so generated clips are grounded in the documents."""
+    if not (collection_name and conversation_id):
+        return []
+    try:
+        return query_chunks(
+            collection_name=collection_name,
+            conversation_id=conversation_id,
+            question=question,
+            top_k=8,
+        )
+    except Exception as exc:  # pragma: no cover — logged and continues
+        logger.warning(f"⚠️ Could not query RAG chunks for AV generation: {exc}")
+        return []
+
+
+@app.post("/generate-video")
+async def generate_video_endpoint(req: GenerateVideoRequest):
+    """Generate a short video from a text prompt using Replicate (LTX-Video).
+
+    1. Retrieves RAG chunks to ground the clip in the source documents.
+    2. Builds a cinematic prompt via the chat LLM.
+    3. Calls Replicate, downloads the .mp4, saves it into storage_dir.
+    """
+    try:
+        def _generate():
+            rag_chunks = _gather_av_context(
+                req.collection_name, req.conversation_id, req.question
+            )
+            prompt_result = build_video_prompt(
+                question=req.question,
+                welcome_messages=req.welcome_messages,
+                rag_chunks=rag_chunks if rag_chunks else None,
+                chat_history=req.chat_history,
+            )
+            logger.info(
+                f"🎬 Video prompt: {prompt_result['prompt'][:150]}... "
+                f"(sources: {prompt_result.get('source_indices', [])})"
+            )
+            result = generate_video(
+                prompt=prompt_result["prompt"],
+                storage_dir=req.storage_dir,
+                duration_seconds=req.duration_seconds,
+            )
+            result["video_prompt"] = prompt_result["prompt"]
+            result["video_title"] = prompt_result["title"]
+            source_indices = prompt_result.get("source_indices", [])
+            result["rag_sources"] = [
+                rag_chunks[i]
+                for i in source_indices
+                if isinstance(i, int) and 0 <= i < len(rag_chunks)
+            ]
+            return result
+
+        return await asyncio.to_thread(_generate)
+    except Exception as e:
+        logger.exception("Error generating video")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/generate-music")
+async def generate_music_endpoint(req: GenerateMusicRequest):
+    """Generate a short music clip using Replicate (MusicGen).
+
+    Same pipeline as /generate-video but tailored for instrumental audio.
+    """
+    try:
+        def _generate():
+            rag_chunks = _gather_av_context(
+                req.collection_name, req.conversation_id, req.question
+            )
+            prompt_result = build_music_prompt(
+                question=req.question,
+                welcome_messages=req.welcome_messages,
+                rag_chunks=rag_chunks if rag_chunks else None,
+                chat_history=req.chat_history,
+            )
+            logger.info(
+                f"🎵 Music prompt: {prompt_result['prompt'][:150]}... "
+                f"(sources: {prompt_result.get('source_indices', [])})"
+            )
+            result = generate_music(
+                prompt=prompt_result["prompt"],
+                storage_dir=req.storage_dir,
+                duration_seconds=req.duration_seconds,
+            )
+            result["music_prompt"] = prompt_result["prompt"]
+            result["music_title"] = prompt_result["title"]
+            source_indices = prompt_result.get("source_indices", [])
+            result["rag_sources"] = [
+                rag_chunks[i]
+                for i in source_indices
+                if isinstance(i, int) and 0 <= i < len(rag_chunks)
+            ]
+            return result
+
+        return await asyncio.to_thread(_generate)
+    except Exception as e:
+        logger.exception("Error generating music")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
