@@ -140,7 +140,31 @@ function setPageRef(pg: number, el: HTMLElement | null) {
   else pageRefs.delete(pg)
 }
 
+// Token used to guard against out-of-order results when props.url changes
+// while a previous load is still in-flight.
+let loadToken = 0
+
+function resetViewerState() {
+  try {
+    pdfDoc?.destroy()
+  } catch (destroyErr) {
+    console.warn('PDF destroy on reset failed:', destroyErr)
+  }
+  pdfDoc = null
+  pageProxies.clear()
+  canvasRefs.clear()
+  textRefs.clear()
+  pageRefs.clear()
+  totalPages.value = 0
+  currentPage.value = 1
+  highlightDone = false
+  error.value = ''
+  loading.value = true
+}
+
 async function loadPdf() {
+  const myToken = ++loadToken
+  resetViewerState()
   try {
     const task = getDocument({
       url: props.url,
@@ -150,18 +174,26 @@ async function loadPdf() {
       cMapPacked: true,
       standardFontDataUrl: PDFJS_STANDARD_FONT_URL,
     })
-    pdfDoc = await task.promise
+    const doc = await task.promise
+    // Abandon this result if another load started in the meantime
+    if (myToken !== loadToken) {
+      doc.destroy()
+      return
+    }
+    pdfDoc = doc
     totalPages.value = pdfDoc.numPages
     currentPage.value = Math.min(Math.max(props.page, 1), pdfDoc.numPages)
     loading.value = false
 
     await nextTick()
+    if (myToken !== loadToken) return
     try {
       await renderVisiblePages()
     } catch (renderErr) {
       console.warn('PDF render failed (pages still navigable):', renderErr)
     }
   } catch (err) {
+    if (myToken !== loadToken) return
     console.error('PDF load failed:', err)
     error.value = 'Could not load PDF'
     loading.value = false
@@ -415,6 +447,29 @@ watch(renderedPages, async () => {
   await nextTick()
   await renderVisiblePages()
 })
+
+// Reload PDF when the source URL changes (e.g. the source preview modal
+// is reused for a different citation pointing to a different PDF).
+watch(
+  () => props.url,
+  () => {
+    loadPdf()
+  },
+)
+
+// Navigate to a different target page when the citation page changes
+// without destroying the already-loaded document.
+watch(
+  () => props.page,
+  async (newPage) => {
+    if (!pdfDoc) return
+    const clamped = Math.min(Math.max(newPage ?? 1, 1), totalPages.value)
+    if (clamped === currentPage.value) return
+    currentPage.value = clamped
+    highlightDone = false
+    await onPageChange()
+  },
+)
 </script>
 
 <style>
