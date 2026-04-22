@@ -857,11 +857,18 @@ a {
   border: none;
   color: #cdd5e1;
   border-bottom-right-radius: 0px;
+  /* Allow each assistant bubble to scroll horizontally when its content
+     (e.g. wide tables, code blocks, or suggestion chips with nowrap labels)
+     exceeds the bubble width. This is intentionally per-message, not a
+     single global scroll on the chat log. */
+  overflow-x: auto;
 }
 
-/* Welcome messages span wider */
+/* Welcome messages span wider and should not scroll horizontally —
+   they already take the full available width. */
 .message.welcome-message {
   max-width: 100%;
+  overflow-x: visible;
 }
 
 /* Shared views (SharedMessagePage + viewer conversation view): first assistant message full-width */
