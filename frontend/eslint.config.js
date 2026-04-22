@@ -67,6 +67,8 @@ export default [
         HTMLPreElement: 'readonly',
         HTMLSpanElement: 'readonly',
         WheelEvent: 'readonly',
+        TouchEvent: 'readonly',
+        IntersectionObserverEntry: 'readonly',
       },
     },
   },

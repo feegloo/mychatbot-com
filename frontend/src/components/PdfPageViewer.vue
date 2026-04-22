@@ -2,13 +2,22 @@
   <div ref="rootEl" class="pdf-page-viewer" @wheel.passive="onWheel">
     <div v-if="loading" class="pdf-page-loading">Loading…</div>
     <div v-if="error" class="pdf-page-error">{{ error }}</div>
-    <div v-show="!loading && !error" ref="pagesContainer" class="pdf-pages-container">
+    <div
+      v-show="!loading && !error"
+      ref="pagesContainer"
+      class="pdf-pages-container"
+      @touchstart.passive="onTouchStart"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchEnd"
+    >
       <div
-        v-for="pg in renderedPages"
+        v-for="pg in pageNumbers"
         :key="pg"
         :ref="(el) => setPageRef(pg, el as HTMLElement)"
         class="pdf-page-wrapper"
         :data-page="pg"
+        :style="wrapperStyle(pg)"
       >
         <canvas :ref="(el) => setCanvasRef(pg, el as HTMLCanvasElement)" class="pdf-page-canvas" />
         <div :ref="(el) => setTextRef(pg, el as HTMLElement)" class="textLayer" />
@@ -75,7 +84,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist'
-import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from 'pdfjs-dist'
+import {
+  isMobileUserAgent,
+  estimatePageHeight,
+  detectSwipe,
+  pointDistance,
+  clampScale,
+  computePinchScale,
+  LruSet,
+} from './PdfPageViewer.utils'
 
 GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href
 
@@ -112,19 +130,26 @@ const canvasRefs = new Map<number, HTMLCanvasElement>()
 const textRefs = new Map<number, HTMLElement>()
 const pageRefs = new Map<number, HTMLElement>()
 const pageProxies = new Map<number, PDFPageProxy>()
+const pageAspectRatios = new Map<number, number>() // width / height
+const activeRenderTasks = new Map<number, RenderTask>()
+
+const isMobile = isMobileUserAgent()
+const MAX_RENDERED_PAGES = isMobile ? 6 : 10
+const renderedLru = new LruSet<number>(MAX_RENDERED_PAGES)
+const HORIZONTAL_PADDING = 0 // container has no side padding; pages span full width
 
 let pdfDoc: PDFDocumentProxy | null = null
 let highlightDone = false
+let defaultAspectRatio = 1 / Math.SQRT2 // A4 portrait placeholder until first page arrives
+let containerWidth = 600
+let observer: IntersectionObserver | null = null
+let resizeObserver: ResizeObserver | null = null
+let highlightTargetPage = -1
 
-// Render a window of pages around the current one for smooth scrolling
-const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-const BUFFER = isMobileDevice ? 0 : 1
-const renderedPages = computed(() => {
-  const pages: number[] = []
-  const start = Math.max(1, currentPage.value - BUFFER)
-  const end = Math.min(totalPages.value, currentPage.value + BUFFER)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
+const pageNumbers = computed(() => {
+  const list: number[] = []
+  for (let i = 1; i <= totalPages.value; i++) list.push(i)
+  return list
 })
 
 function setCanvasRef(pg: number, el: HTMLCanvasElement | null) {
@@ -136,8 +161,25 @@ function setTextRef(pg: number, el: HTMLElement | null) {
   else textRefs.delete(pg)
 }
 function setPageRef(pg: number, el: HTMLElement | null) {
-  if (el) pageRefs.set(pg, el)
-  else pageRefs.delete(pg)
+  if (el) {
+    pageRefs.set(pg, el)
+    observer?.observe(el)
+  } else {
+    const prev = pageRefs.get(pg)
+    if (prev) observer?.unobserve(prev)
+    pageRefs.delete(pg)
+  }
+}
+
+function wrapperStyle(pg: number): Record<string, string> {
+  const aspect = pageAspectRatios.get(pg) ?? defaultAspectRatio
+  const height = estimatePageHeight(aspect, containerWidth, HORIZONTAL_PADDING, scale.value)
+  return {
+    height: `${height}px`,
+    // Skip layout/paint of offscreen pages for free.
+    'content-visibility': 'auto',
+    'contain-intrinsic-size': `${height}px`,
+  }
 }
 
 // Token used to guard against out-of-order results when props.url changes
@@ -183,14 +225,35 @@ async function loadPdf() {
     pdfDoc = doc
     totalPages.value = pdfDoc.numPages
     currentPage.value = Math.min(Math.max(props.page, 1), pdfDoc.numPages)
-    loading.value = false
+    highlightTargetPage = currentPage.value
 
     await nextTick()
     if (myToken !== loadToken) return
+    containerWidth = rootEl.value?.clientWidth || 600
+
+    // Use the first page's aspect ratio to seed placeholder sizes for every
+    // page. Individual pages are refined when they actually render.
     try {
-      await renderVisiblePages()
-    } catch (renderErr) {
-      console.warn('PDF render failed (pages still navigable):', renderErr)
+      const firstPage = await getPageProxy(1)
+      const vp = firstPage.getViewport({ scale: 1 })
+      defaultAspectRatio = vp.width / vp.height
+      pageAspectRatios.set(1, defaultAspectRatio)
+    } catch (e) {
+      console.warn('PDF first-page probe failed:', e)
+    }
+
+    loading.value = false
+    await nextTick()
+
+    setupObservers()
+
+    // Scroll to the initial target page (usually the cited page for the
+    // SourcePreviewModal) before the observer kicks off rendering.
+    if (currentPage.value > 1) {
+      const el = pageRefs.get(currentPage.value)
+      if (el && pagesContainer.value) {
+        pagesContainer.value.scrollTop = el.offsetTop
+      }
     }
   } catch (err) {
     if (myToken !== loadToken) return
@@ -200,11 +263,93 @@ async function loadPdf() {
   }
 }
 
+function setupObservers() {
+  const container = pagesContainer.value
+  if (!container) return
+
+  observer = new IntersectionObserver(onIntersect, {
+    root: container,
+    // Render pages up to ~2 screens above/below the viewport, unload beyond.
+    rootMargin: '200% 0px 200% 0px',
+    threshold: 0,
+  })
+  for (const el of pageRefs.values()) observer.observe(el)
+
+  resizeObserver = new ResizeObserver(onContainerResize)
+  resizeObserver.observe(container)
+}
+
+function onContainerResize() {
+  const container = pagesContainer.value
+  if (!container) return
+  const newWidth = container.clientWidth
+  if (newWidth === containerWidth) return
+  containerWidth = newWidth
+  // All rendered pages are now stale; clear scale keys so they re-render
+  // at the new width. Placeholder heights update reactively via wrapperStyle.
+  for (const canvas of canvasRefs.values()) canvas.dataset.scaleKey = ''
+  scheduleRenderVisible()
+}
+
+function onIntersect(entries: IntersectionObserverEntry[]) {
+  for (const entry of entries) {
+    const el = entry.target as HTMLElement
+    const pg = Number(el.dataset.page)
+    if (!pg) continue
+    if (entry.isIntersecting) {
+      void renderPage(pg)
+    } else {
+      unloadPage(pg)
+    }
+  }
+  updateCurrentPageFromScroll()
+}
+
 async function getPageProxy(pageNum: number): Promise<PDFPageProxy> {
   if (pageProxies.has(pageNum)) return pageProxies.get(pageNum)!
   const page = await pdfDoc!.getPage(pageNum)
   pageProxies.set(pageNum, page)
+  if (!pageAspectRatios.has(pageNum)) {
+    const vp = page.getViewport({ scale: 1 })
+    pageAspectRatios.set(pageNum, vp.width / vp.height)
+  }
   return page
+}
+
+function unloadPage(pageNum: number) {
+  // Cancel in-flight render if any.
+  const task = activeRenderTasks.get(pageNum)
+  if (task) {
+    try {
+      task.cancel()
+    } catch {
+      /* ignore */
+    }
+    activeRenderTasks.delete(pageNum)
+  }
+
+  const canvas = canvasRefs.get(pageNum)
+  if (canvas) {
+    canvas.width = 0
+    canvas.height = 0
+    canvas.removeAttribute('style')
+    canvas.dataset.scaleKey = ''
+  }
+  const textDiv = textRefs.get(pageNum)
+  if (textDiv) {
+    textDiv.innerHTML = ''
+    textDiv.removeAttribute('style')
+  }
+
+  renderedLru.delete(pageNum)
+  const proxy = pageProxies.get(pageNum)
+  if (proxy) {
+    try {
+      proxy.cleanup()
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 async function renderPage(pageNum: number) {
@@ -212,18 +357,24 @@ async function renderPage(pageNum: number) {
   const textDiv = textRefs.get(pageNum)
   if (!canvas || !textDiv || !pdfDoc) return
 
-  // Skip if already rendered at this scale
-  const scaleKey = `rendered-${scale.value}`
-  if (canvas.dataset.scaleKey === scaleKey) return
-  canvas.dataset.scaleKey = scaleKey
+  const scaleKey = `rendered-${scale.value}-${containerWidth}`
+  if (canvas.dataset.scaleKey === scaleKey) {
+    renderedLru.touch(pageNum)
+    return
+  }
+
+  // Bail out if a render is already in flight for this page at this key.
+  if (activeRenderTasks.has(pageNum)) return
 
   const page = await getPageProxy(pageNum)
+  // Page could have been unloaded while we awaited.
+  if (!canvasRefs.has(pageNum)) return
 
-  const containerWidth = rootEl.value?.clientWidth || 600
   const unscaledVp = page.getViewport({ scale: 1 })
-  const baseScale = (containerWidth - 24) / unscaledVp.width // 12px padding each side
+  pageAspectRatios.set(pageNum, unscaledVp.width / unscaledVp.height)
+
+  const baseScale = (containerWidth - HORIZONTAL_PADDING) / unscaledVp.width
   const effectiveScale = baseScale * scale.value
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)
   const viewport = page.getViewport({ scale: effectiveScale * dpr })
   const displayViewport = page.getViewport({ scale: effectiveScale })
@@ -236,39 +387,67 @@ async function renderPage(pageNum: number) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  await page.render({ canvas, canvasContext: ctx, viewport }).promise
+  const task = page.render({ canvas, canvasContext: ctx, viewport })
+  activeRenderTasks.set(pageNum, task)
+  try {
+    await task.promise
+  } catch (err) {
+    // Cancellations are expected when the user scrolls past a page mid-render.
+    const name = (err as { name?: string } | null)?.name
+    if (name !== 'RenderingCancelledException') {
+      console.warn(`PDF page ${pageNum} render cancelled/failed:`, err)
+    }
+    activeRenderTasks.delete(pageNum)
+    return
+  }
+  activeRenderTasks.delete(pageNum)
 
   // Text layer
   textDiv.innerHTML = ''
   textDiv.style.width = displayViewport.width + 'px'
   textDiv.style.height = displayViewport.height + 'px'
-
-  // Set the CSS variable for text scaling
   const scaleFactor = displayViewport.scale
   textDiv.style.setProperty('--total-scale-factor', String(scaleFactor))
 
-  const textContent = await page.getTextContent()
-  const textLayer = new TextLayer({
-    textContentSource: textContent,
-    container: textDiv,
-    viewport: displayViewport,
-  })
-  await textLayer.render()
+  try {
+    const textContent = await page.getTextContent()
+    const textLayer = new TextLayer({
+      textContentSource: textContent,
+      container: textDiv,
+      viewport: displayViewport,
+    })
+    await textLayer.render()
+  } catch (e) {
+    console.warn(`PDF page ${pageNum} text layer failed:`, e)
+  }
 
-  // Highlight matching text on the target page
-  if (pageNum === currentPage.value && props.highlightText && !highlightDone) {
+  canvas.dataset.scaleKey = scaleKey
+
+  // LRU bookkeeping — evict the least-recently-rendered page if over capacity.
+  const evicted = renderedLru.touch(pageNum)
+  if (evicted !== undefined && evicted !== pageNum) unloadPage(evicted)
+
+  // Highlight cited text once, on the target page, after it renders.
+  if (pageNum === highlightTargetPage && props.highlightText && !highlightDone) {
     await nextTick()
     highlightTextInLayer(textDiv)
   }
 }
 
-async function renderVisiblePages() {
-  for (const pg of renderedPages.value) {
-    try {
-      await renderPage(pg)
-    } catch (err) {
-      console.warn(`PDF page ${pg} render failed:`, err)
-    }
+function scheduleRenderVisible() {
+  // Re-render currently intersecting pages (canvases are cleared on resize/zoom).
+  for (const pg of renderedLru.values()) {
+    void renderPage(pg)
+  }
+  // Also hit pages currently in the viewport that aren't in the LRU yet.
+  const container = pagesContainer.value
+  if (!container) return
+  const top = container.scrollTop
+  const bottom = top + container.clientHeight
+  for (const [pg, el] of pageRefs.entries()) {
+    const elTop = el.offsetTop
+    const elBottom = elTop + el.offsetHeight
+    if (elBottom > top && elTop < bottom) void renderPage(pg)
   }
 }
 
@@ -295,7 +474,6 @@ function highlightTextInLayer(textDiv: HTMLElement) {
   const spans = Array.from(textDiv.querySelectorAll('span')) as HTMLElement[]
   if (!spans.length) return
 
-  // Build a concatenated string of all span texts with position map
   const items: { span: HTMLElement; start: number; text: string }[] = []
   let concat = ''
   for (const span of spans) {
@@ -305,13 +483,10 @@ function highlightTextInLayer(textDiv: HTMLElement) {
   }
   const fullText = concat.trimEnd()
 
-  // Find the best matching substring using progressive word matching
   const sourceWords = sourceText.split(/\s+/)
-  // Take first N words to search for start position
   const searchPrefix = sourceWords.slice(0, Math.min(8, sourceWords.length)).join(' ')
   const startIdx = fullText.indexOf(searchPrefix)
   if (startIdx === -1) {
-    // Try shorter prefix
     const shortPrefix = sourceWords.slice(0, Math.min(4, sourceWords.length)).join(' ')
     const shortIdx = fullText.indexOf(shortPrefix)
     if (shortIdx === -1) return
@@ -328,13 +503,11 @@ function applyHighlight(
   matchEnd: number,
   fullText: string,
 ) {
-  // Clamp matchEnd to actual text length
   const effectiveEnd = Math.min(matchEnd, fullText.length)
   let firstHighlighted: HTMLElement | null = null
 
   for (const item of items) {
     const spanEnd = item.start + normalizeText(item.text).length
-    // Check if this span overlaps the matched range
     if (spanEnd > matchStart && item.start < effectiveEnd) {
       item.span.classList.add('pdf-highlight')
       if (!firstHighlighted) firstHighlighted = item.span
@@ -343,69 +516,60 @@ function applyHighlight(
 
   highlightDone = true
 
-  // Scroll to highlighted text
   if (firstHighlighted) {
     requestAnimationFrame(() => {
       const container = pagesContainer.value
       if (!container || !firstHighlighted) return
       const containerRect = container.getBoundingClientRect()
       const highlightRect = firstHighlighted.getBoundingClientRect()
-      // Scroll so highlight is ~30% from the top of the viewer
       const targetOffset = highlightRect.top - containerRect.top - container.clientHeight * 0.3
       container.scrollTop = Math.max(0, container.scrollTop + targetOffset)
     })
   }
 }
 
-function goToPrevPage() {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    highlightDone = false
-    onPageChange()
+function goToPage(pg: number, smooth = true) {
+  if (pg < 1 || pg > totalPages.value) return
+  currentPage.value = pg
+  const el = pageRefs.get(pg)
+  if (el) {
+    el.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'instant' })
   }
+}
+
+function goToPrevPage() {
+  if (currentPage.value > 1) goToPage(currentPage.value - 1)
 }
 
 function goToNextPage() {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-    highlightDone = false
-    onPageChange()
-  }
-}
-
-async function onPageChange() {
-  await nextTick()
-  // Reset canvas scale keys for re-render
-  for (const canvas of canvasRefs.values()) {
-    canvas.dataset.scaleKey = ''
-  }
-  await renderVisiblePages()
-  // Scroll to top of the current page
-  const pageEl = pageRefs.get(currentPage.value)
-  if (pageEl && pagesContainer.value) {
-    pageEl.scrollIntoView({ block: 'start', behavior: 'instant' })
-  }
+  if (currentPage.value < totalPages.value) goToPage(currentPage.value + 1)
 }
 
 function zoomIn() {
   if (scale.value >= 3) return
-  scale.value = Math.round((scale.value + 0.25) * 100) / 100
-  reRender()
+  scale.value = clampScale(Math.round((scale.value + 0.25) * 100) / 100)
+  onScaleChange()
 }
 
 function zoomOut() {
   if (scale.value <= 0.5) return
-  scale.value = Math.round((scale.value - 0.25) * 100) / 100
-  reRender()
+  scale.value = clampScale(Math.round((scale.value - 0.25) * 100) / 100)
+  onScaleChange()
 }
 
-async function reRender() {
-  // Clear scale keys to force re-render
-  for (const canvas of canvasRefs.values()) {
-    canvas.dataset.scaleKey = ''
-  }
+function setZoom(nextScale: number) {
+  const clamped = clampScale(nextScale)
+  if (clamped === scale.value) return
+  scale.value = Math.round(clamped * 100) / 100
+  onScaleChange()
+}
+
+async function onScaleChange() {
+  // Invalidate canvases so pages re-render at the new scale; placeholder
+  // heights update reactively because wrapperStyle depends on scale.value.
+  for (const canvas of canvasRefs.values()) canvas.dataset.scaleKey = ''
   await nextTick()
-  await renderVisiblePages()
+  scheduleRenderVisible()
 }
 
 function onWheel(e: WheelEvent) {
@@ -416,19 +580,112 @@ function onWheel(e: WheelEvent) {
   }
 }
 
-// Watch for scroll to detect page changes
-function onScroll() {
-  if (!pagesContainer.value) return
-  const container = pagesContainer.value
-  const containerTop = container.scrollTop + container.clientHeight * 0.4
-  for (const [pg, el] of pageRefs.entries()) {
-    if (el.offsetTop <= containerTop && el.offsetTop + el.offsetHeight > containerTop) {
-      if (pg !== currentPage.value) {
-        currentPage.value = pg
+// --- Scroll → currentPage derivation, rAF-throttled so the toolbar doesn't
+//     jitter during fast scrolls. ---
+let scrollRafPending = false
+function updateCurrentPageFromScroll() {
+  if (scrollRafPending) return
+  scrollRafPending = true
+  requestAnimationFrame(() => {
+    scrollRafPending = false
+    const container = pagesContainer.value
+    if (!container) return
+    const probe = container.scrollTop + container.clientHeight * 0.4
+    for (const [pg, el] of pageRefs.entries()) {
+      if (el.offsetTop <= probe && el.offsetTop + el.offsetHeight > probe) {
+        if (pg !== currentPage.value) currentPage.value = pg
+        return
       }
-      break
+    }
+  })
+}
+
+function onScroll() {
+  updateCurrentPageFromScroll()
+}
+
+// --- Touch gesture handling ---
+type Touch1 = { id: number; x: number; y: number; t: number }
+let touchStart: Touch1 | null = null
+let pinchInitialDistance = 0
+let pinchInitialScale = 1
+let pinching = false
+let lastTapTime = 0
+
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length === 2) {
+    pinching = true
+    pinchInitialScale = scale.value
+    pinchInitialDistance = pointDistance(
+      { x: e.touches[0].clientX, y: e.touches[0].clientY },
+      { x: e.touches[1].clientX, y: e.touches[1].clientY },
+    )
+    touchStart = null
+  } else if (e.touches.length === 1 && !pinching) {
+    const t = e.touches[0]
+    touchStart = { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }
+  }
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (pinching && e.touches.length === 2) {
+    // Prevent the browser's native pinch (which would just blur the canvas).
+    e.preventDefault()
+    const d = pointDistance(
+      { x: e.touches[0].clientX, y: e.touches[0].clientY },
+      { x: e.touches[1].clientX, y: e.touches[1].clientY },
+    )
+    const next = computePinchScale(pinchInitialScale, pinchInitialDistance, d)
+    // Only re-render when the scale has changed meaningfully, to avoid
+    // thrashing the canvas during the pinch.
+    if (Math.abs(next - scale.value) >= 0.15) {
+      setZoom(next)
     }
   }
+}
+
+function onTouchEnd(e: TouchEvent) {
+  if (pinching) {
+    if (e.touches.length < 2) {
+      // Commit final scale on pinch end.
+      pinching = false
+      pinchInitialDistance = 0
+    }
+    return
+  }
+  if (!touchStart) return
+  const changed = e.changedTouches[0]
+  if (!changed || changed.identifier !== touchStart.id) {
+    touchStart = null
+    return
+  }
+  const dx = changed.clientX - touchStart.x
+  const dy = changed.clientY - touchStart.y
+  const dt = performance.now() - touchStart.t
+
+  // Double-tap → toggle zoom (1× ↔ 2×). Only when the gesture is a tap
+  // (tiny movement) and within 300ms of the previous tap.
+  const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 300
+  if (isTap) {
+    const now = performance.now()
+    if (now - lastTapTime < 300) {
+      setZoom(scale.value > 1 ? 1 : 2)
+      lastTapTime = 0
+      touchStart = null
+      return
+    }
+    lastTapTime = now
+  }
+
+  // Horizontal swipe → page nav. Disabled when zoomed in (the user is
+  // probably panning the zoomed page instead).
+  if (scale.value <= 1.05) {
+    const swipe = detectSwipe(dx, dy)
+    if (swipe === 'left') goToNextPage()
+    else if (swipe === 'right') goToPrevPage()
+  }
+
+  touchStart = null
 }
 
 onMounted(() => {
@@ -438,14 +695,30 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   pagesContainer.value?.removeEventListener('scroll', onScroll)
+  observer?.disconnect()
+  observer = null
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  for (const task of activeRenderTasks.values()) {
+    try {
+      task.cancel()
+    } catch {
+      /* ignore */
+    }
+  }
+  activeRenderTasks.clear()
   pdfDoc?.destroy()
   pageProxies.clear()
+  renderedLru.clear()
 })
 
-// Re-render when rendered pages change (due to page navigation)
-watch(renderedPages, async () => {
-  await nextTick()
-  await renderVisiblePages()
+// Re-setup the observer when the page list is first populated.
+watch(totalPages, async (n) => {
+  if (n > 0) {
+    await nextTick()
+    // pageRefs aren't all set until v-for flushes; setPageRef will observe
+    // each on mount, so nothing more to do here.
+  }
 })
 
 // Reload PDF when the source URL changes (e.g. the source preview modal
@@ -538,6 +811,9 @@ watch(
   min-height: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Let the browser own vertical panning; we handle pinch + horizontal swipe. */
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   align-items: center;
