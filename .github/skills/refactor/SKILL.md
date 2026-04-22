@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: 'Perform a multi-step deep refactor across frontend, backend, python, and infra. Use when: codebase cleanup, dead code removal, unused dependency audit, module extraction, code simplification, adding debug logs, test coverage improvement, or tooling/linter/formatter setup. Covers Vue 3, Node/Koa, Python/LangChain projects.'
+description: 'Perform a multi-step deep refactor across frontend, backend, python, and infra. Use when: codebase cleanup, dead code removal, removing unused variables, unused dependency audit, module extraction, code simplification, fixing TypeScript errors, fixing ESLint errors, fixing Prettier errors, adding debug logs, test coverage improvement, or tooling/linter/formatter setup. Covers Vue 3, Node/Koa, Python/LangChain projects.'
 argument-hint: 'Which area(s) to refactor: frontend, backend, python, infra, or all'
 ---
 
@@ -106,6 +106,132 @@ See [tooling-configs.md](./references/tooling-configs.md) for ready-to-use confi
 ### CI Integration (optional)
 
 Suggest a `.github/workflows/lint.yml` that runs lint + typecheck + tests on PR. See [tooling-configs.md](./references/tooling-configs.md).
+
+## Phase 1.5: Fix Existing Errors
+
+**Goal:** Establish a clean baseline by fixing all TypeScript, ESLint, and Prettier errors **before** making structural changes. Running this phase on a messy codebase ensures later phases don't inherit pre-existing noise and lets you trust each tool's output as signal (not background chatter).
+
+### Workflow Order
+
+Always fix in this order — each step reduces the error surface for the next:
+
+1. **Prettier first** — pure formatting, zero semantic risk. Running `--write` resolves whitespace/quote/semicolon disagreements that would otherwise clutter ESLint output.
+2. **ESLint second** — style + some correctness rules. Many rules auto-fix; review the rest manually. Running before `tsc` cuts down noise from style-related issues that can mask type errors.
+3. **TypeScript last** — real type errors only, on already-formatted and lint-clean code.
+
+Run each step area-by-area (frontend, then backend) rather than all at once — smaller diffs are easier to review and revert.
+
+### Step A: Prettier Errors
+
+```bash
+# Frontend
+cd frontend && npx prettier --check src/   # list mismatches
+cd frontend && npx prettier --write src/   # auto-fix
+# Backend
+cd backend && npx prettier --check src/
+cd backend && npx prettier --write src/
+# Python
+cd python && ruff format --check .
+cd python && ruff format .
+```
+
+**Guidelines:**
+- Commit formatting changes in a **separate commit** (e.g., `chore: prettier --write src/`) so `git blame` stays useful for logic commits.
+- Add the commit SHA to `.git-blame-ignore-revs` so reviewers and `git blame` skip pure-format commits.
+- If Prettier disagrees with ESLint, ensure `eslint-config-prettier` is the **last** entry in the ESLint config — it disables stylistic rules that conflict.
+- Never hand-edit formatting; always let the tool do it. If output looks wrong, fix the Prettier config, don't override the tool.
+
+### Step B: ESLint Errors
+
+```bash
+# Frontend
+cd frontend && npm run lint                 # report only
+cd frontend && npm run lint:fix             # auto-fix safe rules
+# Backend
+cd backend && npm run lint
+cd backend && npm run lint:fix
+# Python
+cd python && ruff check --fix .
+```
+
+**Triage strategy:**
+
+1. **Auto-fix first** with `--fix` / `--fix` flag. Review the diff before committing — some auto-fixes change behavior (e.g., `prefer-const` is safe; `no-unused-vars` is fine; auto-adding `await` is not always safe).
+2. **Categorize remaining errors** by rule:
+   | Category | Action |
+   |----------|--------|
+   | `no-unused-vars` / `@typescript-eslint/no-unused-vars` | Remove dead bindings. Prefix with `_` only if intentionally unused (e.g., callback param). |
+   | `no-explicit-any` | Replace `any` with proper type. If truly dynamic, use `unknown` + narrowing. Last resort: `// eslint-disable-next-line` with a comment explaining why. |
+   | `vue/no-unused-components` / `vue/no-unused-vars` | Remove unused imports/props from templates. |
+   | `no-console` (backend) | Replace with `pino` logger from Phase 1. |
+   | `@typescript-eslint/no-floating-promises` | Await the promise or explicitly `void`-prefix with justification. |
+   | `@typescript-eslint/no-non-null-assertion` | Replace `!` with proper narrowing or early return. |
+   | Stylistic (quotes, indent, semi) | Should already be handled by Prettier — if ESLint still reports these, config conflict exists. Fix the config. |
+3. **Disable rules only as a last resort.** Prefer a targeted `// eslint-disable-next-line <rule> -- <reason>` comment over disabling project-wide. Never use blanket `/* eslint-disable */` at file top.
+4. **Never suppress by deleting the file from lint scope** (e.g., adding to `.eslintignore`) unless it's truly generated code.
+
+**Vue-specific notes:**
+- `vue/multi-word-component-names` — rename single-word components or add to allowlist for intentional cases (`App`, `Icon`).
+- `vue/no-v-html` — only suppress where content is sanitized; otherwise replace with `v-text` or a safe renderer.
+
+**Python/Ruff notes:**
+- Ruff groups rules by prefix (`E`, `F`, `I`, `UP`, `B`, etc.). Fix in order: `F` (pyflakes, real bugs) → `E` (pycodestyle) → `I` (isort) → `UP` (pyupgrade) → `B` (bugbear).
+- `ruff check --fix --unsafe-fixes` is available but review diffs carefully — these can change semantics.
+
+### Step C: TypeScript Errors
+
+```bash
+# Frontend
+cd frontend && npx vue-tsc --noEmit
+# Backend
+cd backend && npx tsc --noEmit
+```
+
+**Triage by error code:**
+
+| Error | Common cause | Fix |
+|-------|--------------|-----|
+| `TS2304` — cannot find name | Missing import or typo | Add import; check `tsconfig.json` `paths` |
+| `TS2322` — type not assignable | Widening/narrowing mismatch | Narrow with type guard, or fix the source type |
+| `TS2339` — property does not exist | Missing property or wrong type | Update interface/type, or add optional chaining if legitimately absent |
+| `TS2345` — argument type mismatch | Wrong shape passed to function | Fix caller or relax parameter type |
+| `TS18048` / `TS2532` — possibly undefined | Strict null checks | Add guard, early return, or `??` fallback |
+| `TS7006` — implicit `any` | Missing type annotation | Add explicit type; enable `noImplicitAny` if not already |
+| `TS2769` — no overload matches | Wrong argument shape to overloaded fn | Check library types; may need `@types/*` package update |
+
+**Principles:**
+
+1. **Fix types, don't hide them.** Avoid `as any`, `as unknown as X`, and `@ts-ignore` / `@ts-expect-error` — each is a deferred bug. If unavoidable, use `@ts-expect-error -- <reason>` (not `@ts-ignore`) so the comment fails loudly if the error disappears.
+2. **Fix the root cause, not the symptom.** If a function's return type is wrong in 20 call sites, fix the function's declaration, not each call site.
+3. **Tighten `tsconfig.json` incrementally.** Do not flip `strict: true` in one commit on a codebase that wasn't strict before. Enable flags one at a time: `noImplicitAny` → `strictNullChecks` → `strictFunctionTypes` → `strictBindCallApply` → `alwaysStrict` → `noImplicitThis`. Fix errors, commit, move to next flag.
+4. **Prefer `unknown` over `any`.** Use type narrowing (`typeof`, `in`, user-defined type guards) to convert `unknown` into concrete types at boundaries.
+5. **Use Zod (backend) or equivalent** at runtime boundaries (HTTP, external APIs, file parsing) to get validated, typed data — don't just cast.
+6. **Vue SFC specifics:** Use `<script setup lang="ts">` with `defineProps<Props>()` and `defineEmits<Emits>()` generic forms — these give stronger types than object form.
+
+### Verification
+
+After each step:
+
+```bash
+# Frontend
+cd frontend && npx prettier --check src/ && npm run lint && npx vue-tsc --noEmit && npm test
+# Backend
+cd backend && npx prettier --check src/ && npm run lint && npx tsc --noEmit && npm test
+# Python
+cd python && ruff format --check . && ruff check . && python -m pytest
+```
+
+All three checks must pass before moving to Phase 2. If a failure is intentional and cannot be resolved in this refactor, document it in the PR description with a TODO and link to a follow-up issue.
+
+### Commit Pattern
+
+Recommended commits per area:
+
+1. `chore(frontend): prettier --write src/`
+2. `refactor(frontend): fix eslint errors`
+3. `refactor(frontend): fix typescript errors`
+
+Add the Prettier-only commit SHA to `.git-blame-ignore-revs`.
 
 ## Phase 2: Dead Code Removal
 
