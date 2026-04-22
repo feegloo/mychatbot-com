@@ -124,7 +124,16 @@
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
-            @image-loaded="scrollToBottom(true)"
+            @image-loaded="
+              () => {
+                const container = document.querySelector('.chat-log')
+                if (container instanceof HTMLElement) {
+                  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+                  return
+                }
+                scrollToBottom(true)
+              }
+            "
           />
           <div
             v-if="showInlineProcessing"
