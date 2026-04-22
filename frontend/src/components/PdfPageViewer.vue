@@ -809,7 +809,7 @@ watch(
     if (clamped === currentPage.value) return
     currentPage.value = clamped
     highlightDone = false
-    await onPageChange()
+    await renderPage(clamped)
   },
 )
 </script>

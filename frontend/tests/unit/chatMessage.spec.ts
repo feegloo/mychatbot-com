@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatMessage from '../../src/components/ChatMessage.vue'
+import { vDropdownHideSpy } from '../setup'
 
 function baseProps() {
   return {
@@ -17,6 +18,7 @@ function baseProps() {
 describe('ChatMessage suggested prompt overflow', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+    vDropdownHideSpy.mockClear()
   })
 
   it('renders the first 5 welcome prompts inline and moves the rest to More preserving order', async () => {
@@ -38,23 +40,26 @@ describe('ChatMessage suggested prompt overflow', () => {
 
     const visibleQuestionPills = wrapper.findAll('.welcome-suggested-questions > .question-pill')
     expect(visibleQuestionPills.some((p) => p.text().includes('More ...'))).toBe(true)
+    // 5 visible inline pills + 1 "More ..." trigger pill.
+    expect(visibleQuestionPills.length).toBe(6)
+    // Text 3 is the 6th suggested question -> belongs to the overflow menu,
+    // so it must NOT appear among the inline pills above.
+    expect(
+      visibleQuestionPills
+        .filter((p) => !p.text().includes('More ...'))
+        .some((p) => p.text().includes('Text 3')),
+    ).toBe(false)
     expect(wrapper.text()).toContain('Text 1')
     expect(wrapper.text()).toContain('Action 1')
     expect(wrapper.text()).toContain('Text 2')
     expect(wrapper.text()).toContain('Action 2')
     expect(wrapper.text()).toContain('Action 3')
-    expect(wrapper.text()).not.toContain('Text 3')
 
-    await wrapper.find('.welcome-more-wrap').trigger('click')
-    expect(wrapper.text()).toContain('Action 1')
-    expect(wrapper.text()).toContain('Text 2')
-    expect(wrapper.text()).toContain('Action 2')
-    expect(wrapper.text()).toContain('Action 3')
-    expect(wrapper.text()).toContain('Text 3')
-
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await nextTick()
-    expect(wrapper.find('.welcome-more-menu').exists()).toBe(false)
+    // The "More ..." popper content lives in a named slot; the stubbed
+    // VDropdown always renders it, so the hidden items should all be
+    // present in the DOM as ``.welcome-more-item`` entries.
+    const moreItems = wrapper.findAll('.welcome-more-item')
+    expect(moreItems.map((w) => w.text()).join(' ')).toContain('Text 3')
   })
 
   it('closes welcome More menu with Escape from a menu item', async () => {
@@ -74,12 +79,11 @@ describe('ChatMessage suggested prompt overflow', () => {
       },
     })
 
-    await wrapper.find('.welcome-more-wrap').trigger('click')
     const menuItem = wrapper.find('.welcome-more-item')
     expect(menuItem.exists()).toBe(true)
 
     await menuItem.trigger('keydown', { key: 'Escape' })
-    expect(wrapper.find('.welcome-more-menu').exists()).toBe(false)
+    expect(vDropdownHideSpy).toHaveBeenCalled()
   })
 
   it('still shows More after streaming completes (was prematurely locked with few buttons)', async () => {
@@ -139,7 +143,12 @@ describe('ChatMessage suggested prompt overflow', () => {
         },
       })
 
-      vi.runAllTimers()
+      // Two ticks + a flushed timer pass lets FadeText mount its v-html
+      // content and then gives ``transformActionButtonGroups`` (scheduled
+      // via setTimeout) a chance to rewrite the DOM.
+      await nextTick()
+      await nextTick()
+      await vi.runAllTimersAsync()
       await nextTick()
 
       expect(wrap1.find('.action-more-btn').exists()).toBe(true)

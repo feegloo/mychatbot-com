@@ -228,7 +228,7 @@ describe("LanguageToggle", () => {
       // Current is 'hi', so should show pl and en
       expect(items.length).toBe(2);
       const texts = items.map(i => i.text());
-      expect(texts.some(t => t.includes("Polish"))).toBe(true);
+      expect(texts.some(t => t.includes("Polski"))).toBe(true);
       expect(texts.some(t => t.includes("English"))).toBe(true);
     });
 
@@ -316,6 +316,65 @@ describe("LanguageToggle", () => {
       await wrapper.find(".lang-toggle-btn").trigger("click");
       await flushPromises();
 
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+    });
+
+    it("flips flag optimistically on click before translation promise resolves", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      // Translation hangs — flag must still flip immediately
+      let resolveTranslate!: (value: { translations: string[] }) => void;
+      translateTextsMock.mockImplementation(
+        () => new Promise(r => { resolveTranslate = r; }),
+      );
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇬🇧");
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      // Flag flipped even though translateTexts has not resolved
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+
+      resolveTranslate({ translations: ["[translated]"] });
+      await flushPromises();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+    });
+
+    it("does not change flag when opening dropdown (3-language mode)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "hi", confidence: 0.95 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["यह एक काफी लंबा हिंदी संदेश है जो भाषा का पता लगाने के लिए पर्याप्त है।"]) },
+      });
+      await flushPromises();
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇮🇳");
+
+      // Click button → just opens dropdown, no translation kicks off
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      expect(wrapper.find(".lang-dropdown").exists()).toBe(true);
+      expect(wrapper.find(".lang-flag").text()).toBe("🇮🇳");
+      expect(translateTextsMock).not.toHaveBeenCalled();
+
+      // Pick a target from dropdown → flag flips immediately
+      let resolveTranslate!: (value: { translations: string[] }) => void;
+      translateTextsMock.mockImplementation(
+        () => new Promise(r => { resolveTranslate = r; }),
+      );
+      const plItem = wrapper.findAll(".lang-dropdown-item").find(i => i.text().includes("Polski"));
+      await plItem!.trigger("click");
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+
+      resolveTranslate({ translations: ["[translated]"] });
+      await flushPromises();
       expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
     });
   });

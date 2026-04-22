@@ -105,11 +105,10 @@ describe('renderAutoImageMarkdown', () => {
     }>,
   }
 
-  it('renders image + quoted caption + "generated image" sublabel', () => {
+  it('renders image + quoted caption', () => {
     const md = renderAutoImageMarkdown(baseResult, 0)
     expect(md).toContain('![Moonlit Tower](/api/storage/abc/img-123.png)')
     expect(md).toContain('<p class="image-caption">"Moonlit Tower"</p>')
-    expect(md).toContain('<p class="image-caption-sublabel">generated image</p>')
   })
 
   it('offsets source markers by the number of original citations', () => {

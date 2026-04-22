@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
 
 // Marker handling for translation:
@@ -171,19 +172,13 @@ const emit = defineEmits<{
   'translating-end': []
 }>()
 
-// Minimum visible fade-out duration before content swap (must match CSS transition).
-// Ensures cached/instant translations still produce a perceptible fade.
-const FADE_MIN_MS = 220
-async function awaitMinFade(startedAt: number) {
-  const elapsed = Date.now() - startedAt
-  if (elapsed < FADE_MIN_MS) {
-    await new Promise((r) => setTimeout(r, FADE_MIN_MS - elapsed))
-  }
-}
-
 const detectedLang = ref('')
 const browserLang = ref(navigator.language.split('-')[0])
 const currentLang = ref('') // language messages are currently displayed in
+// Target language during an in-flight translation. Used so the flag flips
+// immediately on click while the translated text fades in asynchronously
+// once the API promise resolves.
+const pendingLang = ref('')
 const translating = ref(false)
 const translationCache = ref<Map<string, string>>(new Map())
 const detectionAttempted = ref(false)
@@ -255,43 +250,10 @@ const LANG_FLAGS: Record<string, string> = {
   ms: '🇲🇾',
 }
 
-const LANG_NAMES: Record<string, string> = {
-  en: 'English',
-  pl: 'Polish',
-  de: 'German',
-  fr: 'French',
-  es: 'Spanish',
-  it: 'Italian',
-  pt: 'Portuguese',
-  nl: 'Dutch',
-  ru: 'Russian',
-  uk: 'Ukrainian',
-  cs: 'Czech',
-  sk: 'Slovak',
-  ja: 'Japanese',
-  ko: 'Korean',
-  zh: 'Chinese',
-  ar: 'Arabic',
-  hi: 'Hindi',
-  tr: 'Turkish',
-  sv: 'Swedish',
-  da: 'Danish',
-  fi: 'Finnish',
-  no: 'Norwegian',
-  hu: 'Hungarian',
-  ro: 'Romanian',
-  bg: 'Bulgarian',
-  hr: 'Croatian',
-  el: 'Greek',
-  he: 'Hebrew',
-  th: 'Thai',
-  vi: 'Vietnamese',
-  id: 'Indonesian',
-  ms: 'Malay',
-}
-
 function langName(code: string) {
-  return LANG_NAMES[code] || code
+  // Native/endonym name (e.g. "Polski", "Italiano") so the menu entry matches
+  // the flag and is recognisable to speakers of that language.
+  return ISO6391.getNativeName(code) || code
 }
 
 function flagFor(code: string) {
@@ -316,7 +278,9 @@ const isTranslated = computed(
   () => currentLang.value !== '' && currentLang.value !== detectedLang.value,
 )
 
-const currentFlag = computed(() => flagFor(currentLang.value || detectedLang.value))
+const currentFlag = computed(() =>
+  flagFor(pendingLang.value || currentLang.value || detectedLang.value),
+)
 
 const buttonTitle = computed(() => {
   if (isTranslated.value) {
@@ -388,9 +352,9 @@ async function translateTo(targetLang: string) {
 
   // Restoring to original (detected) language
   if (targetLang === detectedLang.value) {
+    pendingLang.value = targetLang
     translating.value = true
     emit('translating-start')
-    const startedAt = Date.now()
     try {
       const newMsgTranslations = new Map<number, string>()
       const toTranslateBack: { index: number; content: string }[] = []
@@ -421,17 +385,16 @@ async function translateTo(targetLang: string) {
         })
       }
 
-      await awaitMinFade(startedAt)
       currentLang.value = detectedLang.value
       storeLanguage(detectedLang.value)
       emit('restored', newMsgTranslations)
     } catch (err) {
       console.error('Translation failed:', err)
-      await awaitMinFade(startedAt)
       currentLang.value = detectedLang.value
       storeLanguage(detectedLang.value)
       emit('restored', new Map())
     } finally {
+      pendingLang.value = ''
       translating.value = false
       emit('translating-end')
     }
@@ -441,9 +404,9 @@ async function translateTo(targetLang: string) {
   // Translating to a new target language
   // If currently showing a translation, restore first then translate
   const _sourceLang = currentLang.value
+  pendingLang.value = targetLang
   translating.value = true
   emit('translating-start')
-  const startedAt = Date.now()
   try {
     // If we're in a translated state, restore originals first
     if (isTranslated.value) {
@@ -526,7 +489,6 @@ async function translateTo(targetLang: string) {
       }
     }
 
-    await awaitMinFade(startedAt)
     translatedUpToIndex.value = props.messages.length - 1
     currentLang.value = targetLang
     storeLanguage(targetLang)
@@ -534,6 +496,7 @@ async function translateTo(targetLang: string) {
   } catch (err) {
     console.error('Translation failed:', err)
   } finally {
+    pendingLang.value = ''
     translating.value = false
     emit('translating-end')
   }

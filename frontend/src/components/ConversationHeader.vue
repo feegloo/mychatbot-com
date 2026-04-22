@@ -85,7 +85,7 @@
         <template #popper>
           <div class="indexing-tooltip">
             <div>{{ processingStep || 'Processing files…' }}</div>
-            <div v-if="parsedPages > 0 && totalPages > 0" class="indexing-tooltip-pages">
+            <div v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0" class="indexing-tooltip-pages">
               Parsed {{ parsedPages }}/{{ totalPages }} pages
             </div>
           </div>
