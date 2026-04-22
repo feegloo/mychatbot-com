@@ -1717,9 +1717,9 @@ h3 {
 
 /* floating-vue tooltip overrides for dark theme */
 .v-popper--theme-tooltip .v-popper__inner {
-  background: #a78bfa;
-  color: #ddd6fe;
-  border: 1px solid #6d28d9;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  border: 1px solid #4f46e5;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13px;
@@ -1727,11 +1727,11 @@ h3 {
   max-width: 400px;
   white-space: pre-wrap;
   word-break: break-word;
-  box-shadow: 0 4px 16px rgba(91, 33, 182, 0.35);
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
 }
 
 .v-popper--theme-tooltip .v-popper__arrow-outer {
-  border-color: #6d28d9;
+  border-color: #4f46e5;
 }
 
 .indexing-tooltip {
@@ -1747,7 +1747,7 @@ h3 {
 }
 
 .v-popper--theme-tooltip .v-popper__arrow-inner {
-  border-color: #2e1065;
+  border-color: #6366f1;
 }
 
 /* More-questions dropdown theme (VDropdown for suggested questions "More..." button) */
