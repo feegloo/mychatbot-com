@@ -108,14 +108,16 @@ class TestExtractAndSaveImages:
         from the Pages tree root.
         """
         import io
-        import os
+        import random
 
         import fitz
         from PIL import Image
 
-        # Build a noisy PNG (random pixels, so it can't be compressed below
-        # MIN_IMAGE_SIZE) large enough to pass the minimum-size filter.
-        img = Image.frombytes("RGB", (400, 400), os.urandom(400 * 400 * 3))
+        # Build a noisy PNG (seeded-random pixels, so it can't be compressed
+        # below MIN_IMAGE_SIZE) large enough to pass the minimum-size filter.
+        rng = random.Random(42)
+        noise = bytes(rng.randrange(256) for _ in range(400 * 400 * 3))
+        img = Image.frombytes("RGB", (400, 400), noise)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         png_bytes = buf.getvalue()
