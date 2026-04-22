@@ -98,6 +98,49 @@ class TestExtractAndSaveImages:
         names = [r["image_name"] for r in results]
         assert len(names) == len(set(names)), "Duplicate image names"
 
+    def test_attributes_image_to_page_it_is_drawn_on(self, tmp_path, output_dir):
+        """Images in an inherited Resources dict must be attributed to the
+        page where they are actually rendered, not the first page that merely
+        references the shared resource dict.
+
+        Regression test for the bug where a diagram on page 18 of a PDF showed
+        up with label "Image (page 1)" because the PDF inherited its Resources
+        from the Pages tree root.
+        """
+        import io
+        import os
+
+        import fitz
+        from PIL import Image
+
+        # Build a noisy PNG (random pixels, so it can't be compressed below
+        # MIN_IMAGE_SIZE) large enough to pass the minimum-size filter.
+        img = Image.frombytes("RGB", (400, 400), os.urandom(400 * 400 * 3))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        png_bytes = buf.getvalue()
+        assert len(png_bytes) >= MIN_IMAGE_SIZE
+
+        doc = fitz.open()
+        # Three pages, but the image is only drawn on page 3 (page_idx 2).
+        for _ in range(3):
+            doc.new_page(width=595, height=842)
+        doc[0].insert_text((72, 72), "Page 1 text only")
+        doc[1].insert_text((72, 72), "Page 2 text only")
+        rect = fitz.Rect(72, 200, 472, 600)
+        doc[2].insert_image(rect, stream=png_bytes)
+
+        pdf_path = tmp_path / "inherited_resources.pdf"
+        doc.save(str(pdf_path))
+        doc.close()
+
+        results = _extract_and_save_images(pdf_path, output_dir)
+        assert len(results) == 1, f"Expected exactly one image, got {len(results)}"
+        assert results[0]["page"] == 3, (
+            f"Image should be attributed to page 3 (where it is drawn), "
+            f"got page {results[0]['page']}"
+        )
+
 
 # ── Description pipeline (mocked API) ───────────────────────────────
 

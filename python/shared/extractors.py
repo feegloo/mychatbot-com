@@ -313,6 +313,20 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
             # Skip already-extracted images (same xref = same bytes)
             if xref in seen_xrefs:
                 continue
+
+            # get_images() lists everything in the page's resource dict, which
+            # is often inherited from the Pages tree root and therefore reports
+            # images on every page — even if they are only rendered on one.
+            # Skip pages where the image has no actual draw rectangles so we
+            # attribute the image to the page it is visually on, not the first
+            # page that merely references its resource dict.
+            try:
+                rects = page.get_image_rects(xref)
+            except Exception:
+                rects = None
+            if rects is not None and len(rects) == 0:
+                continue
+
             seen_xrefs.add(xref)
 
             try:
