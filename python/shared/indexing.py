@@ -91,6 +91,8 @@ def _ocr_prefetch_welcome(
     file_metadata: dict,
     file_name_list: list[str],
     file_types: dict[str, str],
+    *,
+    conversation_id: str | None = None,
 ) -> "DescribeResult | None":
     """OCR-first welcome strategy for scanned / image-based PDFs.
 
@@ -124,7 +126,9 @@ def _ocr_prefetch_welcome(
 
     def _ocr_page(page_idx: int) -> tuple[int, str]:
         try:
-            return page_idx, ocr_pdf_page(file_path, page_idx) or ""
+            return page_idx, ocr_pdf_page(
+                file_path, page_idx, conversation_id=conversation_id
+            ) or ""
         except Exception as e:
             logger.warning(f"⚠️ OCR prefetch page {page_idx + 1} of {p.name}: {e}")
             return page_idx, ""
@@ -363,7 +367,13 @@ def index_documents(
                 f"⏱️  Scanned PDF detected for {Path(file_path).name} ({word_count} words) "
                 f"— switching to OCR-prefetch welcome strategy"
             )
-            return _ocr_prefetch_welcome(file_path, file_metadata, file_name_list, file_types)
+            return _ocr_prefetch_welcome(
+                file_path,
+                file_metadata,
+                file_name_list,
+                file_types,
+                conversation_id=conversation_id,
+            )
 
         quick_chapters = chapters_to_serializable(detect_chapters(file_path))
         quick_lang = detect_language(text[:2000]) if text else None
@@ -422,7 +432,9 @@ def index_documents(
                         # OCR fallback for scanned/image-based pages
                         if page_needs_ocr(page_text):
                             try:
-                                ocr_text = ocr_pdf_page(file_path, page_idx)
+                                ocr_text = ocr_pdf_page(
+                                    file_path, page_idx, conversation_id=conversation_id
+                                )
                                 if ocr_text and len(ocr_text.strip()) > len(page_text.strip()):
                                     page_text = _sanitize_text(
                                         f"# Page {page_idx + 1}\n\n{ocr_text}"

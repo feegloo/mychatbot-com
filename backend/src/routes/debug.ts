@@ -62,6 +62,7 @@ debugRouter.get('/debug/tables', async (ctx) => {
     accessRequests,
     users,
     processingJobs,
+    processingJobsErrors,
     promptHistory,
   ] = await Promise.all([
     query('SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT $1 OFFSET $2', [
@@ -105,6 +106,19 @@ debugRouter.get('/debug/tables', async (ctx) => {
       offset,
     ]),
     query(
+      `SELECT id, uid, processing_job_id, conversation_id, file_name,
+              page_number, step, content_type,
+              LEFT(content, 500) AS content,
+              LENGTH(content) AS content_chars,
+              image_path, error_type,
+              LEFT(error_message, 500) AS error_message,
+              LENGTH(error_message) AS error_chars,
+              worker_id, retry_count, created_at
+       FROM public.processing_jobs_errors
+       ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    ),
+    query(
       `SELECT id, conversation_id, operation, model,
               LEFT(prompt_text, 300) AS prompt_text,
               LENGTH(prompt_text) AS prompt_chars,
@@ -127,6 +141,7 @@ debugRouter.get('/debug/tables', async (ctx) => {
     access_requests: accessRequests.rows,
     users: users.rows,
     processing_jobs: processingJobs.rows,
+    processing_jobs_errors: processingJobsErrors.rows,
     prompt_history: promptHistory.rows,
   }
 })
@@ -234,6 +249,104 @@ async function handleProcessingJobs(ctx: any) {
 
 debugRouter.get('/debug/processing-jobs', handleProcessingJobs)
 debugRouter.get('/debug/processing-jobs/:conversationId', handleProcessingJobs)
+
+/**
+ * GET /debug/processing-jobs-errors
+ * GET /debug/processing-jobs-errors/:conversationId
+ * GET /debug/processing-jobs-errors/uid/:uid
+ *
+ * Per-failure error rows with the text/image snapshot that caused the error.
+ * Lets us debug hundreds of per-page errors from a single large PDF.
+ */
+async function handleProcessingJobsErrors(ctx: any) {
+  const auth = ctx.headers.authorization
+  if (!auth || !auth.startsWith('Basic ')) {
+    ctx.status = 401
+    ctx.body = { error: 'Authentication required' }
+    return
+  }
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
+  const idx = decoded.indexOf(':')
+  const user = idx < 0 ? decoded : decoded.slice(0, idx)
+  const pass = idx < 0 ? '' : decoded.slice(idx + 1)
+  if (
+    !config.debugUser ||
+    !config.debugPass ||
+    !safeEq(user, config.debugUser) ||
+    !safeEq(pass, config.debugPass)
+  ) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const uid = ctx.params.uid as string | undefined
+  const conversationId = ctx.params.conversationId as string | undefined
+  const limit = Math.min(parseInt(String(ctx.query.limit ?? '500'), 10) || 500, 5000)
+  const step = ctx.query.step as string | undefined
+
+  if (uid) {
+    // Return full row (with full content + stack_trace) for a single error.
+    const row = await query(
+      'SELECT * FROM public.processing_jobs_errors WHERE uid = $1 LIMIT 1',
+      [uid],
+    )
+    ctx.body = { error: row.rows[0] || null }
+    return
+  }
+
+  const params: any[] = []
+  const conditions: string[] = []
+  if (conversationId) {
+    conditions.push(`conversation_id = $${params.length + 1}`)
+    params.push(conversationId)
+  }
+  if (step) {
+    conditions.push(`step = $${params.length + 1}`)
+    params.push(step)
+  }
+
+  let sql = `
+    SELECT id, uid, processing_job_id, conversation_id, file_name,
+           page_number, step, content_type,
+           LEFT(content, 500) AS content,
+           LENGTH(content) AS content_chars,
+           image_path, error_type,
+           LEFT(error_message, 500) AS error_message,
+           LENGTH(error_message) AS error_chars,
+           worker_id, retry_count, created_at
+    FROM public.processing_jobs_errors
+  `
+  if (conditions.length > 0) sql += ` WHERE ${conditions.join(' AND ')}`
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`
+  params.push(limit)
+
+  const rows = await query(sql, params)
+
+  const byStep = await query(
+    `SELECT step, error_type, COUNT(*) AS count
+     FROM public.processing_jobs_errors
+     ${conversationId ? 'WHERE conversation_id = $1' : ''}
+     GROUP BY step, error_type
+     ORDER BY count DESC
+     LIMIT 50`,
+    conversationId ? [conversationId] : [],
+  )
+
+  ctx.body = {
+    errors: rows.rows,
+    summary: byStep.rows,
+    total: rows.rows.length,
+    limit,
+  }
+}
+
+debugRouter.get('/debug/processing-jobs-errors', handleProcessingJobsErrors)
+debugRouter.get('/debug/processing-jobs-errors/uid/:uid', handleProcessingJobsErrors)
+debugRouter.get(
+  '/debug/processing-jobs-errors/:conversationId',
+  handleProcessingJobsErrors,
+)
 
 /**
  * GET /debug/prompt-history

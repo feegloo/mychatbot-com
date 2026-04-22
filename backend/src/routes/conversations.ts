@@ -103,10 +103,12 @@ conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => 
     res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
   }
 
-  // If conversation is already ready, send catchup events and close
-  if (data.conversation.status === 'ready') {
-    send('welcome_message', {})
-    send('complete', {})
+  // If conversation has already reached a terminal state (ready or failed),
+  // send catchup events so clients that connect late (e.g. sidebar listeners
+  // reconnecting after a transient drop) can refresh and close out cleanly.
+  if (data.conversation.status === 'ready' || data.conversation.status === 'failed') {
+    if (data.conversation.status === 'ready') send('welcome_message', {})
+    send('complete', { status: data.conversation.status })
     res.end()
     return
   }

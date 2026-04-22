@@ -179,6 +179,7 @@ const data = ref<Tables>({
   access_requests: [],
   users: [],
   processing_jobs: [],
+  processing_jobs_errors: [],
   prompt_history: [],
 })
 
@@ -296,6 +297,7 @@ const paginatedTables: (keyof Tables)[] = [
   'conversation_access_tokens',
   'access_requests',
   'processing_jobs',
+  'processing_jobs_errors',
   'prompt_history',
 ]
 

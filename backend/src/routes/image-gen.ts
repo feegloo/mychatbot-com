@@ -6,7 +6,7 @@ import {
   insertConversationMessage,
   resolveConversationRole,
 } from '../repositories/conversations.js'
-import { generateImage } from '../python/image-gen.js'
+import { announceImage, generateImage } from '../python/image-gen.js'
 import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
 import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
@@ -155,5 +155,56 @@ imageGenRouter.post('/generate-image', async (ctx) => {
       revisedPrompt: result.revised_prompt,
       imageTitle: result.image_title,
     },
+  }
+})
+
+const announceImageSchema = z.object({
+  conversationId: z.string().regex(SHORT_ID_RE),
+  question: z.string().min(1),
+})
+
+imageGenRouter.post('/announce-image', async (ctx) => {
+  const parsed = announceImageSchema.safeParse(ctx.request.body)
+  if (!parsed.success) {
+    ctx.status = 400
+    ctx.body = { error: 'Invalid request' }
+    return
+  }
+
+  const { conversationId, question } = parsed.data
+
+  const token = getConversationToken(ctx)
+  const role = await resolveConversationRole(conversationId, token)
+  if (role !== 'owner' && role !== 'editor') {
+    ctx.status = 403
+    ctx.body = { error: 'Only the conversation owner can generate images' }
+    return
+  }
+
+  const data = await getConversation(conversationId)
+  if (!data.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  const welcomeMessages = data.parentWelcomeContents.length
+    ? data.parentWelcomeContents
+    : getWelcomeMessages(data.messages)
+  const chatHistory = buildChatHistory(data.messages).slice(-6)
+
+  try {
+    const { announcement } = await announceImage({
+      question,
+      welcomeMessages,
+      chatHistory,
+    })
+    ctx.body = { announcement }
+  } catch (err) {
+    // The announcement is a nice-to-have — if the LLM call fails we still
+    // want image generation to proceed, so return an empty announcement
+    // rather than surfacing an error to the client.
+    logger.warn({ err }, 'failed to build image announcement')
+    ctx.body = { announcement: '' }
   }
 })

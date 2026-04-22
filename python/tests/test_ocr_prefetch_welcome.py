@@ -54,7 +54,7 @@ class TestOcrPrefetchWelcome:
         self, _mock_lang, mock_ocr, mock_describe, tmp_path
     ):
         """OCR is called for each of the first N pages and combined into one doc."""
-        mock_ocr.side_effect = lambda path, idx: f"Arabic text on page {idx + 1} " * 5
+        mock_ocr.side_effect = lambda path, idx, **kwargs: f"Arabic text on page {idx + 1} " * 5
         mock_describe.return_value = {
             "welcome_message": _WELCOME_RESPONSE,
             "suggested_questions": [],
@@ -84,7 +84,7 @@ class TestOcrPrefetchWelcome:
         """Only first _OCR_PREFETCH_PAGES pages are OCR-ed for large scanned books."""
         from shared.indexing import _OCR_PREFETCH_PAGES
 
-        mock_ocr.side_effect = lambda path, idx: f"Page {idx + 1} text " * 20
+        mock_ocr.side_effect = lambda path, idx, **kwargs: f"Page {idx + 1} text " * 20
         mock_describe.return_value = {
             "welcome_message": _WELCOME_RESPONSE,
             "suggested_questions": [],
@@ -134,7 +134,7 @@ class TestOcrPrefetchWelcome:
 
         call_count = 0
 
-        def flaky_ocr(path, idx):
+        def flaky_ocr(path, idx, **kwargs):
             nonlocal call_count
             call_count += 1
             if idx % 2 == 0:
@@ -160,7 +160,7 @@ class TestOcrPrefetchWelcome:
         self, mock_lang, mock_ocr, mock_describe, tmp_path
     ):
         """Language detection is called with the combined OCR text."""
-        mock_ocr.side_effect = lambda path, idx: "النص العربي على الصفحة " * 20
+        mock_ocr.side_effect = lambda path, idx, **kwargs: "النص العربي على الصفحة " * 20
         mock_describe.return_value = {
             "welcome_message": _WELCOME_RESPONSE,
             "suggested_questions": [],

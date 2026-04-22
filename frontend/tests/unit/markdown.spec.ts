@@ -77,6 +77,9 @@ describe("IMAGE_GEN_REGEX", () => {
     "Make image of a dragon",
     "draw an image",
     "Generate image: dark forest 🎨",
+    "generate inspired image: Harry Potter: The Complete Collection - J.K. Rowling",
+    "create a new image of a dragon",
+    "Make another image about Rumi's desert",
   ])("matches image-generation request %j", (input) => {
     expect(IMAGE_GEN_REGEX.test(input)).toBe(true);
   });

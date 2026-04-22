@@ -94,7 +94,8 @@
       </div>
       <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
         <div v-if="msg.generatingImage" class="image-generating-label">
-          🎨 Generating image, please wait...
+          <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
+          <span v-else>🎨 Generating image, please wait...</span>
         </div>
         <div class="typing-dots">
           <span></span><span></span><span></span>

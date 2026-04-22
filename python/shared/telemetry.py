@@ -9,7 +9,10 @@ Provides decorators and context managers for:
 from __future__ import annotations
 
 import logging
+import queue
+import threading
 import time
+import traceback
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -25,6 +28,17 @@ logger = logging.getLogger(__name__)
 
 # Module-level connection pool (lazy init)
 _db_pool: psycopg2.pool.ThreadedConnectionPool | None = None
+
+# Async error writer: a single background thread drains a queue so that
+# callers on hot paths (page workers) never block on DB I/O. Used by
+# log_processing_error().
+_ERROR_QUEUE_MAX = 5000
+_ERROR_CONTENT_MAX_CHARS = 20_000  # Truncate very long page text snapshots
+_ERROR_MESSAGE_MAX_CHARS = 10_000
+_ERROR_STACK_MAX_CHARS = 20_000
+_error_queue: queue.Queue[dict] | None = None
+_error_writer_thread: threading.Thread | None = None
+_error_writer_lock = threading.Lock()
 
 
 def _get_db_pool() -> psycopg2.pool.ThreadedConnectionPool:
@@ -245,3 +259,147 @@ def close_db_pool():
     if _db_pool:
         _db_pool.closeall()
         _db_pool = None
+
+
+def _truncate(value: str | None, limit: int) -> str | None:
+    if value is None:
+        return None
+    if len(value) <= limit:
+        return value
+    return value[:limit] + f"\n…[truncated {len(value) - limit} chars]"
+
+
+def _ensure_error_writer() -> queue.Queue[dict]:
+    """Start the background writer thread on first use."""
+    global _error_queue, _error_writer_thread
+    if _error_queue is not None and _error_writer_thread and _error_writer_thread.is_alive():
+        return _error_queue
+
+    with _error_writer_lock:
+        if _error_queue is None:
+            _error_queue = queue.Queue(maxsize=_ERROR_QUEUE_MAX)
+        if not _error_writer_thread or not _error_writer_thread.is_alive():
+            _error_writer_thread = threading.Thread(
+                target=_error_writer_loop,
+                name="processing-errors-writer",
+                daemon=True,
+            )
+            _error_writer_thread.start()
+    return _error_queue
+
+
+def _error_writer_loop() -> None:
+    """Drain the error queue and persist rows. Survives individual failures."""
+    assert _error_queue is not None
+    while True:
+        row = _error_queue.get()
+        try:
+            _insert_processing_error(row)
+        except Exception as e:
+            logger.warning(f"[TELEMETRY] Failed to write processing_jobs_error: {e}")
+        finally:
+            _error_queue.task_done()
+
+
+def _insert_processing_error(row: dict) -> None:
+    pool = _get_db_pool()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO processing_jobs_errors
+                   (uid, processing_job_id, conversation_id, file_name,
+                    page_number, step, content_type, content, image_path,
+                    error_type, error_message, stack_trace,
+                    worker_id, retry_count, created_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           %s, %s, %s, %s, %s, %s)""",
+                (
+                    row["uid"],
+                    row.get("processing_job_id"),
+                    row["conversation_id"],
+                    row["file_name"],
+                    row.get("page_number"),
+                    row.get("step"),
+                    row.get("content_type"),
+                    row.get("content"),
+                    row.get("image_path"),
+                    row.get("error_type"),
+                    row["error_message"],
+                    row.get("stack_trace"),
+                    row.get("worker_id"),
+                    row.get("retry_count", 0),
+                    row["created_at"],
+                ),
+            )
+            conn.commit()
+    finally:
+        pool.putconn(conn)
+
+
+def log_processing_error(
+    conversation_id: str,
+    file_name: str,
+    error: BaseException,
+    *,
+    step: str | None = None,
+    page_number: int | None = None,
+    content: str | None = None,
+    content_type: str | None = None,
+    image_path: str | None = None,
+    worker_id: str | None = None,
+    retry_count: int = 0,
+    processing_job_id: str | None = None,
+) -> str:
+    """Record a per-page/per-step error asynchronously (fire-and-forget).
+
+    The DB write is dispatched to a background thread so callers on hot
+    parsing paths never block. Returns the generated uid for correlation.
+
+    A snapshot of the text/image that caused the error is captured in
+    `content` / `image_path` so we can later inspect the exact input that
+    tripped the library/API. The full traceback is stored in stack_trace.
+    """
+    ts = _utc_now()
+    uid = str(uuid.uuid4())
+    error_message = f"[{ts.isoformat()}] {type(error).__name__}: {error}"
+    stack = "".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+
+    row = {
+        "uid": uid,
+        "processing_job_id": processing_job_id,
+        "conversation_id": conversation_id,
+        "file_name": file_name,
+        "page_number": page_number,
+        "step": step,
+        "content_type": content_type,
+        "content": _truncate(content, _ERROR_CONTENT_MAX_CHARS),
+        "image_path": image_path,
+        "error_type": type(error).__name__,
+        "error_message": _truncate(error_message, _ERROR_MESSAGE_MAX_CHARS),
+        "stack_trace": _truncate(stack, _ERROR_STACK_MAX_CHARS),
+        "worker_id": worker_id,
+        "retry_count": retry_count,
+        "created_at": ts,
+    }
+
+    try:
+        q = _ensure_error_writer()
+        q.put_nowait(row)
+    except queue.Full:
+        logger.warning("[TELEMETRY] processing_jobs_errors queue full, dropping row")
+    except Exception as e:
+        logger.warning(f"[TELEMETRY] Failed to enqueue processing error: {e}")
+
+    return uid
+
+
+def flush_processing_errors(timeout: float = 10.0) -> None:
+    """Block until the error queue is drained. Call before process exit."""
+    if _error_queue is None:
+        return
+    deadline = time.monotonic() + timeout
+    while not _error_queue.empty() and time.monotonic() < deadline:
+        time.sleep(0.05)

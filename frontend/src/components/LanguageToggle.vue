@@ -132,10 +132,24 @@ async function translateActionLabels(
 
 async function translateWithMarkers(texts: string[], targetLang: string, sourceLang?: string) {
   const { cleaned, markers } = extractMarkers(texts)
+  // Preserve leading/trailing whitespace per text — translation services
+  // commonly strip these, which causes visible layout jumps between the
+  // original and translated rendering (markdown paragraph/block heights
+  // depend on trailing newlines).
+  const leading: string[] = []
+  const trailing: string[] = []
+  const stripped = cleaned.map((t) => {
+    const l = t.match(/^\s*/)?.[0] ?? ''
+    const r = t.match(/\s*$/)?.[0] ?? ''
+    leading.push(l)
+    trailing.push(r)
+    return t.slice(l.length, t.length - r.length)
+  })
   const [result] = await Promise.all([
-    translateTexts(cleaned, targetLang, sourceLang),
+    translateTexts(stripped, targetLang, sourceLang),
     translateActionLabels(markers, targetLang, sourceLang),
   ])
+  result.translations = result.translations.map((t, i) => leading[i] + t + trailing[i])
   result.translations = restoreMarkers(result.translations, markers)
   return result
 }
@@ -143,12 +157,14 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
 const props = defineProps<{
   messages: Array<{ role: string; content: string }>
   suggestedQuestions?: string[]
+  title?: string
   conversationId?: string
 }>()
 
 const emit = defineEmits<{
   translated: [translations: Map<number, string>]
   'questions-translated': [translations: string[]]
+  'title-translated': [translation: string]
   restored: [newTranslations: Map<number, string>]
   'lang-changed': [language: string]
   'translating-start': []
@@ -491,6 +507,23 @@ async function translateTo(targetLang: string) {
         })
       }
       emit('questions-translated', qTranslated)
+    }
+
+    // Translate conversation title (emitted separately so caller can restore it)
+    const title = props.title?.trim()
+    if (title) {
+      const cacheKey = `${title}→${targetLang}`
+      const cached = translationCache.value.get(cacheKey)
+      if (cached) {
+        emit('title-translated', cached)
+      } else {
+        const result = await translateWithMarkers([title], targetLang, detectedLang.value)
+        const translated = result.translations[0]
+        if (translated) {
+          translationCache.value.set(cacheKey, translated)
+          emit('title-translated', translated)
+        }
+      }
     }
 
     await awaitMinFade(startedAt)

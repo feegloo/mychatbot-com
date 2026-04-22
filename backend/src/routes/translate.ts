@@ -31,7 +31,12 @@ translateRouter.post('/translate', async (ctx) => {
   }
 
   try {
-    const options: { from?: string; to: string } = { to: targetLang }
+    // format: 'text' preserves newlines and avoids HTML entity encoding
+    // (e.g. apostrophes becoming &#39;) which matters for markdown content.
+    const options: { from?: string; to: string; format: 'text' } = {
+      to: targetLang,
+      format: 'text',
+    }
     if (sourceLang) options.from = sourceLang
 
     const [translations] = await translate.translate(texts, options)

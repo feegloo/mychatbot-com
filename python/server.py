@@ -68,7 +68,7 @@ from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402
 
-from shared.image_gen import build_image_prompt, generate_image  # noqa: E402
+from shared.image_gen import build_image_announcement, build_image_prompt, generate_image  # noqa: E402
 from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.indexing import index_documents  # noqa: E402
@@ -171,6 +171,12 @@ class GenerateImageRequest(BaseModel):
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
     reference_image_paths: list[str] | None = None
+
+
+class AnnounceImageRequest(BaseModel):
+    question: str
+    welcome_messages: list[str] | None = None
+    chat_history: list[dict] | None = None
 
 
 class GenerateVideoRequest(BaseModel):
@@ -500,6 +506,26 @@ def _discover_uploaded_reference_files(storage_dir: str) -> list[str]:
         if p.is_file() and p.suffix.lower() == ".pdf"
     )
     return [str(p) for p in pdfs[:MAX_REFERENCE_IMAGES]]
+
+
+@app.post("/announce-image")
+async def announce_image_endpoint(req: AnnounceImageRequest):
+    """Fast single-LLM call returning a one-sentence teaser describing the
+    image about to be generated. Used by the frontend to replace the
+    generic "Generating image, please wait…" label while the real
+    /generate-image call runs in parallel.
+    """
+    try:
+        announcement = await asyncio.to_thread(
+            build_image_announcement,
+            req.question,
+            req.welcome_messages,
+            req.chat_history,
+        )
+        return {"announcement": announcement}
+    except Exception as e:
+        logger.exception("Error building image announcement")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/generate-image")

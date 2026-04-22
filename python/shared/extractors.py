@@ -105,7 +105,12 @@ def _render_pdf_page_to_png(pdf_path: str, page_idx: int, *, dpi: int = 200) -> 
     return png_bytes
 
 
-def ocr_pdf_page(pdf_path: str, page_idx: int) -> str:
+def ocr_pdf_page(
+    pdf_path: str,
+    page_idx: int,
+    *,
+    conversation_id: str | None = None,
+) -> str:
     """Render a PDF page as image and extract text via GPT Vision OCR.
 
     Used as fallback when native text extraction yields no/minimal text
@@ -117,6 +122,7 @@ def ocr_pdf_page(pdf_path: str, page_idx: int) -> str:
         mime_type="image/png",
         max_completion_tokens=5000,
         detail="high",
+        conversation_id=conversation_id,
     )
 
 
@@ -163,6 +169,7 @@ def _vision_extract_or_describe(
     mime_type: str = "image/png",
     max_completion_tokens: int = 1200,
     detail: str = "auto",
+    conversation_id: str | None = None,
 ) -> str:
     """Extract OCR text first, otherwise describe visual content."""
     settings = get_settings()
@@ -189,19 +196,26 @@ def _vision_extract_or_describe(
         messages=messages,
         model=settings.openai_chat_model,
         operation="vision_ocr",
+        conversation_id=conversation_id,
         max_completion_tokens=max_completion_tokens,
         reasoning_effort=settings.openai_reasoning_effort,
     )
     return text.strip()
 
 
-def _describe_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
+def _describe_image(
+    image_bytes: bytes,
+    mime_type: str = "image/png",
+    *,
+    conversation_id: str | None = None,
+) -> str:
     """Describe/extract text from an image using OCR-first vision."""
     return _vision_extract_or_describe(
         image_bytes,
         mime_type=mime_type,
         max_completion_tokens=1200,
         detail="auto",
+        conversation_id=conversation_id,
     )
 
 
@@ -216,6 +230,7 @@ def _describe_image_with_context(
     document_context: str = "",
     page_text: str = "",
     mime_type: str = "image/png",
+    conversation_id: str | None = None,
 ) -> str:
     """Describe an image with document and page context for richer RAG embeddings.
 
@@ -226,7 +241,7 @@ def _describe_image_with_context(
     Falls back to plain `_describe_image` when no context is available.
     """
     if not document_context and not page_text:
-        return _describe_image(image_bytes, mime_type=mime_type)
+        return _describe_image(image_bytes, mime_type=mime_type, conversation_id=conversation_id)
 
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
@@ -285,6 +300,7 @@ def _describe_image_with_context(
         messages=messages,
         model=settings.openai_chat_model,
         operation="vision_describe_with_context",
+        conversation_id=conversation_id,
         max_completion_tokens=1200,
         reasoning_effort=settings.openai_reasoning_effort,
     )
@@ -488,7 +504,7 @@ def extract_plain_text(path: Path) -> str:
     return _sanitize_text(result)
 
 
-def extract_text(path_str: str) -> str:
+def extract_text(path_str: str, *, conversation_id: str | None = None) -> str:
     path = Path(path_str)
     suffix = path.suffix.lower()
 
@@ -503,7 +519,7 @@ def extract_text(path_str: str) -> str:
     if suffix == ".json":
         return extract_json(path)
     if suffix in IMAGE_EXTENSIONS:
-        return extract_image(path)
+        return extract_image(path, conversation_id=conversation_id)
     if suffix in TEXT_EXTENSIONS:
         return extract_plain_text(path)
 
@@ -523,12 +539,14 @@ _MIME_TYPES = {
 }
 
 
-def extract_image(path: Path) -> str:
+def extract_image(path: Path, *, conversation_id: str | None = None) -> str:
     """Describe a standalone image file using vision model."""
     image_bytes = path.read_bytes()
     mime = _MIME_TYPES.get(path.suffix.lower(), "image/png")
     try:
-        description = _describe_image(image_bytes, mime_type=mime)
+        description = _describe_image(
+            image_bytes, mime_type=mime, conversation_id=conversation_id
+        )
         logger.info(f"\U0001f5bc\ufe0f  Described image {path.name}: {description[:80]}...")
         return _sanitize_text(description)
     except Exception as e:

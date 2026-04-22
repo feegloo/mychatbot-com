@@ -18,9 +18,11 @@
         <LanguageToggle
           :messages="messages"
           :suggested-questions="allSuggestedQuestions"
+          :title="conversationTitle"
           :conversation-id="conversationId"
           @translated="onTranslated"
           @questions-translated="onQuestionsTranslated"
+          @title-translated="onTitleTranslated"
           @restored="onRestored"
           @lang-changed="currentLanguage = $event"
           @translating-start="isTranslating = true"
@@ -180,6 +182,7 @@ import { AxiosError } from 'axios'
 import {
   askQuestion,
   generateImage,
+  announceImage,
   getConversation,
   uploadMoreFiles,
   createConversationThread,
@@ -305,6 +308,7 @@ const storageConversationId = computed(() => status.value.storageNamespace || co
 // Translation state
 const originalMessages = ref<Map<number, string>>(new Map())
 const originalSuggestedQuestions = ref<Map<string, string>>(new Map()) // translated → original
+const originalDisplayName = ref<string | null>(null)
 
 // Collect all suggested questions for translation (status-level + per-message)
 const allSuggestedQuestions = computed(() => {
@@ -330,6 +334,16 @@ function onTranslated(translations: Map<number, string>) {
   translations.forEach((text, i) => {
     messages.value[i].content = text
   })
+}
+
+function onTitleTranslated(translated: string) {
+  // Save original displayName only on first translation, then swap. When the
+  // title is purely derived from file names (no displayName) we still set
+  // displayName so the translated version persists until restore.
+  if (originalDisplayName.value === null) {
+    originalDisplayName.value = status.value.displayName
+  }
+  status.value.displayName = translated
 }
 
 function onQuestionsTranslated(translated: string[]) {
@@ -369,6 +383,12 @@ function onRestored(newTranslations: Map<number, string>) {
         messages.value[i].content = text
       }
     })
+  }
+
+  // Restore original title
+  if (originalDisplayName.value !== null) {
+    status.value.displayName = originalDisplayName.value
+    originalDisplayName.value = null
   }
 
   // Restore suggested questions
@@ -694,6 +714,16 @@ async function ask() {
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     if (isImageGen) {
       reactiveMsg.generatingImage = true
+      // Fire-and-forget: populate the short announcement teaser as soon as
+      // the fast /announce-image call returns. Any failure is swallowed so
+      // the main generation path stays unaffected.
+      announceImage(conversationId, currentQuestion)
+        .then(({ announcement }) => {
+          if (announcement && reactiveMsg.generatingImage) {
+            reactiveMsg.imageAnnouncement = announcement
+          }
+        })
+        .catch(() => {})
     }
     const response = await Promise.race([
       isImageGen

@@ -1209,6 +1209,15 @@ li:has(.checklist-box) {
   font-weight: 600;
 }
 
+/* First column: size to content width (don't force wrap) so the header stays
+   on a single line and the column is only as wide as its widest value. */
+.markdown-content th:first-child,
+.markdown-content td:first-child {
+  white-space: nowrap;
+  width: 1%;
+  overflow-wrap: normal;
+}
+
 .markdown-content hr {
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.1);

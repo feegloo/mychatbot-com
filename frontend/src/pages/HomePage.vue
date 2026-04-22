@@ -4,7 +4,7 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, use semantic search & RAG, share answers<br />
+        Upload your files securely 🔒 and let learning AI tell you what’s inside.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG, share answers<br />
         <span style="font-size: 12px; padding-top: 6px"
           >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!</span
         >
@@ -114,6 +114,7 @@ import {
   createConversation,
   askQuestion,
   generateImage,
+  announceImage,
   saveConversationToken,
   extractError,
   type ChatMessage,
@@ -286,6 +287,13 @@ async function submitQuestion() {
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     if (isImageGen) {
       reactiveMsg.generatingImage = true
+      announceImage(convId, currentQuestion)
+        .then(({ announcement }) => {
+          if (announcement && reactiveMsg.generatingImage) {
+            reactiveMsg.imageAnnouncement = announcement
+          }
+        })
+        .catch(() => {})
     }
     const response = await Promise.race([
       isImageGen ? generateImage(convId, currentQuestion) : askQuestion(convId, currentQuestion),

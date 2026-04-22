@@ -92,6 +92,7 @@ import { computed, onMounted, onUnmounted, ref, watch, watchEffect, nextTick } f
 import {
   askQuestion,
   generateImage,
+  announceImage,
   getConversation,
   type ConversationStatus,
   type ChatMessage,
@@ -248,6 +249,13 @@ async function ask() {
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     if (isImageGen) {
       reactiveMsg.generatingImage = true
+      announceImage(conversationId, currentQuestion)
+        .then(({ announcement }) => {
+          if (announcement && reactiveMsg.generatingImage) {
+            reactiveMsg.imageAnnouncement = announcement
+          }
+        })
+        .catch(() => {})
     }
     const response = await Promise.race([
       isImageGen

@@ -268,10 +268,16 @@ export function renderInlineMarkdown(content: string): string {
  *     "new image" (also "make image" / "draw image") are preserved as
  *     natural-language triggers, with or without the emoji.
  *
+ * We allow a short run of words between the verb and "image" so phrases
+ * like "generate inspired image: ...", "create a new image of ...", or
+ * "make another image about ..." route to image generation too. The
+ * 40-char window keeps false positives low (e.g. "imagine a creative
+ * scene" has no "image" token at all).
+ *
  * All other phrasings (including Polish verbs like "wygeneruj obraz") are
  * intentionally NOT matched here — suggested-question prompts always append
  * 🎨, so the emoji branch covers them.
  */
 export const IMAGE_GEN_REGEX =
-  /🎨|\b(?:generate|create|new|make|draw)\s+(?:an?\s+)?image\b/i
+  /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i
 

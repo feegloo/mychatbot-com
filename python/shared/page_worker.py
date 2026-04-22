@@ -42,7 +42,7 @@ from .extractors import (
     ocr_pdf_page,
     page_needs_ocr,
 )
-from .telemetry import log_processing_event, trace_step
+from .telemetry import log_processing_error, log_processing_event, trace_step
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +108,7 @@ class PageResult:
     text: str = ""
     description_summary: str = ""
     error: str | None = None
+    error_uid: str | None = None
     duration_ms: int = 0
 
 
@@ -229,6 +230,7 @@ def _describe_images_parallel(
                     item["png_bytes"],
                     document_context=document_context,
                     page_text=page_text,
+                    conversation_id=conversation_id,
                 )
         except Exception as e:
             logger.warning(f"⚠️ Failed to describe {item['image_name']}: {e}")
@@ -305,7 +307,9 @@ def process_pdf_page(
                 worker_id=worker_id,
             ) as ctx:
                 try:
-                    ocr_text = ocr_pdf_page(str(pdf_path), page_idx)
+                    ocr_text = ocr_pdf_page(
+                        str(pdf_path), page_idx, conversation_id=conversation_id
+                    )
                     if ocr_text and len(ocr_text.strip()) > len(page_text.strip()):
                         page_text = _sanitize_text(f"# Page {page_num}\n\n{ocr_text}")
                         result.text = page_text
@@ -380,6 +384,17 @@ def process_pdf_page(
     except Exception as e:
         result.error = str(e)[:500]
         logger.error(f"❌ Page {page_num} of {file_name} failed: {e}")
+        error_uid = log_processing_error(
+            conversation_id,
+            file_name,
+            e,
+            step="page_processing",
+            page_number=page_num,
+            content=result.text or None,
+            content_type="text" if result.text else None,
+            worker_id=worker_id,
+        )
+        result.error_uid = error_uid
         log_processing_event(
             conversation_id,
             file_name,
@@ -388,6 +403,7 @@ def process_pdf_page(
             total_pages=total_pages,
             status="failed",
             error_message=str(e)[:500],
+            detail=f"error_uid={error_uid}",
             worker_id=worker_id,
         )
 
@@ -491,10 +507,19 @@ def process_pdf_parallel(
                         }
             except Exception as e:
                 logger.error(f"❌ Page {page_idx + 1} worker crashed: {e}")
+                error_uid = log_processing_error(
+                    conversation_id,
+                    file_name,
+                    e,
+                    step="page_worker_crash",
+                    page_number=page_idx + 1,
+                    worker_id=worker_id,
+                )
                 page_results[page_idx] = PageResult(
                     page_number=page_idx + 1,
                     file_name=file_name,
                     error=str(e)[:500],
+                    error_uid=error_uid,
                 )
 
             if on_page_done is not None:
@@ -580,6 +605,15 @@ def process_pdf_parallel(
                     logger.info(f"✅ Page {page_idx + 1} succeeded on retry")
             except Exception as e:
                 logger.error(f"❌ Page {page_idx + 1} retry failed: {e}")
+                log_processing_error(
+                    conversation_id,
+                    file_name,
+                    e,
+                    step="page_retry",
+                    page_number=page_idx + 1,
+                    worker_id=worker_id,
+                    retry_count=1,
+                )
 
     # Aggregate results in page order
     for page_idx in sorted(page_results.keys()):
@@ -594,6 +628,7 @@ def process_pdf_parallel(
                 {
                     "page": pr.page_number,
                     "error": pr.error,
+                    "error_uid": pr.error_uid,
                 }
             )
 
@@ -647,7 +682,7 @@ def process_standalone_file(
             "extract_text",
             detail=f"type={suffix}",
         ) as ctx:
-            text = extract_text(file_path)
+            text = extract_text(file_path, conversation_id=conversation_id)
             file_result.full_text = text
             ctx["detail"] = f"{len(text)} chars"
 
@@ -683,13 +718,25 @@ def process_standalone_file(
         file_result.page_results.append(page_result)
 
     except Exception as e:
-        file_result.errors.append({"page": 1, "error": str(e)[:500]})
+        error_uid = log_processing_error(
+            conversation_id,
+            file_name,
+            e,
+            step="file_processing",
+            page_number=1,
+            content=file_result.full_text or None,
+            content_type="text" if file_result.full_text else None,
+        )
+        file_result.errors.append(
+            {"page": 1, "error": str(e)[:500], "error_uid": error_uid}
+        )
         log_processing_event(
             conversation_id,
             file_name,
             "file_processing",
             status="failed",
             error_message=str(e)[:500],
+            detail=f"error_uid={error_uid}",
         )
 
     log_processing_event(

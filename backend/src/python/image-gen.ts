@@ -50,3 +50,26 @@ export async function generateImage(options: {
     }>
   }
 }
+
+export async function announceImage(options: {
+  question: string
+  welcomeMessages?: string[]
+  chatHistory?: Array<{ role: string; content: string }>
+}): Promise<{ announcement: string }> {
+  const response = await fetch(`${config.pythonServerUrl}/announce-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question: options.question,
+      welcome_messages: options.welcomeMessages || [],
+      chat_history: options.chatHistory || [],
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Python server error (${response.status}): ${text}`)
+  }
+
+  return (await response.json()) as { announcement: string }
+}

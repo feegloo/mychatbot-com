@@ -118,3 +118,34 @@ CREATE INDEX IF NOT EXISTS idx_processing_jobs_conversation_id
 
 CREATE INDEX IF NOT EXISTS idx_processing_jobs_status
   ON processing_jobs(status, created_at);
+
+CREATE TABLE IF NOT EXISTS processing_jobs_errors (
+  id              BIGSERIAL PRIMARY KEY,
+  uid             UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  processing_job_id UUID REFERENCES processing_jobs(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  file_name       TEXT NOT NULL,
+  page_number     INT,
+  step            TEXT,
+  content_type    TEXT,
+  content         TEXT,
+  image_path      TEXT,
+  error_type      TEXT,
+  error_message   TEXT NOT NULL,
+  stack_trace     TEXT,
+  worker_id       TEXT,
+  retry_count     INT NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pj_errors_job_id
+  ON processing_jobs_errors(processing_job_id);
+
+CREATE INDEX IF NOT EXISTS idx_pj_errors_conversation
+  ON processing_jobs_errors(conversation_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_pj_errors_file_page
+  ON processing_jobs_errors(conversation_id, file_name, page_number);
+
+CREATE INDEX IF NOT EXISTS idx_pj_errors_step
+  ON processing_jobs_errors(step, created_at DESC);

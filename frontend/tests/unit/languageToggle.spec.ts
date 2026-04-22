@@ -490,4 +490,84 @@ describe("LanguageToggle", () => {
       expect(translated).toContain("[source:2]");
     });
   });
+
+  // ── Whitespace preservation (prevents layout jump) ──
+
+  describe("whitespace preservation", () => {
+    it("strips leading/trailing whitespace before sending to translate API", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `T: ${t}`),
+      }));
+
+      const original = "\n\nHello world, this is a sufficiently long message.\n\n";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: original }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      // Translator must receive the stripped variant so whitespace is not sent to the
+      // external API (which often collapses/strips it and causes layout jumps on restore).
+      const sentTexts = translateTextsMock.mock.calls[0]?.[0] as string[];
+      expect(sentTexts).toBeTruthy();
+      expect(sentTexts[0]).toBe("Hello world, this is a sufficiently long message.");
+    });
+  });
+
+  // ── Title translation ──
+
+  describe("title translation", () => {
+    it("sends title to the translate API when title prop is provided", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `EN: ${t}`),
+      }));
+
+      const wrapper = mount(LanguageToggle, {
+        props: {
+          messages: makeMessages(["To jest wystarczająco długa polska wiadomość do wykrycia."]),
+          title: "Światło nad eliksirem",
+        },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      const titleCall = translateTextsMock.mock.calls.find(
+        (args) => Array.isArray(args[0]) && (args[0] as string[])[0] === "Światło nad eliksirem",
+      );
+      expect(titleCall).toBeTruthy();
+    });
+
+    it("skips title translation when title is empty", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.99 });
+
+      const wrapper = mount(LanguageToggle, {
+        props: {
+          messages: makeMessages(["To jest wystarczająco długa polska wiadomość do wykrycia."]),
+          title: "   ",
+        },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      // No call should contain just whitespace (title was empty after trim)
+      const titleCalls = translateTextsMock.mock.calls.filter(
+        (args) => Array.isArray(args[0]) && (args[0] as string[]).some((t) => !t.trim()),
+      );
+      expect(titleCalls.length).toBe(0);
+    });
+  });
 });

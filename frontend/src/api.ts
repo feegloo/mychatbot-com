@@ -106,6 +106,9 @@ export type ChatMessage = {
   isParentMessage?: boolean
   /** Set to true while an image is being generated, to show the animated loading state. */
   generatingImage?: boolean
+  /** One-sentence teaser shown under the typing indicator while the image
+   *  is being generated (populated by a quick LLM call). */
+  imageAnnouncement?: string
 }
 
 export type ConversationStatus = {
@@ -313,6 +316,17 @@ export async function generateImage(conversationId: string, question: string, us
   }
 }
 
+export async function announceImage(conversationId: string, question: string) {
+  const response = await api.post(
+    '/announce-image',
+    { conversationId, question },
+    {
+      headers: authHeaders(conversationId),
+    },
+  )
+  return response.data as { announcement: string }
+}
+
 function getBaseUrl() {
   // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '')
@@ -387,6 +401,7 @@ export async function getDebugTables(username: string, password: string, offset 
     access_requests: Record<string, unknown>[]
     users: Record<string, unknown>[]
     processing_jobs: Record<string, unknown>[]
+    processing_jobs_errors: Record<string, unknown>[]
     prompt_history: Record<string, unknown>[]
   }
 }

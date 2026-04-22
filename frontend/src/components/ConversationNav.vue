@@ -102,24 +102,48 @@ const route = useRoute()
 const conversations = ref<ConversationSummary[]>([])
 const loading = ref(false)
 const currentId = ref('')
-let pollHandle: number | undefined
 
-function hasProcessing() {
-  return conversations.value.some((c) => c.status === 'processing')
+// Open an SSE connection per processing conversation instead of polling.
+// When a conversation's indexing finishes (or errors), the backend emits
+// `complete` / `error` on `/conversations/:id/events`; we refresh the list
+// once to pick up the final status, displayName, and fileNames.
+const sseConnections = new Map<string, EventSource>()
+
+function apiBaseUrl(): string {
+  // @ts-ignore
+  return (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
 }
 
-function startPolling() {
-  stopPolling()
-  pollHandle = window.setInterval(async () => {
-    await load()
-    if (!hasProcessing()) stopPolling()
-  }, 1500)
+function closeSSE(conversationId: string) {
+  const es = sseConnections.get(conversationId)
+  if (es) {
+    es.close()
+    sseConnections.delete(conversationId)
+  }
 }
 
-function stopPolling() {
-  if (pollHandle !== undefined) {
-    clearInterval(pollHandle)
-    pollHandle = undefined
+function closeAllSSE() {
+  for (const id of sseConnections.keys()) closeSSE(id)
+}
+
+function ensureSSEForProcessing() {
+  const processingIds = new Set(
+    conversations.value.filter((c) => c.status === 'processing').map((c) => c.conversationId),
+  )
+  // Close connections for conversations that are no longer processing
+  for (const id of [...sseConnections.keys()]) {
+    if (!processingIds.has(id)) closeSSE(id)
+  }
+  // Open connections for newly processing conversations
+  for (const id of processingIds) {
+    if (sseConnections.has(id)) continue
+    const es = new EventSource(`${apiBaseUrl()}/conversations/${id}/events`)
+    // The backend emits `complete` for any terminal state (ready or failed),
+    // including catchup after auto-reconnects, so a single listener suffices.
+    es.addEventListener('complete', () => {
+      closeSSE(id)
+      load()
+    })
   }
 }
 
@@ -127,9 +151,7 @@ async function load() {
   loading.value = true
   try {
     conversations.value = await listMyConversations()
-    if (hasProcessing() && pollHandle === undefined) {
-      startPolling()
-    }
+    ensureSSEForProcessing()
   } catch {
     // silently fail – sidebar is non-critical
   } finally {
@@ -157,7 +179,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopPolling()
+  closeAllSSE()
   window.removeEventListener('conversation-updated', load)
 })
 </script>

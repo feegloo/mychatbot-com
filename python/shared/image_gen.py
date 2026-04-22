@@ -273,6 +273,61 @@ def _random_creative_seed() -> str:
     )
 
 
+def build_image_announcement(
+    question: str,
+    welcome_messages: list[str] | None = None,
+    chat_history: list[dict] | None = None,
+) -> str:
+    """Produce a short one-sentence teaser shown to the user while the
+    image is being generated.
+
+    Kept intentionally lightweight — no RAG lookup, no image API — so the
+    frontend can display it almost immediately while the heavier
+    ``generate_image`` flow runs in parallel. Returned string is always a
+    single sentence, matches the user's language/script, and describes the
+    intended creative angle (e.g. "Generating an image inspired by Harry
+    Potter — a magical book-cover-style scene with Hogwarts glow …").
+    """
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    system = (
+        "You announce, in a single sentence, the image you are about to "
+        "generate for the user. Start with 'Generating an image inspired "
+        "by ' (or the equivalent opener in the user's language/script) and "
+        "follow it with a vivid, specific description of the creative "
+        "angle — style, mood, key visual elements. Do not ask questions, "
+        "do not offer options, do not mention that you are an AI. Keep it "
+        "under 40 words. Output ONLY the sentence, no quotes, no prefix."
+    )
+
+    user_content = f"User request: {question}\n"
+    if welcome_messages:
+        user_content += f"\nDocument summary:\n{chr(10).join(welcome_messages[:2])}\n"
+    if chat_history:
+        user_content += "\nRecent conversation:\n"
+        for msg in chat_history[-4:]:
+            role = msg.get("role", "")
+            content = (msg.get("content", "") or "")[:200]
+            user_content += f"{role}: {content}\n"
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_content},
+    ]
+    text, _usage = traced_openai_call(
+        client=client,
+        messages=messages,
+        model=settings.openai_chat_model,
+        operation="image_announcement",
+        max_completion_tokens=120,
+        temperature=0.8,
+    )
+    # Normalise whitespace / stray quotes the model sometimes adds.
+    cleaned = (text or "").strip().strip('"').strip("'").strip()
+    return cleaned
+
+
 def build_image_prompt(
     question: str,
     context: str = "",
