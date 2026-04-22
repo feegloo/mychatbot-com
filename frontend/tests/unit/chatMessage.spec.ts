@@ -156,4 +156,55 @@ describe('ChatMessage suggested prompt overflow', () => {
       vi.useRealTimers()
     }
   })
+
+  it('emits `image-revealed` only for images added after the initial mount pass', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = mount(ChatMessage, {
+        attachTo: document.body,
+        props: {
+          ...baseProps(),
+          msg: { role: 'assistant' as const, content: '![existing](https://example.com/a.png)' },
+        },
+      })
+
+      // First pass: `trackContentImages` runs with initial-mount images; these
+      // must NOT be flagged `animateIn`, so revealing them should not emit.
+      vi.runAllTimers()
+      await nextTick()
+
+      const findImg = () => wrapper.element.querySelector('img') as HTMLImageElement | null
+      const existing = findImg()
+      expect(existing).not.toBeNull()
+      expect(existing!.dataset.animateIn).toBeUndefined()
+
+      Object.defineProperty(existing!, 'naturalWidth', { configurable: true, value: 100 })
+      existing!.dispatchEvent(new Event('load'))
+      await nextTick()
+      expect(wrapper.emitted('image-revealed')).toBeUndefined()
+
+      // Second pass: a new image arrives (e.g. post-generation); it SHOULD be
+      // flagged dynamic and emit `image-revealed` with success=true on load.
+      await wrapper.setProps({
+        msg: { role: 'assistant' as const, content: '![generated](https://example.com/b.png)' },
+      })
+      vi.runAllTimers()
+      await nextTick()
+
+      const generated = findImg()
+      expect(generated).not.toBeNull()
+      expect(generated!.dataset.animateIn).toBe('true')
+
+      Object.defineProperty(generated!, 'naturalWidth', { configurable: true, value: 200 })
+      generated!.dispatchEvent(new Event('load'))
+      await nextTick()
+
+      const events = wrapper.emitted('image-revealed') as unknown[][] | undefined
+      expect(events).toBeDefined()
+      expect(events!.length).toBe(1)
+      expect(events![0][0]).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

@@ -571,7 +571,11 @@ const emit = defineEmits<{
   'upload-files': [files: File[]]
   'trigger-upload': []
   'view-threads': [messageId: string]
-  'image-loaded': []
+  // Fired whenever a dynamically added `<img>` has finished its load cycle.
+  // `success` is false when the image exhausted its retry budget and was
+  // revealed as a broken-image placeholder, so parents can decide whether
+  // to scroll or ignore.
+  'image-revealed': [success: boolean]
 }>()
 
 const senderLabel = computed(() => {
@@ -894,10 +898,14 @@ function updateImagesPending() {
   imagesPending.value = pendingImages.size > 0
 }
 
-function revealImage(img: HTMLImageElement) {
+function revealImage(img: HTMLImageElement, success = true) {
+  // The underlying <img> load/error events may fire after onBeforeUnmount
+  // (listeners aren't forcibly removed), so guard against emitting events
+  // or touching reactive state from an unmounted instance.
+  if (componentUnmounted) return
   img.style.removeProperty('display')
   const wasDynamic = img.dataset.animateIn === 'true'
-  if (wasDynamic) {
+  if (wasDynamic && success) {
     img.classList.add('animate-in')
   }
   pendingImages.delete(img)
@@ -905,7 +913,7 @@ function revealImage(img: HTMLImageElement) {
   // Notify parent so it can re-scroll to focus on the newly visible image,
   // matching the smooth scroll effect used for streamed assistant text.
   if (wasDynamic) {
-    emit('image-loaded')
+    emit('image-revealed', success)
   }
 }
 
@@ -938,7 +946,7 @@ function scheduleImgRetry(img: HTMLImageElement, attempt: number) {
   if (componentUnmounted) return
   if (attempt >= IMG_MAX_ATTEMPTS) {
     // Give up: reveal the (broken) image so the user at least sees a cue.
-    revealImage(img)
+    revealImage(img, false)
     return
   }
   const baseSrc = img.dataset.origSrc || img.src.split('?')[0].split('#')[0]
