@@ -137,6 +137,14 @@ const isMobile = isMobileUserAgent()
 const MAX_RENDERED_PAGES = isMobile ? 6 : 10
 const renderedLru = new LruSet<number>(MAX_RENDERED_PAGES)
 const HORIZONTAL_PADDING = 0 // container has no side padding; pages span full width
+// Don't re-render the canvas on every pinch delta — only commit when the
+// scale has moved by at least this much, to keep pinch fluid.
+const PINCH_RERENDER_THRESHOLD = 0.15
+// A touch is treated as a tap only if it stays within this much movement
+// and ends within this many milliseconds (used for double-tap detection).
+const MAX_TAP_MOVEMENT_PX = 10
+const MAX_TAP_DURATION_MS = 300
+const DOUBLE_TAP_WINDOW_MS = 300
 
 let pdfDoc: PDFDocumentProxy | null = null
 let highlightDone = false
@@ -638,7 +646,7 @@ function onTouchMove(e: TouchEvent) {
     const next = computePinchScale(pinchInitialScale, pinchInitialDistance, d)
     // Only re-render when the scale has changed meaningfully, to avoid
     // thrashing the canvas during the pinch.
-    if (Math.abs(next - scale.value) >= 0.15) {
+    if (Math.abs(next - scale.value) >= PINCH_RERENDER_THRESHOLD) {
       setZoom(next)
     }
   }
@@ -665,10 +673,13 @@ function onTouchEnd(e: TouchEvent) {
 
   // Double-tap → toggle zoom (1× ↔ 2×). Only when the gesture is a tap
   // (tiny movement) and within 300ms of the previous tap.
-  const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 300
+  const isTap =
+    Math.abs(dx) < MAX_TAP_MOVEMENT_PX &&
+    Math.abs(dy) < MAX_TAP_MOVEMENT_PX &&
+    dt < MAX_TAP_DURATION_MS
   if (isTap) {
     const now = performance.now()
-    if (now - lastTapTime < 300) {
+    if (now - lastTapTime < DOUBLE_TAP_WINDOW_MS) {
       setZoom(scale.value > 1 ? 1 : 2)
       lastTapTime = 0
       touchStart = null
