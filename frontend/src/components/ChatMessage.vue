@@ -2203,4 +2203,21 @@ function openFilePreview(file: FileInfo) {
 .message.user .user-text.animate-in {
   animation: msg-reveal-user-ltr 0.111s ease-out both;
 }
+
+/* Fade-in for images that arrive after generation (e.g. Pollinations).
+   The `animate-in` class is only applied after the initial mount pass, so
+   pre-existing conversation images are not animated on page load. Images
+   live inside v-html markdown, hence `:deep()`. */
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:deep(img.animate-in) {
+  animation: img-fade-in 0.35s ease-out both;
+}
 </style>
