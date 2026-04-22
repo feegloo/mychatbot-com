@@ -124,6 +124,7 @@
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
+            @image-loaded="scrollToBottom(true)"
           />
           <div
             v-if="showInlineProcessing"

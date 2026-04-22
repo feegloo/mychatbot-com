@@ -571,6 +571,7 @@ const emit = defineEmits<{
   'upload-files': [files: File[]]
   'trigger-upload': []
   'view-threads': [messageId: string]
+  'image-loaded': []
 }>()
 
 const senderLabel = computed(() => {
@@ -895,11 +896,17 @@ function updateImagesPending() {
 
 function revealImage(img: HTMLImageElement) {
   img.style.removeProperty('display')
-  if (img.dataset.animateIn === 'true') {
+  const wasDynamic = img.dataset.animateIn === 'true'
+  if (wasDynamic) {
     img.classList.add('animate-in')
   }
   pendingImages.delete(img)
   updateImagesPending()
+  // Notify parent so it can re-scroll to focus on the newly visible image,
+  // matching the smooth scroll effect used for streamed assistant text.
+  if (wasDynamic) {
+    emit('image-loaded')
+  }
 }
 
 function attachImgListeners(img: HTMLImageElement, attempt: number) {

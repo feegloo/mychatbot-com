@@ -81,6 +81,7 @@
         :can-upload="false"
         :files="undefined"
         :suggested-questions="undefined"
+        @image-loaded="scrollToBottom(true)"
       />
     </div>
 
