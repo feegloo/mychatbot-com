@@ -82,7 +82,7 @@
           style="
             flex: 1;
             overflow-y: auto;
-            overflow-x: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 14px;
