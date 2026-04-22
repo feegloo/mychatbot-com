@@ -79,14 +79,17 @@ import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 
 GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href
 
-// pdfjs-dist runtime assets are copied to `/pdfjs/...` at build time (see vite.config.ts).
-// Providing these URLs enables full image decoding (JPEG2000/JBIG2 via wasm,
-// ICC color profiles), CJK cmaps, and standard font fallbacks — without them
-// embedded images in PDFs may fail to render.
-const PDFJS_WASM_URL = '/pdfjs/wasm/'
-const PDFJS_ICC_URL = '/pdfjs/iccs/'
-const PDFJS_CMAP_URL = '/pdfjs/cmaps/'
-const PDFJS_STANDARD_FONT_URL = '/pdfjs/standard_fonts/'
+// pdfjs-dist runtime assets are copied under the app's Vite base path at build
+// time (see vite.config.ts). Providing these URLs enables full image decoding
+// (JPEG2000/JBIG2 via wasm, ICC color profiles), CJK cmaps, and standard font
+// fallbacks — without them embedded images in PDFs may fail to render.
+const PDFJS_BASE_URL = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`
+const PDFJS_WASM_URL = `${PDFJS_BASE_URL}pdfjs/wasm/`
+const PDFJS_ICC_URL = `${PDFJS_BASE_URL}pdfjs/iccs/`
+const PDFJS_CMAP_URL = `${PDFJS_BASE_URL}pdfjs/cmaps/`
+const PDFJS_STANDARD_FONT_URL = `${PDFJS_BASE_URL}pdfjs/standard_fonts/`
 
 const props = withDefaults(
   defineProps<{

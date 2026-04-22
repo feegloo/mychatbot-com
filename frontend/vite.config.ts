@@ -1,7 +1,9 @@
 import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
-import { cp } from "node:fs/promises";
+import { cp, stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
@@ -47,22 +49,40 @@ function pdfjsAssetsPlugin(): Plugin {
             res.end("Forbidden");
             return;
           }
-          const fs = await import("node:fs/promises");
-          const data = await fs.readFile(filePath);
+          const fileStat = await stat(filePath);
+          if (!fileStat.isFile()) {
+            next();
+            return;
+          }
           res.setHeader(
             "Content-Type",
             filePath.endsWith(".wasm") ? "application/wasm" : "application/octet-stream",
           );
-          res.end(data);
+          res.setHeader("Content-Length", String(fileStat.size));
+          // These assets are versioned alongside pdfjs-dist; safe to cache
+          // aggressively in dev to avoid repeated disk reads on reload.
+          res.setHeader("Cache-Control", "public, max-age=3600");
+          // Stream the file instead of buffering the whole asset into memory —
+          // wasm/font blobs can be several MB.
+          await pipeline(createReadStream(filePath), res);
         } catch (err) {
-          // Surface unexpected errors in dev logs; missing files fall through
-          // to Vite's default 404 handling via `next()`.
-          if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
-            server.config.logger.warn(
-              `[chatrag:pdfjs-assets] failed to serve ${req.url}: ${(err as Error).message}`,
-            );
+          const error = err as NodeJS.ErrnoException;
+          // Missing files fall through to Vite's default 404 handling via
+          // `next()`. Unexpected filesystem/runtime errors should surface as
+          // explicit 500 responses so they aren't masked as 404s.
+          if (error?.code === "ENOENT") {
+            next();
+            return;
           }
-          next();
+          server.config.logger.warn(
+            `[chatrag:pdfjs-assets] failed to serve ${req.url}: ${(err as Error).message}`,
+          );
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end("Internal Server Error");
+          } else {
+            res.end();
+          }
         }
       });
     },
