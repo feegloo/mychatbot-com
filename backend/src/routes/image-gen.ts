@@ -11,7 +11,8 @@ import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
 import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
 import { SHORT_ID_RE } from '../constants.js'
-import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
+import { uploadLocalFileToGcs, downloadFromGcs } from '../storage/gcs-storage.js'
+import { resolveReferenceImagePaths } from '../utils/reference-images.js'
 import logger from '../logger.js'
 
 // File names are resolved against the conversation's storage dir server-side.
@@ -72,9 +73,23 @@ imageGenRouter.post('/generate-image', async (ctx) => {
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
 
-  const referenceImagePaths = (referenceImageFileNames || []).map((name) =>
-    path.join(storageDir, name),
-  )
+  // If the caller did not explicitly pick reference files, auto-attach the
+  // conversation's uploaded images. This keeps visual context for action
+  // buttons like "Generate image inspired by: Screenshot 🎨" where the
+  // original uploaded image is the intended subject. On Cloud Run the
+  // file may live only in GCS on a different instance, so hydrate it.
+  const canHydrateFromGcs = config.storageProvider === 'gcs' && Boolean(config.gcsBucket)
+  const referenceImagePaths = await resolveReferenceImagePaths({
+    explicitFileNames: referenceImageFileNames,
+    files: data.files,
+    storageDir,
+    storageRoot: config.storageRoot,
+    hydrateFromGcs: canHydrateFromGcs
+      ? (storageKey, localPath) => downloadFromGcs(storageKey, localPath).then(() => undefined)
+      : undefined,
+    onHydrateError: (storageKey, err) =>
+      logger.warn({ err, storageKey }, 'failed to hydrate reference image from GCS'),
+  })
 
   const result = await generateImage({
     question,
