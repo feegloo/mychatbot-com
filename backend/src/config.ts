@@ -47,4 +47,10 @@ export const config = {
   // UPDATE SKIP LOCKED. Backend instances then LISTEN on indexing_events
   // to relay worker progress to browsers via SSE.
   workerMode: (process.env.WORKER_MODE || 'inline') as 'inline' | 'cloud_run',
+  // Per-instance Postgres pool size. Kept small because Cloud SQL
+  // db-f1-micro only allows ~25 concurrent connections total and several
+  // Cloud Run instances share that budget.
+  dbPoolMax: Number(process.env.DB_POOL_MAX || 3),
+  dbIdleTimeoutMs: Number(process.env.DB_IDLE_TIMEOUT_MS || 10_000),
+  dbConnectionTimeoutMs: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5_000),
 }

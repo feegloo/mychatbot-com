@@ -3,6 +3,14 @@ import { config } from './config.js'
 
 export const pool = new Pool({
   connectionString: config.databaseUrl,
+  max: config.dbPoolMax,
+  idleTimeoutMillis: config.dbIdleTimeoutMs,
+  connectionTimeoutMillis: config.dbConnectionTimeoutMs,
+})
+
+// Surface pool-level connection errors instead of crashing the process.
+pool.on('error', (err) => {
+  console.error('[db] idle client error', err)
 })
 
 export async function query<T extends QueryResultRow = any>(sql: string, params: any[] = []) {
