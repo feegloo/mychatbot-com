@@ -1,12 +1,15 @@
 /**
  * Pure helpers for {@link PdfPageViewer.vue}. Kept separate so they can be
- * reasoned about and unit-tested without pulling in pdf.js or a DOM.
+ * reasoned about and unit-tested without pulling in pdf.js. These functions
+ * don't touch the DOM directly; `isMobileUserAgent` safely falls back to an
+ * empty string when no `navigator` is available (e.g. in Node/SSR).
  */
 
 export const MOBILE_UA_RE = /iPhone|iPad|iPod|Android/i
 
-export function isMobileUserAgent(ua: string = navigator.userAgent): boolean {
-  return MOBILE_UA_RE.test(ua)
+export function isMobileUserAgent(ua?: string): boolean {
+  const userAgent = ua ?? globalThis.navigator?.userAgent ?? ''
+  return MOBILE_UA_RE.test(userAgent)
 }
 
 /**

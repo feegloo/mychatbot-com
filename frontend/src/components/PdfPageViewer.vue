@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootEl" class="pdf-page-viewer" @wheel.passive="onWheel">
+  <div ref="rootEl" class="pdf-page-viewer" @wheel="onWheel">
     <div v-if="loading" class="pdf-page-loading">Loading…</div>
     <div v-if="error" class="pdf-page-error">{{ error }}</div>
     <div
@@ -130,8 +130,21 @@ const canvasRefs = new Map<number, HTMLCanvasElement>()
 const textRefs = new Map<number, HTMLElement>()
 const pageRefs = new Map<number, HTMLElement>()
 const pageProxies = new Map<number, PDFPageProxy>()
+// Non-reactive map for O(1) lookups; `aspectVersion` is bumped on each mutation
+// so reactive consumers (e.g. `wrapperStyle`) re-evaluate.
 const pageAspectRatios = new Map<number, number>() // width / height
+const aspectVersion = ref(0)
 const activeRenderTasks = new Map<number, RenderTask>()
+// Pages currently inside the observer margin. `renderPage` re-checks this set
+// after every `await` to avoid rendering pages the user has scrolled past.
+const intersectingPages = new Set<number>()
+
+function setPageAspect(pageNum: number, aspect: number) {
+  const prev = pageAspectRatios.get(pageNum)
+  if (prev === aspect) return
+  pageAspectRatios.set(pageNum, aspect)
+  aspectVersion.value++
+}
 
 const isMobile = isMobileUserAgent()
 const MAX_RENDERED_PAGES = isMobile ? 6 : 10
@@ -148,8 +161,8 @@ const DOUBLE_TAP_WINDOW_MS = 300
 
 let pdfDoc: PDFDocumentProxy | null = null
 let highlightDone = false
-let defaultAspectRatio = 1 / Math.SQRT2 // A4 portrait placeholder until first page arrives
-let containerWidth = 600
+const defaultAspectRatio = ref(1 / Math.SQRT2) // A4 portrait placeholder until first page arrives
+const containerWidth = ref(600)
 let observer: IntersectionObserver | null = null
 let resizeObserver: ResizeObserver | null = null
 let highlightTargetPage = -1
@@ -180,8 +193,11 @@ function setPageRef(pg: number, el: HTMLElement | null) {
 }
 
 function wrapperStyle(pg: number): Record<string, string> {
-  const aspect = pageAspectRatios.get(pg) ?? defaultAspectRatio
-  const height = estimatePageHeight(aspect, containerWidth, HORIZONTAL_PADDING, scale.value)
+  // Touch `aspectVersion` so wrapperStyle re-evaluates when per-page aspect
+  // ratios are refined during rendering.
+  void aspectVersion.value
+  const aspect = pageAspectRatios.get(pg) ?? defaultAspectRatio.value
+  const height = estimatePageHeight(aspect, containerWidth.value, HORIZONTAL_PADDING, scale.value)
   return {
     height: `${height}px`,
     // Skip layout/paint of offscreen pages for free.
@@ -237,15 +253,15 @@ async function loadPdf() {
 
     await nextTick()
     if (myToken !== loadToken) return
-    containerWidth = rootEl.value?.clientWidth || 600
+    containerWidth.value = rootEl.value?.clientWidth || 600
 
     // Use the first page's aspect ratio to seed placeholder sizes for every
     // page. Individual pages are refined when they actually render.
     try {
       const firstPage = await getPageProxy(1)
       const vp = firstPage.getViewport({ scale: 1 })
-      defaultAspectRatio = vp.width / vp.height
-      pageAspectRatios.set(1, defaultAspectRatio)
+      defaultAspectRatio.value = vp.width / vp.height
+      setPageAspect(1, defaultAspectRatio.value)
     } catch (e) {
       console.warn('PDF first-page probe failed:', e)
     }
@@ -291,12 +307,9 @@ function onContainerResize() {
   const container = pagesContainer.value
   if (!container) return
   const newWidth = container.clientWidth
-  if (newWidth === containerWidth) return
-  containerWidth = newWidth
-  // All rendered pages are now stale; clear scale keys so they re-render
-  // at the new width. Placeholder heights update reactively via wrapperStyle.
-  for (const canvas of canvasRefs.values()) canvas.dataset.scaleKey = ''
-  scheduleRenderVisible()
+  if (newWidth === containerWidth.value) return
+  containerWidth.value = newWidth
+  invalidateRenders()
 }
 
 function onIntersect(entries: IntersectionObserverEntry[]) {
@@ -305,8 +318,10 @@ function onIntersect(entries: IntersectionObserverEntry[]) {
     const pg = Number(el.dataset.page)
     if (!pg) continue
     if (entry.isIntersecting) {
+      intersectingPages.add(pg)
       void renderPage(pg)
     } else {
+      intersectingPages.delete(pg)
       unloadPage(pg)
     }
   }
@@ -319,7 +334,7 @@ async function getPageProxy(pageNum: number): Promise<PDFPageProxy> {
   pageProxies.set(pageNum, page)
   if (!pageAspectRatios.has(pageNum)) {
     const vp = page.getViewport({ scale: 1 })
-    pageAspectRatios.set(pageNum, vp.width / vp.height)
+    setPageAspect(pageNum, vp.width / vp.height)
   }
   return page
 }
@@ -335,6 +350,8 @@ function unloadPage(pageNum: number) {
     }
     activeRenderTasks.delete(pageNum)
   }
+
+  intersectingPages.delete(pageNum)
 
   const canvas = canvasRefs.get(pageNum)
   if (canvas) {
@@ -360,31 +377,59 @@ function unloadPage(pageNum: number) {
   }
 }
 
+/**
+ * Cancel all in-flight render tasks and clear their scale keys. Called on
+ * scale or container-width changes so old renders can't "complete" onto a
+ * canvas that's now stale and mark it as up-to-date with the old key.
+ */
+function invalidateRenders() {
+  for (const task of activeRenderTasks.values()) {
+    try {
+      task.cancel()
+    } catch {
+      /* ignore */
+    }
+  }
+  activeRenderTasks.clear()
+  for (const canvas of canvasRefs.values()) canvas.dataset.scaleKey = ''
+  scheduleRenderVisible()
+}
+
+function currentScaleKey(): string {
+  return `rendered-${scale.value}-${containerWidth.value}`
+}
+
 async function renderPage(pageNum: number) {
   const canvas = canvasRefs.get(pageNum)
   const textDiv = textRefs.get(pageNum)
   if (!canvas || !textDiv || !pdfDoc) return
 
-  const scaleKey = `rendered-${scale.value}-${containerWidth}`
+  const scaleKey = currentScaleKey()
   if (canvas.dataset.scaleKey === scaleKey) {
     renderedLru.touch(pageNum)
     return
   }
 
-  // Bail out if a render is already in flight for this page at this key.
+  // Bail out if a render is already in flight for this page.
   if (activeRenderTasks.has(pageNum)) return
 
   const page = await getPageProxy(pageNum)
-  // Page could have been unloaded while we awaited.
-  if (!canvasRefs.has(pageNum)) return
+  // Page could have been unloaded or scrolled out of the render window while
+  // we awaited the page proxy.
+  if (!canvasRefs.has(pageNum) || !intersectingPages.has(pageNum)) return
+  // Scale/width may have changed during the await — try again with the new key.
+  if (currentScaleKey() !== scaleKey) {
+    void renderPage(pageNum)
+    return
+  }
 
   const unscaledVp = page.getViewport({ scale: 1 })
-  pageAspectRatios.set(pageNum, unscaledVp.width / unscaledVp.height)
+  setPageAspect(pageNum, unscaledVp.width / unscaledVp.height)
 
-  const baseScale = (containerWidth - HORIZONTAL_PADDING) / unscaledVp.width
+  const baseScale = (containerWidth.value - HORIZONTAL_PADDING) / unscaledVp.width
   const effectiveScale = baseScale * scale.value
-  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)
-  const viewport = page.getViewport({ scale: effectiveScale * dpr })
+  const clampedDevicePixelRatio = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2)
+  const viewport = page.getViewport({ scale: effectiveScale * clampedDevicePixelRatio })
   const displayViewport = page.getViewport({ scale: effectiveScale })
 
   canvas.width = viewport.width
@@ -400,15 +445,27 @@ async function renderPage(pageNum: number) {
   try {
     await task.promise
   } catch (err) {
-    // Cancellations are expected when the user scrolls past a page mid-render.
+    // Cancellations are expected when the user scrolls past a page mid-render
+    // or when scale/width changes invalidate this render.
     const name = (err as { name?: string } | null)?.name
     if (name !== 'RenderingCancelledException') {
       console.warn(`PDF page ${pageNum} render cancelled/failed:`, err)
     }
-    activeRenderTasks.delete(pageNum)
+    if (activeRenderTasks.get(pageNum) === task) activeRenderTasks.delete(pageNum)
     return
   }
-  activeRenderTasks.delete(pageNum)
+  if (activeRenderTasks.get(pageNum) === task) activeRenderTasks.delete(pageNum)
+
+  // Drop this render if the viewer state changed during rendering; otherwise
+  // we'd mark the canvas as up-to-date with a stale scale/width.
+  if (
+    !canvasRefs.has(pageNum) ||
+    !intersectingPages.has(pageNum) ||
+    currentScaleKey() !== scaleKey
+  ) {
+    void renderPage(pageNum)
+    return
+  }
 
   // Text layer
   textDiv.innerHTML = ''
@@ -419,6 +476,8 @@ async function renderPage(pageNum: number) {
 
   try {
     const textContent = await page.getTextContent()
+    // getTextContent can race with unload/scale changes too.
+    if (!textRefs.has(pageNum) || currentScaleKey() !== scaleKey) return
     const textLayer = new TextLayer({
       textContentSource: textContent,
       container: textDiv,
@@ -572,12 +631,11 @@ function setZoom(nextScale: number) {
   onScaleChange()
 }
 
-async function onScaleChange() {
-  // Invalidate canvases so pages re-render at the new scale; placeholder
-  // heights update reactively because wrapperStyle depends on scale.value.
-  for (const canvas of canvasRefs.values()) canvas.dataset.scaleKey = ''
-  await nextTick()
-  scheduleRenderVisible()
+function onScaleChange() {
+  // Cancel any in-flight renders so they can't complete onto a canvas that's
+  // now stale. `invalidateRenders` clears scale keys and re-schedules visible
+  // pages; placeholder heights update reactively via `wrapperStyle`.
+  invalidateRenders()
 }
 
 function onWheel(e: WheelEvent) {
