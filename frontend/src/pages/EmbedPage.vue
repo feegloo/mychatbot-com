@@ -55,6 +55,7 @@
           :suggested-questions="suggestedQuestionsForMessage(index)"
           :no-animation="index < initialMessageCount"
           @select-question="question = $event; submitQuestion()"
+          @image-revealed="(success: boolean) => success && scrollToBottom(true)"
         />
       </div>
 

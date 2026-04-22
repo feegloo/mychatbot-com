@@ -571,6 +571,11 @@ const emit = defineEmits<{
   'upload-files': [files: File[]]
   'trigger-upload': []
   'view-threads': [messageId: string]
+  // Fired whenever a dynamically added `<img>` has finished its load cycle.
+  // `success` is false when the image exhausted its retry budget and was
+  // revealed as a broken-image placeholder, so parents can decide whether
+  // to scroll or ignore.
+  'image-revealed': [success: boolean]
 }>()
 
 const senderLabel = computed(() => {
@@ -893,13 +898,23 @@ function updateImagesPending() {
   imagesPending.value = pendingImages.size > 0
 }
 
-function revealImage(img: HTMLImageElement) {
+function revealImage(img: HTMLImageElement, success = true) {
+  // The underlying <img> load/error events may fire after onBeforeUnmount
+  // (listeners aren't forcibly removed), so guard against emitting events
+  // or touching reactive state from an unmounted instance.
+  if (componentUnmounted) return
   img.style.removeProperty('display')
-  if (img.dataset.animateIn === 'true') {
+  const wasDynamic = img.dataset.animateIn === 'true'
+  if (wasDynamic && success) {
     img.classList.add('animate-in')
   }
   pendingImages.delete(img)
   updateImagesPending()
+  // Notify parent so it can re-scroll to focus on the newly visible image,
+  // matching the smooth scroll effect used for streamed assistant text.
+  if (wasDynamic) {
+    emit('image-revealed', success)
+  }
 }
 
 function attachImgListeners(img: HTMLImageElement, attempt: number) {
@@ -931,7 +946,7 @@ function scheduleImgRetry(img: HTMLImageElement, attempt: number) {
   if (componentUnmounted) return
   if (attempt >= IMG_MAX_ATTEMPTS) {
     // Give up: reveal the (broken) image so the user at least sees a cue.
-    revealImage(img)
+    revealImage(img, false)
     return
   }
   const baseSrc = img.dataset.origSrc || img.src.split('?')[0].split('#')[0]
@@ -2195,5 +2210,22 @@ function openFilePreview(file: FileInfo) {
 
 .message.user .user-text.animate-in {
   animation: msg-reveal-user-ltr 0.111s ease-out both;
+}
+
+/* Fade-in for images that arrive after generation (e.g. Pollinations).
+   The `animate-in` class is only applied after the initial mount pass, so
+   pre-existing conversation images are not animated on page load. Images
+   live inside v-html markdown, hence `:deep()`. */
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:deep(img.animate-in) {
+  animation: img-fade-in 0.35s ease-out both;
 }
 </style>

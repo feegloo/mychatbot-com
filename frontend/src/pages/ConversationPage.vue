@@ -124,6 +124,7 @@
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
+            @image-revealed="(success: boolean) => success && scrollToBottom(true, true)"
           />
           <div
             v-if="showInlineProcessing"
@@ -606,9 +607,19 @@ function viewHeaderThreads() {
   }
 }
 
-function scrollToBottom(smooth = false) {
+function scrollToBottom(smooth = false, toEnd = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
+  // When `toEnd` is true, scroll all the way to the bottom — used when the
+  // last message's size can grow after mount (e.g. a generated image finishes
+  // loading), so aligning to the top of the message would leave it off-screen.
+  if (toEnd) {
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? 'smooth' : 'instant',
+    })
+    return
+  }
   // Find the last message element
   const messageEls = container.querySelectorAll('.message')
   const lastMsg = messageEls[messageEls.length - 1] as HTMLElement | undefined

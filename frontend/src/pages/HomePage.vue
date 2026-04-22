@@ -81,6 +81,7 @@
         :can-upload="false"
         :files="undefined"
         :suggested-questions="undefined"
+        @image-revealed="(success: boolean) => success && scrollToBottom(true)"
       />
     </div>
 
