@@ -264,16 +264,21 @@ async function getMermaid() {
   mermaid = mod.default
   mermaid.initialize({
     startOnLoad: false,
-    theme: 'dark',
+    theme: 'base',
     themeVariables: {
-      darkMode: true,
-      background: '#1e1e2e',
-      primaryColor: '#7c3aed',
-      primaryTextColor: '#e2e8f0',
+      darkMode: false,
+      background: '#f4f4f4',
+      primaryColor: '#ede9fe',
+      primaryTextColor: '#000000',
       primaryBorderColor: '#7c3aed',
-      lineColor: '#94a3b8',
-      secondaryColor: '#334155',
-      tertiaryColor: '#1e293b',
+      secondaryColor: '#e2e8f0',
+      secondaryTextColor: '#000000',
+      tertiaryColor: '#f1f5f9',
+      tertiaryTextColor: '#000000',
+      lineColor: '#475569',
+      textColor: '#000000',
+      nodeTextColor: '#000000',
+      labelTextColor: '#000000',
     },
     flowchart: { htmlLabels: true, curve: 'basis' },
     securityLevel: 'loose',
@@ -437,6 +442,15 @@ watch(
   height: auto;
 }
 
+.mermaid-svg-wrapper :deep(svg foreignObject),
+.mermaid-svg-wrapper :deep(svg foreignObject *),
+.mermaid-svg-wrapper :deep(svg .nodeLabel),
+.mermaid-svg-wrapper :deep(svg .edgeLabel),
+.mermaid-svg-wrapper :deep(svg text) {
+  color: #000 !important;
+  fill: #000 !important;
+}
+
 .mermaid-controls {
   position: absolute;
   bottom: 10px;
@@ -593,5 +607,14 @@ watch(
   max-width: 80vw;
   max-height: 80vh;
   height: auto;
+}
+
+.mermaid-fullscreen-diagram :deep(svg foreignObject),
+.mermaid-fullscreen-diagram :deep(svg foreignObject *),
+.mermaid-fullscreen-diagram :deep(svg .nodeLabel),
+.mermaid-fullscreen-diagram :deep(svg .edgeLabel),
+.mermaid-fullscreen-diagram :deep(svg text) {
+  color: #000 !important;
+  fill: #000 !important;
 }
 </style>
