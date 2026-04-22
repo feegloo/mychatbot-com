@@ -316,7 +316,12 @@ def claim_xref_if_drawn_on_page(
     preserve pre-fix behaviour (the image is claimed on this page) rather
     than silently dropping the image entirely.
     """
-    # Lockless fast path: skip xrefs already claimed by another page.
+    # Lockless fast path: most calls hit an xref that has already been
+    # claimed by a previously-processed page, so avoid the ``get_image_rects``
+    # round-trip and the lock acquisition.  This check is intentionally racy
+    # (a concurrent claim may not yet be visible), but the locked re-check
+    # below closes that window — it only costs us an occasional extra
+    # ``get_image_rects`` call, never a duplicate claim.
     if xref in seen_xrefs:
         return False
     try:

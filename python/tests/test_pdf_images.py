@@ -157,11 +157,6 @@ class TestClaimXrefIfDrawnOnPage:
     Resources (PyMuPDF's builder gives each page its own resource dict).
     """
 
-    def _make_lock(self):
-        import threading
-
-        return threading.Lock()
-
     def test_skips_page_with_empty_draw_rects(self):
         """Image listed in the page's resource dict but not drawn → skipped."""
         import threading
