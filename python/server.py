@@ -85,10 +85,18 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ChatRAG Server")
 
+# Populated in _startup_checks when WORKER_MODE=cloud_run so this process
+# (the chatrag-indexer service) drains the indexing_jobs queue in the
+# background. Stays None in inline mode so the main chatrag service — and
+# local dev — keep using the synchronous /index-stream path.
+_worker_loop = None
+
 
 @app.on_event("shutdown")
 async def _shutdown():
     """Clean up DB connection pool on shutdown."""
+    if _worker_loop is not None:
+        _worker_loop.stop()
     close_db_pool()
 
 
@@ -125,6 +133,22 @@ async def _startup_checks():
             )
     else:
         logger.info(f"🔵 Using cloud LLM provider: {settings.llm_provider}")
+
+    # Start the background queue worker when running as the indexer Cloud Run
+    # service. In other modes (the main chatrag service, local dev) the loop
+    # stays dormant and indexing runs inline via /index-stream.
+    if os.environ.get("WORKER_MODE") == "cloud_run":
+        from shared.worker_loop import WorkerLoop
+
+        global _worker_loop
+        _worker_loop = WorkerLoop()
+        _worker_loop.start()
+
+
+_worker_loop = None  # populated on startup when WORKER_MODE=cloud_run
+
+
+_worker_loop = None  # populated on startup when WORKER_MODE=cloud_run
 
 
 class AnswerRequest(BaseModel):

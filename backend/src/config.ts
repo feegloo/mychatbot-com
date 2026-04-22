@@ -40,4 +40,11 @@ export const config = {
   // The indexer calls back via /internal/index-stream authenticated with indexerSecret.
   indexerUrl: process.env.INDEXER_URL || '',
   indexerSecret: process.env.INDEXER_SECRET || '',
+  // Indexing backend: 'inline' (default) runs indexing inside the upload
+  // request on the backend instance (works for local dev + single-node);
+  // 'cloud_run' enqueues into the indexing_jobs table so the separate
+  // chatrag-indexer Cloud Run service claims the work via SELECT FOR
+  // UPDATE SKIP LOCKED. Backend instances then LISTEN on indexing_events
+  // to relay worker progress to browsers via SSE.
+  workerMode: (process.env.WORKER_MODE || 'inline') as 'inline' | 'cloud_run',
 }
