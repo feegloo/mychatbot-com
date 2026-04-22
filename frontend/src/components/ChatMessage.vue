@@ -144,7 +144,8 @@
               </div>
               <div v-else-if="isPdfFile(file)" class="file-preview-thumb pdf-thumb">
                 <object
-                  :data="getFileUrl(file) + '#page=1&view=FitH'"
+                  v-if="getPdfEmbedUrl(file)"
+                  :data="getPdfEmbedUrl(file)"
                   type="application/pdf"
                   class="pdf-mini-object"
                 >
@@ -165,6 +166,22 @@
                     </svg>
                   </div>
                 </object>
+                <div v-else class="pdf-fallback-icon">
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                </div>
                 <div class="pdf-click-overlay"></div>
               </div>
               <div v-else class="file-preview-thumb text-thumb">
@@ -275,7 +292,8 @@
             class="welcome-preview-large pdf-preview-large"
           >
             <object
-              :data="getFileUrl(currentPreviewFile!) + '#page=1&view=FitH'"
+              v-if="getPdfEmbedUrl(currentPreviewFile!)"
+              :data="getPdfEmbedUrl(currentPreviewFile!)"
               type="application/pdf"
               class="pdf-large-object"
             >
@@ -297,6 +315,23 @@
                 <span class="pdf-fallback-label">{{ currentPreviewFile!.originalName }}</span>
               </div>
             </object>
+            <div v-else class="pdf-fallback-icon-large">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span class="pdf-fallback-label">{{ currentPreviewFile!.originalName }}</span>
+            </div>
             <div class="pdf-click-overlay"></div>
           </div>
           <div v-else class="welcome-preview-large text-preview-large">
@@ -500,7 +535,7 @@ import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { createTooltip, destroyTooltip, Dropdown as VDropdownType } from 'floating-vue'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import type { ChatMessage, ConversationStatus } from '../api'
-import { getStorageUrl } from '../api'
+import { getStorageUrl, resolveStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 import { renderMarkdown, renderInlineMarkdown } from '../utils/markdown'
 import ImageModal from './ImageModal.vue'
@@ -910,11 +945,32 @@ function updateImagesPending() {
   imagesPending.value = pendingImages.size > 0
 }
 
+// Pre-sizes the `.markdown-image-scroll` wrapper to the image's rendered box
+// (natural aspect ratio, capped by the same max-height the CSS applies).
+// Reserving space before the <img> becomes visible lets the fade-in play into
+// a stable container instead of causing a layout jump when the picture
+// finally decodes.
+function sizeImageContainer(img: HTMLImageElement) {
+  const parent = img.parentElement
+  if (!parent || !parent.classList.contains('markdown-image-scroll')) return
+  const nw = img.naturalWidth
+  const nh = img.naturalHeight
+  if (!nw || !nh) return
+  const maxH = Math.min(window.innerHeight * 0.7, 420)
+  const height = Math.min(nh, maxH)
+  const width = nw * (height / nh)
+  parent.style.width = `${width}px`
+  parent.style.height = `${height}px`
+}
+
 function revealImage(img: HTMLImageElement, success = true) {
   // The underlying <img> load/error events may fire after onBeforeUnmount
   // (listeners aren't forcibly removed), so guard against emitting events
   // or touching reactive state from an unmounted instance.
   if (componentUnmounted) return
+  if (success && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    sizeImageContainer(img)
+  }
   img.style.removeProperty('display')
   const wasDynamic = img.dataset.animateIn === 'true'
   if (wasDynamic && success) {
@@ -1346,6 +1402,38 @@ function isPdfFile(file: FileInfo) {
 
 function getFileUrl(file: FileInfo) {
   return getStorageUrl(effectiveStorageId.value, file.originalName)
+}
+
+// PDF embeds use a direct (already-resolved) URL so the browser doesn't follow
+// a cross-origin redirect from /api/storage/... to a GCS signed URL with a
+// `#page=...` fragment (which triggers Chrome's "Unsafe attempt to load URL"
+// warning). Cache per storageId+filename to avoid re-requesting on re-renders.
+const pdfEmbedUrlCache = ref(new Map<string, string>())
+const pdfEmbedUrlInFlight = new Set<string>()
+
+function pdfEmbedKey(file: FileInfo) {
+  return `${effectiveStorageId.value}:${file.originalName}`
+}
+
+function getPdfEmbedUrl(file: FileInfo): string {
+  const key = pdfEmbedKey(file)
+  const cached = pdfEmbedUrlCache.value.get(key)
+  if (cached) return `${cached}#page=1&view=FitH`
+  if (!pdfEmbedUrlInFlight.has(key)) {
+    pdfEmbedUrlInFlight.add(key)
+    resolveStorageUrl(effectiveStorageId.value, file.originalName)
+      .then((url) => {
+        pdfEmbedUrlCache.value.set(key, url)
+      })
+      .catch(() => {
+        // Fallback to same-origin proxy URL if resolution fails
+        pdfEmbedUrlCache.value.set(key, getFileUrl(file))
+      })
+      .finally(() => {
+        pdfEmbedUrlInFlight.delete(key)
+      })
+  }
+  return ''
 }
 
 function openFilePreview(file: FileInfo) {

@@ -336,6 +336,20 @@ export function getStorageUrl(conversationId: string, fileName: string) {
   return `${getBaseUrl()}/api/storage/${conversationId}/${encodeURIComponent(fileName)}`
 }
 
+/**
+ * Resolve a direct (no-redirect) URL for a stored file. For GCS deployments
+ * this returns a signed `storage.googleapis.com` URL; for local storage it
+ * returns the same-origin proxy URL. Use this for `<object>`/`<iframe>` PDF
+ * embeds so the browser doesn't follow a cross-origin redirect with a hash
+ * fragment (which triggers Chrome's "Unsafe attempt to load URL" warning).
+ */
+export async function resolveStorageUrl(conversationId: string, fileName: string) {
+  const response = await api.get(
+    `/storage/${conversationId}/${encodeURIComponent(fileName)}/url`,
+  )
+  return (response.data as { url: string }).url
+}
+
 export async function requestUploadAccess(conversationId: string, displayName: string) {
   const response = await api.post(`/conversations/${conversationId}/access-requests`, {
     displayName,

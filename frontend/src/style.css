@@ -1233,7 +1233,6 @@ li:has(.checklist-box) {
 }
 
 .image-generating-label {
-  color: #a78bfa;
   font-size: 14px;
   margin-bottom: 4px;
 }
@@ -1718,7 +1717,7 @@ h3 {
 
 /* floating-vue tooltip overrides for dark theme */
 .v-popper--theme-tooltip .v-popper__inner {
-  background: #2e1065;
+  background: #a78bfa;
   color: #ddd6fe;
   border: 1px solid #6d28d9;
   border-radius: 8px;
