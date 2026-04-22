@@ -27,6 +27,140 @@ function isAuthorized(ctx: any): boolean {
 
 export const debugRouter = new Router()
 
+// Tables listed in the debug UI. Order matches the tab order.
+const DEBUG_TABLES = [
+  'conversations',
+  'conversation_messages',
+  'suggested_questions',
+  'uploaded_files',
+  'user_fingerprints',
+  'conversation_access_tokens',
+  'access_requests',
+  'processing_jobs',
+  'processing_jobs_errors',
+  'prompt_history',
+] as const
+type DebugTable = (typeof DEBUG_TABLES)[number]
+
+// Per-table SELECT lists. Some tables truncate large TEXT columns so the
+// payload stays small and the UI stays responsive.
+const TABLE_SELECT: Record<DebugTable, string> = {
+  conversations: '*',
+  conversation_messages:
+    "id, conversation_id, role, LEFT(content, 500) AS content, created_at, user_id",
+  suggested_questions: '*',
+  uploaded_files: '*',
+  user_fingerprints: '*',
+  conversation_access_tokens: '*',
+  access_requests: '*',
+  processing_jobs: '*',
+  processing_jobs_errors:
+    `id, uid, processing_job_id, conversation_id, file_name,
+     page_number, step, content_type,
+     LEFT(content, 500) AS content,
+     LENGTH(content) AS content_chars,
+     image_path, error_type,
+     LEFT(error_message, 500) AS error_message,
+     LENGTH(error_message) AS error_chars,
+     worker_id, retry_count, created_at`,
+  prompt_history:
+    `id, conversation_id, operation, model,
+     LEFT(prompt_text, 300) AS prompt_text,
+     LENGTH(prompt_text) AS prompt_chars,
+     LEFT(response_text, 300) AS response_text,
+     LENGTH(response_text) AS response_chars,
+     prompt_tokens, completion_tokens, total_tokens, cached_tokens,
+     duration_ms, created_at`,
+}
+
+/**
+ * GET /debug/tables-overview
+ *
+ * Single-round-trip endpoint for the /debug page's initial load.
+ * Returns row counts for every table (for the tab badges) plus the first
+ * page of the `conversations` table (the default active tab) in ONE SQL
+ * statement via a CTE with json_build_object. Lazy-loads everything else.
+ */
+debugRouter.get('/debug/tables-overview', async (ctx) => {
+  if (!isAuthorized(ctx)) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const limit = 1000
+  const sql = `
+    SELECT json_build_object(
+      'counts', json_build_object(
+        'conversations', (SELECT COUNT(*) FROM public.conversations),
+        'conversation_messages', (SELECT COUNT(*) FROM public.conversation_messages),
+        'suggested_questions', (SELECT COUNT(*) FROM public.suggested_questions),
+        'uploaded_files', (SELECT COUNT(*) FROM public.uploaded_files),
+        'user_fingerprints', (SELECT COUNT(*) FROM public.user_fingerprints),
+        'conversation_access_tokens', (SELECT COUNT(*) FROM public.conversation_access_tokens),
+        'access_requests', (SELECT COUNT(*) FROM public.access_requests),
+        'users', (SELECT COUNT(DISTINCT user_id) FROM public.conversation_messages),
+        'processing_jobs', (SELECT COUNT(*) FROM public.processing_jobs),
+        'processing_jobs_errors', (SELECT COUNT(*) FROM public.processing_jobs_errors),
+        'prompt_history', (SELECT COUNT(*) FROM public.prompt_history)
+      ),
+      'conversations', COALESCE(
+        (SELECT json_agg(row_to_json(c))
+         FROM (SELECT * FROM public.conversations
+               ORDER BY created_at DESC LIMIT $1) c),
+        '[]'::json
+      )
+    ) AS result
+  `
+  const result = await query(sql, [limit])
+  ctx.body = result.rows[0].result
+})
+
+/**
+ * GET /debug/tables/:name
+ *
+ * Lazy-loads a single table for the /debug page when the user clicks a tab.
+ * Supports offset pagination (LIMIT 1000). Unknown table names are rejected
+ * so this endpoint cannot be abused as a generic SQL runner.
+ */
+debugRouter.get('/debug/tables/:name', async (ctx) => {
+  if (!isAuthorized(ctx)) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const name = String(ctx.params.name)
+  const offset = Math.max(0, parseInt(String(ctx.query.offset ?? '0'), 10) || 0)
+  const limit = 1000
+
+  if (name === 'users') {
+    const result = await query(
+      `SELECT cm.user_id, uf.fingerprint, COUNT(*) AS message_count,
+              MIN(cm.created_at) AS first_seen, MAX(cm.created_at) AS last_seen
+       FROM public.conversation_messages cm
+       LEFT JOIN public.user_fingerprints uf ON uf.user_id = cm.user_id
+       GROUP BY cm.user_id, uf.fingerprint
+       ORDER BY message_count DESC`,
+    )
+    ctx.body = { rows: result.rows }
+    return
+  }
+
+  if (!(DEBUG_TABLES as readonly string[]).includes(name)) {
+    ctx.status = 400
+    ctx.body = { error: 'Unknown table' }
+    return
+  }
+
+  const select = TABLE_SELECT[name as DebugTable]
+  const result = await query(
+    `SELECT ${select} FROM public.${name} ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+    [limit, offset],
+  )
+  ctx.body = { rows: result.rows }
+})
+
 debugRouter.get('/debug/tables', async (ctx) => {
   const auth = ctx.headers.authorization
   if (!auth || !auth.startsWith('Basic ')) {

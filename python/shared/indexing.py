@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -202,6 +203,90 @@ def _ocr_prefetch_welcome(
         total_pages_hint=total_pages,
         ocr_pages_done=pages_to_ocr,
     )
+
+
+def _maybe_regenerate_heavy_ocr_welcome(
+    *,
+    file_results: list,
+    extracted: list[dict],
+    file_metadata: dict,
+    file_name_list: list[str],
+    file_types: dict[str, str],
+    detected_language: str | None,
+    describe_chapters: list[dict] | None,
+    current_welcome: str,
+    on_progress: "Callable[[str, dict], None] | None",
+) -> "DescribeResult | None":
+    """Regenerate the welcome message for heavy-OCR PDFs once indexing is done.
+
+    The initial ("fast") welcome is built from the first few OCR'd pages so
+    users see something quickly. For large books where OCR dominates, that
+    early snapshot is a poor summary of the full work. Once every page has
+    been OCR'd and upserted, we run describe_documents one more time with
+    the full text and emit a fresh welcome event.
+    """
+    heavy_ocr_file = next(
+        (
+            fr
+            for fr in file_results
+            if getattr(fr, "streaming_meta", None)
+            and fr.streaming_meta.get("is_heavy_ocr")
+        ),
+        None,
+    )
+    if heavy_ocr_file is None:
+        return None
+
+    full_extracted = [
+        {
+            "file_path": doc["file_path"],
+            "file_name": doc["file_name"],
+            "text": doc.get("text") or "",
+        }
+        for doc in extracted
+    ]
+    total_chars = sum(len(d["text"]) for d in full_extracted)
+    logger.info(
+        f"🔁 Regenerating welcome for heavy-OCR file {heavy_ocr_file.file_name} "
+        f"({heavy_ocr_file.streaming_meta['ocr_page_count']} OCR pages, "
+        f"{total_chars} chars)"
+    )
+    try:
+        regen = describe_documents(
+            full_extracted,
+            [],
+            language=detected_language,
+            file_metadata=file_metadata,
+            file_names=file_name_list,
+            file_types=file_types,
+            chapters=describe_chapters,
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ Welcome regeneration failed: {e}")
+        return None
+
+    new_welcome = (regen.get("welcome_message") or "").strip()
+    if not new_welcome or new_welcome == current_welcome.strip():
+        return None
+
+    # Emit as a follow-up welcome_message event so the frontend can replace
+    # the provisional description. Reuses the SSE channel already wired for
+    # initial welcome delivery.
+    if on_progress is not None:
+        try:
+            on_progress(
+                "welcome_message",
+                {
+                    "welcome_message": new_welcome,
+                    "suggested_questions": regen.get("suggested_questions") or [],
+                    "file_metadata": file_metadata or {},
+                    "regenerated": True,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to emit regenerated welcome event: {e}")
+
+    return regen
 
 
 def _image_chunks(images: list[dict], file_name: str) -> list[Chunk]:
@@ -406,110 +491,152 @@ def index_documents(
             if early_describe_future is None:
                 _set_early_describe_future(_describe_pool.submit(_prefetch_pdf_welcome, file_path))
             if is_cloud_mode():
-                # Cloud Run Jobs: dispatch per-page containers for image extraction.
-                # Always chunk text locally as fallback (cloud workers may fail).
-                logger.info(f"☁️ Cloud mode: dispatching Cloud Run Jobs for {p.name}")
-                import fitz
+                # Cloud mode: stream pages through our hybrid OCR+upsert processor.
+                # This replaces the previous per-page Cloud Run Jobs dispatch —
+                # far cheaper (no container spin-ups), faster (parallel OCR from
+                # a single process), and searchable mid-indexing (chunks upserted
+                # per page instead of in one batch at the end).
+                from .streaming_pdf import process_pdf_streaming
+                from .pdf_pages_db import save_page
 
-                from .extractors import _reflow_pdf_text, _sanitize_text, ocr_pdf_page, page_needs_ocr
+                logger.info(f"☁️ Cloud mode: streaming {p.name} with hybrid OCR")
 
-                doc = fitz.open(file_path)
-                total_pages = len(doc)
-                early_target = max(1, min(_EARLY_WELCOME_PAGE_TARGET, total_pages))
+                # Pre-compute chapter map so each page's chunks get enriched
+                # metadata before their incremental upsert to Chroma.
+                _chapters = detect_chapters(file_path)
+                _page_to_chapter_nr: dict[int, int] = (
+                    build_page_to_chapter_map(_chapters) if _chapters else {}
+                )
+                _page_to_chapter_name: dict[int, str] = {}
+                for _ch in _chapters or []:
+                    if _ch.chapter_name:
+                        for _pg in range(_ch.start_page, _ch.end_page + 1):
+                            _page_to_chapter_name[_pg] = _ch.chapter_name
 
-                # Extract + chunk text locally so all_chunks is always populated
-                page_texts: list[str] = []
                 local_chunks: list[Chunk] = []
                 early_page_texts: list[str] = []
                 early_page_summaries: list[dict] = []
                 cloud_early_started = False
-                for page_idx in range(total_pages):
-                    try:
-                        page = doc[page_idx]
-                        raw = page.get_text() or ""
-                        reflowed = _reflow_pdf_text(raw.strip())
-                        page_text = _sanitize_text(f"# Page {page_idx + 1}\n\n{reflowed}")
-                        # OCR fallback for scanned/image-based pages
-                        if page_needs_ocr(page_text):
-                            try:
-                                ocr_text = ocr_pdf_page(
-                                    file_path, page_idx, conversation_id=conversation_id
-                                )
-                                if ocr_text and len(ocr_text.strip()) > len(page_text.strip()):
-                                    page_text = _sanitize_text(
-                                        f"# Page {page_idx + 1}\n\n{ocr_text}"
-                                    )
-                                    logger.info(
-                                        f"🔍 OCR page {page_idx + 1}: "
-                                        f"{len(ocr_text)} chars extracted"
-                                    )
-                            except Exception as ocr_err:
-                                logger.warning(
-                                    f"⚠️ OCR failed for page {page_idx + 1}: {ocr_err}"
-                                )
-                        page_texts.append(page_text)
-                        if page_text:
-                            early_page_texts.append(page_text)
-                            summary = _build_page_summary(page_text)
+                chunks_lock = threading.Lock()
+
+                def _on_page_ready(outcome) -> None:
+                    nonlocal cloud_early_started
+                    chapter_nr = _page_to_chapter_nr.get(outcome.page_nr)
+                    # Persist the page so we can regenerate the welcome and
+                    # recover mid-indexing without re-OCR'ing on restart.
+                    save_page(
+                        conversation_id=conversation_id,
+                        file_name=p.name,
+                        page_nr=outcome.page_nr,
+                        text=outcome.text,
+                        source=outcome.source,
+                        chapter_nr=chapter_nr,
+                        error_message=outcome.error,
+                    )
+                    if outcome.source == "failed" or not outcome.text.strip():
+                        return
+                    # Chunk this page and upsert to Chroma immediately so
+                    # answers can reference it before indexing finishes.
+                    page_chunks = split_into_chunks(
+                        p.name, outcome.text, page_num=outcome.page_nr
+                    )
+                    # Enrich with chapter metadata so retrieval works the same
+                    # as in the non-streaming path.
+                    if chapter_nr is not None:
+                        ch_name = _page_to_chapter_name.get(outcome.page_nr)
+                        for _c in page_chunks:
+                            _c.metadata["chapter_number"] = chapter_nr
+                            if ch_name:
+                                _c.metadata["chapter_name"] = ch_name
+                    if page_chunks:
+                        try:
+                            upsert_chunks(
+                                collection_name=collection_name,
+                                conversation_id=conversation_id,
+                                chunks=page_chunks,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"⚠️ Incremental upsert failed for p.{outcome.page_nr}: {e}"
+                            )
+                        with chunks_lock:
+                            local_chunks.extend(page_chunks)
+                            early_page_texts.append(outcome.text)
+                            summary = _build_page_summary(outcome.text)
                             if summary:
                                 early_page_summaries.append(
                                     {
-                                        "page": page_idx + 1,
+                                        "page": outcome.page_nr,
                                         "file_name": p.name,
                                         "summary": summary,
                                     }
                                 )
-                        if not cloud_early_started and len(early_page_texts) >= early_target:
-                            _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
+                            early_target = max(
+                                1, min(_EARLY_WELCOME_PAGE_TARGET, outcome.page_nr)
+                            )
+                            should_start_early = (
+                                not cloud_early_started
+                                and len(early_page_texts) >= early_target
+                            )
+                        if should_start_early:
+                            _on_early_text(
+                                "\n\n".join(early_page_texts),
+                                list(early_page_summaries),
+                            )
                             cloud_early_started = True
                             logger.info(
-                                f"⏱️  Cloud mode early welcome started after "
-                                f"{len(early_page_texts)}/{total_pages} pages"
+                                f"⏱️  Cloud-stream early welcome started after "
+                                f"{len(early_page_texts)} pages"
                             )
-                        # Chunk locally so we always have text chunks even if cloud workers fail
-                        chunks = split_into_chunks(p.name, page_text, page_num=page_idx + 1)
-                        local_chunks.extend(chunks)
-                    except Exception as e:
-                        logger.warning(
-                            f"⚠️ Local text extraction failed for page {page_idx + 1}: {e}"
-                        )
-                        page_texts.append("")
-                doc.close()
 
-                # Small PDFs may complete before reaching early target.
-                if not cloud_early_started and early_page_texts:
-                    _on_early_text("\n\n".join(early_page_texts), early_page_summaries)
-                    cloud_early_started = True
-                    logger.info(
-                        f"⏱️  Cloud mode early welcome started after full local pre-pass "
-                        f"({len(early_page_texts)}/{total_pages} pages)"
-                    )
+                def _stream_progress(parsed: int, total: int) -> None:
+                    if on_progress:
+                        on_progress("page_progress", {"parsed": parsed, "total": total})
 
-                full_text = "\n\n".join(page_texts)
-                logger.info(
-                    f"📄 Extracted {len(full_text)} chars, "
-                    f"{len(local_chunks)} local chunks for {p.name}"
-                )
-
-                cloud_results = dispatch_page_jobs(
-                    pdf_gcs_uri=file_path,
-                    total_pages=total_pages,
-                    output_dir=output_dir,
+                stream_result = process_pdf_streaming(
+                    file_path,
                     conversation_id=conversation_id,
-                    collection_name=collection_name,
+                    on_page_ready=_on_page_ready,
+                    on_progress=_stream_progress,
                 )
-                # Build FileProcessingResult with local text + chunks
+                total_pages = stream_result.total_pages
+
+                # Small PDFs may complete before reaching the early target.
+                if not cloud_early_started and early_page_texts:
+                    _on_early_text(
+                        "\n\n".join(early_page_texts),
+                        list(early_page_summaries),
+                    )
+                    cloud_early_started = True
+
+                full_text = stream_result.full_text
+                logger.info(
+                    f"📄 Streamed {len(full_text)} chars, "
+                    f"{len(local_chunks)} chunks for {p.name} "
+                    f"(OCR pages: {stream_result.ocr_page_count}, "
+                    f"failed: {stream_result.failed_page_count})"
+                )
+
                 result = FileProcessingResult(
                     file_name=p.name,
                     file_path=file_path,
                     total_pages=total_pages,
                 )
                 result.full_text = full_text
-                result.all_chunks = local_chunks
-                for cr in cloud_results:
-                    if cr["status"] != "completed":
+                # Already upserted per page — set to empty so the end-of-indexing
+                # upsert becomes a no-op for this file. streaming_meta carries
+                # the chunks for downstream reporting + welcome regeneration.
+                result.all_chunks = []
+                result.streaming_meta = {
+                    "chunks_already_upserted": local_chunks,
+                    "is_heavy_ocr": stream_result.is_heavy_ocr,
+                    "ocr_page_count": stream_result.ocr_page_count,
+                    "chapters": chapters_to_serializable(_chapters) if _chapters else [],
+                }
+                for outcome in stream_result.pages:
+                    if outcome.source == "failed":
                         result.errors.append(
-                            {"page": cr["page"], "error": cr.get("error", "unknown")}
+                            {"page": outcome.page_nr, "error": outcome.error or "unknown"}
                         )
             else:
                 # Local mode (default): parallel threads
@@ -530,6 +657,11 @@ def index_documents(
 
     # Aggregate chunks, images, text across all files
     all_chunks: list[Chunk] = []
+    # Chunks that were already upserted per-page during streaming. Kept
+    # separately so the final batch upsert does not re-add them (Chroma would
+    # reject duplicate IDs), but they still count toward total chunk_count
+    # and appear in chapter reporting.
+    streaming_chunks: list[Chunk] = []
     all_images: list[dict] = []
     extracted: list[dict] = []
     detected_language = None
@@ -546,6 +678,10 @@ def index_documents(
             }
         )
         all_chunks.extend(fr.all_chunks)
+        if getattr(fr, "streaming_meta", None):
+            streaming_chunks.extend(
+                fr.streaming_meta.get("chunks_already_upserted") or []
+            )
         all_images.extend(fr.all_images)
         all_errors.extend(fr.errors)
 
@@ -722,6 +858,29 @@ def index_documents(
     else:
         logger.info("💡 Suggested questions generated inline with welcome message")
 
+    # ── Welcome regeneration for heavy-OCR PDFs ────────────────────────
+    # When the initial welcome was generated from only the first ~N pages of a
+    # scanned book (e.g. 611-page Arabic Mathnawi), the description is bound
+    # to be generic. Now that OCR has finished for every page, regenerate the
+    # welcome using the full aggregated text so the user sees a richer
+    # description. Only runs when the streaming path reported heavy OCR
+    # (>= 40% OCR pages) to keep the normal/native path untouched.
+    regenerated_welcome = _maybe_regenerate_heavy_ocr_welcome(
+        file_results=file_results,
+        extracted=extracted,
+        file_metadata=file_metadata,
+        file_name_list=file_name_list,
+        file_types=file_types,
+        detected_language=detected_language,
+        describe_chapters=describe_chapters,
+        current_welcome=welcome_message or "",
+        on_progress=on_progress,
+    )
+    if regenerated_welcome:
+        welcome_message = regenerated_welcome.get("welcome_message") or welcome_message
+        if regenerated_welcome.get("suggested_questions"):
+            suggested_questions = regenerated_welcome["suggested_questions"]
+
     logger.info("✅ Indexing complete")
     logger.info(
         f"💡 Generated "
@@ -750,7 +909,7 @@ def index_documents(
         "conversation_id": conversation_id,
         "collection_name": collection_name,
         "file_count": len(file_paths),
-        "chunk_count": len(all_chunks),
+        "chunk_count": len(all_chunks) + len(streaming_chunks),
         "suggested_questions": suggested_questions,
         "welcome_message": welcome_message,
         "detected_language": detected_language,

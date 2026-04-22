@@ -18,10 +18,16 @@ import { IMAGE_EXTENSIONS, SHORT_ID_RE } from '../constants.js'
 import logger from '../logger.js'
 import {
   shouldAutoGenerateImage,
+  shouldReuseImage,
+  isEligibleForImageAugmentation,
   buildAutoImageQuestion,
   renderAutoImageMarkdown,
+  renderReusedImageMarkdown,
   mergeCitationsWithImage,
+  mergeCitationsWithReusedImage,
 } from '../utils/inspired-image.js'
+import { findReusableImage, registerReusableImage } from '../python/reusable-image.js'
+import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
 
 const askSchema = z.object({
@@ -77,12 +83,18 @@ askRouter.post('/ask', async (ctx) => {
     userId: userId || 0,
   })
 
-  // Ensure vector collection has data (re-index if Chroma was lost on container restart)
-  await ensureCollectionIndexed(
-    conversationId,
-    data.conversation.vector_collection_name,
-    data.conversation.storage_namespace,
-  )
+  // Ensure vector collection has data (re-index if Chroma was lost on container restart).
+  // Skip when the conversation is still being indexed — otherwise we dispatch a second
+  // concurrent full-indexing pass (esp. costly for large PDFs in cloud OCR mode), which
+  // blocks the /ask response past the client 120s and Cloud Run 300s timeouts.
+  // During 'processing' we answer with whatever chunks are already in Chroma.
+  if (data.conversation.status === 'ready') {
+    await ensureCollectionIndexed(
+      conversationId,
+      data.conversation.vector_collection_name,
+      data.conversation.storage_namespace,
+    )
+  }
 
   const chatHistory = buildChatHistory(data.messages)
   // For threads, use parent's welcome messages (file descriptions) as context;
@@ -168,15 +180,59 @@ askRouter.post('/ask', async (ctx) => {
 
   ctx.body = { ...payload, userMessageId: userMsgId, assistantMessageId: assistantMsgId }
 
-  // Fire-and-forget: for "inspired chapter/poem/story" style answers, roll a coin
-  // and (on 50% by default) kick off an image-generation in parallel. When it
-  // finishes, we append the image to the message content so the frontend picks
-  // it up on its next poll. We intentionally do NOT await this — the user
-  // already has their text answer.
-  if (shouldAutoGenerateImage(question, payload.answer || '')) {
+  // Fire-and-forget: for "inspired chapter/poem/story" style answers, either
+  // (a) reuse an existing cross-conversation image whose description matches
+  // semantically (70% when a match is found), or (b) generate a fresh one
+  // (30% when a match exists; otherwise the legacy 50% roll). In both cases
+  // the frontend picks up the update on its next poll. We intentionally do
+  // NOT await this — the user already has their text answer.
+  if (isEligibleForImageAugmentation(question, payload.answer || '')) {
     const imageQuestion = buildAutoImageQuestion(question, payload.answer || '')
+    const originalCitations = payload.citations || []
+    const preferredSourceFiles = data.files.map((f) => f.original_name)
+    // Query text mirrors the "PROMPT: …\n\nDESCRIPTION: …" shape we embed
+    // at registration time so exact-prompt re-asks and semantic
+    // description matches both hit with the same vector.
+    const reuseQueryText =
+      `PROMPT: ${question.trim()}\n\nDESCRIPTION: ${(payload.answer || '').slice(0, 1500).trim()}`
     ;(async () => {
       try {
+        const match = await findReusableImage({
+          queryText: reuseQueryText,
+          excludeConversationId: conversationId,
+          preferredSourceFiles,
+        })
+
+        if (match && shouldReuseImage()) {
+          const reusedUrl = `/api/storage/${match.conversation_id}/${match.file_name}`
+          const reused = {
+            imageUrl: reusedUrl,
+            imageTitle: match.image_title || 'Inspired Image',
+            imageDescription: match.image_prompt || match.image_title || '',
+            sourceConversationId: match.conversation_id,
+            sourceImageId: match.image_id,
+          }
+          logger.info(
+            {
+              conversationId,
+              assistantMsgId,
+              sourceConversationId: match.conversation_id,
+              sourceImageId: match.image_id,
+              distance: match.distance,
+            },
+            'reused cross-conversation image',
+          )
+          await appendToMessageContent({
+            messageId: assistantMsgId,
+            contentToAppend: renderReusedImageMarkdown(reused),
+            citations: mergeCitationsWithReusedImage(originalCitations, reused),
+          })
+          return
+        }
+
+        // No usable match — fall back to the original coin-flip gate.
+        if (!shouldAutoGenerateImage(question, payload.answer || '')) return
+
         logger.info(
           { conversationId, assistantMsgId, answerLen: (payload.answer || '').length },
           'auto-image generation start',
@@ -216,7 +272,6 @@ askRouter.post('/ask', async (ctx) => {
           revisedPrompt: result.revised_prompt,
           imageSources,
         }
-        const originalCitations = payload.citations || []
         const contentToAppend = renderAutoImageMarkdown(
           autoResult,
           Array.isArray(originalCitations) ? originalCitations.length : 0,
@@ -226,6 +281,38 @@ askRouter.post('/ask', async (ctx) => {
           contentToAppend,
           citations: mergeCitationsWithImage(originalCitations, autoResult),
         })
+
+        // Register the new image for future cross-conversation reuse.
+        const description = result.revised_prompt || result.image_prompt || result.image_title || ''
+        try {
+          const imageId = await insertGeneratedImage({
+            conversationId,
+            messageId: assistantMsgId,
+            storageNamespace: data.conversation!.storage_namespace,
+            fileName: result.file_name,
+            imageTitle: result.image_title || null,
+            imagePrompt: result.image_prompt || null,
+            revisedPrompt: result.revised_prompt || null,
+            userPrompt: question,
+            description,
+            sourceOriginalNames: preferredSourceFiles,
+            sourceSizeBytes: data.files.map((f) => Number(f.size_bytes)),
+          })
+          await registerReusableImage({
+            imageId,
+            description,
+            conversationId,
+            storageNamespace: data.conversation!.storage_namespace,
+            fileName: result.file_name,
+            imageTitle: result.image_title,
+            imagePrompt: result.image_prompt,
+            userPrompt: question,
+            sourceOriginalNames: preferredSourceFiles,
+          })
+        } catch (err) {
+          logger.warn({ err, conversationId, assistantMsgId }, 'failed to register auto-image')
+        }
+
         logger.info(
           { conversationId, assistantMsgId, fileName: result.file_name },
           'auto-image generation done',

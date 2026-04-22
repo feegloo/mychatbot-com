@@ -653,6 +653,18 @@ export function useTextSelectionSpeech(
   }
 
   /**
+   * Checklist items render as `<li>` containing a `.checklist-box` span.
+   * Clicking a word inside such an item should NOT trigger the speaker
+   * tooltip (the whole line is meant to act as a clickable checkbox).
+   * Text-selection inside a checklist item still shows the speaker.
+   */
+  function isInChecklistItem(el: HTMLElement | null): boolean {
+    if (!el) return false
+    const li = el.closest('li')
+    return !!(li && li.querySelector(':scope > .checklist-box'))
+  }
+
+  /**
    * Given a point (clientX, clientY) inside a text node, return a Range
    * spanning the word at that position.
    */
@@ -732,6 +744,11 @@ export function useTextSelectionSpeech(
     }
     // Skip interactive elements (action buttons, links, etc.) — same as onClickWord
     if (target.closest('button, a, .inline-source-btn, .action-btn, .checklist-box')) {
+      removeHighlight()
+      return
+    }
+    // Skip checklist items — whole line acts as a checkbox toggle
+    if (isInChecklistItem(target)) {
       removeHighlight()
       return
     }
@@ -818,6 +835,14 @@ export function useTextSelectionSpeech(
 
     // Don't interfere with interactive elements
     if (target.closest('button, a, .inline-source-btn, .action-btn, .checklist-box')) return
+
+    // Skip checklist items — clicking a word inside a rich checklist should
+    // toggle the checkbox (handled elsewhere), not open the speaker tooltip.
+    // Text selection inside checklists still shows the tooltip via onSelectionChange.
+    if (isInChecklistItem(target)) {
+      if (isPinned) unpinWord()
+      return
+    }
 
     // If there's already a text selection, let the selection handler take care of it
     const sel = window.getSelection()

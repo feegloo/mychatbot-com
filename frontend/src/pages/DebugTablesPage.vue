@@ -29,7 +29,7 @@
             :class="{ active: activeTable === table }"
             @click="activeTable = table"
           >
-            {{ table }} <span class="count">({{ data[table].length }})</span>
+            {{ table }} <span class="count">({{ counts[table] ?? 0 }})</span>
           </button>
           <button :class="{ active: activeTable === SQL_TAB }" @click="activeTable = SQL_TAB">
             Run SQL query
@@ -96,7 +96,8 @@
       </div>
 
       <div v-else class="table-section">
-        <template v-if="view === 'json'">
+        <p v-if="isLoadingCurrentTable" class="loading">Loading…</p>
+        <template v-else-if="view === 'json'">
           <div class="table-wrapper">
             <pre class="json-block">{{ JSON.stringify(currentRows, null, 2) }}</pre>
           </div>
@@ -149,13 +150,34 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { getDebugTables, getFullPrompt, runDebugSql } from '../api'
+import {
+  getDebugTable,
+  getDebugTablesOverview,
+  getFullPrompt,
+  runDebugSql,
+  type DebugTableName,
+} from '../api'
 
-type Tables = Awaited<ReturnType<typeof getDebugTables>>
+type TableMap = Record<DebugTableName, Record<string, unknown>[]>
+type Counts = Record<DebugTableName, number>
 type SqlResult = Awaited<ReturnType<typeof runDebugSql>>
 
 const SQL_TAB = '__sql__' as const
-type TabKey = keyof Tables | typeof SQL_TAB
+type TabKey = DebugTableName | typeof SQL_TAB
+
+const TABLE_NAMES: DebugTableName[] = [
+  'conversations',
+  'conversation_messages',
+  'suggested_questions',
+  'uploaded_files',
+  'user_fingerprints',
+  'conversation_access_tokens',
+  'access_requests',
+  'users',
+  'processing_jobs',
+  'processing_jobs_errors',
+  'prompt_history',
+]
 
 const authenticated = ref(false)
 const username = ref('')
@@ -168,41 +190,79 @@ const error = ref('')
 const view = ref<'formatted' | 'json'>('formatted')
 const activeTable = ref<TabKey>('conversations')
 const loadingMore = ref(false)
-const currentOffset = ref(0)
-const data = ref<Tables>({
-  conversations: [],
-  conversation_messages: [],
-  suggested_questions: [],
-  uploaded_files: [],
-  user_fingerprints: [],
-  conversation_access_tokens: [],
-  access_requests: [],
-  users: [],
-  processing_jobs: [],
-  processing_jobs_errors: [],
-  prompt_history: [],
-})
+// Tables that have been fetched or are currently fetching, to avoid
+// re-requesting them every time the user switches tabs.
+const fetchedTables = ref<Set<DebugTableName>>(new Set())
+const loadingTable = ref<DebugTableName | null>(null)
+// Per-table offset for "Load more" pagination.
+const tableOffsets = ref<Record<DebugTableName, number>>(emptyOffsets())
+const counts = ref<Counts>(emptyCounts())
+const data = ref<TableMap>(emptyTableMap())
 
 const expandedRows = ref<Set<number>>(new Set())
 // keyed by prompt_history row id → full text fields
 const fullPromptCache = ref<Map<string, { prompt_text: string; response_text: string }>>(new Map())
 
-watch(activeTable, () => {
+function emptyTableMap(): TableMap {
+  return TABLE_NAMES.reduce((acc, name) => {
+    acc[name] = []
+    return acc
+  }, {} as TableMap)
+}
+
+function emptyCounts(): Counts {
+  return TABLE_NAMES.reduce((acc, name) => {
+    acc[name] = 0
+    return acc
+  }, {} as Counts)
+}
+
+function emptyOffsets(): Record<DebugTableName, number> {
+  return TABLE_NAMES.reduce(
+    (acc, name) => {
+      acc[name] = 0
+      return acc
+    },
+    {} as Record<DebugTableName, number>,
+  )
+}
+
+watch(activeTable, async (table) => {
   expandedRows.value = new Set()
+  if (table === SQL_TAB) return
+  if (fetchedTables.value.has(table) || loadingTable.value === table) return
+  await fetchTable(table)
 })
 
-const tableNames = computed(() => Object.keys(data.value) as (keyof Tables)[])
+async function fetchTable(name: DebugTableName) {
+  loadingTable.value = name
+  try {
+    const { rows } = await getDebugTable(username.value, password.value, name)
+    data.value[name] = rows
+    fetchedTables.value = new Set([...fetchedTables.value, name])
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Failed to load table'
+  } finally {
+    loadingTable.value = null
+  }
+}
+
+const tableNames = computed(() => TABLE_NAMES)
+
+const isLoadingCurrentTable = computed(() =>
+  activeTable.value !== SQL_TAB && loadingTable.value === activeTable.value,
+)
 
 const currentRows = computed(() =>
-  activeTable.value === SQL_TAB ? [] : data.value[activeTable.value as keyof Tables],
+  activeTable.value === SQL_TAB ? [] : data.value[activeTable.value as DebugTableName],
 )
 
 const currentColumns = computed(() => {
   if (activeTable.value === SQL_TAB) return [] as string[]
-  return columns(activeTable.value as keyof Tables)
+  return columns(activeTable.value as DebugTableName)
 })
 
-function columns(table: keyof Tables) {
+function columns(table: DebugTableName) {
   const rows = data.value[table]
   if (!rows.length) return []
   return Object.keys(rows[0])
@@ -287,26 +347,13 @@ function formatCell(value: unknown, col?: string): string {
   return s.length > limit ? s.slice(0, limit) + '…' : s
 }
 
-// "users" is an aggregate query, not paginated
-const paginatedTables: (keyof Tables)[] = [
-  'conversations',
-  'conversation_messages',
-  'suggested_questions',
-  'uploaded_files',
-  'user_fingerprints',
-  'conversation_access_tokens',
-  'access_requests',
-  'processing_jobs',
-  'processing_jobs_errors',
-  'prompt_history',
-]
-
 const canLoadMore = computed(() => {
   if (activeTable.value === SQL_TAB) return false
   if (activeTable.value === 'users') return false
-  const rows = data.value[activeTable.value as keyof Tables]
-  // Show button if the last fetch returned a full page (1000) for this table
-  return rows.length > 0 && rows.length % 1000 === 0
+  const name = activeTable.value as DebugTableName
+  const loaded = data.value[name].length
+  const total = counts.value[name] ?? 0
+  return loaded > 0 && loaded < total
 })
 
 const sqlInput = ref('SELECT * FROM public.conversations ORDER BY created_at DESC LIMIT 50;')
@@ -335,18 +382,16 @@ async function runSql() {
 }
 
 async function loadMore() {
+  if (activeTable.value === SQL_TAB || activeTable.value === 'users') return
+  const name = activeTable.value as DebugTableName
   loadingMore.value = true
   try {
-    const nextOffset = currentOffset.value + 1000
-    const more = await getDebugTables(username.value, password.value, nextOffset)
-    currentOffset.value = nextOffset
-    for (const table of paginatedTables) {
-      if (more[table].length) {
-        data.value[table] = [...data.value[table], ...more[table]]
-      }
+    const nextOffset = tableOffsets.value[name] + 1000
+    const { rows } = await getDebugTable(username.value, password.value, name, nextOffset)
+    tableOffsets.value[name] = nextOffset
+    if (rows.length) {
+      data.value[name] = [...data.value[name], ...rows]
     }
-    // Always replace aggregate data
-    data.value.users = more.users
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to load more'
   } finally {
@@ -358,7 +403,10 @@ async function doLogin() {
   loginLoading.value = true
   loginError.value = ''
   try {
-    data.value = await getDebugTables(username.value, password.value)
+    const overview = await getDebugTablesOverview(username.value, password.value)
+    counts.value = overview.counts
+    data.value.conversations = overview.conversations
+    fetchedTables.value = new Set<DebugTableName>(['conversations'])
     authenticated.value = true
     loading.value = false
   } catch (e: any) {

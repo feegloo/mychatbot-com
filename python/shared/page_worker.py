@@ -128,6 +128,10 @@ class FileProcessingResult:
     # for all pages (critical for scanned/OCR PDFs with hundreds of pages).
     early_text: str = ""
     errors: list[dict] = field(default_factory=list)
+    # Optional metadata populated by the streaming cloud-mode path. Carries
+    # the chunks that were already upserted per-page so the caller can skip
+    # the final batch upsert for this file, plus OCR stats for welcome regen.
+    streaming_meta: dict | None = None
 
 
 def _extract_page_text(doc: fitz.Document, page_idx: int) -> str:

@@ -179,6 +179,25 @@ class AnnounceImageRequest(BaseModel):
     chat_history: list[dict] | None = None
 
 
+class RegisterImageRequest(BaseModel):
+    image_id: str
+    description: str
+    conversation_id: str
+    storage_namespace: str
+    file_name: str
+    image_title: str | None = None
+    image_prompt: str | None = None
+    user_prompt: str | None = None
+    source_original_names: list[str] | None = None
+
+
+class ReusableImageRequest(BaseModel):
+    query_text: str
+    exclude_conversation_id: str | None = None
+    preferred_source_files: list[str] | None = None
+    max_distance: float | None = None
+
+
 class GenerateVideoRequest(BaseModel):
     question: str
     storage_dir: str
@@ -602,6 +621,52 @@ async def generate_image_endpoint(req: GenerateImageRequest):
         return result
     except Exception as e:
         logger.exception("Error generating image")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/register-image")
+async def register_image_endpoint(req: RegisterImageRequest):
+    """Index a generated image's description into the cross-conversation
+    reusable-images collection so future answers can semantically match it."""
+    from shared.reusable_images import register_image
+
+    try:
+        await asyncio.to_thread(
+            register_image,
+            image_id=req.image_id,
+            description=req.description,
+            conversation_id=req.conversation_id,
+            storage_namespace=req.storage_namespace,
+            file_name=req.file_name,
+            image_title=req.image_title,
+            image_prompt=req.image_prompt,
+            user_prompt=req.user_prompt,
+            source_original_names=req.source_original_names,
+        )
+        return {"ok": True}
+    except Exception as e:
+        logger.exception("Error registering image")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/reusable-image")
+async def reusable_image_endpoint(req: ReusableImageRequest):
+    """Look up the best-matching previously generated image (if any) for the
+    given query text. Returns ``{match: null}`` when nothing crosses the
+    similarity threshold so callers can fall through to fresh generation."""
+    from shared.reusable_images import DEFAULT_MAX_DISTANCE, find_reusable_image
+
+    try:
+        match = await asyncio.to_thread(
+            find_reusable_image,
+            query_text=req.query_text,
+            exclude_conversation_id=req.exclude_conversation_id,
+            preferred_source_files=req.preferred_source_files,
+            max_distance=req.max_distance if req.max_distance is not None else DEFAULT_MAX_DISTANCE,
+        )
+        return {"match": match}
+    except Exception as e:
+        logger.exception("Error querying reusable image")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

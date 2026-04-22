@@ -94,8 +94,10 @@
       </div>
       <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
         <div v-if="msg.generatingImage" class="image-generating-label">
-          <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
-          <span v-else>🎨 Generating image, please wait...</span>
+          <FadeText :trigger="msg.imageAnnouncement || 'generic'">
+            <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
+            <span v-else>🎨 Generating image, please wait...</span>
+          </FadeText>
         </div>
         <div class="typing-dots">
           <span></span><span></span><span></span>
@@ -111,14 +113,15 @@
             :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }"
           >
             <div v-for="(part, pi) in contentParts" :key="pi">
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <div
-                v-if="part.type === 'text'"
-                ref="contentEls"
-                class="markdown-content"
-                @click="onContentClick"
-                v-html="part.html"
-              ></div>
+              <FadeText v-if="part.type === 'text'" :trigger="part.html">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div
+                  ref="contentEls"
+                  class="markdown-content"
+                  @click="onContentClick"
+                  v-html="part.html"
+                ></div>
+              </FadeText>
               <QuizBlock
                 v-else-if="part.type === 'quiz'"
                 :quiz="part.quiz"
@@ -214,8 +217,10 @@
               @click="onSuggestedQuestionClick($event, question.raw)"
               @keydown="onSuggestedQuestionKeydown($event, question.raw)"
             >
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <span class="suggested-question-markdown" v-html="question.html"></span>
+              <FadeText :trigger="question.html">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <span class="suggested-question-markdown" v-html="question.html"></span>
+              </FadeText>
             </div>
             <VDropdown
               v-if="welcomeHiddenQuestions.length"
@@ -235,8 +240,10 @@
                     @click="onSuggestedQuestionClick($event, question.raw)"
                     @keydown="onSuggestedQuestionKeydown($event, question.raw)"
                   >
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <span class="suggested-question-markdown" v-html="question.html"></span>
+                    <FadeText :trigger="question.html">
+                      <!-- eslint-disable-next-line vue/no-v-html -->
+                      <span class="suggested-question-markdown" v-html="question.html"></span>
+                    </FadeText>
                   </div>
                 </div>
               </template>
@@ -394,14 +401,15 @@
           :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }"
         >
           <div v-for="(part, pi) in contentParts" :key="pi">
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <div
-              v-if="part.type === 'text'"
-              ref="contentEls"
-              class="markdown-content"
-              @click="onContentClick"
-              v-html="part.html"
-            ></div>
+            <FadeText v-if="part.type === 'text'" :trigger="part.html">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div
+                ref="contentEls"
+                class="markdown-content"
+                @click="onContentClick"
+                v-html="part.html"
+              ></div>
+            </FadeText>
             <QuizBlock
               v-else-if="part.type === 'quiz'"
               :quiz="part.quiz"
@@ -420,7 +428,9 @@
           <span></span><span></span><span></span>
         </div>
       </template>
-      <span v-else class="user-text" :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }">{{ msg.content }}</span>
+      <FadeText v-else :trigger="msg.content">
+        <span class="user-text" :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }">{{ msg.content }}</span>
+      </FadeText>
 
       <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
       <div v-if="isWelcome && !welcomeHasFiles && welcomeVisibleQuestions.length" class="welcome-suggested-questions" :class="{ 'is-translating': isTranslating }">
@@ -433,8 +443,10 @@
           @click="onSuggestedQuestionClick($event, question.raw)"
           @keydown="onSuggestedQuestionKeydown($event, question.raw)"
         >
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <span class="suggested-question-markdown" v-html="question.html"></span>
+          <FadeText :trigger="question.html">
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <span class="suggested-question-markdown" v-html="question.html"></span>
+          </FadeText>
         </div>
         <VDropdown
           v-if="welcomeHiddenQuestions.length"
@@ -454,8 +466,10 @@
                 @click="onSuggestedQuestionClick($event, question.raw)"
                 @keydown="onSuggestedQuestionKeydown($event, question.raw)"
               >
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <span class="suggested-question-markdown" v-html="question.html"></span>
+                <FadeText :trigger="question.html">
+                  <!-- eslint-disable-next-line vue/no-v-html -->
+                  <span class="suggested-question-markdown" v-html="question.html"></span>
+                </FadeText>
               </div>
             </div>
           </template>
@@ -541,6 +555,7 @@ import { renderMarkdown, renderInlineMarkdown } from '../utils/markdown'
 import ImageModal from './ImageModal.vue'
 import SourcePreviewModal from './SourcePreviewModal.vue'
 import AppButton from './AppButton.vue'
+import FadeText from './FadeText.vue'
 import { defineAsyncComponent } from 'vue'
 const QuizBlock = defineAsyncComponent(() => import('./QuizBlock.vue'))
 const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))

@@ -400,24 +400,40 @@ export async function getSharedMessage(messageId: string) {
   return response.data as SharedMessage
 }
 
-export async function getDebugTables(username: string, password: string, offset = 0) {
-  const response = await api.get('/debug/tables', {
+export type DebugTableName =
+  | 'conversations'
+  | 'conversation_messages'
+  | 'suggested_questions'
+  | 'uploaded_files'
+  | 'user_fingerprints'
+  | 'conversation_access_tokens'
+  | 'access_requests'
+  | 'users'
+  | 'processing_jobs'
+  | 'processing_jobs_errors'
+  | 'prompt_history'
+
+export async function getDebugTablesOverview(username: string, password: string) {
+  const response = await api.get('/debug/tables-overview', {
+    auth: { username, password },
+  })
+  return response.data as {
+    counts: Record<DebugTableName, number>
+    conversations: Record<string, unknown>[]
+  }
+}
+
+export async function getDebugTable(
+  username: string,
+  password: string,
+  name: DebugTableName,
+  offset = 0,
+) {
+  const response = await api.get(`/debug/tables/${name}`, {
     auth: { username, password },
     params: { offset },
   })
-  return response.data as {
-    conversations: Record<string, unknown>[]
-    conversation_messages: Record<string, unknown>[]
-    suggested_questions: Record<string, unknown>[]
-    uploaded_files: Record<string, unknown>[]
-    user_fingerprints: Record<string, unknown>[]
-    conversation_access_tokens: Record<string, unknown>[]
-    access_requests: Record<string, unknown>[]
-    users: Record<string, unknown>[]
-    processing_jobs: Record<string, unknown>[]
-    processing_jobs_errors: Record<string, unknown>[]
-    prompt_history: Record<string, unknown>[]
-  }
+  return response.data as { rows: Record<string, unknown>[] }
 }
 
 export async function getFullPrompt(username: string, password: string, promptId: string) {

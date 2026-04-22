@@ -7,6 +7,8 @@ import {
   resolveConversationRole,
 } from '../repositories/conversations.js'
 import { announceImage, generateImage } from '../python/image-gen.js'
+import { registerReusableImage } from '../python/reusable-image.js'
+import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
 import { config } from '../config.js'
 import { getConversationToken } from '../utils/request.js'
@@ -143,6 +145,40 @@ imageGenRouter.post('/generate-image', async (ctx) => {
       _imageSources: citations,
     },
   })
+
+  // Register in the cross-conversation reuse index. Failures here must not
+  // break the response — the image is already saved and shown to the user;
+  // the only lost side effect is findability by other conversations.
+  try {
+    const description = result.revised_prompt || result.image_prompt || title
+    const sourceOriginalNames = data.files.map((f) => f.original_name)
+    const imageId = await insertGeneratedImage({
+      conversationId,
+      messageId: assistantMsgId,
+      storageNamespace: data.conversation.storage_namespace,
+      fileName: result.file_name,
+      imageTitle: result.image_title || title,
+      imagePrompt: result.image_prompt || null,
+      revisedPrompt: result.revised_prompt || null,
+      userPrompt: question,
+      description,
+      sourceOriginalNames,
+      sourceSizeBytes: data.files.map((f) => Number(f.size_bytes)),
+    })
+    await registerReusableImage({
+      imageId,
+      description,
+      conversationId,
+      storageNamespace: data.conversation.storage_namespace,
+      fileName: result.file_name,
+      imageTitle: result.image_title || title,
+      imagePrompt: result.image_prompt,
+      userPrompt: question,
+      sourceOriginalNames,
+    })
+  } catch (err) {
+    logger.warn({ err, conversationId, assistantMsgId }, 'failed to register generated image')
+  }
 
   ctx.body = {
     answer,
