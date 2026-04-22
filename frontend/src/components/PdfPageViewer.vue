@@ -83,11 +83,10 @@ GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', i
 // Providing these URLs enables full image decoding (JPEG2000/JBIG2 via wasm,
 // ICC color profiles), CJK cmaps, and standard font fallbacks — without them
 // embedded images in PDFs may fail to render.
-const PDFJS_ASSET_BASE = new URL('/pdfjs/', import.meta.url).href
-const PDFJS_WASM_URL = `${PDFJS_ASSET_BASE}wasm/`
-const PDFJS_ICC_URL = `${PDFJS_ASSET_BASE}iccs/`
-const PDFJS_CMAP_URL = `${PDFJS_ASSET_BASE}cmaps/`
-const PDFJS_STANDARD_FONT_URL = `${PDFJS_ASSET_BASE}standard_fonts/`
+const PDFJS_WASM_URL = '/pdfjs/wasm/'
+const PDFJS_ICC_URL = '/pdfjs/iccs/'
+const PDFJS_CMAP_URL = '/pdfjs/cmaps/'
+const PDFJS_STANDARD_FONT_URL = '/pdfjs/standard_fonts/'
 
 const props = withDefaults(
   defineProps<{

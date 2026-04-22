@@ -3,7 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { cp } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
 
 const projectDir = dirname(fileURLToPath(import.meta.url));
@@ -33,18 +33,20 @@ function pdfjsAssetsPlugin(): Plugin {
           const requestedUrl = req.url || "/";
           const cleaned = requestedUrl.split("?")[0].split("#")[0];
           const relative = decodeURIComponent(cleaned.replace(/^\/+/, ""));
-          // Prevent path traversal — only serve files inside pdfjs-dist.
-          if (relative.includes("..")) {
-            res.statusCode = 403;
-            res.end("Forbidden");
-            return;
-          }
           const [dir, ...rest] = relative.split("/");
           if (!PDFJS_ASSET_DIRS.includes(dir as (typeof PDFJS_ASSET_DIRS)[number])) {
             next();
             return;
           }
+          // Resolve and ensure the final path stays inside pdfjs-dist — defends
+          // against traversal via `..` or absolute-path segments after decode.
           const filePath = resolve(pdfjsDistDir, dir, ...rest);
+          const allowedRoot = resolve(pdfjsDistDir, dir);
+          if (filePath !== allowedRoot && !filePath.startsWith(allowedRoot + sep)) {
+            res.statusCode = 403;
+            res.end("Forbidden");
+            return;
+          }
           const fs = await import("node:fs/promises");
           const data = await fs.readFile(filePath);
           res.setHeader(
@@ -52,7 +54,14 @@ function pdfjsAssetsPlugin(): Plugin {
             filePath.endsWith(".wasm") ? "application/wasm" : "application/octet-stream",
           );
           res.end(data);
-        } catch {
+        } catch (err) {
+          // Surface unexpected errors in dev logs; missing files fall through
+          // to Vite's default 404 handling via `next()`.
+          if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+            server.config.logger.warn(
+              `[chatrag:pdfjs-assets] failed to serve ${req.url}: ${(err as Error).message}`,
+            );
+          }
           next();
         }
       });
