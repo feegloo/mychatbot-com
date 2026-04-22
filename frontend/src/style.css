@@ -903,6 +903,7 @@ a {
   margin: 9px 0 0;
   font-size: 15px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .markdown-content img {
@@ -1132,7 +1133,6 @@ li:has(.checklist-box) {
 .markdown-content .markdown-table-scroll table {
   margin: 0;
   min-width: 100%;
-  width: max-content;
 }
 
 .markdown-content .markdown-image-scroll {
@@ -1194,6 +1194,7 @@ li:has(.checklist-box) {
   padding: 6px 10px;
   text-align: left;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .markdown-content th {
