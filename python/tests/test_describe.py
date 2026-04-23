@@ -529,6 +529,33 @@ class TestParseDescribeResponse:
         assert welcome == response
         assert questions == []
 
+    def test_recovers_bare_action_row_without_wrappers(self):
+        """When the model forgets to wrap the final action row in
+        [action:...] markers (emitting plain prose like ``What happens
+        to Bran? ... Generate image inspired by Westeros 🎨 Write chapter
+        ✏️``), the parser should recover the fragments and re-embed them
+        as proper markers so the frontend renders clickable pills."""
+        from shared.describe import _parse_describe_response
+
+        response = (
+            "## A Game of Thrones - George R. R. Martin\n\n"
+            "📖 Great fantasy book.\n\n"
+            "💡 The novel's power lies in fusing family tragedy with dynastic conflict.\n\n"
+            "What happens to Bran after the fall? Who is George R. R. Martin? "
+            "How does Daenerys gain dragons? Generate image inspired by Westeros 🎨 "
+            "Write inspired chapter like George R. R. Martin ✏️ "
+            "Create a quiz from the key facts 🧠 "
+            "Summarize the Stark family conflicts 📝"
+        )
+        welcome, questions = _parse_describe_response(response)
+        assert len(questions) >= 5
+        assert any("Bran" in q for q in questions)
+        assert any("🎨" in q for q in questions)
+        assert "[action:" in welcome
+        # The prose action row should have been stripped from the welcome
+        # body and re-emitted as a marker line at the very end.
+        assert welcome.rstrip().endswith("]")
+
     def test_describe_documents_returns_dict_with_inline_actions(self):
         """describe_documents should return a DescribeResult whose
         welcome_message carries [action:...] markers inline (single source

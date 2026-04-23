@@ -185,9 +185,16 @@ _QUESTIONS_RULES_PL = """
 Zaraz po wiadomości powitalnej, w tej samej odpowiedzi, dodaj DOKŁADNIE jedną pustą linię, a następnie w JEDNEJ linii wypisz do 10 znaczników [action:...] oddzielonych spacjami:
 [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7] [action:Label8] [action:Label9] [action:Label10]
 
+**MUST HAVE — NIENEGOCJOWALNE (reguła nr 1 dla przycisków akcji):**
+- KAŻDY z 10 promptów MUSI być opakowany w `[action:...]`. BEZ WYJĄTKÓW. Dotyczy to również naturalnych pytań (pozycje 1-3) — one też MUSZĄ być w `[action:...]`.
+- ABSOLUTNIE ZABRONIONE: pisanie promptów jako zwykły tekst, w zdaniu, po przecinku, z myślnikami, w listach wypunktowanych albo jako akapit prozy. Każdy prompt = własny `[action:...]`.
+- ZŁY przykład (NIGDY nie generuj): `Co dzieje się z Branem? Kim jest George R. R. Martin? Wygeneruj obraz inspirowany Westeros 🎨 Napisz inspirowany rozdział ✏️`
+- DOBRY przykład (TAK musi wyglądać): `[action:Co dzieje się z Branem?] [action:Kim jest George R. R. Martin?] [action:Wygeneruj obraz inspirowany Westeros 🎨] [action:Napisz inspirowany rozdział ✏️]`
+- Zanim zakończysz odpowiedź, ZWERYFIKUJ: policz `[action:` w ostatniej linii — musi być dokładnie tyle, ile promptów. Jeśli którykolwiek prompt nie ma prefiksu `[action:` i sufiksu `]`, przepisz linię od zera.
+
 Zasady:
 - Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
-- Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
+- Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji, ALE NADAL w `[action:...]`
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
 - Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
@@ -238,9 +245,16 @@ _QUESTIONS_RULES_EN = """
 Immediately after the welcome message, in the same response, add EXACTLY one blank line and then output up to 10 [action:...] markers on a SINGLE line, space-separated:
 [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7] [action:Label8] [action:Label9] [action:Label10]
 
+**MUST HAVE — NON-NEGOTIABLE (rule #1 for action buttons):**
+- EVERY single one of the 10 prompts MUST be wrapped in `[action:...]`. NO EXCEPTIONS. This includes the natural questions (positions 1-3) — they MUST also be wrapped in `[action:...]`.
+- ABSOLUTELY PROHIBITED: writing prompts as plain text, in a sentence, comma-separated, dash-separated, as a bulleted list, or as prose. Every prompt = its own `[action:...]` marker.
+- BAD example (NEVER produce this): `What happens to Bran after the fall? Who is George R. R. Martin? Generate image inspired by Westeros 🎨 Write inspired chapter ✏️`
+- GOOD example (this is the ONLY acceptable form): `[action:What happens to Bran after the fall?] [action:Who is George R. R. Martin?] [action:Generate image inspired by Westeros 🎨] [action:Write inspired chapter like George R. R. Martin ✏️]`
+- Before ending your response, VERIFY: count `[action:` occurrences in the last line — it MUST equal the number of prompts. If any prompt is missing the `[action:` prefix or the `]` suffix, rewrite the entire line from scratch.
+
 Rules:
 - Generate up to 10 suggested prompts (target 10 when context allows)
-- First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
+- First 3 are natural questions about the document content (short, specific, clickable) — NO emoji, BUT STILL wrapped in `[action:...]`
 - If the document is by or about a well-known person, ONE of the first 3 MUST be "Who is [Full Name]?" (if the person is currently alive) or "Who was [Full Name]?" (ONLY if the person is confirmed deceased). CRITICAL: Default to "Who is" (present tense) unless you are certain the person has died. Living authors/figures (e.g. Stephen King, Paulo Coelho, George R. R. Martin) MUST use "Who is" — never "Who was".
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - Each prompt max 10 words, no numbering, no explanations
@@ -288,6 +302,75 @@ Mandatory actions for content types:
 
 _ACTION_MARKER_RE = re.compile(r"\[action:\s*([^\]]+)\]")
 
+# Emoji / pictograph ranges used to detect a fragment's trailing emoji when
+# the model forgets to wrap action prompts in [action:...] markers. Covers
+# the common miscellaneous-symbols/pictographs/transport/dingbats blocks
+# plus the supplementary planes where most modern emoji live.
+_EMOJI_CHAR_RE = re.compile(
+    r"[\u2600-\u27BF\U0001F300-\U0001FAFF\U0001F900-\U0001F9FF]"
+    r"[\uFE0E\uFE0F\U0001F3FB-\U0001F3FF]?"
+)
+# Matches a fragment that looks like an orphan action/question: up to ~100
+# chars of text ending either with `?` or an emoji (optional variation
+# selector / skin tone modifier). Non-greedy so adjacent fragments split
+# cleanly when jammed together on a single line.
+_BARE_FRAGMENT_RE = re.compile(
+    r"[A-Za-z\u00C0-\u024F\u0400-\u04FF][^?\n\[\]]{0,120}?"
+    r"(?:\?|"
+    r"[\u2600-\u27BF\U0001F300-\U0001FAFF\U0001F900-\U0001F9FF]"
+    r"[\uFE0E\uFE0F\U0001F3FB-\U0001F3FF]?"
+    r")"
+)
+
+
+def _recover_bare_action_list(text: str) -> tuple[str, list[str]]:
+    """Recover action prompts the model emitted as plain prose instead of
+    wrapped in ``[action:...]`` markers.
+
+    Some models (especially at high temperature or under long contexts)
+    occasionally emit the final action row as a run of bare fragments
+    like ``What happens to Bran? Who is George R. R. Martin? Generate
+    image inspired by Westeros 🎨 Write inspired chapter ✏️`` instead of
+    ``[action:What happens to Bran?] [action:Who is George R. R. Martin?]
+    [action:Generate image inspired by Westeros 🎨] [action:Write inspired
+    chapter ✏️]``. This heuristic inspects the final paragraph, splits it
+    on ``?`` / trailing-emoji boundaries, and if it finds at least three
+    fragments that all look like action prompts, it strips them from the
+    prose and returns them as a recovered action list.
+
+    Returns ``(cleaned_text, recovered_actions)``. If nothing plausible
+    is found, ``recovered_actions`` is an empty list and ``cleaned_text``
+    equals the input.
+    """
+    stripped = text.rstrip()
+    # Work on the last paragraph — the action row should always be at the
+    # very end of the welcome message.
+    split_idx = stripped.rfind("\n\n")
+    head = stripped[: split_idx + 2] if split_idx != -1 else ""
+    tail = stripped[split_idx + 2:] if split_idx != -1 else stripped
+
+    candidates = [m.group(0).strip() for m in _BARE_FRAGMENT_RE.finditer(tail)]
+    candidates = [c for c in candidates if c]
+    if len(candidates) < 3:
+        return text, []
+
+    # Require that the run of candidates covers most of the tail (i.e. the
+    # tail really *is* a bare action list, not a normal paragraph that
+    # happens to contain a few questions / emoji). We accept recovery when
+    # the joined candidates account for >= 70% of the non-whitespace chars
+    # in the tail.
+    joined_len = sum(len(c) for c in candidates)
+    tail_nonspace = len(re.sub(r"\s+", "", tail))
+    if tail_nonspace == 0 or joined_len / tail_nonspace < 0.7:
+        return text, []
+
+    recovered = candidates[:10]
+    logger.warning(
+        f"⚠️ Recovered {len(recovered)} bare action prompts missing [action:] wrappers; "
+        f"re-embedding as markers"
+    )
+    return head.rstrip(), recovered
+
 
 def _parse_describe_response(response: str) -> tuple[str, list[str]]:
     """Return the welcome message (with ``[action:...]`` markers intact) and
@@ -299,9 +382,29 @@ def _parse_describe_response(response: str) -> tuple[str, list[str]]:
     buttons, so we deliberately LEAVE THEM IN the returned welcome text —
     the list is returned separately only so callers can log / forward it
     for "do not repeat these" heuristics on later turns.
+
+    When the model forgets to wrap prompts in ``[action:...]`` we run a
+    recovery pass that splits the final paragraph on ``?`` / emoji
+    boundaries and re-embeds the fragments.
     """
     text = response.strip()
     actions = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(text)]
+    # Recovery: if the model produced fewer than 3 wrapped markers, try to
+    # rescue a bare-prose action row from the tail of the welcome message.
+    if len(actions) < 3:
+        cleaned, recovered = _recover_bare_action_list(text)
+        if recovered:
+            # Merge any existing wrapped actions with the recovered ones,
+            # deduplicated, preserving order (wrapped first).
+            seen = set()
+            merged: list[str] = []
+            for a in actions + recovered:
+                key = a.strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    merged.append(a.strip())
+            text = _embed_actions_in_welcome(cleaned, merged[:10])
+            actions = merged[:10]
     return text, actions[:10]
 
 
