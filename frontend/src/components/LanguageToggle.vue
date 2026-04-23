@@ -41,6 +41,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
+import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
 
 // Marker handling for translation:
 // - [source:N] markers are fully opaque (numeric id, must not change)
@@ -167,7 +168,7 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
 }
 
 const props = defineProps<{
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ id?: string; role: string; content: string }>
   title?: string
   conversationId?: string
 }>()
@@ -425,7 +426,7 @@ async function translateTo(targetLang: string) {
     }
 
     const translations = new Map<number, string>()
-    const toTranslate: { index: number; content: string }[] = []
+    const toTranslate: { index: number; content: string; id?: string }[] = []
 
     props.messages.forEach((msg, i) => {
       if (!msg.content.trim()) return
@@ -433,9 +434,18 @@ async function translateTo(targetLang: string) {
       const cached = translationCache.value.get(cacheKey)
       if (cached) {
         translations.set(i, cached)
-      } else {
-        toTranslate.push({ index: i, content: msg.content })
+        return
       }
+      // Persisted per-message cache survives reload.
+      if (msg.id) {
+        const stored = getStoredTranslation(targetLang, msg.id)
+        if (stored) {
+          translations.set(i, stored)
+          translationCache.value.set(cacheKey, stored)
+          return
+        }
+      }
+      toTranslate.push({ index: i, content: msg.content, id: msg.id })
     })
 
     for (let batch = 0; batch < toTranslate.length; batch += 20) {
@@ -446,8 +456,10 @@ async function translateTo(targetLang: string) {
         detectedLang.value,
       )
       chunk.forEach((item, j) => {
-        translations.set(item.index, result.translations[j])
-        translationCache.value.set(`${item.content}→${targetLang}`, result.translations[j])
+        const translated = result.translations[j]
+        translations.set(item.index, translated)
+        translationCache.value.set(`${item.content}→${targetLang}`, translated)
+        if (item.id) setStoredTranslation(targetLang, item.id, translated)
       })
     }
 

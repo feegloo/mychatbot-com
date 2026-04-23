@@ -102,22 +102,22 @@ conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => 
     res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
   }
 
-  // If conversation has already reached a terminal state (ready or failed),
-  // send catchup events so clients that connect late (e.g. sidebar listeners
-  // reconnecting after a transient drop) can refresh and close out cleanly.
-  if (data.conversation.status === 'ready' || data.conversation.status === 'failed') {
-    if (data.conversation.status === 'ready') send('welcome_message', {})
-    send('complete', { status: data.conversation.status })
+  // If conversation has already reached a terminal state, send catchup events
+  // so late-connecting clients refresh their indexing UI. For 'ready' convs we
+  // keep the stream open so downstream `message_appended` events can flow
+  // (enables real-time multi-tab message sync without 1s polling). For 'failed'
+  // convs we close immediately since no more events are expected.
+  if (data.conversation.status === 'ready') {
+    send('welcome_message', {})
+    send('complete', { status: 'ready' })
+  } else if (data.conversation.status === 'failed') {
+    send('complete', { status: 'failed' })
     res.end()
     return
-  }
-
-  // If there are already messages, the welcome message was already saved
-  const hasWelcome = data.messages.some(
-    (m: { role: string }) => m.role === 'assistant',
-  )
-  if (hasWelcome) {
-    send('welcome_message', {})
+  } else {
+    // Processing: emit welcome catchup if already saved.
+    const hasWelcome = data.messages.some((m: { role: string }) => m.role === 'assistant')
+    if (hasWelcome) send('welcome_message', {})
   }
 
   send('connected', { conversationId })

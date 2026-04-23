@@ -1,5 +1,6 @@
 import { query } from '../db.js'
 import { generateShortId } from '../utils/id.js'
+import { emitConversationEvent } from '../events.js'
 import type {
   ConversationRecord,
   UploadedFileRecord,
@@ -309,6 +310,12 @@ export async function insertConversationMessage(params: {
       params.userId ?? 0,
     ],
   )
+  // Fan out to any SSE subscribers so clients (including other browser tabs)
+  // can refresh without the 1s polling fallback.
+  emitConversationEvent(params.conversationId, {
+    event: 'message_appended',
+    data: { messageId: id, role: params.role },
+  })
   return id
 }
 

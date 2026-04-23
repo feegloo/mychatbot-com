@@ -207,6 +207,8 @@ import { IMAGE_GEN_REGEX } from '../utils/markdown'
 
 const props = defineProps<{ conversationId: string }>()
 
+defineOptions({ name: 'ConversationPage' })
+
 const conversationId = props.conversationId
 const question = ref('')
 const asking = ref(false)
@@ -267,7 +269,7 @@ const {
   cleanup: cleanupAutoRead,
 } = useAutoRead(messages, asking, welcomeMessageContent)
 
-// SSE: real-time processing events (welcome_message, complete)
+// SSE: real-time processing events + message_appended for live sync
 const {
   processingStep,
   parsedPages,
@@ -276,10 +278,14 @@ const {
   disconnect: disconnectSSE,
   onWelcome,
   onComplete: onSSEComplete,
+  onMessageAppended,
 } = useConversationEvents(conversationId)
 
 onWelcome(() => loadConversation())
 onSSEComplete(() => loadConversation())
+// New messages (from own submits, other tabs, or thread replies from other
+// users) trigger a reload. Replaces the 1s polling fallback.
+onMessageAppended(() => loadConversation())
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
@@ -744,8 +750,6 @@ watch(
   },
 )
 
-let intervalHandle: number | undefined
-
 onMounted(async () => {
   await loadConversation()
   loaded.value = true
@@ -761,10 +765,10 @@ onMounted(async () => {
   // Listen for scroll events to persist position
   chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true })
 
-  // Connect SSE for real-time processing events while conversation is being indexed
-  if (status.value.status === 'processing') {
-    connectSSE()
-  }
+  // Connect SSE for processing events AND live message sync. Backend keeps
+  // the stream open after indexing completes so message_appended events can
+  // flow for ready conversations.
+  connectSSE()
 
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined
@@ -778,15 +782,9 @@ onMounted(async () => {
     submitQuestion()
   }
 
-  intervalHandle = window.setInterval(async () => {
-    await loadConversation()
-  }, 1000)
 })
 
 onUnmounted(() => {
-  if (intervalHandle !== undefined) {
-    clearInterval(intervalHandle)
-  }
   disconnectSSE()
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
