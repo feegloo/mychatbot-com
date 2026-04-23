@@ -1,7 +1,6 @@
 <template>
   <div class="page" :class="{ 'shared-conversation-view': isViewer }">
     <ConversationHeader
-      ref="headerRef"
       :status="status"
       :conversation-id="conversationId"
       :conversation-title="conversationTitle"
@@ -292,7 +291,6 @@ const processingLoaderLabel = computed(() => {
   return baseLabel
 })
 
-const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null)
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
 const loaded = ref(false)
 const routerInstance = useRouter()
@@ -327,15 +325,6 @@ function onTitleTranslated(translated: string) {
     originalDisplayName.value = status.value.displayName
   }
   status.value.displayName = translated
-}
-
-function onQuestionsTranslated(_translated: string[]) {
-  // Suggested questions are now embedded as `[action:...]` markers inside
-  // each assistant message's content, so they are translated together
-  // with the surrounding markdown via the normal message-translation
-  // pipeline (LanguageToggle preserves the marker syntax). This handler
-  // is kept as a no-op for LanguageToggle back-compat; once the toggle
-  // stops emitting `questions-translated` it can be removed.
 }
 
 function onRestored(newTranslations: Map<number, string>) {

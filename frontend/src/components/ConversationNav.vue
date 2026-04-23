@@ -110,7 +110,6 @@ const currentId = ref('')
 const sseConnections = new Map<string, EventSource>()
 
 function apiBaseUrl(): string {
-  // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
 }
 

@@ -101,6 +101,43 @@ describe('ChatMessage suggested prompt overflow', () => {
     }
   })
 
+  it('coalesces action-btns-row siblings when translation splits markers across paragraphs', async () => {
+    // Simulates the post-translation layout: the translator occasionally
+    // inserts blank lines between `[action:...]` markers, which makes marked
+    // wrap each button in its own <p>, so the markdown-time regex produces
+    // several single-button `.action-btns-row` siblings. The component must
+    // merge them back into one row so the "More ..." overflow still kicks in.
+    vi.useFakeTimers()
+    try {
+      const splitContent =
+        'Done.\n\n' +
+        '[action:First]\n\n' +
+        '[action:Second]\n\n' +
+        '[action:Third]\n\n' +
+        '[action:Fourth]\n\n' +
+        '[action:Fifth]'
+      const wrapper = mount(ChatMessage, {
+        attachTo: document.body,
+        props: {
+          ...baseProps(),
+          msg: { role: 'assistant' as const, content: splitContent },
+        },
+      })
+
+      await nextTick()
+      await nextTick()
+      await vi.runAllTimersAsync()
+      await nextTick()
+
+      // After coalescing, exactly one action-btns-row should contain the
+      // assembled button group (either raw buttons or the More-wrap span).
+      expect(wrapper.findAll('.action-btns-row').length).toBe(1)
+      expect(wrapper.findAll('.action-btn[data-action]').length).toBe(5)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('emits `image-revealed` only for images added after the initial mount pass', async () => {
     vi.useFakeTimers()
     try {

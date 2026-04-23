@@ -1,3 +1,6 @@
+/* eslint-disable no-control-regex -- \x01 is used as a private placeholder
+   sentinel to protect literal markers (e.g. [action:…]) through marked's
+   HTML escaping; the regexes intentionally match that byte. */
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
@@ -178,13 +181,11 @@ export function renderMarkdown(content: string): string {
       .join(''),
   )
   // Restore [action:Label] placeholders as clickable action buttons
-  // eslint-disable-next-line no-control-regex
   const withActions = withSources.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr) => {
     const label = actionPlaceholders[parseInt(idxStr, 10)]
     return `<button class="action-btn" data-action="${label}">${label}</button>`
   })
   // Restore [upload] placeholders as upload action buttons
-  // eslint-disable-next-line no-control-regex
   const withUpload = withActions.replace(
     /\x01UPLOAD\x01/g,
     '<button class="action-btn upload-action-btn" data-upload="true">' +

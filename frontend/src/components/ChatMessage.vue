@@ -475,9 +475,7 @@ const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
 import type { QuizData } from './QuizBlock.vue'
 import { getData, setData } from '../utils/localData'
 import UploadingDots from './UploadingDots.vue'
-import { maxHeaderSize } from 'http'
 
-const MAX_VISIBLE_ASSISTANT_ACTIONS = 3
 const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
 let outsideClickListenerBound = false
 
@@ -501,22 +499,25 @@ function unregisterOutsideClickHandler(handler: (event: MouseEvent) => void) {
   }
 }
 
-const props = defineProps<{
-  msg: ChatMessage
-  asking: boolean
-  conversationId: string
-  storageConversationId?: string
-  isWelcome?: boolean
-  isFirstMessage?: boolean
-  canUpload?: boolean
-  files?: ConversationStatus['files']
-  maxVisibleActions?: number
-  conversationName?: string
-  fileName?: string
-  isThread?: boolean
-  noAnimation?: boolean
-  isTranslating?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    msg: ChatMessage
+    asking: boolean
+    conversationId: string
+    storageConversationId?: string
+    isWelcome?: boolean
+    isFirstMessage?: boolean
+    canUpload?: boolean
+    files?: ConversationStatus['files']
+    maxVisibleActions?: number
+    conversationName?: string
+    fileName?: string
+    isThread?: boolean
+    noAnimation?: boolean
+    isTranslating?: boolean
+  }>(),
+  { maxVisibleActions: 2 },
+)
 
 const animateIn = ref(!props.noAnimation)
 onMounted(() => {
@@ -631,8 +632,6 @@ function triggerUpload() {
 }
 
 defineExpose({ resetUploadState, setUploading, triggerUpload })
-
-const _renderedContent = computed(() => renderMarkdown(props.msg.content))
 
 const messageContentEl = ref<HTMLElement | null>(null)
 const messageRootEl = ref<HTMLElement | null>(null)
@@ -1022,9 +1021,37 @@ function injectCodeCopyButtons() {
   }
 }
 
+function coalesceActionRows(el: HTMLElement) {
+  // Translation occasionally splits a single line of `[action:...]` markers
+  // across paragraphs (extra newlines introduced by the translator), so marked
+  // wraps each button in its own <p> and the markdown-time regex ends up
+  // producing several single-button `.action-btns-row` siblings instead of one
+  // row. Merge such fragmented rows back into one before applying the
+  // "More ..." grouping logic so the overflow still collapses after a
+  // translate round-trip.
+  const rows = Array.from(el.querySelectorAll<HTMLElement>('.action-btns-row'))
+    .filter((r) => r.dataset.moreReady !== '1')
+  if (rows.length < 2) return
+  const primary = rows[0]
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i]
+    const buttons = Array.from(row.querySelectorAll<HTMLElement>(':scope > .action-btn'))
+    buttons.forEach((btn) => primary.appendChild(btn))
+    const wrapperP =
+      row.parentElement && row.parentElement.tagName === 'P' ? row.parentElement : null
+    row.remove()
+    // Drop the now-empty paragraph wrapper marked produced around the orphan
+    // action marker so we don't leave extra vertical space between messages.
+    if (wrapperP && !wrapperP.textContent?.trim() && !wrapperP.querySelector('*')) {
+      wrapperP.remove()
+    }
+  }
+}
+
 function transformActionButtonGroups() {
   if (!contentEls.value?.length) return
   for (const el of contentEls.value) {
+    coalesceActionRows(el)
     const rows = el.querySelectorAll<HTMLElement>('.action-btns-row')
     rows.forEach((row) => {
       if (row.dataset.moreReady === '1') return
@@ -1251,15 +1278,16 @@ const modalAlt = ref('')
 
 type CitationEntry = NonNullable<ChatMessage['citations']>[number]
 
-// @ts-ignore
 type ImageCitationInfo = { url: string; section?: string; imageName: string }
 
 function resolveImageCitation(citation: CitationEntry): ImageCitationInfo {
+  // citation.imageName is typed as optional on the source; callers filter first
+  // so it is guaranteed truthy here, but TS cannot narrow through `.filter()`.
   return {
-    // @ts-ignore
+    // @ts-expect-error -- imageName narrowed by caller's filter
     url: getStorageUrl(effectiveStorageId.value, citation.imageName),
     section: citation.section,
-    // @ts-ignore
+    // @ts-expect-error -- imageName narrowed by caller's filter
     imageName: citation.imageName,
   }
 }

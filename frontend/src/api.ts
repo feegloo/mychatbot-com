@@ -1,7 +1,6 @@
 import axios, { AxiosError } from 'axios'
 
 const api = axios.create({
-  // @ts-ignore
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
@@ -326,7 +325,6 @@ export async function announceImage(conversationId: string, question: string) {
 }
 
 function getBaseUrl() {
-  // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '')
 }
 

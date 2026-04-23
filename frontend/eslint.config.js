@@ -69,6 +69,7 @@ export default [
         WheelEvent: 'readonly',
         TouchEvent: 'readonly',
         IntersectionObserverEntry: 'readonly',
+        EventSource: 'readonly',
       },
     },
   },

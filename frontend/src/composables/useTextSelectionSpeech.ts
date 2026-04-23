@@ -1,5 +1,5 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
-import { synthesizeSpeechWithCaptions, type WordCaption } from '../api'
+import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from '../api'
 import { buildSynthesisChunks, cleanTextForTTS, splitIntoSentences } from './useAutoRead'
 
 const TTS_INSTRUCTIONS_MAX = 4096
@@ -25,7 +25,6 @@ export function useTextSelectionSpeech(
   messages?: Ref<{ role: string; content: string }[]>,
 ) {
   const browserLang = navigator.language.split('-')[0]
-  const _isTouchDevice = window.matchMedia('(hover: none)').matches
   let tooltip: HTMLDivElement | null = null
   let selectionTimer: ReturnType<typeof setTimeout> | null = null
   let currentAudio: HTMLAudioElement | null = null
@@ -35,7 +34,6 @@ export function useTextSelectionSpeech(
   let isPlaying = false
   let hideTimer: ReturnType<typeof setTimeout> | null = null
   let highlightEl: HTMLElement | null = null
-  let _lastWordRange: Range | null = null
   let mouseDownPos: { x: number; y: number } | null = null
   let isPinned = false
   let pinnedRange: Range | null = null
@@ -325,7 +323,6 @@ export function useTextSelectionSpeech(
         await chunkPlayback
       } else {
         const promises = chunks.map((chunk) =>
-          // @ts-ignore
           synthesizeSpeech(chunk, currentLanguage?.value, ttsInstructions).catch((error) => {
             console.error('Speech chunk synthesis error:', error)
             return null
@@ -774,8 +771,6 @@ export function useTextSelectionSpeech(
 
     // Position a highlight overlay on top of the word
     const rect = wordRange.getBoundingClientRect()
-    
-    _lastWordRange = wordRange
 
     if (!highlightEl) {
       highlightEl = document.createElement('div')

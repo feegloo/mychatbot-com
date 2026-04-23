@@ -171,14 +171,12 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
 
 const props = defineProps<{
   messages: Array<{ role: string; content: string }>
-  suggestedQuestions?: string[]
   title?: string
   conversationId?: string
 }>()
 
 const emit = defineEmits<{
   translated: [translations: Map<number, string>]
-  'questions-translated': [translations: string[]]
   'title-translated': [translation: string]
   restored: [newTranslations: Map<number, string>]
   'lang-changed': [language: string]
@@ -417,7 +415,6 @@ async function translateTo(targetLang: string) {
 
   // Translating to a new target language
   // If currently showing a translation, restore first then translate
-  const _sourceLang = currentLang.value
   pendingLang.value = targetLang
   translating.value = true
   emit('translating-start')
@@ -455,35 +452,6 @@ async function translateTo(targetLang: string) {
         translations.set(item.index, result.translations[j])
         translationCache.value.set(`${item.content}→${targetLang}`, result.translations[j])
       })
-    }
-
-    // Translate suggested questions
-    const questions = props.suggestedQuestions || []
-    if (questions.length) {
-      const qToTranslate: { index: number; text: string }[] = []
-      const qTranslated: string[] = []
-      questions.forEach((q, i) => {
-        const cacheKey = `${q}→${targetLang}`
-        const cached = translationCache.value.get(cacheKey)
-        if (cached) {
-          qTranslated[i] = cached
-        } else {
-          qToTranslate.push({ index: i, text: q })
-        }
-      })
-      for (let batch = 0; batch < qToTranslate.length; batch += 20) {
-        const chunk = qToTranslate.slice(batch, batch + 20)
-        const result = await translateWithMarkers(
-          chunk.map((c) => c.text),
-          targetLang,
-          detectedLang.value,
-        )
-        chunk.forEach((item, j) => {
-          qTranslated[item.index] = result.translations[j]
-          translationCache.value.set(`${item.text}→${targetLang}`, result.translations[j])
-        })
-      }
-      emit('questions-translated', qTranslated)
     }
 
     // Translate conversation title (emitted separately so caller can restore it)

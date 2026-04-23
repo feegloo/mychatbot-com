@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
 import { getStorageUrl } from '../api'
-import { cleanFileName, linkify } from '../utils/text'
+import { linkify } from '../utils/text'
 const PdfPageViewer = defineAsyncComponent(() => import('./PdfPageViewer.vue'))
 
 const props = defineProps<{
@@ -55,8 +55,6 @@ const props = defineProps<{
 defineEmits<{
   close: []
 }>()
-
-const _displayFileName = computed(() => cleanFileName(props.citation.fileName))
 
 const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
 
