@@ -54,7 +54,10 @@
           :can-upload="false"
           :max-visible-actions="5"
           :no-animation="index < initialMessageCount"
-          @select-question="question = $event; submitQuestion()"
+          @select-question="
+            question = $event
+            submitQuestion()
+          "
           @image-revealed="(success: boolean) => success && scrollToBottom(true)"
         />
       </div>
@@ -94,6 +97,8 @@ import {
   generateImage,
   announceImage,
   getConversation,
+  httpStatus,
+  extractError,
   type ConversationStatus,
   type ChatMessage,
 } from '../api'
@@ -184,15 +189,15 @@ async function loadConversation() {
         initialMessageCount.value = messages.value.length
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (!loaded.value) {
-      const statusCode = err?.response?.status
+      const statusCode = httpStatus(err)
       if (statusCode === 404) {
         fatalError.value = `Conversation "${conversationId}" not found. Please check the conversation ID.`
       } else if (statusCode === 403) {
         fatalError.value = 'Access denied. This conversation is not publicly available.'
       } else {
-        fatalError.value = `Failed to load conversation: ${err?.message || 'Unknown error'}`
+        fatalError.value = `Failed to load conversation: ${extractError(err).message}`
       }
       console.error(`[chatrag] Failed to load conversation "${conversationId}":`, err)
       notifyParent('error', { error: fatalError.value })
@@ -251,13 +256,12 @@ async function ask() {
     await nextTick()
     scrollToBottom(true)
     await loadConversation()
-  } catch (err: any) {
+  } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
       reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
     } else {
-      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
-      reactiveMsg.content = `⚠️ Error: ${detail}`
+      reactiveMsg.content = `⚠️ Error: ${extractError(err).message}`
     }
     hasLocalError.value = true
     console.error(`[chatrag] Ask error:`, err)

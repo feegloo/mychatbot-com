@@ -432,31 +432,6 @@ describe("LanguageToggle", () => {
     });
   });
 
-  // ── Suggested questions translation ──
-
-  describe("suggested questions", () => {
-    it("translates suggested questions when translating messages", async () => {
-      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
-      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
-
-      const wrapper = mount(LanguageToggle, {
-        props: {
-          messages: makeMessages(["This is a long enough English message for detection."]),
-          suggestedQuestions: ["What is this about?", "Tell me more"],
-        },
-      });
-      await flushPromises();
-      await nextTick();
-
-      await wrapper.find(".lang-toggle-btn").trigger("click");
-      await flushPromises();
-
-      expect(wrapper.emitted("questions-translated")).toBeTruthy();
-      const emitted = wrapper.emitted("questions-translated")![0][0] as string[];
-      expect(emitted.length).toBe(2);
-    });
-  });
-
   // ── availableLangs computation ──
 
   describe("availableLangs", () => {

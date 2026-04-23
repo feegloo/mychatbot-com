@@ -16,17 +16,17 @@ import { appReady } from '../src/composables/appReady'
 
 // Opt out of the ``appReady`` hysteresis (two requestAnimationFrames on
 // first paint) in unit tests — the flip-to-true mid-test interacts with
-// Vue's FadeText <Transition> and can clobber imperative DOM mutations
+// Vue's TextFade <Transition> and can clobber imperative DOM mutations
 // (e.g. ChatMessage's action-button overflow collapsing).
 appReady.value = true
 
-// FadeText is imported directly by SFCs (so ``global.stubs`` doesn't
+// TextFade is imported directly by SFCs (so ``global.stubs`` doesn't
 // apply).  Replace it module-wide with a transparent passthrough so
 // imperative DOM edits made after mount survive Vue's <Transition>
 // appear/leave cycles during tests.
-vi.mock('../src/components/FadeText.vue', () => ({
+vi.mock('../src/components/TextFade.vue', () => ({
   default: defineComponent({
-    name: 'FadeTextStub',
+    name: 'TextFadeStub',
     props: ['trigger'],
     setup(_props, { slots }) {
       return () => h(Fragment, null, [slots.default?.()])

@@ -1,20 +1,13 @@
 import axios, { AxiosError } from 'axios'
 
 const api = axios.create({
-  // @ts-ignore
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
-// Attach an X-Request-Id to every outgoing API call so the same id can be
-// grepped across browser console → backend logs → python logs → Sentry.
-api.interceptors.request.use((config) => {
-  const requestId =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-  config.headers.set('X-Request-Id', requestId)
-  return config
-})
+/** Read the HTTP status from any error (axios or otherwise), if present. */
+export function httpStatus(err: unknown): number | undefined {
+  return (err as { response?: { status?: number } } | undefined)?.response?.status
+}
 
 /** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
 export function extractError(err: unknown): { message: string; raw: string } {
@@ -337,7 +330,6 @@ export async function announceImage(conversationId: string, question: string) {
 }
 
 function getBaseUrl() {
-  // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '')
 }
 
@@ -353,9 +345,7 @@ export function getStorageUrl(conversationId: string, fileName: string) {
  * fragment (which triggers Chrome's "Unsafe attempt to load URL" warning).
  */
 export async function resolveStorageUrl(conversationId: string, fileName: string) {
-  const response = await api.get(
-    `/storage/${conversationId}/${encodeURIComponent(fileName)}/url`,
-  )
+  const response = await api.get(`/storage/${conversationId}/${encodeURIComponent(fileName)}/url`)
   return (response.data as { url: string }).url
 }
 
@@ -453,11 +443,7 @@ export async function getFullPrompt(username: string, password: string, promptId
 }
 
 export async function runDebugSql(username: string, password: string, sql: string) {
-  const response = await api.post(
-    '/debug/sql',
-    { sql },
-    { auth: { username, password } },
-  )
+  const response = await api.post('/debug/sql', { sql }, { auth: { username, password } })
   return response.data as {
     rows: Record<string, unknown>[]
     fields: string[]

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 /**
- * True once the initial page paint has settled. `FadeText` reads this to
+ * True once the initial page paint has settled. `TextFade` reads this to
  * suppress the appear animation on first load (so restored conversation
  * history renders instantly) while still animating subsequent mounts
  * triggered by new messages, translations, or any other text swap.

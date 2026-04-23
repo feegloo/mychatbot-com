@@ -151,7 +151,10 @@ export function buildSynthesisChunks(sentences: string[]): string[] {
   let cursor = 0
 
   for (const size of chunkSizes) {
-    const chunkText = sentences.slice(cursor, cursor + size).join(' ').trim()
+    const chunkText = sentences
+      .slice(cursor, cursor + size)
+      .join(' ')
+      .trim()
     cursor += size
     if (!chunkText) continue
     chunks.push(...splitTextByMaxLength(chunkText))

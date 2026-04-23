@@ -38,7 +38,10 @@
       <button
         class="conv-nav-collapse-btn"
         :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
-        @click.stop="$emit('toggle-collapse'); $emit('navigate')"
+        @click.stop="
+          $emit('toggle-collapse')
+          $emit('navigate')
+        "
       >
         <svg
           width="16"
@@ -110,7 +113,6 @@ const currentId = ref('')
 const sseConnections = new Map<string, EventSource>()
 
 function apiBaseUrl(): string {
-  // @ts-ignore
   return (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
 }
 

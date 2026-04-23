@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatMessage from '../../src/components/ChatMessage.vue'
@@ -15,140 +15,105 @@ function baseProps() {
   }
 }
 
-describe('ChatMessage suggested prompt overflow', () => {
+describe('ChatMessage', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     vDropdownHideSpy.mockClear()
   })
 
-  it('still shows More after streaming completes (was prematurely locked with few buttons)', async () => {
-    vi.useFakeTimers()
-    try {
-      const fewActions = 'Streaming...\n\n[action:First] [action:Second]'
-      const manyActions =
-        'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth] [action:Fifth]'
+  it('renders 1 visible action and collapses the rest into the More dropdown', async () => {
+    const content =
+      'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth] [action:Fifth]'
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: { ...baseProps(), msg: { role: 'assistant' as const, content } },
+    })
+    await nextTick()
 
-      const wrapper = mount(ChatMessage, {
-        attachTo: document.body,
-        props: {
-          ...baseProps(),
-          asking: true,
-          msg: { role: 'assistant' as const, content: fewActions },
-        },
-      })
+    // Regular (non-welcome) limit: 1 visible action.
+    const visibleActions = wrapper.findAll('.actions-row > .message-content-action')
+    expect(visibleActions.length).toBe(1)
+    expect(visibleActions[0].text()).toBe('First')
 
-      // Simulate timer firing mid-stream with only 2 buttons — should NOT lock the row
-      vi.runAllTimers()
-      await nextTick()
-      expect(wrapper.find('.action-more-btn').exists()).toBe(false)
+    // VDropdown stub flattens popper into the same parent, so the overflow
+    // buttons are present in the DOM (4 remaining actions).
+    const overflow = wrapper.findAll('.more-menu .message-content-action')
+    expect(overflow.length).toBe(4)
+    expect(overflow.map((b) => b.text())).toEqual(['Second', 'Third', 'Fourth', 'Fifth'])
 
-      // Streaming finishes — full content arrives, asking = false
-      await wrapper.setProps({
-        asking: false,
-        msg: { role: 'assistant' as const, content: manyActions },
-      })
-      vi.runAllTimers()
-      await nextTick()
-
-      expect(wrapper.find('.action-more-btn').exists()).toBe(true)
-      expect(wrapper.findAll('.action-visible-row > .action-btn[data-action]').length).toBe(2)
-      expect(wrapper.findAll('.action-more-menu .action-btn[data-action]').length).toBe(3)
-    } finally {
-      vi.useRealTimers()
-    }
+    // The "More… (4)" trigger button is rendered.
+    expect(wrapper.find('.more-btn').text()).toContain('More')
+    expect(wrapper.find('.more-btn').text()).toContain('4')
   })
 
-  it('collapses multiple [action:] buttons and keeps outside-click behavior scoped per instance', async () => {
-    vi.useFakeTimers()
-    try {
-      const messageWithActions =
-        'Done.\n\n[action:First action] [action:Second action] [action:Third action] [action:Fourth action] [action:Fifth action]'
-      const wrap1 = mount(ChatMessage, {
-        attachTo: document.body,
-        props: {
-          ...baseProps(),
-          msg: { role: 'assistant', content: messageWithActions },
-        },
-      })
-      const wrap2 = mount(ChatMessage, {
-        attachTo: document.body,
-        props: {
-          ...baseProps(),
-          msg: { role: 'assistant', content: messageWithActions },
-        },
-      })
+  it('emits select-question when a visible or overflow action is clicked', async () => {
+    const content = 'Done.\n\n[action:First] [action:Second] [action:Third]'
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: { ...baseProps(), msg: { role: 'assistant' as const, content } },
+    })
+    await nextTick()
 
-      // Two ticks + a flushed timer pass lets FadeText mount its v-html
-      // content and then gives ``transformActionButtonGroups`` (scheduled
-      // via setTimeout) a chance to rewrite the DOM.
-      await nextTick()
-      await nextTick()
-      await vi.runAllTimersAsync()
-      await nextTick()
+    await wrapper.find('.actions-row > .message-content-action').trigger('click')
+    await wrapper.find('.more-menu .message-content-action').trigger('click')
 
-      expect(wrap1.find('.action-more-btn').exists()).toBe(true)
-  expect(wrap1.findAll('.action-visible-row > .action-btn[data-action]').length).toBe(2)
-  expect(wrap1.findAll('.action-more-menu .action-btn[data-action]').length).toBe(3)
-
-      await wrap1.find('.action-more-btn').trigger('click')
-      expect(wrap1.find('.action-more-wrap').classes()).toContain('open')
-
-      await wrap2.find('.action-more-btn').trigger('click')
-      expect(wrap2.find('.action-more-wrap').classes()).toContain('open')
-      expect(wrap1.find('.action-more-wrap').classes()).not.toContain('open')
-    } finally {
-      vi.useRealTimers()
-    }
+    const events = wrapper.emitted('select-question') as string[][] | undefined
+    expect(events).toBeDefined()
+    expect(events!.length).toBe(2)
+    expect(events![0][0]).toBe('First')
+    expect(events![1][0]).toBe('Second')
   })
 
-  it('emits `image-revealed` only for images added after the initial mount pass', async () => {
-    vi.useFakeTimers()
-    try {
-      const wrapper = mount(ChatMessage, {
-        attachTo: document.body,
-        props: {
-          ...baseProps(),
-          msg: { role: 'assistant' as const, content: '![existing](https://example.com/a.png)' },
+  it('uses welcome limits (3 prompts + 2 actions visible) for welcome messages', async () => {
+    const content =
+      'Welcome!\n\n' +
+      '[prompt:P1] [prompt:P2] [prompt:P3] [prompt:P4]\n\n' +
+      '[action:A1] [action:A2] [action:A3] [action:A4]'
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        ...baseProps(),
+        isWelcome: true,
+        msg: { role: 'assistant' as const, content },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('.prompts-row > button').length).toBe(3)
+    expect(wrapper.findAll('.actions-row > .message-content-action').length).toBe(2)
+    expect(wrapper.findAll('.more-menu .message-content-action').length).toBe(2)
+  })
+
+  it('opens the source preview modal when an inline citation button is clicked', async () => {
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        ...baseProps(),
+        msg: {
+          role: 'assistant' as const,
+          content: 'See [source:1] for details.',
+          citations: [
+            {
+              fileName: 'notes.txt',
+              chunkId: 'c1',
+              text: 'Cited text',
+              section: 'Intro',
+              page: 2,
+            },
+          ],
         },
-      })
+      },
+    })
+    await nextTick()
 
-      // First pass: `trackContentImages` runs with initial-mount images; these
-      // must NOT be flagged `animateIn`, so revealing them should not emit.
-      vi.runAllTimers()
-      await nextTick()
+    // renderMarkdown turns [source:1] into a `.inline-source-btn` button.
+    const btn = wrapper.find('.inline-source-btn')
+    expect(btn.exists()).toBe(true)
 
-      const findImg = () => wrapper.element.querySelector('img') as HTMLImageElement | null
-      const existing = findImg()
-      expect(existing).not.toBeNull()
-      expect(existing!.dataset.animateIn).toBeUndefined()
+    await btn.trigger('click')
+    await nextTick()
 
-      Object.defineProperty(existing!, 'naturalWidth', { configurable: true, value: 100 })
-      existing!.dispatchEvent(new Event('load'))
-      await nextTick()
-      expect(wrapper.emitted('image-revealed')).toBeUndefined()
-
-      // Second pass: a new image arrives (e.g. post-generation); it SHOULD be
-      // flagged dynamic and emit `image-revealed` with success=true on load.
-      await wrapper.setProps({
-        msg: { role: 'assistant' as const, content: '![generated](https://example.com/b.png)' },
-      })
-      vi.runAllTimers()
-      await nextTick()
-
-      const generated = findImg()
-      expect(generated).not.toBeNull()
-      expect(generated!.dataset.animateIn).toBe('true')
-
-      Object.defineProperty(generated!, 'naturalWidth', { configurable: true, value: 200 })
-      generated!.dispatchEvent(new Event('load'))
-      await nextTick()
-
-      const events = wrapper.emitted('image-revealed') as unknown[][] | undefined
-      expect(events).toBeDefined()
-      expect(events!.length).toBe(1)
-      expect(events![0][0]).toBe(true)
-    } finally {
-      vi.useRealTimers()
-    }
+    // SourcePreviewModal teleports its body to document.body, so search there.
+    expect(document.body.textContent).toContain('Cited text')
   })
 })

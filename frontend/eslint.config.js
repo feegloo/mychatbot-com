@@ -69,6 +69,7 @@ export default [
         WheelEvent: 'readonly',
         TouchEvent: 'readonly',
         IntersectionObserverEntry: 'readonly',
+        EventSource: 'readonly',
       },
     },
   },
@@ -84,6 +85,10 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'vue/multi-word-component-names': 'off',
+      // With `<script setup lang="ts">` + `defineProps<{...}>()`, optional
+      // props already get `undefined` as the implicit default. The runtime
+      // check this rule guards against is not applicable.
+      'vue/require-default-prop': 'off',
     },
   },
   prettier,

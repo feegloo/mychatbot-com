@@ -27,7 +27,11 @@
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
-      <router-view :key="$route.fullPath" />
+      <router-view v-slot="{ Component }" :key="$route.fullPath">
+        <KeepAlive :include="['ConversationPage']" :max="10">
+          <component :is="Component" />
+        </KeepAlive>
+      </router-view>
     </main>
   </div>
 </template>

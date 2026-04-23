@@ -33,8 +33,6 @@ const api = axios.create({
 
 const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
 
-
-
 const thankYou = ref(false)
 const showMethods = ref(false)
 const hasApplePay = ref(false)

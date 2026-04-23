@@ -41,6 +41,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
+import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
 
 // Marker handling for translation:
 // - [source:N] markers are fully opaque (numeric id, must not change)
@@ -95,10 +96,7 @@ function extractMarkers(texts: string[]): {
   return { cleaned, markers }
 }
 
-function restoreMarkers(
-  translations: string[],
-  markers: Map<number, MarkerInfo[]>,
-): string[] {
+function restoreMarkers(translations: string[], markers: Map<number, MarkerInfo[]>): string[] {
   return translations.map((text, i) => {
     const m = markers.get(i)
     if (!m) return text
@@ -170,15 +168,13 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
 }
 
 const props = defineProps<{
-  messages: Array<{ role: string; content: string }>
-  suggestedQuestions?: string[]
+  messages: Array<{ id?: string; role: string; content: string }>
   title?: string
   conversationId?: string
 }>()
 
 const emit = defineEmits<{
   translated: [translations: Map<number, string>]
-  'questions-translated': [translations: string[]]
   'title-translated': [translation: string]
   restored: [newTranslations: Map<number, string>]
   'lang-changed': [language: string]
@@ -417,7 +413,6 @@ async function translateTo(targetLang: string) {
 
   // Translating to a new target language
   // If currently showing a translation, restore first then translate
-  const _sourceLang = currentLang.value
   pendingLang.value = targetLang
   translating.value = true
   emit('translating-start')
@@ -431,7 +426,7 @@ async function translateTo(targetLang: string) {
     }
 
     const translations = new Map<number, string>()
-    const toTranslate: { index: number; content: string }[] = []
+    const toTranslate: { index: number; content: string; id?: string }[] = []
 
     props.messages.forEach((msg, i) => {
       if (!msg.content.trim()) return
@@ -439,9 +434,18 @@ async function translateTo(targetLang: string) {
       const cached = translationCache.value.get(cacheKey)
       if (cached) {
         translations.set(i, cached)
-      } else {
-        toTranslate.push({ index: i, content: msg.content })
+        return
       }
+      // Persisted per-message cache survives reload.
+      if (msg.id) {
+        const stored = getStoredTranslation(targetLang, msg.id)
+        if (stored) {
+          translations.set(i, stored)
+          translationCache.value.set(cacheKey, stored)
+          return
+        }
+      }
+      toTranslate.push({ index: i, content: msg.content, id: msg.id })
     })
 
     for (let batch = 0; batch < toTranslate.length; batch += 20) {
@@ -452,38 +456,11 @@ async function translateTo(targetLang: string) {
         detectedLang.value,
       )
       chunk.forEach((item, j) => {
-        translations.set(item.index, result.translations[j])
-        translationCache.value.set(`${item.content}→${targetLang}`, result.translations[j])
+        const translated = result.translations[j]
+        translations.set(item.index, translated)
+        translationCache.value.set(`${item.content}→${targetLang}`, translated)
+        if (item.id) setStoredTranslation(targetLang, item.id, translated)
       })
-    }
-
-    // Translate suggested questions
-    const questions = props.suggestedQuestions || []
-    if (questions.length) {
-      const qToTranslate: { index: number; text: string }[] = []
-      const qTranslated: string[] = []
-      questions.forEach((q, i) => {
-        const cacheKey = `${q}→${targetLang}`
-        const cached = translationCache.value.get(cacheKey)
-        if (cached) {
-          qTranslated[i] = cached
-        } else {
-          qToTranslate.push({ index: i, text: q })
-        }
-      })
-      for (let batch = 0; batch < qToTranslate.length; batch += 20) {
-        const chunk = qToTranslate.slice(batch, batch + 20)
-        const result = await translateWithMarkers(
-          chunk.map((c) => c.text),
-          targetLang,
-          detectedLang.value,
-        )
-        chunk.forEach((item, j) => {
-          qTranslated[item.index] = result.translations[j]
-          translationCache.value.set(`${item.text}→${targetLang}`, result.translations[j])
-        })
-      }
-      emit('questions-translated', qTranslated)
     }
 
     // Translate conversation title (emitted separately so caller can restore it)

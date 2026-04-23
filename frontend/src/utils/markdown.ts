@@ -1,3 +1,6 @@
+/* eslint-disable no-control-regex -- \x01 is used as a private placeholder
+   sentinel to protect literal markers (e.g. [action:…]) through marked's
+   HTML escaping; the regexes intentionally match that byte. */
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
@@ -124,7 +127,6 @@ export function renderMarkdown(content: string): string {
     )
   const sanitized = DOMPurify.sanitize(withChecklists)
   // Restore LaTeX blocks and render with KaTeX
-  // eslint-disable-next-line no-control-regex
   const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const { tex, display } = mathPlaceholders[idx]
@@ -135,7 +137,6 @@ export function renderMarkdown(content: string): string {
     }
   })
   // Restore [poem] blocks as styled blockquote with decorative quotes
-  // eslint-disable-next-line no-control-regex
   const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const lines = poemPlaceholders[idx]
@@ -178,13 +179,11 @@ export function renderMarkdown(content: string): string {
       .join(''),
   )
   // Restore [action:Label] placeholders as clickable action buttons
-  // eslint-disable-next-line no-control-regex
   const withActions = withSources.replace(/\x01ACTION(\d+)\x01/g, (_, idxStr) => {
     const label = actionPlaceholders[parseInt(idxStr, 10)]
     return `<button class="action-btn" data-action="${label}">${label}</button>`
   })
   // Restore [upload] placeholders as upload action buttons
-  // eslint-disable-next-line no-control-regex
   const withUpload = withActions.replace(
     /\x01UPLOAD\x01/g,
     '<button class="action-btn upload-action-btn" data-upload="true">' +
@@ -252,10 +251,7 @@ export function renderMarkdown(content: string): string {
 export function renderInlineMarkdown(content: string): string {
   const rawHtml = marked.parseInline(content, { async: false }) as string
   const sanitized = DOMPurify.sanitize(rawHtml)
-  return sanitized.replace(
-    /<a (?![^>]*target=)/gi,
-    '<a target="_blank" rel="noopener noreferrer" ',
-  )
+  return sanitized.replace(/<a (?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ')
 }
 
 /**
@@ -278,6 +274,4 @@ export function renderInlineMarkdown(content: string): string {
  * intentionally NOT matched here — suggested-question prompts always append
  * 🎨, so the emoji branch covers them.
  */
-export const IMAGE_GEN_REGEX =
-  /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i
-
+export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i

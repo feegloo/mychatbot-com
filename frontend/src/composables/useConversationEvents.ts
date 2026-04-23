@@ -1,9 +1,6 @@
 import { ref, type Ref } from 'vue'
 
-export type ProcessingStep =
-  | 'generating_welcome'
-  | 'indexing_pages'
-  | ''
+export type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 
 const STEP_LABELS: Record<ProcessingStep, string> = {
   generating_welcome: 'Processing',
@@ -20,10 +17,12 @@ export function stepLabel(step: ProcessingStep): string {
  * exposes reactive flags for welcome message arrival and indexing completion.
  *
  * Events from server:
- *   welcome_message — the welcome message has been saved to DB
- *   complete        — indexing finished, conversation is ready
- *   page_progress   — live parsing progress: { parsed, total }
- *   error           — fatal error during indexing
+ *   welcome_message   — the welcome message has been saved to DB
+ *   complete          — indexing finished, conversation is ready
+ *   page_progress     — live parsing progress: { parsed, total }
+ *   message_appended  — a new message was inserted (fires for ready convs too,
+ *                       enabling real-time sync without 1s polling)
+ *   error             — fatal error during indexing
  */
 export function useConversationEvents(conversationId: string) {
   const welcomeReceived = ref(false)
@@ -35,6 +34,7 @@ export function useConversationEvents(conversationId: string) {
   let eventSource: EventSource | null = null
   let onWelcomeCb: (() => void) | null = null
   let onCompleteCb: (() => void) | null = null
+  let onMessageAppendedCb: ((payload: { messageId: string; role: string }) => void) | null = null
 
   function onWelcome(cb: () => void) {
     onWelcomeCb = cb
@@ -44,8 +44,12 @@ export function useConversationEvents(conversationId: string) {
     onCompleteCb = cb
   }
 
+  function onMessageAppended(cb: (payload: { messageId: string; role: string }) => void) {
+    onMessageAppendedCb = cb
+  }
+
   function connect() {
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api'
+    const baseUrl = import.meta.env?.VITE_API_BASE_URL || '/api'
     eventSource = new EventSource(`${baseUrl}/conversations/${conversationId}/events`)
 
     eventSource.addEventListener('welcome_message', () => {
@@ -69,7 +73,16 @@ export function useConversationEvents(conversationId: string) {
       indexingComplete.value = true
       processingStep.value = ''
       onCompleteCb?.()
-      disconnect()
+      // Stream stays open for ready convs so message_appended events can flow.
+    })
+
+    eventSource.addEventListener('message_appended', (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data)
+        onMessageAppendedCb?.(payload)
+      } catch {
+        // ignore malformed events
+      }
     })
 
     eventSource.addEventListener('error', () => {
@@ -92,6 +105,7 @@ export function useConversationEvents(conversationId: string) {
     totalPages,
     onWelcome,
     onComplete,
+    onMessageAppended,
     connect,
     disconnect,
   }

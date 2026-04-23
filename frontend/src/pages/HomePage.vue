@@ -4,9 +4,13 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your Big files securely, encrypted 🔒 and let learning AI tell you what’s inside in the author’s voice.<br /><br/> Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, share answers<br />
+        Upload your Big files securely 🔒 and let learning AI tell you what’s inside in the author’s
+        voice.<br /><br />
+        Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG, share
+        answers<br />
         <span style="font-size: 12px; padding-top: 6px"
-          >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!</span
+          >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid
+          diagram 🧩 recipe 🍝 checklist ✅ and more!</span
         >
       </p>
     </div>
@@ -116,6 +120,7 @@ import {
   announceImage,
   saveConversationToken,
   extractError,
+  httpStatus,
   type ChatMessage,
 } from '../api'
 import ChatMessageItem from '../components/ChatMessage.vue'
@@ -185,9 +190,9 @@ async function submitUpload() {
     showUpload.value = false
     // Navigate to conversation page
     router.push(data.url)
-  } catch (err: any) {
+  } catch (err: unknown) {
     const { message, raw } = extractError(err)
-    const status = err?.response?.status
+    const status = httpStatus(err)
     if (status === 413) {
       uploadError.value = {
         message: 'File too large. Maximum upload size is ~30 MB per file.',
@@ -244,7 +249,7 @@ async function submitUrlUpload(url: string) {
     conversationId.value = data.conversationId
     showUpload.value = false
     router.push(data.url)
-  } catch (err: any) {
+  } catch (err: unknown) {
     const { message, raw } = extractError(err)
     uploadError.value = { message: message || 'Failed to load URL', raw }
   } finally {
@@ -305,7 +310,7 @@ async function submitQuestion() {
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
     scrollToBottom(true)
-  } catch (err: any) {
+  } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
       reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'

@@ -1,0 +1,6 @@
+# Commits listed here are ignored by `git blame` when
+# `blame.ignoreRevsFile = .git-blame-ignore-revs` is set. Put pure-formatting
+# commits here so blame stays useful for logic commits.
+
+# chore(frontend): prettier --write src/
+54f3d58a0dc6a5af0bd25cc48c5013e0b3195db4

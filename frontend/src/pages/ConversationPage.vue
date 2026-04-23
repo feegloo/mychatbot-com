@@ -1,7 +1,6 @@
 <template>
   <div class="page" :class="{ 'shared-conversation-view': isViewer }">
     <ConversationHeader
-      ref="headerRef"
       :status="status"
       :conversation-id="conversationId"
       :conversation-title="conversationTitle"
@@ -114,13 +113,16 @@
             :is-first-message="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :can-upload="canUpload"
             :files="uploadFilesForMessage(index)"
-            :max-visible-actions="index === 0 ? 5: 3"
+            :max-visible-actions="index === 0 ? 5 : 3"
             :conversation-name="conversationTitle"
             :file-name="primaryFileName"
             :is-thread="isThread"
             :no-animation="index < initialMessageCount"
             :is-translating="isTranslating"
-            @select-question="question = $event; submitQuestion()"
+            @select-question="
+              question = $event
+              submitQuestion()
+            "
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
@@ -205,6 +207,8 @@ import { IMAGE_GEN_REGEX } from '../utils/markdown'
 
 const props = defineProps<{ conversationId: string }>()
 
+defineOptions({ name: 'ConversationPage' })
+
 const conversationId = props.conversationId
 const question = ref('')
 const asking = ref(false)
@@ -265,7 +269,7 @@ const {
   cleanup: cleanupAutoRead,
 } = useAutoRead(messages, asking, welcomeMessageContent)
 
-// SSE: real-time processing events (welcome_message, complete)
+// SSE: real-time processing events + message_appended for live sync
 const {
   processingStep,
   parsedPages,
@@ -274,10 +278,14 @@ const {
   disconnect: disconnectSSE,
   onWelcome,
   onComplete: onSSEComplete,
+  onMessageAppended,
 } = useConversationEvents(conversationId)
 
 onWelcome(() => loadConversation())
 onSSEComplete(() => loadConversation())
+// New messages (from own submits, other tabs, or thread replies from other
+// users) trigger a reload. Replaces the 1s polling fallback.
+onMessageAppended(() => loadConversation())
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
@@ -292,7 +300,6 @@ const processingLoaderLabel = computed(() => {
   return baseLabel
 })
 
-const headerRef = ref<InstanceType<typeof ConversationHeader> | null>(null)
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
 const loaded = ref(false)
 const routerInstance = useRouter()
@@ -327,15 +334,6 @@ function onTitleTranslated(translated: string) {
     originalDisplayName.value = status.value.displayName
   }
   status.value.displayName = translated
-}
-
-function onQuestionsTranslated(_translated: string[]) {
-  // Suggested questions are now embedded as `[action:...]` markers inside
-  // each assistant message's content, so they are translated together
-  // with the surrounding markdown via the normal message-translation
-  // pipeline (LanguageToggle preserves the marker syntax). This handler
-  // is kept as a no-op for LanguageToggle back-compat; once the toggle
-  // stops emitting `questions-translated` it can be removed.
 }
 
 function onRestored(newTranslations: Map<number, string>) {
@@ -525,7 +523,9 @@ async function handleUploadFiles(files: File[]) {
     await onReload()
   } catch (err: unknown) {
     if (err instanceof AxiosError && err.response?.status === 409) {
-      const names = ((err.response.data as Record<string, unknown>)?.duplicates as string[] || []).join(', ')
+      const names = (
+        ((err.response.data as Record<string, unknown>)?.duplicates as string[]) || []
+      ).join(', ')
       msgRef.resetUploadState(names ? `File ${names} already uploaded` : 'File already uploaded')
     } else {
       const { message } = extractError(err)
@@ -750,8 +750,6 @@ watch(
   },
 )
 
-let intervalHandle: number | undefined
-
 onMounted(async () => {
   await loadConversation()
   loaded.value = true
@@ -767,10 +765,10 @@ onMounted(async () => {
   // Listen for scroll events to persist position
   chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true })
 
-  // Connect SSE for real-time processing events while conversation is being indexed
-  if (status.value.status === 'processing') {
-    connectSSE()
-  }
+  // Connect SSE for processing events AND live message sync. Backend keeps
+  // the stream open after indexing completes so message_appended events can
+  // flow for ready conversations.
+  connectSSE()
 
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined
@@ -784,15 +782,9 @@ onMounted(async () => {
     submitQuestion()
   }
 
-  intervalHandle = window.setInterval(async () => {
-    await loadConversation()
-  }, 1000)
 })
 
 onUnmounted(() => {
-  if (intervalHandle !== undefined) {
-    clearInterval(intervalHandle)
-  }
   disconnectSSE()
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)

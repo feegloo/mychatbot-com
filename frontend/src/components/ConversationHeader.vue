@@ -11,7 +11,17 @@
         pointer-events: none;
       "
     >
-      <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0; display: inline-flex;align-items: center;margin-left: 2px;">
+      <div
+        style="
+          height: 30px;
+          pointer-events: auto;
+          max-width: 60%;
+          min-width: 0;
+          display: inline-flex;
+          align-items: center;
+          margin-left: 2px;
+        "
+      >
         <h1
           v-if="!editingName && conversationTitle"
           class="conv-title"
@@ -68,11 +78,7 @@
         {{ status.conversationThreadCount }}
         {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
       </div>
-      <VTooltip
-        v-if="processing"
-        :triggers="['hover']"
-        placement="bottom"
-      >
+      <VTooltip v-if="processing" :triggers="['hover']" placement="bottom">
         <div
           class="indexing-bar"
           role="status"
@@ -85,7 +91,10 @@
         <template #popper>
           <div class="indexing-tooltip">
             <div>{{ processingStep || 'Processing files…' }}</div>
-            <div v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0" class="indexing-tooltip-pages">
+            <div
+              v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0"
+              class="indexing-tooltip-pages"
+            >
               Parsed {{ parsedPages }}/{{ totalPages }} pages
             </div>
           </div>
@@ -117,9 +126,8 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { AxiosError } from 'axios'
 import { VTooltip } from 'floating-vue'
-import { renameConversation, uploadMoreFiles, type ConversationStatus } from '../api'
+import { renameConversation, type ConversationStatus } from '../api'
 
 const props = defineProps<{
   status: ConversationStatus
@@ -143,10 +151,6 @@ const editNameValue = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 const nameMeasure = ref<HTMLSpanElement | null>(null)
 const copied = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
-const selectedFiles = ref<File[]>([])
-const uploading = ref(false)
-const uploadError = ref('')
 
 async function startRename() {
   editingName.value = true
@@ -164,35 +168,6 @@ async function saveRename() {
   emit('renamed', trimmed)
 }
 
-function _onFilesChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  selectedFiles.value = Array.from(target.files || [])
-  uploadError.value = ''
-}
-
-async function _uploadFiles() {
-  if (!selectedFiles.value.length) return
-  uploading.value = true
-  uploadError.value = ''
-  try {
-    await uploadMoreFiles(props.conversationId, selectedFiles.value)
-    selectedFiles.value = []
-    if (fileInput.value) fileInput.value.value = ''
-    emit('reload')
-  } catch (err: unknown) {
-    if (err instanceof AxiosError && err.response?.status === 409) {
-      const names = ((err.response.data as Record<string, unknown>)?.duplicates as string[] || []).join(', ')
-      uploadError.value = names ? `File ${names} already uploaded` : 'File already uploaded'
-      selectedFiles.value = []
-      if (fileInput.value) fileInput.value.value = ''
-    } else {
-      uploadError.value = 'Upload failed'
-    }
-  } finally {
-    uploading.value = false
-  }
-}
-
 async function copyUrl() {
   await navigator.clipboard.writeText(window.location.href)
   copied.value = true
@@ -200,10 +175,4 @@ async function copyUrl() {
     copied.value = false
   }, 2000)
 }
-
-function triggerUpload() {
-  fileInput.value?.click()
-}
-
-defineExpose({ triggerUpload })
 </script>
