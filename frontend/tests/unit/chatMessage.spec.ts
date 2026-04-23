@@ -141,6 +141,10 @@ describe('ChatMessage suggested prompt overflow', () => {
 
       Object.defineProperty(generated!, 'naturalWidth', { configurable: true, value: 200 })
       generated!.dispatchEvent(new Event('load'))
+      // Emit is deferred via requestAnimationFrame so the browser has a
+      // chance to commit the reserved container size into layout; advance
+      // the fake timers to flush it.
+      vi.runAllTimers()
       await nextTick()
 
       const events = wrapper.emitted('image-revealed') as unknown[][] | undefined

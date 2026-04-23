@@ -870,8 +870,15 @@ function revealImage(img: HTMLImageElement, success = true) {
   updateImagesPending()
   // Notify parent so it can re-scroll to focus on the newly visible image,
   // matching the smooth scroll effect used for streamed assistant text.
+  // Defer to the next animation frame so the browser has committed the
+  // newly reserved container size (set by `sizeImageContainer` above) into
+  // layout — the parent reads `scrollHeight` to scroll the freshly-sized
+  // image fully into view, and that reading must reflect the new height.
   if (wasDynamic) {
-    emit('image-revealed', success)
+    requestAnimationFrame(() => {
+      if (componentUnmounted) return
+      emit('image-revealed', success)
+    })
   }
 }
 
