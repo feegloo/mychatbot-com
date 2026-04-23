@@ -36,7 +36,6 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.52.0",
     "@sentry/vite-plugin": "^5.2.0",
-    "@types/dompurify": "^3.0.5",
     "@types/node": "^22.13.10",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/ui": "^1.0.0",
