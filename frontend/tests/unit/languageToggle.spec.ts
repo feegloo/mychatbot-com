@@ -548,6 +548,40 @@ describe("LanguageToggle", () => {
       expect(translated).toContain("[source:1]");
       expect(translated).toContain("[source:2]");
     });
+
+    it("preserves markdown image URLs through translation (never sent to translator)", async () => {
+      // Pollinations-style URL: the prompt text lives in the URL path, so if it
+      // reaches the translator the URL becomes invalid and the <img> breaks.
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `PL: ${t}`),
+      }));
+
+      const imageMd =
+        "![A red cat](https://image.pollinations.ai/prompt/A%20red%20cat?seed=123)";
+      const original = `Here is your picture: ${imageMd} Enjoy the result!`;
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: original }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      // The image markdown must be replaced by an opaque placeholder before
+      // hitting the translate API, so the URL is never exposed to translation.
+      const sentTexts = translateTextsMock.mock.calls[0]?.[0] as string[];
+      expect(sentTexts).toBeTruthy();
+      expect(sentTexts[0]).not.toContain("pollinations");
+      expect(sentTexts[0]).not.toContain("![");
+
+      // Restored translation must contain the original image markdown verbatim.
+      const emitted = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const translated = emitted.get(0)!;
+      expect(translated).toContain(imageMd);
+    });
   });
 
   // ── Whitespace preservation (prevents layout jump) ──
