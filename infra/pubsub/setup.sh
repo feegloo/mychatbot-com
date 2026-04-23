@@ -13,7 +13,7 @@
 #   PUBSUB_SUBSCRIPTION      default: chatrag-indexing-sub
 #   PUBSUB_DLQ_TOPIC         default: chatrag-indexing-dlq
 #   PUBSUB_ACK_DEADLINE      default: 600 (seconds — matches large PDF time)
-#   PUBSUB_MAX_DELIVERY_ATT  default: 2 (original + 1 retry, then → DLQ)
+#   PUBSUB_MAX_DELIVERY_ATT  default: 5 (Pub/Sub minimum; original + 4 retries → DLQ)
 set -euo pipefail
 
 PROJECT_ID="${1:-${GCP_PROJECT_ID:-}}"
@@ -27,7 +27,7 @@ SUB="${PUBSUB_SUBSCRIPTION:-chatrag-indexing-sub}"
 DLQ_TOPIC="${PUBSUB_DLQ_TOPIC:-chatrag-indexing-dlq}"
 DLQ_SUB="${DLQ_TOPIC}-sub"
 ACK_DEADLINE="${PUBSUB_ACK_DEADLINE:-600}"
-MAX_DELIVERY="${PUBSUB_MAX_DELIVERY_ATT:-2}"
+MAX_DELIVERY="${PUBSUB_MAX_DELIVERY_ATT:-5}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[✓]${NC} $*"; }

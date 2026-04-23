@@ -280,8 +280,7 @@ if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
     --vpc-egress private-ranges-only \
     --memory 2Gi \
     --cpu 2 \
-    --min-instances 1 \
-    --max-instances "${WORKER_MAX_INSTANCES:-2}" \
+    --instances "${WORKER_INSTANCES:-1}" \
     --set-env-vars "\
 PYTHONUNBUFFERED=1,\
 GCP_PROJECT_ID=${GCP_PROJECT_ID},\

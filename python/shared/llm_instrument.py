@@ -7,16 +7,54 @@ around any LangChain chain invocation or direct OpenAI call.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from typing import Any
 
+import sentry_sdk
 from opentelemetry import trace
 
 from .otel import get_meter, get_tracer
 from .prompt_history import log_prompt
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _sentry_llm_span(operation: str, model: str, conversation_id: str | None, prompt_len: int):
+    """Open a Sentry child span around an LLM call so it appears in the trace
+    waterfall. Hard failures in Sentry must not break the LLM path, so we
+    swallow any errors from the SDK itself.
+    """
+    span_cm = None
+    span = None
+    try:
+        span_cm = sentry_sdk.start_span(op="ai.openai", name=f"llm.{operation}")
+        span = span_cm.__enter__()
+        span.set_data("llm.operation", operation)
+        span.set_data("llm.model", model)
+        span.set_data("llm.prompt_chars", prompt_len)
+        if conversation_id:
+            span.set_data("llm.conversation_id", conversation_id)
+        sentry_sdk.add_breadcrumb(
+            category="llm",
+            level="info",
+            message=f"{operation} → {model}",
+            data={"prompt_chars": prompt_len, "conversation_id": conversation_id},
+        )
+    except Exception:
+        span_cm = None
+        span = None
+
+    try:
+        yield span
+    finally:
+        if span_cm is not None:
+            try:
+                span_cm.__exit__(None, None, None)
+            except Exception:
+                pass
 
 # ── OTel metrics (lazy-init on first use) ─────────────────────────────────────
 _meter = None
@@ -90,11 +128,13 @@ def traced_llm_call(
 
     _llm_prompt_size_histogram.record(prompt_len, {"operation": operation, "model": model})
 
-    with tracer.start_as_current_span(
-        f"llm.{operation}",
-        kind=trace.SpanKind.CLIENT,
-        attributes=attributes,
-    ) as span:
+    with _sentry_llm_span(operation, model, conversation_id, prompt_len) as sentry_span, \
+        tracer.start_as_current_span(
+            f"llm.{operation}",
+            kind=trace.SpanKind.CLIENT,
+            attributes=attributes,
+        ) as span:
+        logger.info(f"▶️  [LLM] {operation} | model={model} | starting (prompt={prompt_len} chars)")
         start = time.monotonic()
         try:
             result = chain.invoke(params)
@@ -127,6 +167,12 @@ def traced_llm_call(
             span.set_attribute("llm.cached_tokens", cached_tokens)
             span.set_attribute("llm.response_chars", len(response_text))
             span.set_status(trace.StatusCode.OK)
+
+            if sentry_span is not None:
+                sentry_span.set_data("llm.duration_ms", elapsed_ms)
+                sentry_span.set_data("llm.total_tokens", total_tokens)
+                sentry_span.set_data("llm.response_chars", len(response_text))
+                sentry_span.set_status("ok")
 
             # Record metrics
             _llm_call_counter.add(1, {"operation": operation, "model": model, "status": "ok"})
@@ -182,6 +228,10 @@ def traced_llm_call(
             span.record_exception(exc)
             span.set_attribute("llm.duration_ms", elapsed_ms)
 
+            if sentry_span is not None:
+                sentry_span.set_data("llm.duration_ms", elapsed_ms)
+                sentry_span.set_status("internal_error")
+
             _llm_call_counter.add(1, {"operation": operation, "model": model, "status": "error"})
             _llm_error_counter.add(1, {"operation": operation, "model": model})
             _llm_latency_histogram.record(elapsed_ms, {"operation": operation, "model": model})
@@ -236,11 +286,13 @@ def traced_openai_call(
 
     _llm_prompt_size_histogram.record(prompt_len, {"operation": operation, "model": model})
 
-    with tracer.start_as_current_span(
-        f"llm.{operation}",
-        kind=trace.SpanKind.CLIENT,
-        attributes=attributes,
-    ) as span:
+    with _sentry_llm_span(operation, model, conversation_id, prompt_len) as sentry_span, \
+        tracer.start_as_current_span(
+            f"llm.{operation}",
+            kind=trace.SpanKind.CLIENT,
+            attributes=attributes,
+        ) as span:
+        logger.info(f"▶️  [LLM] {operation} | model={model} | starting (prompt={prompt_len} chars)")
         start = time.monotonic()
         try:
             create_kwargs = {"model": model, "messages": messages, **kwargs}
@@ -265,6 +317,12 @@ def traced_openai_call(
             span.set_attribute("llm.cached_tokens", cached_tokens)
             span.set_attribute("llm.response_chars", len(response_text))
             span.set_status(trace.StatusCode.OK)
+
+            if sentry_span is not None:
+                sentry_span.set_data("llm.duration_ms", elapsed_ms)
+                sentry_span.set_data("llm.total_tokens", total_tokens)
+                sentry_span.set_data("llm.response_chars", len(response_text))
+                sentry_span.set_status("ok")
 
             _llm_call_counter.add(1, {"operation": operation, "model": model, "status": "ok"})
             _llm_latency_histogram.record(elapsed_ms, {"operation": operation, "model": model})
@@ -303,6 +361,10 @@ def traced_openai_call(
             elapsed_ms = int((time.monotonic() - start) * 1000)
             span.set_status(trace.StatusCode.ERROR, str(exc))
             span.record_exception(exc)
+
+            if sentry_span is not None:
+                sentry_span.set_data("llm.duration_ms", elapsed_ms)
+                sentry_span.set_status("internal_error")
 
             _llm_call_counter.add(1, {"operation": operation, "model": model, "status": "error"})
             _llm_error_counter.add(1, {"operation": operation, "model": model})

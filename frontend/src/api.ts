@@ -5,6 +5,17 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
+// Attach an X-Request-Id to every outgoing API call so the same id can be
+// grepped across browser console → backend logs → python logs → Sentry.
+api.interceptors.request.use((config) => {
+  const requestId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  config.headers.set('X-Request-Id', requestId)
+  return config
+})
+
 /** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
 export function extractError(err: unknown): { message: string; raw: string } {
   const e = err as Record<string, unknown> | undefined

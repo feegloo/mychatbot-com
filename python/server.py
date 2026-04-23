@@ -86,6 +86,23 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="ChatRAG Server")
 
 
+@app.middleware("http")
+async def _request_id_middleware(request, call_next):
+    """Bind incoming X-Request-Id to Sentry tag + log context so the same
+    identifier can be grepped across browser → backend → python logs and
+    is visible in the Sentry trace.
+    """
+    request_id = request.headers.get("x-request-id") or ""
+    if request_id:
+        with sentry_sdk.new_scope() as scope:
+            scope.set_tag("request_id", request_id)
+            logger.info(f"▶️  {request.method} {request.url.path} | request_id={request_id}")
+            response = await call_next(request)
+        response.headers["X-Request-Id"] = request_id
+        return response
+    return await call_next(request)
+
+
 @app.on_event("shutdown")
 async def _shutdown():
     """Clean up DB connection pool on shutdown."""

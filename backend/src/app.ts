@@ -18,6 +18,7 @@ import { donateRouter } from './routes/donate.js'
 import { imageGenRouter } from './routes/image-gen.js'
 import { config } from './config.js'
 import logger from './logger.js'
+import { requestIdMiddleware } from './middleware/requestId.js'
 
 export function createApp() {
   const app = new Koa()
@@ -26,8 +27,9 @@ export function createApp() {
     Sentry.captureException(err)
   })
 
-  app.use(cors())
+  app.use(cors({ exposeHeaders: ['X-Request-Id'] }))
   app.use(bodyParser())
+  app.use(requestIdMiddleware)
 
   Sentry.setupKoaErrorHandler(app)
 

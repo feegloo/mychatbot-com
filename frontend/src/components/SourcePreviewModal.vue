@@ -34,10 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue'
+import { computed } from 'vue'
 import { getStorageUrl } from '../api'
 import { cleanFileName, linkify } from '../utils/text'
-const PdfPageViewer = defineAsyncComponent(() => import('./PdfPageViewer.vue'))
+import PdfPageViewer from './PdfPageViewer.vue'
 
 const props = defineProps<{
   visible: boolean

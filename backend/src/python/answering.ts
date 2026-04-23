@@ -11,10 +11,14 @@ export async function answerQuestion(options: {
   storageDir?: string
   previousSuggestedQuestions?: string[]
   conversationName?: string
+  requestId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.requestId ? { 'X-Request-Id': options.requestId } : {}),
+    },
     body: JSON.stringify({
       conversation_id: options.conversationId,
       collection_name: options.collectionName,

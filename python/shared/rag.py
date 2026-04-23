@@ -25,6 +25,14 @@ _MATCHED_PAGES_MAX_CHARS = 40_000
 # per-request limit for GPT-4.1 / o-series; we stay 20 k below to be safe.
 _MAX_PROMPT_TOKENS = 280_000
 
+# Baseline sampling temperature for the answering LLM (OpenAI).
+# The system prompt instructs the model to self-regulate its effective
+# "creative temperature" inside the band [_MIN_LLM_TEMPERATURE, _MAX_LLM_TEMPERATURE]
+# depending on whether the question is factual or creative.
+_DEFAULT_LLM_TEMPERATURE = 0.4
+_MIN_LLM_TEMPERATURE = 0.2
+_MAX_LLM_TEMPERATURE = 0.6
+
 # Module-level cache for LLM instance
 _llm_instance = None
 _llm_provider_key = None
@@ -113,6 +121,23 @@ Context sections provided (in the human message):
 7. Chat History — all previous exchanges with timestamps
 8. Previously Suggested Questions — all action buttons already shown
 9. Start Answering
+
+--
+
+== ADAPTIVE CREATIVITY (self-regulated "virtual temperature") ==
+
+Your base sampling temperature is **0.4** (the neutral middle of a [0.2 – 0.6] band). Before you answer, silently classify the question on the factual ↔ creative spectrum and adjust the *character* of your response as if your temperature were pulled toward one end of the band. This is a style contract, not a real sampler change — nobody shows the number to the user.
+
+- **Toward 0.2 — FACTS & PRECISION.** Trigger when the question is about hard facts, numbers, science, finance, law, medical lab values, dates, definitions, step-by-step procedures, API specs, or anything where being *wrong* matters more than being *fun*. Be tight, deterministic, literal. Stick very close to the source. Avoid metaphors, flourishes, and speculation. Short sentences. No invented examples. Hedge only when the source hedges.
+  * Examples: "What was Q3 2024 revenue?", "List the side effects of finasteride", "Co mówi ustawa o RODO art. 13?", "What's the melting point of titanium?", "Postaw diagnozę na podstawie morfologii", "Give me the exact formula".
+
+- **Around 0.4 — DEFAULT / EXPLANATORY.** Stay here for the majority of questions: explanations, comparisons, summaries, "why does X happen", casual chat, how-to guides. Balanced — grounded in source but readable and warm.
+  * Examples: "Explain this chapter in your own words", "What's the difference between X and Y?", "Summarize the key ideas", "Walk me through how this works".
+
+- **Toward 0.6 — CREATIVE & GENERATIVE.** Trigger when the user asks you to *create*, *invent*, *imagine*, *write inspired by*, *continue*, *reimagine*, or when the source material is literary/poetic and the user wants art, not analysis. Loosen up: richer imagery, unexpected metaphors, rhythm, voice, risk. Longer sentences are fine. Channel the author's style hard. Invent vivid details when the source leaves room.
+  * Examples: "Write an inspired chapter in Stephen King's style", "Napisz wiersz inspirowany tym rozdziałem", "Generate an image prompt based on this scene", "Continue the story past the last chapter", "Write a fan-fiction dialogue between these two characters", "Reimagine this poem as a haiku".
+
+Rule of thumb: if the question has ONE correct answer → lean 0.2. If the question has many valid beautiful answers → lean 0.6. If in doubt → stay at 0.4. Never drop below 0.2 (robotic) or above 0.6 (unhinged/hallucinating). The factual grounding rules from the rest of this prompt always win over creativity — a 0.6 answer must still be faithful to uploaded sources.
 
 --
 
@@ -707,7 +732,7 @@ def get_llm() -> Any:
         _llm_instance = ChatOpenAI(
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
-            temperature=0.4,
+            temperature=_DEFAULT_LLM_TEMPERATURE,
             reasoning_effort=settings.openai_reasoning_effort,
         )
 

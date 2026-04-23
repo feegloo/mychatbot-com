@@ -29,6 +29,7 @@ import {
 import { findReusableImage, registerReusableImage } from '../python/reusable-image.js'
 import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
+import { getRequestId, startHeartbeat } from '../middleware/requestId.js'
 
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
@@ -145,20 +146,36 @@ askRouter.post('/ask', async (ctx) => {
     }
   }
 
-  const result = await answerQuestion({
-    conversationId,
-    collectionName: data.conversation.vector_collection_name,
-    question,
-    chatHistory,
-    welcomeMessages,
-    imageFilePaths: imageFilePaths.length ? imageFilePaths : undefined,
-    fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
-    storageDir,
-    previousSuggestedQuestions: previousSuggestedQuestions.length
-      ? previousSuggestedQuestions
-      : undefined,
-    conversationName: data.conversation.display_name || undefined,
-  })
+  const requestId = getRequestId(ctx)
+  const stopHeartbeat = startHeartbeat('python.answer', { conversationId, requestId })
+  let result
+  try {
+    result = await Sentry.startSpan(
+      {
+        op: 'python.answer',
+        name: 'POST /answer',
+        attributes: { conversation_id: conversationId, request_id: requestId },
+      },
+      () =>
+        answerQuestion({
+          conversationId,
+          collectionName: data.conversation.vector_collection_name,
+          question,
+          chatHistory,
+          welcomeMessages,
+          imageFilePaths: imageFilePaths.length ? imageFilePaths : undefined,
+          fileMetadata: Object.keys(fileMetadata).length ? fileMetadata : undefined,
+          storageDir,
+          previousSuggestedQuestions: previousSuggestedQuestions.length
+            ? previousSuggestedQuestions
+            : undefined,
+          conversationName: data.conversation.display_name || undefined,
+          requestId: requestId || undefined,
+        }),
+    )
+  } finally {
+    stopHeartbeat()
+  }
 
   const payload = result.parsedJson || {
     answer: result.stdout,
