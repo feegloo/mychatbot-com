@@ -51,8 +51,9 @@ import { translateTexts, detectLanguage } from '../api'
 //   (e.g. Pollinations URLs embed the prompt in the path, and translating it
 //   produces an unreachable src and a broken-image icon after the v-html swap).
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
-// Markdown image: `![alt](url "optional title")`. Non-greedy on url and alt;
-// disallows unescaped `)` inside url to keep the match tight.
+// Markdown image: `![alt](url "optional title")`. Uses negated character
+// classes so the match stops at the first closing `]` / `)` rather than
+// spanning over adjacent links on the same line.
 const IMAGE_MD_RE = /!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)/g
 
 type MarkerInfo = {

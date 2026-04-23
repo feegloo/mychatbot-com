@@ -572,8 +572,8 @@ describe("LanguageToggle", () => {
 
       // The image markdown must be replaced by an opaque placeholder before
       // hitting the translate API, so the URL is never exposed to translation.
-      const sentTexts = translateTextsMock.mock.calls[0]?.[0] as string[];
-      expect(sentTexts).toBeTruthy();
+      expect(translateTextsMock).toHaveBeenCalled();
+      const sentTexts = translateTextsMock.mock.calls[0][0] as string[];
       expect(sentTexts[0]).not.toContain("pollinations");
       expect(sentTexts[0]).not.toContain("![");
 
