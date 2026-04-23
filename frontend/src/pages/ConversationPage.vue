@@ -709,6 +709,7 @@ function saveScrollPosition() {
 
 // Re-apply the saved scrollTop while content is still rendering; stop as
 // soon as the user interacts, the target is reachable, or the budget ends.
+const SCROLL_RESTORE_BUDGET_MS = 2000
 let scrollRestoreCleanup: (() => void) | undefined
 
 function restoreScrollPosition(): boolean {
@@ -724,7 +725,7 @@ function restoreScrollPosition(): boolean {
   }
   apply()
 
-  const deadline = Date.now() + 2000
+  const deadline = Date.now() + SCROLL_RESTORE_BUDGET_MS
   const observer =
     typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(() => {
@@ -741,9 +742,12 @@ function restoreScrollPosition(): boolean {
   c.addEventListener('wheel', stopOnUserInput, { passive: true })
   c.addEventListener('touchstart', stopOnUserInput, { passive: true })
   c.addEventListener('keydown', stopOnUserInput)
-  const timeoutId = window.setTimeout(() => stop(), 2000)
+  const timeoutId = window.setTimeout(() => stop(), SCROLL_RESTORE_BUDGET_MS)
 
+  let stopped = false
   function stop() {
+    if (stopped) return
+    stopped = true
     observer?.disconnect()
     c.removeEventListener('wheel', stopOnUserInput)
     c.removeEventListener('touchstart', stopOnUserInput)
