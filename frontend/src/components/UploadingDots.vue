@@ -1,10 +1,7 @@
 <template>
   <span class="uploading-dots"
-    >{{ labelText }}<span
-      v-for="i in 3"
-      :key="i"
-      class="dot"
-      :style="{ animationDelay: `${(i - 1) * 0.3}s` }"
+    >{{ labelText
+    }}<span v-for="i in 3" :key="i" class="dot" :style="{ animationDelay: `${(i - 1) * 0.3}s` }"
       >.</span
     ></span
   >

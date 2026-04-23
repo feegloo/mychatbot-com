@@ -99,9 +99,7 @@
             <span v-else>🎨 Generating image, please wait...</span>
           </FadeText>
         </div>
-        <div class="typing-dots">
-          <span></span><span></span><span></span>
-        </div>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
 
       <!-- Welcome message with file preview: 2-column on desktop, stacked on mobile -->
@@ -386,7 +384,11 @@
         </div>
       </template>
       <FadeText v-else :trigger="msg.content">
-        <span class="user-text" :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }">{{ msg.content }}</span>
+        <span
+          class="user-text"
+          :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }"
+          >{{ msg.content }}</span
+        >
       </FadeText>
 
       <!-- Upload files button (first message only, non-2-col fallback) -->
@@ -988,7 +990,9 @@ function cleanupTooltips() {
   tooltipElements.forEach((el) => {
     try {
       destroyTooltip(el)
-    } catch { /* tooltip already destroyed */ }
+    } catch {
+      /* tooltip already destroyed */
+    }
   })
   tooltipElements.length = 0
 }
@@ -1029,8 +1033,9 @@ function coalesceActionRows(el: HTMLElement) {
   // row. Merge such fragmented rows back into one before applying the
   // "More ..." grouping logic so the overflow still collapses after a
   // translate round-trip.
-  const rows = Array.from(el.querySelectorAll<HTMLElement>('.action-btns-row'))
-    .filter((r) => r.dataset.moreReady !== '1')
+  const rows = Array.from(el.querySelectorAll<HTMLElement>('.action-btns-row')).filter(
+    (r) => r.dataset.moreReady !== '1',
+  )
   if (rows.length < 2) return
   const primary = rows[0]
   for (let i = 1; i < rows.length; i++) {
@@ -1407,7 +1412,6 @@ function openFilePreview(file: FileInfo) {
     border-color 0.15s;
   font-family: inherit;
 }
-
 
 /* On touch devices, always show and add spacing below */
 @media (hover: none) {

@@ -11,7 +11,17 @@
         pointer-events: none;
       "
     >
-      <div style="height: 30px; pointer-events: auto; max-width: 60%; min-width: 0; display: inline-flex;align-items: center;margin-left: 2px;">
+      <div
+        style="
+          height: 30px;
+          pointer-events: auto;
+          max-width: 60%;
+          min-width: 0;
+          display: inline-flex;
+          align-items: center;
+          margin-left: 2px;
+        "
+      >
         <h1
           v-if="!editingName && conversationTitle"
           class="conv-title"
@@ -68,11 +78,7 @@
         {{ status.conversationThreadCount }}
         {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
       </div>
-      <VTooltip
-        v-if="processing"
-        :triggers="['hover']"
-        placement="bottom"
-      >
+      <VTooltip v-if="processing" :triggers="['hover']" placement="bottom">
         <div
           class="indexing-bar"
           role="status"
@@ -85,7 +91,10 @@
         <template #popper>
           <div class="indexing-tooltip">
             <div>{{ processingStep || 'Processing files…' }}</div>
-            <div v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0" class="indexing-tooltip-pages">
+            <div
+              v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0"
+              class="indexing-tooltip-pages"
+            >
               Parsed {{ parsedPages }}/{{ totalPages }} pages
             </div>
           </div>

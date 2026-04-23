@@ -18,7 +18,10 @@
           :is-welcome="sharedIsWelcome"
           :files="sharedFiles"
           :no-animation="true"
-          @select-question="replyText = $event; startThread()"
+          @select-question="
+            replyText = $event
+            startThread()
+          "
         />
       </div>
 

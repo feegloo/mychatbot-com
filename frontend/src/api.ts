@@ -340,9 +340,7 @@ export function getStorageUrl(conversationId: string, fileName: string) {
  * fragment (which triggers Chrome's "Unsafe attempt to load URL" warning).
  */
 export async function resolveStorageUrl(conversationId: string, fileName: string) {
-  const response = await api.get(
-    `/storage/${conversationId}/${encodeURIComponent(fileName)}/url`,
-  )
+  const response = await api.get(`/storage/${conversationId}/${encodeURIComponent(fileName)}/url`)
   return (response.data as { url: string }).url
 }
 
@@ -440,11 +438,7 @@ export async function getFullPrompt(username: string, password: string, promptId
 }
 
 export async function runDebugSql(username: string, password: string, sql: string) {
-  const response = await api.post(
-    '/debug/sql',
-    { sql },
-    { auth: { username, password } },
-  )
+  const response = await api.post('/debug/sql', { sql }, { auth: { username, password } })
   return response.data as {
     rows: Record<string, unknown>[]
     fields: string[]

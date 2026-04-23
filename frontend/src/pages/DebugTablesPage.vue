@@ -117,19 +117,16 @@
                   :key="i"
                   :class="{ 'row-expanded': isRowExpanded(i) }"
                   class="data-row"
-                  @click="toggleRow(i, row as Record<string, unknown>)"
+                  @click="toggleRow(i, row)"
                 >
                   <td v-for="col in currentColumns" :key="col">
                     <span
                       class="cell"
                       :class="{ expanded: isRowExpanded(i) }"
                       :title="isRowExpanded(i) ? '' : String(row[col] ?? '')"
-                      >{{
-                        isRowExpanded(i)
-                          ? fullCellContent(row as Record<string, unknown>, col)
-                          : formatCell(row[col], col)
-                      }}</span
                     >
+                      {{ renderCell(row, col, isRowExpanded(i)) }}
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -249,8 +246,8 @@ async function fetchTable(name: DebugTableName) {
 
 const tableNames = computed(() => TABLE_NAMES)
 
-const isLoadingCurrentTable = computed(() =>
-  activeTable.value !== SQL_TAB && loadingTable.value === activeTable.value,
+const isLoadingCurrentTable = computed(
+  () => activeTable.value !== SQL_TAB && loadingTable.value === activeTable.value,
 )
 
 const currentRows = computed(() =>
@@ -272,7 +269,8 @@ function isRowExpanded(rowIdx: number) {
   return expandedRows.value.has(rowIdx)
 }
 
-async function toggleRow(rowIdx: number, row: Record<string, unknown>) {
+async function toggleRow(rowIdx: number, rowLike: unknown) {
+  const row = rowLike as Record<string, unknown>
   const next = new Set(expandedRows.value)
   if (next.has(rowIdx)) {
     next.delete(rowIdx)
@@ -304,6 +302,14 @@ function fullCellContent(row: Record<string, unknown>, col: string): string {
     if (cached) return String(cached[col as keyof typeof cached] ?? '—')
   }
   return expandedCellContent(row[col])
+}
+
+/** Template-facing cell renderer. Accepts `unknown` so the template doesn't
+ *  need an inline `as Record<…>` cast (Prettier's HTML parser mis-reads the
+ *  `<` in generics as a stray closing tag). */
+function renderCell(row: unknown, col: string, expanded: boolean): string {
+  const r = row as Record<string, unknown>
+  return expanded ? fullCellContent(r, col) : formatCell(r[col], col)
 }
 
 function isJsonString(value: unknown): boolean {

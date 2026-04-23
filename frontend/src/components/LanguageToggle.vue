@@ -95,10 +95,7 @@ function extractMarkers(texts: string[]): {
   return { cleaned, markers }
 }
 
-function restoreMarkers(
-  translations: string[],
-  markers: Map<number, MarkerInfo[]>,
-): string[] {
+function restoreMarkers(translations: string[], markers: Map<number, MarkerInfo[]>): string[] {
   return translations.map((text, i) => {
     const m = markers.get(i)
     if (!m) return text

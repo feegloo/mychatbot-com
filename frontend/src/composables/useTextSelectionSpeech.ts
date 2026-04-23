@@ -671,7 +671,7 @@ export function useTextSelectionSpeech(
     // caretRangeFromPoint (Chrome, Safari) / caretPositionFromPoint (Firefox)
     if (document.caretRangeFromPoint) {
       range = document.caretRangeFromPoint(x, y)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } else if ((document as any).caretPositionFromPoint) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pos = (document as any).caretPositionFromPoint(x, y)

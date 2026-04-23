@@ -54,7 +54,10 @@
           :can-upload="false"
           :max-visible-actions="5"
           :no-animation="index < initialMessageCount"
-          @select-question="question = $event; submitQuestion()"
+          @select-question="
+            question = $event
+            submitQuestion()
+          "
           @image-revealed="(success: boolean) => success && scrollToBottom(true)"
         />
       </div>

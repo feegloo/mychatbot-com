@@ -1,9 +1,6 @@
 import { ref, type Ref } from 'vue'
 
-export type ProcessingStep =
-  | 'generating_welcome'
-  | 'indexing_pages'
-  | ''
+export type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 
 const STEP_LABELS: Record<ProcessingStep, string> = {
   generating_welcome: 'Processing',

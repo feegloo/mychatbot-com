@@ -127,7 +127,6 @@ export function renderMarkdown(content: string): string {
     )
   const sanitized = DOMPurify.sanitize(withChecklists)
   // Restore LaTeX blocks and render with KaTeX
-  // eslint-disable-next-line no-control-regex
   const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const { tex, display } = mathPlaceholders[idx]
@@ -138,7 +137,6 @@ export function renderMarkdown(content: string): string {
     }
   })
   // Restore [poem] blocks as styled blockquote with decorative quotes
-  // eslint-disable-next-line no-control-regex
   const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const lines = poemPlaceholders[idx]
@@ -253,10 +251,7 @@ export function renderMarkdown(content: string): string {
 export function renderInlineMarkdown(content: string): string {
   const rawHtml = marked.parseInline(content, { async: false }) as string
   const sanitized = DOMPurify.sanitize(rawHtml)
-  return sanitized.replace(
-    /<a (?![^>]*target=)/gi,
-    '<a target="_blank" rel="noopener noreferrer" ',
-  )
+  return sanitized.replace(/<a (?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ')
 }
 
 /**
@@ -279,6 +274,4 @@ export function renderInlineMarkdown(content: string): string {
  * intentionally NOT matched here — suggested-question prompts always append
  * 🎨, so the emoji branch covers them.
  */
-export const IMAGE_GEN_REGEX =
-  /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i
-
+export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i

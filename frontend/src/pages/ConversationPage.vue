@@ -113,13 +113,16 @@
             :is-first-message="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :can-upload="canUpload"
             :files="uploadFilesForMessage(index)"
-            :max-visible-actions="index === 0 ? 5: 3"
+            :max-visible-actions="index === 0 ? 5 : 3"
             :conversation-name="conversationTitle"
             :file-name="primaryFileName"
             :is-thread="isThread"
             :no-animation="index < initialMessageCount"
             :is-translating="isTranslating"
-            @select-question="question = $event; submitQuestion()"
+            @select-question="
+              question = $event
+              submitQuestion()
+            "
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
@@ -514,7 +517,9 @@ async function handleUploadFiles(files: File[]) {
     await onReload()
   } catch (err: unknown) {
     if (err instanceof AxiosError && err.response?.status === 409) {
-      const names = ((err.response.data as Record<string, unknown>)?.duplicates as string[] || []).join(', ')
+      const names = (
+        ((err.response.data as Record<string, unknown>)?.duplicates as string[]) || []
+      ).join(', ')
       msgRef.resetUploadState(names ? `File ${names} already uploaded` : 'File already uploaded')
     } else {
       const { message } = extractError(err)
