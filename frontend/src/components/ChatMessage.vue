@@ -112,7 +112,7 @@
           >
             <div v-for="(part, pi) in contentParts" :key="pi">
               <FadeText v-if="part.type === 'text'" :trigger="part.html">
-                <!-- eslint-disable-next-line vue/no-v-html -->
+                <!-- eslint-disable-next-line vue/no-v-html -- content is sanitized by DOMPurify in renderMarkdown/renderMermaidMarkdown -->
                 <div
                   ref="contentEls"
                   class="markdown-content"
@@ -357,7 +357,7 @@
         >
           <div v-for="(part, pi) in contentParts" :key="pi">
             <FadeText v-if="part.type === 'text'" :trigger="part.html">
-              <!-- eslint-disable-next-line vue/no-v-html -->
+              <!-- eslint-disable-next-line vue/no-v-html -- content is sanitized by DOMPurify in renderMarkdown/renderMermaidMarkdown -->
               <div
                 ref="contentEls"
                 class="markdown-content"

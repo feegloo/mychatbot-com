@@ -415,7 +415,7 @@ async function doLogin() {
     fetchedTables.value = new Set<DebugTableName>(['conversations'])
     authenticated.value = true
     loading.value = false
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof Error && 'response' in e) {
       const resp = (e as { response?: { status?: number } }).response
       if (resp?.status === 401) {

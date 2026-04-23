@@ -42,7 +42,7 @@ export function useConversationEvents(conversationId: string) {
   }
 
   function connect() {
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api'
+    const baseUrl = import.meta.env?.VITE_API_BASE_URL || '/api'
     eventSource = new EventSource(`${baseUrl}/conversations/${conversationId}/events`)
 
     eventSource.addEventListener('welcome_message', () => {

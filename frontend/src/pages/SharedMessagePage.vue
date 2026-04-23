@@ -91,6 +91,7 @@ import {
   createThread,
   saveConversationToken,
   getConversationToken,
+  extractError,
   type SharedMessage,
   type ThreadSummary,
 } from '../api'
@@ -148,8 +149,8 @@ async function startThread() {
     saveConversationToken(result.conversationId, result.ownerPassword)
     // Navigate to the new thread conversation with the pending question
     router.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } })
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || 'Failed to create thread'
+  } catch (err: unknown) {
+    error.value = extractError(err).message || 'Failed to create thread'
   } finally {
     creatingThread.value = false
   }

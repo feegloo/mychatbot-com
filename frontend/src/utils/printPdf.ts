@@ -512,11 +512,13 @@ export async function printContentAsPdf(markdown: string, title: string) {
     const wmX = pw - 12 - totalWidth
     const wmY = ph - 8
     doc.setTextColor(0, 0, 0)
-    doc.setGState(new (doc as any).GState({ opacity: 0.35 }))
+    // jsPDF's GState is attached at runtime and missing from its .d.ts.
+    const GState = (doc as unknown as { GState: new (opts: { opacity: number }) => unknown }).GState
+    doc.setGState(new GState({ opacity: 0.35 }))
     doc.text(prefix, wmX, wmY)
     doc.setTextColor(70, 130, 220)
     doc.textWithLink(link, wmX + prefixWidth, wmY, { url: 'https://chatrag.app' })
-    doc.setGState(new (doc as any).GState({ opacity: 1 }))
+    doc.setGState(new GState({ opacity: 1 }))
   }
 
   const safeName = title

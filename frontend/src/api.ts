@@ -4,6 +4,11 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
+/** Read the HTTP status from any error (axios or otherwise), if present. */
+export function httpStatus(err: unknown): number | undefined {
+  return (err as { response?: { status?: number } } | undefined)?.response?.status
+}
+
 /** Extract a user-friendly message + raw debug string from any error (axios or otherwise). */
 export function extractError(err: unknown): { message: string; raw: string } {
   const e = err as Record<string, unknown> | undefined
