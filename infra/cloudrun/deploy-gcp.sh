@@ -223,8 +223,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --subnet default \
   --vpc-egress private-ranges-only \
   --port 8080 \
-  --memory 16Gi \
-  --cpu 8 \
+  --memory 4Gi \
+  --cpu 4 \
   --min-instances 1 \
   --max-instances 1 \
   --timeout 300 \
@@ -245,9 +245,6 @@ FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
 PYTHON_PROJECT_ROOT=/app/python,\
 PYTHON_SERVER_URL=http://localhost:8321,\
-USE_GEMMA=${USE_GEMMA:-false},\
-GEMMA_MODEL=${GEMMA_MODEL:-gemma4},\
-GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-chatrag},\
 DEBUG_PASS=${DEBUG_PASS:-chatragadmin},\
 STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY},\
@@ -278,8 +275,8 @@ if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
     --network default \
     --subnet default \
     --vpc-egress private-ranges-only \
-    --memory 2Gi \
-    --cpu 2 \
+    --memory 1Gi \
+    --cpu 1 \
     --instances "${WORKER_INSTANCES:-1}" \
     --set-env-vars "\
 PYTHONUNBUFFERED=1,\

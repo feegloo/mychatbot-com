@@ -30,12 +30,23 @@ defineProps<{
 </template>
 
 <style>
+/*
+ * Fade via `color` rather than `opacity` so inline images (and other
+ * non-text content) stay fully visible throughout the transition — only
+ * the translated text animates. `*` is needed because descendants like
+ * links or code spans set their own `color`, which wouldn't otherwise
+ * fade alongside the wrapper's color.
+ */
 .fade-text-enter-active,
-.fade-text-leave-active {
-  transition: opacity 0.25s ease;
+.fade-text-enter-active *,
+.fade-text-leave-active,
+.fade-text-leave-active * {
+  transition: color 0.25s ease;
 }
 .fade-text-enter-from,
-.fade-text-leave-to {
-  opacity: 0;
+.fade-text-enter-from *,
+.fade-text-leave-to,
+.fade-text-leave-to * {
+  color: transparent !important;
 }
 </style>

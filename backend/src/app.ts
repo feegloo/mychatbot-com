@@ -69,7 +69,20 @@ export function createApp() {
   })
 
   if (config.frontendDistPath && fs.existsSync(config.frontendDistPath)) {
-    app.use(serve(config.frontendDistPath))
+    // Vite emits content-hashed files under /assets/* — safe to cache immutably.
+    // Everything else (index.html, favicon, robots.txt) should revalidate.
+    app.use(
+      serve(config.frontendDistPath, {
+        setHeaders: (res, filePath) => {
+          const rel = path.relative(path.resolve(config.frontendDistPath), filePath)
+          if (rel.startsWith('assets' + path.sep)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+          } else {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+          }
+        },
+      }),
+    )
 
     // Serve .well-known files explicitly (extensionless files need content-type set)
     app.use(async (ctx, next) => {
@@ -99,6 +112,7 @@ export function createApp() {
         return
       }
       await send(ctx, 'index.html', { root: path.resolve(config.frontendDistPath) })
+      ctx.set('Cache-Control', 'public, max-age=0, must-revalidate')
     })
   }
 

@@ -120,7 +120,7 @@ _META_EXCLUDE_KEYS = {
 
 # ── Token budget for the describe prompt ─────────────────────────────
 # Organization TPM (tokens per minute) limit for gpt-5.4-mini: 200K.
-# Context windows: gpt-5.4-mini ~1M, claude-3-5-haiku ~200K, gemma4 ~128K.
+# Context windows: gpt-5.4-mini ~1M.
 # We keep the content budget generous but respect TPM constraints.
 # ~30K tokens ≈ 120K chars is safe for a single call.
 _DESCRIBE_MAX_CONTENT_CHARS = 120_000
@@ -437,7 +437,7 @@ def _estimate_word_count(text: str) -> int:
 
 
 # ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
-# OpenAI / Anthropic hard per-request cap is 300K tokens for many models.
+# OpenAI hard per-request cap is 300K tokens for many models.
 # We leave ~50K headroom for the system prompt, rules, and completion.
 _MAX_REQUEST_TOKENS = 250_000
 # Safe budget for the *content* portion of a single LLM call.  The system

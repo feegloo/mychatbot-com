@@ -7,7 +7,9 @@
  * plus delegated clicks for [source:N] citations, inline images, the
  * [upload] button, and checklist boxes.
  */
-import { computed, defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { createTooltip, destroyTooltip } from 'floating-vue'
+import type { ChatMessage } from '../../api'
 import { parseMessageContent, splitTokens } from './parseContent'
 import { splitContent } from './splitContent'
 import Action from './Action.vue'
@@ -24,6 +26,9 @@ const props = defineProps<{
   messageId?: string
   conversationName?: string
   fileName?: string
+  /** When provided, hovering `[source:N]` buttons shows the citation text as
+   *  a floating-vue tooltip (restored from the pre-refactor ChatMessage). */
+  citations?: ChatMessage['citations']
 }>()
 const emit = defineEmits<{
   /** A `[prompt:Label]` or `[action:Label]` was clicked. */
@@ -86,10 +91,70 @@ function onContentClick(e: MouseEvent) {
     li.querySelector('.checklist-box')!.classList.toggle('checked')
   }
 }
+
+// --- Inline source citation tooltips --------------------------------------
+// Attach floating-vue tooltips to `.inline-source-btn` nodes so hovering a
+// citation reveals the source text (restored from the pre-refactor
+// implementation). We track the HTMLElements we've attached to so we can
+// tear them down before the rendered markdown is re-created on content or
+// citation change.
+const rootEl = ref<HTMLElement | null>(null)
+const tooltipTargets: HTMLElement[] = []
+const MAX_TOOLTIP_LENGTH = 600
+
+function truncate(text: string, max: number) {
+  return text.length <= max ? text : text.slice(0, max) + '…'
+}
+
+function cleanupTooltips() {
+  for (const el of tooltipTargets) {
+    try {
+      destroyTooltip(el)
+    } catch {
+      /* already destroyed */
+    }
+  }
+  tooltipTargets.length = 0
+}
+
+function setupTooltips() {
+  cleanupTooltips()
+  const citations = props.citations
+  if (!citations?.length || !rootEl.value) return
+  const buttons = rootEl.value.querySelectorAll<HTMLElement>('.inline-source-btn')
+  buttons.forEach((btn) => {
+    const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1
+    const text = citations[idx]?.text
+    if (!text) return
+    createTooltip(
+      btn,
+      {
+        content: truncate(text, MAX_TOOLTIP_LENGTH),
+        delay: { show: 500, hide: 0 },
+        themes: ['tooltip'],
+      },
+      false,
+    )
+    tooltipTargets.push(btn)
+  })
+}
+
+// Re-attach after every render that could swap out the citation buttons:
+// content string changes (new message or translation) and citations array
+// changes (streaming in).
+watch(
+  () => [props.content, props.citations] as const,
+  () => {
+    nextTick(setupTooltips)
+  },
+  { immediate: true, flush: 'post' },
+)
+
+onBeforeUnmount(cleanupTooltips)
 </script>
 
 <template>
-  <div class="message-content">
+  <div ref="rootEl" class="message-content">
     <template v-for="(part, pi) in parts" :key="pi">
       <!-- eslint-disable-next-line vue/no-v-html -- sanitized by DOMPurify in renderMarkdown -->
       <div

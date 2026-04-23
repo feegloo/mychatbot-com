@@ -39,8 +39,8 @@
         class="conv-nav-collapse-btn"
         :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
         @click.stop="
-          $emit('toggle-collapse')
-          $emit('navigate')
+          $emit('toggle-collapse');
+          $emit('navigate');
         "
       >
         <svg

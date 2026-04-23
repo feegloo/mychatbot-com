@@ -101,7 +101,7 @@
             v-for="(msg, index) in displayedMessages"
             :key="msg.id || index"
             :ref="
-              (el: any) => {
+              (el) => {
                 if (index === 0) firstMessageRef = el
               }
             "
@@ -120,13 +120,13 @@
             :no-animation="index < initialMessageCount"
             :is-translating="isTranslating"
             @select-question="
-              question = $event
-              submitQuestion()
+              question = $event;
+              submitQuestion();
             "
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
-            @image-revealed="(success: boolean) => success && scrollToBottom(true, true)"
+            @image-revealed="(success) => success && scrollToBottom(true, true)"
           />
           <div
             v-if="showInlineProcessing"

@@ -4,7 +4,7 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your Big files securely 🔒 and let learning AI tell you what’s inside in the author’s
+        Upload your Big files securely 🔒, let AI extract insights and tell you what’s inside in the author’s
         voice.<br /><br />
         Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG, share
         answers<br />
@@ -84,7 +84,7 @@
         :is-first-message="false"
         :can-upload="false"
         :files="undefined"
-        @image-revealed="(success: boolean) => success && scrollToBottom(true)"
+        @image-revealed="(success) => success && scrollToBottom(true)"
       />
     </div>
 

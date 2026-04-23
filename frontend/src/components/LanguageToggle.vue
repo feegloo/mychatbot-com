@@ -3,7 +3,6 @@
     <button
       class="lang-toggle-btn"
       :title="translating ? 'Translating…' : buttonTitle"
-      :disabled="translating"
       @click="onButtonClick"
       @pointerup="(e) => (e.currentTarget as HTMLElement).blur()"
     >
@@ -112,35 +111,28 @@ function restoreMarkers(translations: string[], markers: Map<number, MarkerInfo[
   })
 }
 
-async function translateActionLabels(
-  markers: Map<number, MarkerInfo[]>,
+async function translateBatch(
+  texts: string[],
   targetLang: string,
   sourceLang?: string,
-) {
-  // Collect unique action labels across all messages, then translate once and
-  // write the translated label back onto every marker instance.
-  const unique = new Map<string, MarkerInfo[]>()
-  for (const list of markers.values()) {
-    for (const info of list) {
-      if (info.kind !== 'action' || !info.label) continue
-      const existing = unique.get(info.label)
-      if (existing) existing.push(info)
-      else unique.set(info.label, [info])
-    }
+): Promise<string[]> {
+  // Google Translate route caps each request at 20 items; parallelise chunks
+  // so the logical call remains one awaitable batch from the caller's view.
+  const out: string[] = new Array(texts.length)
+  const chunkJobs: Promise<void>[] = []
+  for (let start = 0; start < texts.length; start += 20) {
+    const chunk = texts.slice(start, start + 20)
+    const offset = start
+    chunkJobs.push(
+      translateTexts(chunk, targetLang, sourceLang).then((r) => {
+        r.translations.forEach((t, k) => {
+          out[offset + k] = t
+        })
+      }),
+    )
   }
-  if (!unique.size) return
-  const labels = [...unique.keys()]
-  const translated: string[] = []
-  for (let batch = 0; batch < labels.length; batch += 20) {
-    const chunk = labels.slice(batch, batch + 20)
-    const result = await translateTexts(chunk, targetLang, sourceLang)
-    translated.push(...result.translations)
-  }
-  labels.forEach((label, i) => {
-    const t = translated[i]
-    if (!t) return
-    for (const info of unique.get(label)!) info.label = t
-  })
+  await Promise.all(chunkJobs)
+  return out
 }
 
 async function translateWithMarkers(texts: string[], targetLang: string, sourceLang?: string) {
@@ -158,13 +150,42 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
     trailing.push(r)
     return t.slice(l.length, t.length - r.length)
   })
-  const [result] = await Promise.all([
-    translateTexts(stripped, targetLang, sourceLang),
-    translateActionLabels(markers, targetLang, sourceLang),
-  ])
-  result.translations = result.translations.map((t, i) => leading[i] + t + trailing[i])
-  result.translations = restoreMarkers(result.translations, markers)
-  return result
+
+  // Flatten text + per-message action labels into a single positional batch.
+  // For each message we push its stripped text followed by its action labels
+  // contiguously, which is the positional mapping the spec calls for (text
+  // at N, its actions at N+1, N+2, …).
+  type Slot =
+    | { kind: 'text'; textIndex: number }
+    | { kind: 'action'; markerRef: MarkerInfo }
+  const slots: Slot[] = []
+  const batch: string[] = []
+  stripped.forEach((s, i) => {
+    slots.push({ kind: 'text', textIndex: i })
+    batch.push(s)
+    const msgMarkers = markers.get(i)
+    if (!msgMarkers) return
+    for (const mk of msgMarkers) {
+      if (mk.kind !== 'action' || !mk.label) continue
+      slots.push({ kind: 'action', markerRef: mk })
+      batch.push(mk.label)
+    }
+  })
+
+  const translated = await translateBatch(batch, targetLang, sourceLang)
+
+  // Reassemble: action translations mutate the shared MarkerInfo label so
+  // restoreMarkers re-inserts the translated [action:Label] fragment.
+  const textTranslations: string[] = new Array(stripped.length)
+  slots.forEach((slot, i) => {
+    const t = translated[i]
+    if (t === undefined) return
+    if (slot.kind === 'text') textTranslations[slot.textIndex] = t
+    else slot.markerRef.label = t
+  })
+
+  const withWhitespace = textTranslations.map((t, i) => leading[i] + t + trailing[i])
+  return { translations: restoreMarkers(withWhitespace, markers) }
 }
 
 const props = defineProps<{
@@ -191,6 +212,16 @@ const currentLang = ref('') // language messages are currently displayed in
 const pendingLang = ref('')
 const translating = ref(false)
 const translationCache = ref<Map<string, string>>(new Map())
+// In-flight translation promises keyed by target language. We keep them across
+// "cancel" clicks (user toggled back to the original while a request is still
+// loading) so a subsequent click on the same target awaits the same request
+// instead of firing a duplicate. Entries are removed on settle (success OR
+// error) so a fresh promise is created on retry.
+type PendingTranslation = {
+  translations: Map<number, string>
+  title?: string
+}
+const inflightTranslations = new Map<string, Promise<PendingTranslation>>()
 const detectionAttempted = ref(false)
 const translatedUpToIndex = ref(-1)
 const showDropdown = ref(false)
@@ -336,7 +367,19 @@ watch(
 )
 
 function onButtonClick() {
-  if (translating.value) return
+  // Clicking during an in-flight translation cancels the visual waiting state
+  // but leaves the background request running (see spec: "do not cancel
+  // previous translate request"). The guard inside translateTo() uses
+  // pendingLang to decide whether to apply the result when it eventually
+  // resolves — clearing pendingLang here suppresses apply for the prior
+  // click, while the promise stays in inflightTranslations so the next click
+  // on the same target can re-await it.
+  if (translating.value && pendingLang.value) {
+    pendingLang.value = ''
+    translating.value = false
+    emit('translating-end')
+    return
+  }
 
   if (isToggleMode.value) {
     // Two languages: toggle directly
@@ -355,46 +398,137 @@ function onButtonClick() {
   showDropdown.value = !showDropdown.value
 }
 
+// Translate messages that arrived after a translation was applied, back into
+// the detected (original) language. Used by the restore path so messages the
+// user typed in their chosen target language are displayed in the document's
+// original language after toggling back.
+async function translateNewMessagesBack(): Promise<Map<number, string>> {
+  const result = new Map<number, string>()
+  const toTranslateBack: { index: number; content: string; id?: string }[] = []
+
+  props.messages.forEach((msg, i) => {
+    if (i <= translatedUpToIndex.value) return
+    if (!msg.content.trim()) return
+    const memKey = `${msg.content}→${detectedLang.value}`
+    const mem = translationCache.value.get(memKey)
+    if (mem) {
+      result.set(i, mem)
+      return
+    }
+    if (msg.id) {
+      const stored = getStoredTranslation(detectedLang.value, msg.id)
+      if (stored) {
+        result.set(i, stored)
+        translationCache.value.set(memKey, stored)
+        return
+      }
+    }
+    toTranslateBack.push({ index: i, content: msg.content, id: msg.id })
+  })
+
+  if (toTranslateBack.length) {
+    const translated = await translateWithMarkers(
+      toTranslateBack.map((c) => c.content),
+      detectedLang.value,
+      currentLang.value,
+    )
+    toTranslateBack.forEach((item, j) => {
+      const t = translated.translations[j]
+      if (!t) return
+      result.set(item.index, t)
+      translationCache.value.set(`${item.content}→${detectedLang.value}`, t)
+      translationCache.value.set(`${t}→${currentLang.value}`, item.content)
+      if (item.id) setStoredTranslation(detectedLang.value, item.id, t)
+    })
+  }
+  return result
+}
+
+// Build the translated payload (messages + title) for a foreign target.
+// Uses in-memory and localStorage caches to skip messages already translated.
+async function buildTranslation(targetLang: string): Promise<PendingTranslation> {
+  const translations = new Map<number, string>()
+  const toTranslate: { index: number; content: string; id?: string }[] = []
+
+  props.messages.forEach((msg, i) => {
+    if (!msg.content.trim()) return
+    const cacheKey = `${msg.content}→${targetLang}`
+    const cached = translationCache.value.get(cacheKey)
+    if (cached) {
+      translations.set(i, cached)
+      return
+    }
+    // Persisted per-message cache survives reload.
+    if (msg.id) {
+      const stored = getStoredTranslation(targetLang, msg.id)
+      if (stored) {
+        translations.set(i, stored)
+        translationCache.value.set(cacheKey, stored)
+        return
+      }
+    }
+    toTranslate.push({ index: i, content: msg.content, id: msg.id })
+  })
+
+  // Title is sent as a separate batch so callers can keep it in a dedicated
+  // emit path; running both calls in parallel minimises perceived latency.
+  const titleText = props.title?.trim() ?? ''
+  const titleCacheKey = titleText ? `${titleText}→${targetLang}` : ''
+  const titleCached = titleText ? translationCache.value.get(titleCacheKey) : undefined
+
+  const jobs: Promise<void>[] = []
+
+  if (toTranslate.length) {
+    jobs.push(
+      translateWithMarkers(
+        toTranslate.map((c) => c.content),
+        targetLang,
+        detectedLang.value || undefined,
+      ).then((result) => {
+        toTranslate.forEach((item, j) => {
+          const t = result.translations[j]
+          if (t === undefined) return
+          translations.set(item.index, t)
+          translationCache.value.set(`${item.content}→${targetLang}`, t)
+          if (item.id) setStoredTranslation(targetLang, item.id, t)
+        })
+      }),
+    )
+  }
+
+  let title: string | undefined = titleCached
+  if (titleText && !titleCached) {
+    jobs.push(
+      translateWithMarkers([titleText], targetLang, detectedLang.value || undefined).then(
+        (result) => {
+          const t = result.translations[0]
+          if (t) {
+            title = t
+            translationCache.value.set(titleCacheKey, t)
+          }
+        },
+      ),
+    )
+  }
+
+  await Promise.all(jobs)
+  return { translations, title }
+}
+
 async function translateTo(targetLang: string) {
   showDropdown.value = false
-  if (translating.value) return
-  if (targetLang === currentLang.value) return
+  if (targetLang === currentLang.value && !pendingLang.value) return
 
-  // Restoring to original (detected) language
+  // Restoring to original (detected) language. The parent holds the
+  // originalMessages map and can instantly restore already-translated
+  // messages; we only need to translate messages that arrived during the
+  // translated state back into the detected language.
   if (targetLang === detectedLang.value) {
     pendingLang.value = targetLang
     translating.value = true
     emit('translating-start')
     try {
-      const newMsgTranslations = new Map<number, string>()
-      const toTranslateBack: { index: number; content: string }[] = []
-
-      props.messages.forEach((msg, i) => {
-        if (i <= translatedUpToIndex.value) return
-        if (!msg.content.trim()) return
-        const cached = translationCache.value.get(`${msg.content}→${detectedLang.value}`)
-        if (cached) {
-          newMsgTranslations.set(i, cached)
-        } else {
-          toTranslateBack.push({ index: i, content: msg.content })
-        }
-      })
-
-      for (let batch = 0; batch < toTranslateBack.length; batch += 20) {
-        const chunk = toTranslateBack.slice(batch, batch + 20)
-        const result = await translateWithMarkers(
-          chunk.map((c) => c.content),
-          detectedLang.value,
-          currentLang.value,
-        )
-        chunk.forEach((item, j) => {
-          const translated = result.translations[j]
-          newMsgTranslations.set(item.index, translated)
-          translationCache.value.set(`${item.content}→${detectedLang.value}`, translated)
-          translationCache.value.set(`${translated}→${currentLang.value}`, item.content)
-        })
-      }
-
+      const newMsgTranslations = await translateNewMessagesBack()
       currentLang.value = detectedLang.value
       storeLanguage(detectedLang.value)
       emit('restored', newMsgTranslations)
@@ -411,85 +545,62 @@ async function translateTo(targetLang: string) {
     return
   }
 
-  // Translating to a new target language
-  // If currently showing a translation, restore first then translate
+  // Translating to a foreign target.
   pendingLang.value = targetLang
   translating.value = true
   emit('translating-start')
-  try {
-    // If we're in a translated state, restore originals first
-    if (isTranslated.value) {
-      currentLang.value = detectedLang.value
-      emit('restored', new Map())
-      // Small tick to let parent restore originals
-      await new Promise((r) => setTimeout(r, 0))
-    }
 
-    const translations = new Map<number, string>()
-    const toTranslate: { index: number; content: string; id?: string }[] = []
+  // If we're in an already-translated state (different foreign target),
+  // restore originals first so buildTranslation reads the original text.
+  // We only do this flash when the view was already translated — not during
+  // the pending state of a still-loading translation, so the spec's
+  // "don't blank the text" rule still holds for the cancel/re-click path.
+  if (isTranslated.value) {
+    currentLang.value = detectedLang.value
+    emit('restored', new Map())
+    await new Promise((r) => setTimeout(r, 0))
+  }
 
-    props.messages.forEach((msg, i) => {
-      if (!msg.content.trim()) return
-      const cacheKey = `${msg.content}→${targetLang}`
-      const cached = translationCache.value.get(cacheKey)
-      if (cached) {
-        translations.set(i, cached)
-        return
-      }
-      // Persisted per-message cache survives reload.
-      if (msg.id) {
-        const stored = getStoredTranslation(targetLang, msg.id)
-        if (stored) {
-          translations.set(i, stored)
-          translationCache.value.set(cacheKey, stored)
-          return
+  // Reuse an in-flight promise for the same target if one exists. On settle
+  // we remove it so the next click builds a fresh request (and picks up any
+  // new messages that arrived after the promise started).
+  let promise = inflightTranslations.get(targetLang)
+  if (!promise) {
+    promise = buildTranslation(targetLang)
+    inflightTranslations.set(targetLang, promise)
+    // Silence "unhandled rejection" on the cached promise reference — actual
+    // consumers still see the error via their own `await promise` below, but
+    // without this attach a rejection on the bare promise reference causes
+    // Node to log an unhandled rejection when nobody happens to be awaiting.
+    void promise
+      .catch(() => {})
+      .finally(() => {
+        if (inflightTranslations.get(targetLang) === promise) {
+          inflightTranslations.delete(targetLang)
         }
-      }
-      toTranslate.push({ index: i, content: msg.content, id: msg.id })
-    })
-
-    for (let batch = 0; batch < toTranslate.length; batch += 20) {
-      const chunk = toTranslate.slice(batch, batch + 20)
-      const result = await translateWithMarkers(
-        chunk.map((c) => c.content),
-        targetLang,
-        detectedLang.value,
-      )
-      chunk.forEach((item, j) => {
-        const translated = result.translations[j]
-        translations.set(item.index, translated)
-        translationCache.value.set(`${item.content}→${targetLang}`, translated)
-        if (item.id) setStoredTranslation(targetLang, item.id, translated)
       })
-    }
+  }
 
-    // Translate conversation title (emitted separately so caller can restore it)
-    const title = props.title?.trim()
-    if (title) {
-      const cacheKey = `${title}→${targetLang}`
-      const cached = translationCache.value.get(cacheKey)
-      if (cached) {
-        emit('title-translated', cached)
-      } else {
-        const result = await translateWithMarkers([title], targetLang, detectedLang.value)
-        const translated = result.translations[0]
-        if (translated) {
-          translationCache.value.set(cacheKey, translated)
-          emit('title-translated', translated)
-        }
-      }
-    }
+  try {
+    const result = await promise
+    // Guard: user may have cancelled (clicked back) or re-targeted before
+    // the promise resolved. Only apply when the latest click still wants
+    // this target.
+    if (pendingLang.value !== targetLang) return
 
+    if (result.title) emit('title-translated', result.title)
     translatedUpToIndex.value = props.messages.length - 1
     currentLang.value = targetLang
     storeLanguage(targetLang)
-    emit('translated', translations)
+    emit('translated', result.translations)
   } catch (err) {
     console.error('Translation failed:', err)
   } finally {
-    pendingLang.value = ''
-    translating.value = false
-    emit('translating-end')
+    if (pendingLang.value === targetLang) {
+      pendingLang.value = ''
+      translating.value = false
+      emit('translating-end')
+    }
   }
 }
 

@@ -111,37 +111,11 @@ async def _shutdown():
 
 @app.on_event("startup")
 async def _startup_checks():
-    """Log configuration and verify Ollama connectivity when USE_GEMMA is enabled."""
+    """Log LLM configuration."""
     from shared.config import get_settings
 
     settings = get_settings()
-    if settings.use_gemma:
-        logger.info(
-            f"🟢 Gemma mode ENABLED — model={settings.gemma_model} url={settings.gemma_base_url}"
-        )
-        try:
-            import urllib.request
-
-            req = urllib.request.Request(f"{settings.gemma_base_url}/api/tags", method="GET")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                import json as _json
-
-                data = _json.loads(resp.read())
-                models = [m["name"] for m in data.get("models", [])]
-            if models:
-                logger.info(f"🟢 Ollama available. Loaded models: {models}")
-            else:
-                logger.warning(
-                    f"⚠️ Ollama is running but has no models. "
-                    f"Pull one: docker exec chatrag-ollama ollama pull {settings.gemma_model}"
-                )
-        except Exception as e:
-            logger.warning(
-                f"⚠️ Cannot reach Ollama at {settings.gemma_base_url}: {e}. "
-                f"Make sure Ollama is running."
-            )
-    else:
-        logger.info(f"🔵 Using cloud LLM provider: {settings.llm_provider}")
+    logger.info(f"🔵 Using OpenAI model: {settings.openai_chat_model}")
 
     # Background workers no longer run inside the main server process.
     # ``chatrag-worker`` (worker_pubsub.py) is a separate Cloud Run service

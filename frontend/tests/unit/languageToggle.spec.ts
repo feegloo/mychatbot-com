@@ -638,4 +638,188 @@ describe("LanguageToggle", () => {
       expect(titleCalls.length).toBe(0);
     });
   });
+
+  // ── Cancel / in-flight promise reuse ──
+
+  describe("in-flight cancellation and reuse", () => {
+    it("cancelling mid-translation restores the original flag without firing a new request", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      let resolveTranslate!: (value: { translations: string[] }) => void;
+      translateTextsMock.mockImplementation(
+        () => new Promise(r => { resolveTranslate = r; }),
+      );
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // First click starts the translation (promise hangs)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱"); // pending PL
+      expect((wrapper.vm as any).translating).toBe(true);
+      expect(translateTextsMock).toHaveBeenCalledTimes(1);
+
+      // Second click while still loading = cancel visual (show original again)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇬🇧"); // back to detected
+      expect((wrapper.vm as any).translating).toBe(false);
+      // Background request is NOT cancelled and NO new one was issued
+      expect(translateTextsMock).toHaveBeenCalledTimes(1);
+
+      // When the background request finally resolves, translations must NOT
+      // be applied (user already backed out) — no 'translated' emission.
+      resolveTranslate({ translations: ["[translated]"] });
+      await flushPromises();
+      expect(wrapper.emitted("translated")).toBeFalsy();
+      expect((wrapper.vm as any).currentLang).toBe("en");
+    });
+
+    it("re-clicking same target while promise is in flight awaits the same promise", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      let resolveTranslate!: (value: { translations: string[] }) => void;
+      translateTextsMock.mockImplementation(
+        () => new Promise(r => { resolveTranslate = r; }),
+      );
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // Click 1: start translation (hangs)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      // Click 2: cancel visual
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      // Click 3: re-target PL — should await existing promise, not fire new one
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await nextTick();
+      expect(wrapper.find(".lang-flag").text()).toBe("🇵🇱");
+      expect((wrapper.vm as any).translating).toBe(true);
+      expect(translateTextsMock).toHaveBeenCalledTimes(1); // still only 1 request
+
+      // Resolve — translation applies this time
+      resolveTranslate({ translations: ["[translated]"] });
+      await flushPromises();
+      expect((wrapper.vm as any).currentLang).toBe("pl");
+      expect(wrapper.emitted("translated")).toBeTruthy();
+    });
+
+    it("retries after an error on next click", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      translateTextsMock.mockRejectedValueOnce(new Error("boom"));
+
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages(["This is a long enough English message for detection."]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+      expect((wrapper.vm as any).currentLang).toBe("en"); // unchanged — text never blanked
+      expect((wrapper.vm as any).translating).toBe(false);
+
+      // Second click issues a fresh request (errored promise was cleared)
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `OK: ${t}`),
+      }));
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+      expect((wrapper.vm as any).currentLang).toBe("pl");
+      expect(wrapper.emitted("translated")).toBeTruthy();
+    });
+  });
+
+  // ── Action labels in batch ──
+
+  describe("action label batching", () => {
+    it("sends [action:Label] labels as positional entries alongside their message text", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `PL:${t}`),
+      }));
+
+      const msg =
+        "Your document is ready, choose an action: [action:Create diagram 📊] [action:Show metadata 📄]";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: msg }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      // One batch call should include: [stripped text, action label 1, action label 2]
+      const batchCall = translateTextsMock.mock.calls.find(
+        (args) => Array.isArray(args[0]) && (args[0] as string[]).length >= 3,
+      );
+      expect(batchCall).toBeTruthy();
+      const sent = batchCall![0] as string[];
+      expect(sent[1]).toBe("Create diagram 📊");
+      expect(sent[2]).toBe("Show metadata 📄");
+      // Main text slot must NOT contain the raw action fragments (opaque placeholder)
+      expect(sent[0]).not.toContain("[action:");
+
+      const translated = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const out = translated.get(0)!;
+      // Action labels restored in target language
+      expect(out).toContain("[action:PL:Create diagram 📊]");
+      expect(out).toContain("[action:PL:Show metadata 📄]");
+    });
+  });
+
+  // ── Persisted translation per conversation + message ──
+
+  describe("localStorage persistence", () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it("loads persisted translation from localStorage on mount (no API call)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+
+      // Pre-seed: conversation chose PL, and message m1 was translated to PL.
+      localStorage.setItem(
+        "conversation-languages",
+        JSON.stringify({ convA: "pl" }),
+      );
+      localStorage.setItem("translation:pl:m1", "Wiadomość po polsku.");
+
+      const wrapper = mount(LanguageToggle, {
+        props: {
+          messages: [
+            { id: "m1", role: "assistant", content: "A message in English long enough to detect." },
+          ],
+          conversationId: "convA",
+        },
+      });
+      await flushPromises();
+      await nextTick();
+      // Component defers auto-translate by 50ms (see watch in LanguageToggle.vue)
+      // so downstream listeners get a chance to wire up before state changes.
+      await new Promise(r => setTimeout(r, 80));
+      await flushPromises();
+
+      // The translation lived in localStorage, so no API call was needed.
+      expect(translateTextsMock).not.toHaveBeenCalled();
+      const translated = wrapper.emitted("translated")?.[0]?.[0] as Map<number, string> | undefined;
+      expect(translated?.get(0)).toBe("Wiadomość po polsku.");
+    });
+  });
 });

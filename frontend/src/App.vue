@@ -1,9 +1,5 @@
 <template>
-  <!-- Embed mode: no sidebar, no nav, no toggle -->
-  <router-view v-if="isEmbed" :key="$route.fullPath" />
-
-  <!-- Normal mode -->
-  <div v-else class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+  <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
     <ConversationNav
       :class="{ open: sidebarOpen }"
@@ -37,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import ConversationNav from './components/ConversationNav.vue'
 import { getBrowserFingerprint, getUserId, setUserId } from './utils/fingerprint'
@@ -48,7 +44,6 @@ const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true'
 
 watch(sidebarCollapsed, (v) => localStorage.setItem('sidebarCollapsed', String(v)))
 const route = useRoute()
-const isEmbed = computed(() => route.meta.embed === true)
 
 watch(
   () => route.path,

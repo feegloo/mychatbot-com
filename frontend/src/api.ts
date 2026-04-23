@@ -411,6 +411,12 @@ export type DebugTableName =
   | 'processing_jobs'
   | 'processing_jobs_errors'
   | 'prompt_history'
+  | 'generated_images'
+  | 'indexing_events'
+  | 'indexing_jobs'
+  | 'pdf_pages'
+  | 'workers'
+  | 'jobs'
 
 export async function getDebugTablesOverview(username: string, password: string) {
   const response = await api.get('/debug/tables-overview', {

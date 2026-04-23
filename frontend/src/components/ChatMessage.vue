@@ -90,6 +90,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 :message-id="msg.id"
                 :conversation-name="conversationName"
                 :file-name="fileName"
+                :citations="msg.citations"
                 @select="$emit('select-question', $event)"
                 @image-click="openImageModal"
                 @citation-click="openCitation"
@@ -132,6 +133,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               :message-id="msg.id"
               :conversation-name="conversationName"
               :file-name="fileName"
+              :citations="msg.citations"
               @select="$emit('select-question', $event)"
               @image-click="openImageModal"
               @citation-click="openCitation"
@@ -216,8 +218,8 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
  * exposed to parents via `defineExpose`.
  *
  * Public API preserved from the previous 2234-line implementation so all
- * four parent pages (ConversationPage, SharedMessagePage, EmbedPage,
- * HomePage) work without modification.
+ * parent pages (ConversationPage, SharedMessagePage, HomePage) work
+ * without modification.
  */
 import { computed, ref } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'

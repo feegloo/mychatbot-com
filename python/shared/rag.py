@@ -162,17 +162,39 @@ Your #1 job: sound indistinguishable from the AUTHOR of the uploaded files. — 
 - Never repeat information already covered in earlier answers unless the user explicitly asks for it again. Build on what was already discussed.
 - **Primary source**: Always ground your answer in the uploaded context first. Context-based information needs no special label.
 - **Common-knowledge fallback**: When the context is insufficient or when widely-known facts, logical reasoning, or domain common sense can meaningfully enrich the answer, you MAY supplement with common knowledge. Rules for this:
-  * Signal outside-source additions naturally using conversational phrases woven into your sentences. Pick the phrase that fits the flow — do NOT always use the same one. Options:
+  * Signal outside-source additions naturally using conversational phrases woven into your sentences. **The PURPOSE of the signal phrase** is to make the reader clearly feel: "this specific bit is no longer from my uploaded files — it's general knowledge the assistant is adding." So the phrase must communicate that shift transparently, but gracefully.
+  * **VARY the phrasing constantly.** Treat the list below as seed examples, NOT a fixed menu. Never reuse the same opener twice in the same answer, and avoid defaulting to one favorite across a conversation. Invent new idiomatic variants on the fly that fit the tone, register, and flow of the sentence. There are effectively infinite valid ways to say this — use that freedom.
+  * English seed examples (mix, remix, and invent more):
     – "outside the uploaded material, ..."
     – "from common knowledge, ..."
     – "it's widely understood that ..."
     – "as is well known in [field], ..."
-    - "as we all know, ..."
+    – "as we all know, ..."
     – "common knowledge says ..."
     – "it's reasonable to think ..."
     – "generally speaking, ..."
     – "drawing on general expertise, ..."
+    – "stepping outside your files for a moment, ..."
+    – "this isn't in the documents, but it's well established that ..."
+    – "beyond what's in the source, ..."
+    – "a broadly accepted point worth adding: ..."
+    – "conventional wisdom holds that ..."
+    – "it's generally accepted that ..."
+    – "outside the source, the standard view is ..."
+    – "to add a bit of context not in the files, ..."
+    – "from what's broadly known in the field, ..."
+    – "a widely shared understanding is that ..."
+    – "most practitioners agree that ..."
+    – "a point that's common knowledge, not from your upload: ..."
   * These phrases should feel like a natural aside, not a disclaimer banner. Weave them mid-sentence or at the start of a clause — never as a separate bold header or footer.
+  * **Language-match the phrase**: when you are answering in a language other than English, TRANSLATE the signal phrase into that language naturally — NEVER leave English fragments like "common knowledge", "as we all know", or "generally speaking" mixed into a non-English sentence. Pick an idiomatic equivalent in the response language, and VARY it the same way — do NOT repeat the same translated phrase over and over. Seed examples (illustrative, not exhaustive — invent more in whatever language you're writing):
+    – Polish: "z wiedzy powszechnej, dodam ...", "poza materiałem z plików, ...", "powszechnie wiadomo, że ...", "ogólnie rzecz biorąc, ...", "wiadomo, że ...", "ogólnie przyjęte jest, że ...", "przyjmuje się, że ...", "dla kontekstu, poza poradnikiem: ...", "z ogólnej wiedzy medycznej / branżowej wynika, że ...", "to już nie z Twoich plików, ale ...", "warto dodać, że ogólnie ..."
+    – Spanish: "según el conocimiento general, ...", "fuera del material cargado, ...", "es bien sabido que ...", "en general se acepta que ...", "más allá de los archivos, ..."
+    – German: "aus allgemeinem Wissen, ...", "außerhalb der hochgeladenen Materialien, ...", "es ist allgemein bekannt, dass ...", "allgemein gilt, dass ..."
+    – French: "d'après les connaissances générales, ...", "en dehors du contenu fourni, ...", "il est bien connu que ...", "on sait généralement que ..."
+    – Italian: "dalle conoscenze comuni, ...", "al di fuori del materiale caricato, ...", "è generalmente accettato che ..."
+    – Ukrainian: "із загальновідомого, ...", "поза завантаженими матеріалами, ...", "загальноприйнято, що ..."
+    For any other language, produce natural, idiomatic equivalents in THAT language and keep rotating them. NEVER write things like "Z common knowledge dodam" — that mixed-language form is forbidden.
   * Never fabricate specifics (dates, statistics, quotes) that you are not confident about — only use well-established, broadly accepted facts.
   * If the context contains NO relevant information at all, say so honestly, then offer what you can from common knowledge using one of the natural phrases above, e.g.: "Your uploaded files don't cover this, but from common knowledge, the standard approach is ..."
   * Context-sourced content always takes priority. Common knowledge should enhance, not replace or contradict, the uploaded material.
@@ -281,6 +303,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
         * wisdom vs ignorance / knowledge vs confusion → [c:purple]wisdom[/c] vs [c:gray]ignorance[/c]
         * Use your judgment — any clear duality deserves contrasting color treatment.
     - **Student marker rule**: When the uploaded material is a learning resource — language course, exam preparation, homework, textbook, vocabulary list, grammar guide, certificate preparation, or anything the user is studying — use color as a student would use a highlighter pen: mark key terms, definitions, rules, and important concepts with color to make them stand out. In creative writing or casual answers, use this sparingly or not at all.
+    - **Consistency rule (critical)**: Once you assign a color to a concept/term in an answer, keep that SAME color for every subsequent mention of the same concept in that answer. Do NOT recolor the same word later with a different color — e.g. if "greenfield" is [c:green] in the intro, it must stay [c:green] in the bullets and verdict; "monorepo" stays one color throughout; "CI/CD", "GCP", "AWS", "BigQuery" each keep a single color per answer. Mixing colors for the same term (e.g. greenfield green in one paragraph, yellow in the next) looks like a bug and must be avoided. Intentional exception: a deliberate narrative shift where the meaning itself flips (e.g. the same word moves from "good" to "bad") — only then you may switch from [c:green] to [c:red] intentionally, and the flip should be obvious from context.
   - Color dictionary — 10 colors; pick the closest fit:
     * [c:green]word[/c] — correct, life, nature, plants, grass, slow life, positive, enthusiasm, health, bacteria, virus, growth, hope, go-signal, freshness, eco, spring, healing
     * [c:red]word[/c] — wrong, danger, alarm, strong love, aggression, anger, rage, speed, passion, fire, blood, stop
@@ -696,80 +719,36 @@ def build_context(rows: list[dict]) -> str:
 
 
 def get_llm() -> Any:
-    """Get LLM instance based on configured provider (cached).
+    """Get OpenAI LLM instance (cached).
 
-    When USE_GEMMA=true, uses local Ollama Gemma 4 model.
-    Otherwise falls back to OpenAI / Anthropic cloud models.
-    Raises ValueError if required API key is missing or Ollama is unreachable.
+    Raises ValueError if OPENAI_API_KEY is missing.
     """
     global _llm_instance, _llm_provider_key
     settings = get_settings()
 
-    # Gemma overrides all other provider settings when enabled
-    if settings.use_gemma:
-        cache_key = f"gemma:{settings.gemma_model}:{settings.gemma_base_url}"
-        if _llm_instance is not None and _llm_provider_key == cache_key:
-            return _llm_instance
-
-        from langchain_ollama import ChatOllama
-
-        logger.info(
-            f"🤖 Using local Gemma model via Ollama: {settings.gemma_model} at {settings.gemma_base_url}"
-        )
-        _llm_instance = ChatOllama(
-            model=settings.gemma_model,
-            base_url=settings.gemma_base_url,
-            temperature=1.0,
-            top_p=0.95,
-            top_k=64,
-        )
-        _llm_provider_key = cache_key
-        return _llm_instance
-
-    # Cache key: provider + model so we reuse the same instance within a process
-    cache_key = f"{settings.llm_provider}:{settings.anthropic_chat_model if settings.llm_provider == 'anthropic' else settings.openai_chat_model}:{settings.openai_reasoning_effort}"
+    cache_key = f"openai:{settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
-        if settings.llm_provider not in ("anthropic",):
-            seed = random.choice(_SEED_OPTIONS)
-            return _llm_instance.bind(seed=seed)
-        return _llm_instance
-
-    if settings.llm_provider == "anthropic":
-        if not settings.anthropic_api_key:
-            raise ValueError(
-                "Anthropic API key not configured. Set ANTHROPIC_API_KEY environment variable "
-                "or set LLM_PROVIDER=openai with OPENAI_API_KEY"
-            )
-        from langchain_anthropic import ChatAnthropic
-
-        logger.info(f"🤖 Using Anthropic Claude model: {settings.anthropic_chat_model}")
-        _llm_instance = ChatAnthropic(
-            model=settings.anthropic_chat_model,
-            api_key=settings.anthropic_api_key,
-            temperature=0,
-        )
-    else:  # openai
-        if not settings.openai_api_key:
-            raise ValueError(
-                "OpenAI API key not configured. Set OPENAI_API_KEY environment variable"
-            )
-        logger.info(
-            f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})"
-        )
-        _llm_instance = ChatOpenAI(
-            model=settings.openai_chat_model,
-            api_key=settings.openai_api_key,
-            temperature=_DEFAULT_LLM_TEMPERATURE,
-            reasoning_effort=settings.openai_reasoning_effort,
-        )
-
-    _llm_provider_key = cache_key
-    # Bind a random seed to OpenAI calls to vary responses for repeated prompts
-    if settings.llm_provider not in ("anthropic",) and not settings.use_gemma:
         seed = random.choice(_SEED_OPTIONS)
-        logger.info(f"🎲 Selected random seed: {seed}")
         return _llm_instance.bind(seed=seed)
-    return _llm_instance
+
+    if not settings.openai_api_key:
+        raise ValueError("OpenAI API key not configured. Set OPENAI_API_KEY environment variable")
+
+    logger.info(
+        f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})"
+    )
+    _llm_instance = ChatOpenAI(
+        model=settings.openai_chat_model,
+        api_key=settings.openai_api_key,
+        temperature=_DEFAULT_LLM_TEMPERATURE,
+        reasoning_effort=settings.openai_reasoning_effort,
+    )
+    _llm_provider_key = cache_key
+
+    # Bind a random seed to vary responses for repeated prompts
+    seed = random.choice(_SEED_OPTIONS)
+    logger.info(f"🎲 Selected random seed: {seed}")
+    return _llm_instance.bind(seed=seed)
 
 
 def _build_citations(rows: list[dict]) -> list[dict]:
@@ -1067,7 +1046,7 @@ _MAX_CHAT_HISTORY_TOKENS = 30_000
 # Separator used between formatted messages in chat history
 _HISTORY_SEP = "\n\n---\n\n"
 
-# Lazy-loaded tiktoken encoder (cl100k_base works well for both OpenAI and Anthropic)
+# Lazy-loaded tiktoken encoder (cl100k_base works well for OpenAI models)
 _tiktoken_enc = None
 
 

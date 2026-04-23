@@ -174,6 +174,12 @@ const TABLE_NAMES: DebugTableName[] = [
   'processing_jobs',
   'processing_jobs_errors',
   'prompt_history',
+  'generated_images',
+  'indexing_events',
+  'indexing_jobs',
+  'pdf_pages',
+  'workers',
+  'jobs',
 ]
 
 const authenticated = ref(false)

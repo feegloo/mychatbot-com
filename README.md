@@ -105,17 +105,7 @@ If you have Docker:
 docker compose up -d
 ```
 
-This starts PostgreSQL, Chroma, and Ollama (for local Gemma 4 model).
-
-Ollama auto-pulls `gemma4:e2b` on first start. To use a different model:
-```bash
-OLLAMA_MODEL=gemma4:26b docker compose up -d
-```
-
-To manually pull a model:
-```bash
-docker exec chatrag-ollama ollama pull gemma4:e2b
-```
+This starts PostgreSQL and Chroma.
 
 If you do not have Docker:
 - run PostgreSQL yourself
@@ -194,36 +184,7 @@ curl -sS http://localhost:8085/v1/projects/chatrag-local/subscriptions
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3000`
 - Chroma HTTP: `http://localhost:8000`
-- Ollama (Gemma 4): `http://localhost:11434`
 - PostgreSQL: `localhost:5432`
-
-## Local Gemma 4 (offline LLM)
-
-The app can use a local Gemma 4 model via Ollama instead of OpenAI/Anthropic for answering questions. Embeddings still use OpenAI regardless.
-
-### Setup
-```bash
-# Start all services (Ollama auto-pulls gemma4:e2b on first boot)
-docker compose up -d
-
-# Or manually pull a specific model variant
-docker exec chatrag-ollama ollama pull gemma4:e2b
-```
-
-### Enable in `python/.env`
-```
-USE_GEMMA=true
-GEMMA_MODEL=gemma4:e2b
-GEMMA_BASE_URL=http://localhost:11434
-```
-
-### Available model variants
-| Model | Size | Notes |
-|-------|------|-------|
-| `gemma4:e2b` | 7.2 GB | Lightest, good for testing |
-| `gemma4` (e4b) | 9.6 GB | Default Ollama tag |
-| `gemma4:26b` | 18 GB | MoE, fastest throughput (needs GPU VRAM) |
-| `gemma4:31b` | 20 GB | Dense, best quality |
 
 ## Production deployment options
 

@@ -19,8 +19,8 @@
           :files="sharedFiles"
           :no-animation="true"
           @select-question="
-            replyText = $event
-            startThread()
+            replyText = $event;
+            startThread();
           "
         />
       </div>
