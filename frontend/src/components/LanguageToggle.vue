@@ -47,11 +47,18 @@ import { translateTexts, detectLanguage } from '../api'
 // - [action:Label] markers are also opaque during translation, but their Label
 //   text is translated separately and re-inserted so suggested-action buttons
 //   appear in the target language.
+// - ![alt](url) markdown images are opaque: the URL must never be translated
+//   (e.g. Pollinations URLs embed the prompt in the path, and translating it
+//   produces an unreachable src and a broken-image icon after the v-html swap).
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
+// Markdown image: `![alt](url "optional title")`. Uses negated character
+// classes so the match stops at the first closing `]` / `)` rather than
+// spanning over adjacent links on the same line.
+const IMAGE_MD_RE = /!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)/g
 
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action'
+  kind: 'source' | 'action' | 'image'
   original: string
   label?: string // only for action markers; gets replaced with translated label
 }
@@ -64,7 +71,14 @@ function extractMarkers(texts: string[]): {
   const cleaned = texts.map((text, i) => {
     const found: MarkerInfo[] = []
     let counter = 0
-    const result = text.replace(MARKER_RE, (match, kind: string, inner: string) => {
+    // Extract markdown images first so their `[alt]` brackets don't collide
+    // with the [source:…]/[action:…] marker regex on the following pass.
+    let result = text.replace(IMAGE_MD_RE, (match) => {
+      const placeholder = `__MRK${i}_${counter++}__`
+      found.push({ placeholder, kind: 'image', original: match })
+      return placeholder
+    })
+    result = result.replace(MARKER_RE, (match, kind: string, inner: string) => {
       const placeholder = `__MRK${i}_${counter++}__`
       const info: MarkerInfo = {
         placeholder,
