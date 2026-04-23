@@ -1,7 +1,7 @@
 # Worker Dockerfile — lightweight Python-only container for chatrag-worker.
 #
-# Used by the ``chatrag-worker`` Cloud Run service that subscribes to the
-# indexing Pub/Sub topic. Contains only the Python source + deps (no
+# Used by the ``chatrag-worker`` Cloud Run Worker Pool that pulls from the
+# indexing Pub/Sub subscription. Contains only the Python source + deps (no
 # Node, no frontend, no backend). All heavy imports (chromadb, fitz,
 # openai) are pre-compiled into .pyc so the subscriber cold-starts in
 # a few seconds.

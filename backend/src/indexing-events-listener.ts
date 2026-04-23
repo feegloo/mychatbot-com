@@ -2,7 +2,7 @@
  * Dedicated Postgres LISTEN client that relays worker events to SSE.
  *
  * Architecture recap:
- *   Worker (chatrag-indexer Cloud Run)
+ *   Worker (chatrag-worker Cloud Run Worker Pool)
  *     → INSERT indexing_events
  *     → NOTIFY indexing_events <event_id>
  *   ALL backend (chatrag Cloud Run) instances

@@ -13,7 +13,7 @@
 #   PUBSUB_SUBSCRIPTION      default: chatrag-indexing-sub
 #   PUBSUB_DLQ_TOPIC         default: chatrag-indexing-dlq
 #   PUBSUB_ACK_DEADLINE      default: 600 (seconds — matches large PDF time)
-#   PUBSUB_MAX_DELIVERY_ATT  default: 5 (then message → DLQ)
+#   PUBSUB_MAX_DELIVERY_ATT  default: 2 (original + 1 retry, then → DLQ)
 set -euo pipefail
 
 PROJECT_ID="${1:-${GCP_PROJECT_ID:-}}"
@@ -27,7 +27,7 @@ SUB="${PUBSUB_SUBSCRIPTION:-chatrag-indexing-sub}"
 DLQ_TOPIC="${PUBSUB_DLQ_TOPIC:-chatrag-indexing-dlq}"
 DLQ_SUB="${DLQ_TOPIC}-sub"
 ACK_DEADLINE="${PUBSUB_ACK_DEADLINE:-600}"
-MAX_DELIVERY="${PUBSUB_MAX_DELIVERY_ATT:-5}"
+MAX_DELIVERY="${PUBSUB_MAX_DELIVERY_ATT:-2}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[✓]${NC} $*"; }
@@ -66,7 +66,18 @@ if ! gcloud pubsub subscriptions describe "$SUB" --project="$PROJECT_ID" &>/dev/
     --project="$PROJECT_ID"
   info "Created subscription $SUB → $TOPIC (DLQ=$DLQ_TOPIC, ack=${ACK_DEADLINE}s)"
 else
-  warn "Subscription $SUB already exists — skipping (run with --force to recreate)"
+  # Subscription exists — idempotently re-apply retry config so changes
+  # to PUBSUB_MAX_DELIVERY_ATT / retry delays in this file take effect
+  # on the live subscription without requiring a full recreate.
+  gcloud pubsub subscriptions update "$SUB" \
+    --ack-deadline="$ACK_DEADLINE" \
+    --dead-letter-topic="$DLQ_TOPIC" \
+    --dead-letter-topic-project="$PROJECT_ID" \
+    --max-delivery-attempts="$MAX_DELIVERY" \
+    --min-retry-delay=10s \
+    --max-retry-delay=600s \
+    --project="$PROJECT_ID" >/dev/null
+  info "Updated subscription $SUB (max-delivery=$MAX_DELIVERY, ack=${ACK_DEADLINE}s)"
 fi
 
 # DLQ subscription so we can inspect failed messages with gcloud.

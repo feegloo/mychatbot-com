@@ -501,22 +501,27 @@ function unregisterOutsideClickHandler(handler: (event: MouseEvent) => void) {
   }
 }
 
-const props = defineProps<{
-  msg: ChatMessage
-  asking: boolean
-  conversationId: string
-  storageConversationId?: string
-  isWelcome?: boolean
-  isFirstMessage?: boolean
-  canUpload?: boolean
-  files?: ConversationStatus['files']
-  maxVisibleActions?: number
-  conversationName?: string
-  fileName?: string
-  isThread?: boolean
-  noAnimation?: boolean
-  isTranslating?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    msg: ChatMessage
+    asking: boolean
+    conversationId: string
+    storageConversationId?: string
+    isWelcome?: boolean
+    isFirstMessage?: boolean
+    canUpload?: boolean
+    files?: ConversationStatus['files']
+    maxVisibleActions?: number
+    conversationName?: string
+    fileName?: string
+    isThread?: boolean
+    noAnimation?: boolean
+    isTranslating?: boolean
+  }>(),
+  {
+    maxVisibleActions: 2,
+  },
+)
 
 const animateIn = ref(!props.noAnimation)
 onMounted(() => {

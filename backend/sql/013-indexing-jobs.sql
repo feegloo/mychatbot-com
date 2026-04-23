@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS indexing_jobs (
   -- Lifecycle.
   status            TEXT NOT NULL DEFAULT 'queued'
     CHECK (status IN ('queued', 'claimed', 'running', 'done', 'error')),
-  -- Worker identification: e.g. "chatrag-indexer-00042-abc@instance-xyz".
+  -- Worker identification: e.g. "chatrag-worker-00042-abc@instance-xyz".
   -- Kept even after completion for auditability.
   claimed_by        TEXT,
   claimed_at        TIMESTAMPTZ,

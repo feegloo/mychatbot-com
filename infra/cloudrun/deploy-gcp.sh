@@ -207,9 +207,6 @@ DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NA
 
 warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
-# Generate a shared secret for the indexer if not already set
-INDEXER_SECRET="${INDEXER_SECRET:-$(openssl rand -hex 32)}"
-
 # ── Step 8a: Pub/Sub topic + subscription ────────────────────────────────────
 # Used by the new chatrag → chatrag-worker delegation path. Idempotent.
 info "Step 8a/9: Setting up Pub/Sub topic and subscription..."
@@ -231,6 +228,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 1 \
   --max-instances 1 \
   --timeout 300 \
+  --startup-probe "httpGet.path=/health,httpGet.port=8080,initialDelaySeconds=10,periodSeconds=10,timeoutSeconds=5,failureThreshold=20" \
+  --liveness-probe "httpGet.path=/health,httpGet.port=8080,periodSeconds=30,timeoutSeconds=5,failureThreshold=3" \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\
@@ -252,48 +251,37 @@ GEMMA_BASE_URL=${GEMMA_BASE_URL:-http://localhost:11434},\
 DEBUG_USER=${DEBUG_USER:-chatrag},\
 DEBUG_PASS=${DEBUG_PASS:-chatragadmin},\
 STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY},\
-WORKER_MODE=${WORKER_MODE:-local},\
-WORKER_JOB_NAME=${WORKER_JOB_NAME:-chatrag-worker},\
-WORKER_REGION=${WORKER_REGION:-europe-west1},\
+WORKER_MODE=${WORKER_MODE:-cloud_run},\
 GCP_PROJECT_ID=${GCP_PROJECT_ID},\
 PUBSUB_TOPIC=${PUBSUB_TOPIC},\
-PUBSUB_SUBSCRIPTION=${PUBSUB_SUBSCRIPTION},\
-INDEXER_SECRET=${INDEXER_SECRET}"
+PUBSUB_SUBSCRIPTION=${PUBSUB_SUBSCRIPTION}"
 
-# ── Step 8b: Deploy chatrag-worker (Pub/Sub-driven, lightweight) ────────────
-# Lightweight Python-only container (no Node, no frontend) that subscribes
-# to the indexing topic and processes whole PDFs delegated by the main
-# chatrag service when its CPU budget is exhausted. Enabled by default;
-# set DEPLOY_WORKER=false to skip.
+# ── Step 8b: Deploy chatrag-worker (Cloud Run Worker Pool, Pub/Sub-driven) ──
+# Lightweight Python-only container (no Node, no frontend) that pulls from
+# the indexing Pub/Sub subscription and processes whole PDFs. Deployed as a
+# Cloud Run *Worker Pool* (no HTTP ingress, no request-driven scaling) —
+# idle replicas fetch the next message themselves after ACKing the previous
+# one. Enabled by default; set DEPLOY_WORKER=false to skip.
 WORKER_SERVICE_NAME="chatrag-worker"
 WORKER_IMAGE="gcr.io/${PROJECT_ID}/${WORKER_SERVICE_NAME}"
 
 if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
-  info "Step 8b/9: Building + deploying ${WORKER_SERVICE_NAME} (Pub/Sub worker)..."
+  info "Step 8b/9: Building + deploying ${WORKER_SERVICE_NAME} (Worker Pool)..."
 
   # Lightweight image — Python only, no frontend.
   docker build -f python/Dockerfile.worker -t "${WORKER_IMAGE}:latest" python/
   docker push "${WORKER_IMAGE}:latest"
 
-  gcloud run deploy "$WORKER_SERVICE_NAME" \
+  gcloud beta run worker-pools deploy "$WORKER_SERVICE_NAME" \
     --image "${WORKER_IMAGE}:latest" \
     --region "$REGION" \
-    --platform managed \
-    --no-allow-unauthenticated \
-    --ingress internal \
     --network default \
     --subnet default \
     --vpc-egress private-ranges-only \
-    --no-cpu-throttling \
-    --cpu-boost \
     --memory 2Gi \
     --cpu 2 \
     --min-instances 1 \
-    --max-instances "${WORKER_MAX_INSTANCES:-1}" \
-    --concurrency 1 \
-    --timeout 600 \
-    --command python \
-    --args worker_pubsub.py \
+    --max-instances "${WORKER_MAX_INSTANCES:-2}" \
     --set-env-vars "\
 PYTHONUNBUFFERED=1,\
 GCP_PROJECT_ID=${GCP_PROJECT_ID},\
@@ -312,74 +300,9 @@ WORKER_MODE=pubsub_worker,\
 SENTRY_DSN=${SENTRY_DSN:-},\
 SENTRY_ENVIRONMENT=prod"
 
-  info "  ${WORKER_SERVICE_NAME} deployed (subscribing to ${PUBSUB_SUBSCRIPTION})"
+  info "  ${WORKER_SERVICE_NAME} worker pool deployed (pulling ${PUBSUB_SUBSCRIPTION})"
 else
   warn "Step 8b/9: Skipping chatrag-worker deployment (DEPLOY_WORKER=false)"
-fi
-
-# ── Step 8c: Deploy chatrag-indexer service (legacy, opt-in) ────────────────
-# The Postgres-queue-driven worker is being phased out in favor of
-# chatrag-worker (Pub/Sub). Disabled by default. Set DEPLOY_INDEXER=true
-# only if you need the legacy LISTEN/NOTIFY path during migration.
-INDEXER_SERVICE_NAME="chatrag-indexer"
-INDEXER_URL=""
-
-if [[ "${DEPLOY_INDEXER:-false}" == "true" ]]; then
-  info "Step 8c/9: Deploying chatrag-indexer (legacy PDF worker)..."
-
-  gcloud run deploy "$INDEXER_SERVICE_NAME" \
-    --image "${IMAGE}:latest" \
-    --region "$REGION" \
-    --platform managed \
-    --no-allow-unauthenticated \
-    --ingress internal-and-cloud-load-balancing \
-    --network default \
-    --subnet default \
-    --vpc-egress private-ranges-only \
-    --port 8080 \
-    --memory 4Gi \
-    --cpu 4 \
-    --min-instances 1 \
-    --max-instances 2 \
-    --concurrency 4 \
-    --timeout 600 \
-    --set-env-vars "\
-NODE_ENV=production,\
-DATABASE_URL=${DATABASE_URL},\
-CHROMA_MODE=local,\
-ANONYMIZED_TELEMETRY=False,\
-OTEL_ENABLED=false,\
-OTEL_SDK_DISABLED=true,\
-OPENAI_API_KEY=${OPENAI_API_KEY},\
-REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN},\
-STORAGE_PROVIDER=gcs,\
-GCS_BUCKET=${GCS_BUCKET},\
-FRONTEND_DIST_PATH=,\
-PYTHON_BIN=/app/python/.venv/bin/python3,\
-PYTHON_PROJECT_ROOT=/app/python,\
-PYTHON_SERVER_URL=http://localhost:8321,\
-WORKER_MODE=local,\
-GCP_PROJECT_ID=${GCP_PROJECT_ID},\
-INDEXER_SECRET=${INDEXER_SECRET}"
-
-  INDEXER_URL=$(gcloud run services describe "$INDEXER_SERVICE_NAME" --region "$REGION" --format='value(status.url)')
-  info "  chatrag-indexer deployed at: ${INDEXER_URL}"
-
-  info "  Updating chatrag with INDEXER_URL..."
-  gcloud run services update "$SERVICE_NAME" \
-    --region "$REGION" \
-    --update-env-vars "INDEXER_URL=${INDEXER_URL}"
-else
-  warn "Step 8c/9: Skipping chatrag-indexer deployment (DEPLOY_INDEXER!=true)"
-  info "  Clearing INDEXER_URL on main chatrag service (inline indexing)..."
-  gcloud run services update "$SERVICE_NAME" \
-    --region "$REGION" \
-    --remove-env-vars "INDEXER_URL" >/dev/null 2>&1 || true
-
-  if gcloud run services describe "$INDEXER_SERVICE_NAME" --region "$REGION" >/dev/null 2>&1; then
-    warn "  Existing chatrag-indexer service detected. To remove it, run:"
-    echo "      gcloud run services delete $INDEXER_SERVICE_NAME --region $REGION --quiet"
-  fi
 fi
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
@@ -391,9 +314,6 @@ echo "════════════════════════�
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Pub/Sub topic:  $PUBSUB_TOPIC  (subscription: $PUBSUB_SUBSCRIPTION)"
-echo "  Worker:         ${DEPLOY_WORKER:-true} (chatrag-worker, Pub/Sub-driven)"
-echo "  Indexer URL:    ${INDEXER_URL:-<disabled>}  (legacy, internal only)"
-echo "  Indexer secret: $INDEXER_SECRET  (save this!)"
-# echo "  Min instances:  1 (chatrag), worker=${DEPLOY_WORKER:-true}, indexer=${DEPLOY_INDEXER:-false}"
-echo "  PDF offload:    Pub/Sub → chatrag-worker (legacy chatrag-indexer disabled by default)"
+echo "  Worker pool:    ${DEPLOY_WORKER:-true}  (chatrag-worker, min=1 max=${WORKER_MAX_INSTANCES:-2})"
+echo "  PDF offload:    Pub/Sub pull → chatrag-worker pool (idle replicas fetch next job)"
 echo "═══════════════════════════════════════════════════════════════"

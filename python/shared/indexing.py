@@ -14,7 +14,7 @@ from .chapters import (
     detect_chapters,
 )
 from .chunkers import Chunk, split_into_chunks
-from .cloud_dispatch import dispatch_page_jobs, is_cloud_mode
+from .cloud_dispatch import is_cloud_mode
 from .describe import DescribeResult, describe_documents
 from .extractors import clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language

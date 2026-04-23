@@ -35,17 +35,12 @@ export const config = {
   debugPass: process.env.DEBUG_PASS || 'chatragadmin',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
-  // chatrag-indexer Cloud Run Service for offloading CPU-heavy PDF parsing.
-  // When set, 50% of indexing jobs are delegated to this service.
-  // The indexer calls back via /internal/index-stream authenticated with indexerSecret.
-  indexerUrl: process.env.INDEXER_URL || '',
-  indexerSecret: process.env.INDEXER_SECRET || '',
   // Indexing backend: 'inline' (default) runs indexing inside the upload
   // request on the backend instance (works for local dev + single-node);
   // 'cloud_run' publishes a job to GCP Pub/Sub topic ``pubsubTopic`` so
-  // the chatrag-worker Cloud Run service can pull and process it. Backend
-  // instances then LISTEN on indexing_events to relay worker progress to
-  // browsers via SSE.
+  // the chatrag-worker Cloud Run Worker Pool can pull and process it.
+  // Backend instances then LISTEN on indexing_events to relay worker
+  // progress to browsers via SSE.
   workerMode: (process.env.WORKER_MODE || 'inline') as 'inline' | 'cloud_run',
   // GCP Pub/Sub topic for indexing jobs. When unset, ``cloud_run`` mode
   // falls back to inline processing (the publish helper throws and the
