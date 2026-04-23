@@ -707,7 +707,7 @@ def get_llm() -> Any:
         _llm_instance = ChatOpenAI(
             model=settings.openai_chat_model,
             api_key=settings.openai_api_key,
-            temperature=1,
+            temperature=0.5,
             reasoning_effort=settings.openai_reasoning_effort,
         )
 

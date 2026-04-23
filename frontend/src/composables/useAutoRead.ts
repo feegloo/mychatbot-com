@@ -161,7 +161,7 @@ export function buildSynthesisChunks(sentences: string[]): string[] {
 }
 
 export function useAutoRead(
-  messages: Ref<{ role: string; content: string; suggestedQuestions?: string[] }[]>,
+  messages: Ref<{ role: string; content: string }[]>,
   asking: Ref<boolean>,
   welcomeMessage?: Ref<string>,
 ) {
@@ -245,12 +245,11 @@ export function useAutoRead(
     if (prevAsking && !newVal && enabled.value) {
       const lastMsg = [...messages.value].reverse().find((m) => m.role === 'assistant')
       if (lastMsg?.content) {
-        const questions = lastMsg.suggestedQuestions
-        const suffix =
-          questions?.length
-            ? '\n\n' + questions.map((q) => stripActionTags(q)).join('. ') + '.'
-            : ''
-        readAloud(lastMsg.content + suffix)
+        // Strip [action:...] markers so TTS doesn't read them aloud. The
+        // markers live inline in assistant content (same format for welcome
+        // messages and normal answers); they are rendered as clickable
+        // buttons by the frontend.
+        readAloud(stripActionTags(lastMsg.content))
       }
     }
     prevAsking = newVal
@@ -260,7 +259,7 @@ export function useAutoRead(
     if (!enabled.value) return
     const content = welcomeMessage?.value
     if (content) {
-      readAloud(content)
+      readAloud(stripActionTags(content))
     }
   }
 

@@ -8,7 +8,6 @@ import {
   resolveConversationRole,
   insertUploadedFile,
   updateConversationStatus,
-  appendSuggestedQuestions,
   createAccessRequest,
   getAccessRequest,
   approveAccessRequest,
@@ -196,15 +195,16 @@ conversationsRouter.get('/conversations/:conversationId', async (ctx) => {
       const citations = Array.isArray(raw)
         ? raw
         : [...(raw?.citations || []), ...(raw?._imageSources || [])]
-      // Attach per-message suggested questions
-      const msgQuestions = data.suggestedQuestions
-        .filter((q) => q.message_id === message.id)
-        .map((q) => q.question)
       const threadReplyCount = threadCounts.get(message.id) || 0
       // Mark the parent message (branched-from) in thread conversations
       const isParentMessage =
         data.conversation!.parent_message_id === message.id &&
         message.conversation_id !== data.conversation!.id
+      // Suggested questions are now embedded as `[action:...]` markers
+      // inside `message.content` itself (same format used for normal RAG
+      // answers) — the frontend parses them from content. We keep the
+      // `suggestedQuestions` field out entirely; older clients just show
+      // the markers as text which is fine.
       return {
         id: message.id,
         role: message.role,
@@ -212,12 +212,11 @@ conversationsRouter.get('/conversations/:conversationId', async (ctx) => {
         citations,
         userId: message.user_id,
         ...(uploadedFileNames ? { uploadedFileNames } : {}),
-        ...(msgQuestions.length ? { suggestedQuestions: msgQuestions } : {}),
         ...(threadReplyCount > 0 ? { threadReplyCount } : {}),
         ...(isParentMessage ? { isParentMessage: true } : {}),
       }
     }),
-    suggestedQuestions: data.suggestedQuestions.map((row) => row.question),
+    suggestedQuestions: [] as string[],
     accessRequests: data.accessRequests.map((row) => ({
       id: row.id,
       displayName: row.display_name,
@@ -324,12 +323,10 @@ conversationsRouter.post(
       mode: config.pythonIndexingMode === 'notebook' ? 'notebook' : 'script',
     })
       .then(async (result) => {
-        const suggestedQuestions = result.parsedJson?.suggested_questions || []
         const welcomeMessage = result.parsedJson?.welcome_message || ''
         const fileMetadata = result.parsedJson?.file_metadata || {}
-        let messageId: string | undefined
         if (welcomeMessage) {
-          messageId = await insertConversationMessage({
+          await insertConversationMessage({
             conversationId,
             role: 'assistant',
             content: welcomeMessage,
@@ -345,7 +342,6 @@ conversationsRouter.post(
             logger.error({ err, conversationId, fileName }, 'metadata update error')
           }
         }
-        await appendSuggestedQuestions(conversationId, suggestedQuestions, messageId)
         await updateConversationStatus(conversationId, 'ready')
       })
       .catch(async (error) => {

@@ -17,11 +17,9 @@
       <template #language-toggle>
         <LanguageToggle
           :messages="messages"
-          :suggested-questions="allSuggestedQuestions"
           :title="conversationTitle"
           :conversation-id="conversationId"
           @translated="onTranslated"
-          @questions-translated="onQuestionsTranslated"
           @title-translated="onTitleTranslated"
           @restored="onRestored"
           @lang-changed="currentLanguage = $event"
@@ -116,7 +114,7 @@
             :is-first-message="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :can-upload="canUpload"
             :files="uploadFilesForMessage(index)"
-            :suggested-questions="canReply ? suggestedQuestionsForMessage(index) : []"
+            :max-visible-actions="index === 0 ? 5: 3"
             :conversation-name="conversationTitle"
             :file-name="primaryFileName"
             :is-thread="isThread"
@@ -225,7 +223,6 @@ const status = ref<ConversationStatus>({
   parentConversationId: null,
   files: [],
   messages: [],
-  suggestedQuestions: [],
   accessRequests: [],
 })
 const messages = ref<ChatMessage[]>([])
@@ -307,21 +304,7 @@ const storageConversationId = computed(() => status.value.storageNamespace || co
 
 // Translation state
 const originalMessages = ref<Map<number, string>>(new Map())
-const originalSuggestedQuestions = ref<Map<string, string>>(new Map()) // translated → original
 const originalDisplayName = ref<string | null>(null)
-
-// Collect all suggested questions for translation (status-level + per-message)
-const allSuggestedQuestions = computed(() => {
-  const qs = [...status.value.suggestedQuestions]
-  for (const msg of messages.value) {
-    if (msg.suggestedQuestions?.length) {
-      for (const q of msg.suggestedQuestions) {
-        if (!qs.includes(q)) qs.push(q)
-      }
-    }
-  }
-  return qs
-})
 
 function onTranslated(translations: Map<number, string>) {
   // Save originals before replacing
@@ -346,24 +329,13 @@ function onTitleTranslated(translated: string) {
   status.value.displayName = translated
 }
 
-function onQuestionsTranslated(translated: string[]) {
-  const all = allSuggestedQuestions.value
-  // Build original→translated and translated→original maps
-  const fwdMap = new Map<string, string>()
-  all.forEach((q, i) => {
-    if (translated[i] && translated[i] !== q) {
-      fwdMap.set(q, translated[i])
-      originalSuggestedQuestions.value.set(translated[i], q)
-    }
-  })
-  // Apply to status-level
-  status.value.suggestedQuestions = status.value.suggestedQuestions.map((q) => fwdMap.get(q) || q)
-  // Apply to per-message
-  for (const msg of messages.value) {
-    if (msg.suggestedQuestions?.length) {
-      msg.suggestedQuestions = msg.suggestedQuestions.map((q) => fwdMap.get(q) || q)
-    }
-  }
+function onQuestionsTranslated(_translated: string[]) {
+  // Suggested questions are now embedded as `[action:...]` markers inside
+  // each assistant message's content, so they are translated together
+  // with the surrounding markdown via the normal message-translation
+  // pipeline (LanguageToggle preserves the marker syntax). This handler
+  // is kept as a no-op for LanguageToggle back-compat; once the toggle
+  // stops emitting `questions-translated` it can be removed.
 }
 
 function onRestored(newTranslations: Map<number, string>) {
@@ -389,18 +361,6 @@ function onRestored(newTranslations: Map<number, string>) {
   if (originalDisplayName.value !== null) {
     status.value.displayName = originalDisplayName.value
     originalDisplayName.value = null
-  }
-
-  // Restore suggested questions
-  if (originalSuggestedQuestions.value.size) {
-    const revMap = originalSuggestedQuestions.value // translated → original
-    status.value.suggestedQuestions = status.value.suggestedQuestions.map((q) => revMap.get(q) || q)
-    for (const msg of messages.value) {
-      if (msg.suggestedQuestions?.length) {
-        msg.suggestedQuestions = msg.suggestedQuestions.map((q) => revMap.get(q) || q)
-      }
-    }
-    originalSuggestedQuestions.value.clear()
   }
 }
 
@@ -438,33 +398,6 @@ function isUploadMessage(index: number): boolean {
   if (msg.uploadedFileNames?.length) return true
   // Legacy: first message is a welcome message if it's from the assistant with no preceding user message
   return index === 0
-}
-
-function isLastUploadMessage(index: number): boolean {
-  if (!isUploadMessage(index)) return false
-  // Check that no later message is also an upload message
-  for (let i = index + 1; i < messages.value.length; i++) {
-    if (isUploadMessage(i)) return false
-  }
-  return true
-}
-
-function suggestedQuestionsForMessage(index: number): string[] | undefined {
-  const msg = messages.value[index]
-  // Non-upload messages with explicit suggested questions (e.g. viewer hello message)
-  if (!isUploadMessage(index) && msg?.suggestedQuestions?.length) {
-    return msg.suggestedQuestions
-  }
-  if (!isUploadMessage(index)) return undefined
-  // Use per-message suggested questions if available
-  if (msg.suggestedQuestions?.length) return msg.suggestedQuestions
-  // Legacy fallback: show all questions on last upload message only
-  // Skip during processing to avoid flashing old questions on the wrong message
-  if (status.value.status === 'processing') return undefined
-  if (isLastUploadMessage(index) && status.value.suggestedQuestions.length) {
-    return status.value.suggestedQuestions
-  }
-  return undefined
 }
 
 function uploadFilesForMessage(index: number): ConversationStatus['files'] | undefined {
@@ -524,19 +457,14 @@ async function loadConversation() {
 
       // 1st message: original welcome message (same as owner sees, with file previews)
       if (firstWelcome) {
-        viewerMessages.push({
-          ...firstWelcome,
-          suggestedQuestions: undefined, // questions go on the hello message
-        })
+        viewerMessages.push({ ...firstWelcome })
       }
 
-      // 2nd message: virtual hello message with suggested questions
+      // 2nd message: virtual hello. Action buttons live inline in the
+      // welcome message above — the hello stays a plain greeting.
       viewerMessages.push({
         role: 'assistant',
         content: `Hi! How can I help you with **${name}**?`,
-        suggestedQuestions: response.suggestedQuestions.length
-          ? response.suggestedQuestions
-          : undefined,
       })
 
       messages.value = viewerMessages
@@ -565,14 +493,10 @@ async function loadConversation() {
     } else if (serverMessages.length !== messages.value.length) {
       messages.value = serverMessages
     } else {
-      // Sync per-message metadata that may arrive after initial message creation
-      // (e.g. suggestedQuestions generated after upload processing finishes)
+      // Sync per-message metadata that may arrive after initial message creation.
       for (let i = 0; i < serverMessages.length; i++) {
         const srv = serverMessages[i]
         const local = messages.value[i]
-        if (srv.suggestedQuestions?.length && !local.suggestedQuestions?.length) {
-          local.suggestedQuestions = srv.suggestedQuestions
-        }
         if (srv.uploadedFileNames?.length && !local.uploadedFileNames?.length) {
           local.uploadedFileNames = srv.uploadedFileNames
         }

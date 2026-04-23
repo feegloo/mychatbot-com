@@ -100,7 +100,6 @@ export type ChatMessage = {
     imageName?: string
   }>
   uploadedFileNames?: string[]
-  suggestedQuestions?: string[]
   userId?: number
   threadReplyCount?: number
   isParentMessage?: boolean
@@ -128,7 +127,6 @@ export type ConversationStatus = {
     metadata?: Record<string, unknown>
   }>
   messages: ChatMessage[]
-  suggestedQuestions: string[]
   accessRequests: Array<{
     id: string
     displayName: string

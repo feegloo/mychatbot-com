@@ -498,47 +498,45 @@ class TestWholeBookStrategy:
 
 
 class TestParseDescribeResponse:
-    """Tests for _parse_describe_response: splitting combined LLM output."""
+    """Tests for _parse_describe_response: extracting inline [action:...] markers."""
 
-    def test_parses_welcome_and_questions(self):
+    def test_parses_welcome_and_actions(self):
         from shared.describe import _parse_describe_response
 
         response = (
             "## My Book - Author\n\nGreat book about stuff.\n\n"
             "Expert insight here.\n\n"
-            "---SUGGESTED_QUESTIONS---\n"
-            '{"questions": ["What is the main theme?", "Who is the protagonist?", '
-            '"When was it written?", "Create a quiz 🧠", "Write inspired chapter ✏️"]}'
+            "[action:What is the main theme?] [action:Who is the protagonist?] "
+            "[action:When was it written?] [action:Create a quiz 🧠] "
+            "[action:Write inspired chapter ✏️]"
         )
         welcome, questions = _parse_describe_response(response)
+        # Action markers MUST stay inline in the welcome content — the
+        # frontend renders them there.
         assert "## My Book - Author" in welcome
         assert "Expert insight here." in welcome
-        assert "---SUGGESTED_QUESTIONS---" not in welcome
+        assert "[action:What is the main theme?]" in welcome
+        assert "[action:Create a quiz 🧠]" in welcome
         assert len(questions) == 5
         assert questions[0] == "What is the main theme?"
+        assert questions[3] == "Create a quiz 🧠"
 
-    def test_returns_empty_questions_when_no_separator(self):
+    def test_returns_empty_actions_when_no_markers(self):
         from shared.describe import _parse_describe_response
 
-        response = "## Title\n\nJust a welcome message, no questions."
+        response = "## Title\n\nJust a welcome message, no actions."
         welcome, questions = _parse_describe_response(response)
         assert welcome == response
         assert questions == []
 
-    def test_handles_malformed_json_gracefully(self):
-        from shared.describe import _parse_describe_response
-
-        response = "## Title\n\nWelcome.\n\n---SUGGESTED_QUESTIONS---\nnot valid json"
-        welcome, questions = _parse_describe_response(response)
-        assert "## Title" in welcome
-        assert questions == []
-
-    def test_describe_documents_returns_dict_with_questions(self):
-        """describe_documents should return a DescribeResult with both fields."""
+    def test_describe_documents_returns_dict_with_inline_actions(self):
+        """describe_documents should return a DescribeResult whose
+        welcome_message carries [action:...] markers inline (single source
+        of truth for the frontend)."""
         mock_llm = _make_mock_llm(
             "## Test - Author\n\nDescription.\n\nInsight.\n\n"
-            "---SUGGESTED_QUESTIONS---\n"
-            '{"questions": ["Q1?", "Q2?", "Q3?", "Action 1 🧠", "Action 2 ✏️"]}'
+            "[action:Q1?] [action:Q2?] [action:Q3?] "
+            "[action:Action 1 🧠] [action:Action 2 ✏️]"
         )
         with patch("shared.describe.get_llm", return_value=mock_llm), \
              patch("shared.describe.detect_language", return_value="en"):
@@ -547,4 +545,5 @@ class TestParseDescribeResponse:
             )
         assert isinstance(result, dict)
         assert "## Test - Author" in result["welcome_message"]
+        assert "[action:Q1?]" in result["welcome_message"]
         assert len(result["suggested_questions"]) >= 3

@@ -304,6 +304,7 @@ def _ensure_files_local(job: IndexingJob) -> list[str]:
     so a partial rehydrate still produces a best-effort index.
     """
     resolved: list[str] = []
+    failures: list[str] = []
     for entry in job.file_paths:
         # Entries may be a single path/URI or pipe-separated candidates
         # (e.g. "/app/storage/foo.pdf|gs://bucket/key") so the worker can
@@ -311,29 +312,32 @@ def _ensure_files_local(job: IndexingJob) -> list[str]:
         # and fall back to GCS download otherwise.
         candidates = [c for c in entry.split("|") if c]
         chosen: str | None = None
-        last_error: Exception | None = None
+        entry_errors: list[str] = []
         for candidate in candidates:
             if candidate.startswith("gs://"):
                 try:
                     chosen = _download_gcs_blob(candidate)
                     break
                 except Exception as e:
-                    last_error = e
+                    entry_errors.append(f"{candidate}: {e!r}")
                     continue
             elif os.path.exists(candidate):
                 chosen = candidate
                 break
+            else:
+                entry_errors.append(f"{candidate}: not found on local fs")
         if chosen is not None:
             resolved.append(chosen)
         else:
+            detail = "; ".join(entry_errors) or "no candidates"
             logger.warning(
-                f"⚠️ Job {job.id}: no readable candidate for {entry}"
-                + (f" (last error: {last_error})" if last_error else "")
+                f"⚠️ Job {job.id}: no readable candidate for {entry} ({detail})"
             )
+            failures.append(f"{entry} -> {detail}")
     if not resolved:
         raise RuntimeError(
-            f"Job {job.id} has no readable file paths "
-            f"(inputs: {job.file_paths})"
+            f"Job {job.id} has no readable file paths. Failures: "
+            + " | ".join(failures)
         )
     return resolved
 

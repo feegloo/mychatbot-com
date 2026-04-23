@@ -1144,7 +1144,7 @@ li:has(.checklist-box) {
 
 .markdown-content .markdown-image-scroll {
   display: block;
-  margin: 8px 0;
+  margin: 8px auto;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;

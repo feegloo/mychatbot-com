@@ -18,7 +18,6 @@ from .rag import get_llm
 
 logger = logging.getLogger(__name__)
 
-_QUESTIONS_SEPARATOR = "---SUGGESTED_QUESTIONS---"
 _PAGE_HEADER_RE = re.compile(r"^#\s*Page\s+(\d+)\s*$", re.MULTILINE)
 
 
@@ -172,13 +171,19 @@ _LLM_MAX_RETRIES = 3
 _LLM_RETRY_BASE_DELAY = 2.0
 
 # ── Suggested questions rules (appended to describe prompts) ─────────
+#
+# Output contract: the model appends up to 10 [action:...] markers on a
+# SINGLE line at the very end of the welcome message — identical format
+# used by the normal RAG answer prompt in rag.py. The frontend parses
+# these markers into clickable action buttons (first 3 visible, rest
+# collapsed under "More ..."). There is no separator, no JSON block,
+# no separate suggested_questions field — the welcome content IS the
+# source of truth.
 _QUESTIONS_RULES_PL = """
 
-== SUGEROWANE PYTANIA ==
-Po wiadomości powitalnej, wypisz DOKŁADNIE tę linię separatora:
----SUGGESTED_QUESTIONS---
-Następnie wypisz prawidłowy JSON (bez markdown, bez ```json):
-{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
+== PRZYCISKI AKCJI NA KOŃCU WIADOMOŚCI ==
+Zaraz po wiadomości powitalnej, w tej samej odpowiedzi, dodaj DOKŁADNIE jedną pustą linię, a następnie w JEDNEJ linii wypisz do 10 znaczników [action:...] oddzielonych spacjami:
+[action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7] [action:Label8] [action:Label9] [action:Label10]
 
 Zasady:
 - Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
@@ -187,6 +192,8 @@ Zasady:
 - Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
 - WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
+- ŻADNYCH nawiasów kwadratowych w treści etykiety (znaczniki już używają `[` i `]`) — jeśli musisz zacytować coś w nawiasach, użyj nawiasów okrągłych lub cudzysłowów
+- NIE używaj formatu JSON, separatorów ani ```json — tylko znaczniki [action:...] w jednej linii
 
 KRYTYCZNE — ZAKAZ TEMATYCZNEGO DRYFOWANIA (sprawdzaj przed wyborem akcji):
 Jeśli dokument jest FAKTYCZNY/NAUKOWY/MEDYCZNY/PRAWNY/FINANSOWY (wyniki badań, raporty medyczne, umowy, sprawozdania finansowe, prace naukowe, specyfikacje techniczne, dokumenty urzędowe), WSZYSTKIE sugerowane pytania muszą pozostać ściśle w dziedzinie tego dokumentu.
@@ -227,11 +234,9 @@ Obowiązkowe akcje dla typów treści:
 
 _QUESTIONS_RULES_EN = """
 
-== SUGGESTED QUESTIONS ==
-After the welcome message, output EXACTLY this separator line:
----SUGGESTED_QUESTIONS---
-Then output valid JSON (no markdown, no ```json):
-{{"questions": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"]}}
+== ACTION BUTTONS AT END OF MESSAGE ==
+Immediately after the welcome message, in the same response, add EXACTLY one blank line and then output up to 10 [action:...] markers on a SINGLE line, space-separated:
+[action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7] [action:Label8] [action:Label9] [action:Label10]
 
 Rules:
 - Generate up to 10 suggested prompts (target 10 when context allows)
@@ -240,6 +245,8 @@ Rules:
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - Each prompt max 10 words, no numbering, no explanations
 - ALL prompts MUST be written 100% in the language of the document content
+- NO square brackets inside label text (the marker itself already uses `[` and `]`) — if you need to quote something, use parentheses or quotes
+- DO NOT use JSON format, separators, or ```json — only [action:...] markers on a single line
 
 CRITICAL — NO TOPIC DRIFT (evaluate before selecting any action):
 If the document is FACTUAL/SCIENTIFIC/MEDICAL/LEGAL/FINANCIAL (lab test results, medical reports, clinical analyses, legal contracts, financial statements, scientific papers, technical specifications, official documents), ALL suggested prompts MUST stay strictly within the document's domain.
@@ -279,21 +286,39 @@ Mandatory actions for content types:
 - Do NOT always pick quiz — be creative and varied"""
 
 
+_ACTION_MARKER_RE = re.compile(r"\[action:\s*([^\]]+)\]")
+
+
 def _parse_describe_response(response: str) -> tuple[str, list[str]]:
-    """Split a combined describe response into welcome message and questions."""
-    if _QUESTIONS_SEPARATOR in response:
-        parts = response.split(_QUESTIONS_SEPARATOR, 1)
-        welcome = parts[0].strip()
-        json_part = parts[1].strip()
-        try:
-            parsed = json.loads(json_part)
-            questions = parsed.get("questions", [])
-            if isinstance(questions, list) and len(questions) >= 3:
-                return welcome, [str(q) for q in questions[:10]]
-        except (json.JSONDecodeError, AttributeError):
-            logger.warning("Failed to parse suggested questions JSON from describe response")
-        return welcome, []
-    return response.strip(), []
+    """Return the welcome message (with ``[action:...]`` markers intact) and
+    the extracted action labels as a list.
+
+    The LLM is instructed to emit up to 10 ``[action:...]`` markers on a
+    single line at the end of the welcome message (identical format to the
+    normal RAG answer). The frontend parses those markers into clickable
+    buttons, so we deliberately LEAVE THEM IN the returned welcome text —
+    the list is returned separately only so callers can log / forward it
+    for "do not repeat these" heuristics on later turns.
+    """
+    text = response.strip()
+    actions = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(text)]
+    return text, actions[:10]
+
+
+def _embed_actions_in_welcome(welcome: str, actions: list[str]) -> str:
+    """Ensure the welcome content ends with a single ``[action:...]`` row
+    reflecting ``actions``. Strips any existing markers first so the call
+    is idempotent (callers can merge contextual prompts with the model's
+    output and re-embed without duplicating buttons).
+    """
+    stripped = _ACTION_MARKER_RE.sub("", welcome).rstrip()
+    stripped = re.sub(r"\n[ \t]*\n\s*$", "", stripped).rstrip()
+    if not actions:
+        return stripped
+    action_line = " ".join(f"[action:{q}]" for q in actions if q and q.strip())
+    if not action_line:
+        return stripped
+    return f"{stripped}\n\n{action_line}" if stripped else action_line
 
 
 def _estimate_total_text_len(extracted: list[dict]) -> int:
@@ -1635,6 +1660,11 @@ Reply in the same language as the document's primary content (see LANGUAGE DETEC
             welcome_message=welcome_message,
             description="",
         )
+    # Re-embed the (possibly enriched) action list back into the welcome
+    # content so the frontend sees a single source of truth. The list is
+    # still returned separately for back-compat with answering.ts's
+    # "don't repeat these" heuristic.
+    welcome_message = _embed_actions_in_welcome(welcome_message, suggested_questions)
 
     return DescribeResult(
         welcome_message=welcome_message,

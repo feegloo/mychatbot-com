@@ -69,20 +69,13 @@ export async function getConversation(id: string, _role: ConversationRole = 'vie
       : id
 
   // Run independent queries in parallel
-  const [filesResult, questionsResult, messagesResult, accessRequestsResult] = await Promise.all([
+  const [filesResult, messagesResult, accessRequestsResult] = await Promise.all([
     query<UploadedFileRecord>(
       `SELECT id, conversation_id, original_name, stored_name, mime_type, size_bytes, storage_key, metadata_json
        FROM uploaded_files
        WHERE conversation_id = $1
        ORDER BY created_at ASC`,
       [fileOwner],
-    ),
-    query<SuggestedQuestionRecord>(
-      `SELECT id, conversation_id, message_id, question, sort_order
-       FROM suggested_questions
-       WHERE conversation_id = $1
-       ORDER BY sort_order ASC, created_at ASC`,
-      [id],
     ),
     query<ConversationMessageRecord>(
       `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
@@ -144,7 +137,7 @@ export async function getConversation(id: string, _role: ConversationRole = 'vie
   return {
     conversation,
     files: filesResult.rows,
-    suggestedQuestions: questionsResult.rows,
+    suggestedQuestions: [] as SuggestedQuestionRecord[],
     messages: parentMessage ? [parentMessage, ...messagesResult.rows] : messagesResult.rows,
     parentWelcomeContents,
     accessRequests: accessRequestsResult.rows,
@@ -238,45 +231,6 @@ export async function updateFileMetadata(
      WHERE conversation_id = $1 AND original_name = $2`,
     [conversationId, originalName, JSON.stringify(metadata)],
   )
-}
-
-export async function replaceSuggestedQuestions(
-  conversationId: string,
-  questions: string[],
-  messageId?: string,
-) {
-  await query(`DELETE FROM suggested_questions WHERE conversation_id = $1`, [conversationId])
-
-  for (const [index, question] of questions.entries()) {
-    await query(
-      `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-      [conversationId, messageId || null, question, index],
-    )
-  }
-}
-
-export async function appendSuggestedQuestions(
-  conversationId: string,
-  questions: string[],
-  messageId?: string,
-) {
-  // Get current max sort_order
-  const result = await query<{ max: number | null }>(
-    `SELECT MAX(sort_order) as max FROM suggested_questions WHERE conversation_id = $1`,
-    [conversationId],
-  )
-
-  const startIndex = (result.rows[0]?.max ?? -1) + 1
-
-  // Add new questions without deleting old ones
-  for (const [index, question] of questions.entries()) {
-    await query(
-      `INSERT INTO suggested_questions (id, conversation_id, message_id, question, sort_order)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
-      [conversationId, messageId || null, question, startIndex + index],
-    )
-  }
 }
 
 export async function insertAccessToken(record: AccessTokenRecord) {

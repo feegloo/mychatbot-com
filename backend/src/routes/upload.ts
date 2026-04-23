@@ -8,7 +8,6 @@ import { createStorageProvider } from '../storage/index.js'
 import {
   insertConversation,
   insertUploadedFile,
-  replaceSuggestedQuestions,
   updateConversationStatus,
   insertAccessToken,
   insertConversationMessage,
@@ -227,9 +226,6 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
               console.error(`[metadata update error for ${fileName}]:`, err.message)
             }
           }
-          if (earlySuggestedQuestions.length) {
-            await replaceSuggestedQuestions(conversationId, earlySuggestedQuestions, welcomeMessageId)
-          }
           emitConversationEvent(conversationId, {
             event: 'welcome_message',
             data: {
@@ -286,7 +282,6 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
               console.error('[welcome update error]:', err.message)
             }
           }
-          await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
           await updateConversationStatus(conversationId, 'ready')
           emitConversationEvent(conversationId, {
             event: 'complete',
@@ -550,9 +545,6 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
               console.error(`[metadata update error for ${fileName}]:`, err.message)
             }
           }
-          if (earlySuggestedQuestions.length) {
-            await replaceSuggestedQuestions(conversationId, earlySuggestedQuestions, welcomeMessageId)
-          }
           emitConversationEvent(conversationId, {
             event: 'welcome_message',
             data: {
@@ -594,7 +586,6 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
               console.error('[welcome update error]:', err.message)
             }
           }
-          await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
           await updateConversationStatus(conversationId, 'ready')
           emitConversationEvent(conversationId, {
             event: 'complete',
@@ -691,7 +682,6 @@ uploadRouter.post('/upload-url', async (ctx) => {
         content: fallbackMessage,
         citations: { _sourceUrl: url },
       })
-      await replaceSuggestedQuestions(conversationId, suggestedQuestions, messageId)
       await updateConversationStatus(conversationId, 'ready')
     })
     .catch(async (error) => {

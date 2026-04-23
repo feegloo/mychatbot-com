@@ -25,7 +25,6 @@ import { emitConversationEvent } from './events.js'
 import {
   getMessageById,
   insertConversationMessage,
-  replaceSuggestedQuestions,
   updateConversationMessageContent,
   updateConversationStatus,
   updateFileMetadata,
@@ -156,10 +155,6 @@ async function handleWelcomeMessage(
     }
   }
 
-  if (suggestedQuestions.length) {
-    await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
-  }
-
   emitConversationEvent(conversationId, {
     event: 'welcome_message',
     data: {
@@ -229,9 +224,9 @@ async function handleComplete(
     }
   }
 
-  if (welcomeMessageId) {
-    await replaceSuggestedQuestions(conversationId, suggestedQuestions, welcomeMessageId)
-  }
+  // Suggested questions are embedded inline as [action:...] markers in
+  // welcome_message content by the Python describe step — nothing to
+  // persist separately here.
   await updateConversationStatus(conversationId, 'ready')
 
   emitConversationEvent(conversationId, {

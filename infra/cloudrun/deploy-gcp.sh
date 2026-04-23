@@ -214,8 +214,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --port 8080 \
   --memory 16Gi \
   --cpu 8 \
-  --min-instances 2 \
-  --max-instances 4 \
+  --min-instances 1 \
+  --max-instances 1 \
   --timeout 300 \
   --set-env-vars "\
 NODE_ENV=production,\
@@ -301,8 +301,8 @@ echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
-echo "  Indexer URL:    $INDEXER_URL  (internal only)"
+echo "  Indexer URL:    ${INDEXER_URL:-<disabled>}  (internal only)"
 echo "  Indexer secret: $INDEXER_SECRET  (save this!)"
-echo "  Min instances:  2 (chatrag), 1 (chatrag-indexer)"
-echo "  PDF offload:    50% of uploads delegated to chatrag-indexer"
+# echo "  Min instances:  1 (chatrag), indexer=${DEPLOY_INDEXER}"
+echo "  PDF offload:    inline (chatrag-indexer disabled, set DEPLOY_INDEXER=true to re-enable)"
 echo "═══════════════════════════════════════════════════════════════"

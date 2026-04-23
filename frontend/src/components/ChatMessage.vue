@@ -207,49 +207,6 @@
             </div>
           </div>
 
-          <div v-if="isWelcome && welcomeVisibleQuestions.length" class="welcome-suggested-questions" :class="{ 'is-translating': isTranslating }">
-            <div
-              v-for="question in welcomeVisibleQuestions"
-              :key="question.raw"
-              class="question-pill"
-              role="button"
-              tabindex="0"
-              @click="onSuggestedQuestionClick($event, question.raw)"
-              @keydown="onSuggestedQuestionKeydown($event, question.raw)"
-            >
-              <FadeText :trigger="question.html">
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <span class="suggested-question-markdown" v-html="question.html"></span>
-              </FadeText>
-            </div>
-            <VDropdown
-              v-if="welcomeHiddenQuestions.length"
-              ref="welcomeMoreDropdown"
-              theme="more-questions"
-              :distance="6"
-            >
-              <div class="question-pill" role="button" tabindex="0">More ...</div>
-              <template #popper>
-                <div class="welcome-more-popper" role="menu">
-                  <div
-                    v-for="question in welcomeHiddenQuestions"
-                    :key="`more-${question.raw}`"
-                    class="question-pill welcome-more-item"
-                    role="menuitem"
-                    tabindex="0"
-                    @click="onSuggestedQuestionClick($event, question.raw)"
-                    @keydown="onSuggestedQuestionKeydown($event, question.raw)"
-                  >
-                    <FadeText :trigger="question.html">
-                      <!-- eslint-disable-next-line vue/no-v-html -->
-                      <span class="suggested-question-markdown" v-html="question.html"></span>
-                    </FadeText>
-                  </div>
-                </div>
-              </template>
-            </VDropdown>
-          </div>
-
           <div
             v-if="isFirstMessage && canUpload && (selectedUploadFiles.length || uploadError)"
             class="welcome-upload-row"
@@ -432,50 +389,6 @@
         <span class="user-text" :class="{ 'animate-in': animateIn, 'is-translating': isTranslating }">{{ msg.content }}</span>
       </FadeText>
 
-      <!-- Inline suggested questions for welcome message (non-2-col fallback) -->
-      <div v-if="isWelcome && !welcomeHasFiles && welcomeVisibleQuestions.length" class="welcome-suggested-questions" :class="{ 'is-translating': isTranslating }">
-        <div
-          v-for="question in welcomeVisibleQuestions"
-          :key="question.raw"
-          class="question-pill"
-          role="button"
-          tabindex="0"
-          @click="onSuggestedQuestionClick($event, question.raw)"
-          @keydown="onSuggestedQuestionKeydown($event, question.raw)"
-        >
-          <FadeText :trigger="question.html">
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <span class="suggested-question-markdown" v-html="question.html"></span>
-          </FadeText>
-        </div>
-        <VDropdown
-          v-if="welcomeHiddenQuestions.length"
-          ref="welcomeMoreDropdown"
-          theme="more-questions"
-          :distance="6"
-        >
-          <div class="question-pill" role="button" tabindex="0">More ...</div>
-          <template #popper>
-            <div class="welcome-more-popper" role="menu">
-              <div
-                v-for="question in welcomeHiddenQuestions"
-                :key="`more-${question.raw}`"
-                class="question-pill welcome-more-item"
-                role="menuitem"
-                tabindex="0"
-                @click="onSuggestedQuestionClick($event, question.raw)"
-                @keydown="onSuggestedQuestionKeydown($event, question.raw)"
-              >
-                <FadeText :trigger="question.html">
-                  <!-- eslint-disable-next-line vue/no-v-html -->
-                  <span class="suggested-question-markdown" v-html="question.html"></span>
-                </FadeText>
-              </div>
-            </div>
-          </template>
-        </VDropdown>
-      </div>
-
       <!-- Upload files button (first message only, non-2-col fallback) -->
       <div
         v-if="
@@ -546,12 +459,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
-import { createTooltip, destroyTooltip, Dropdown as VDropdownType } from 'floating-vue'
+import { createTooltip, destroyTooltip } from 'floating-vue'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl, resolveStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
-import { renderMarkdown, renderInlineMarkdown } from '../utils/markdown'
+import { renderMarkdown } from '../utils/markdown'
 import ImageModal from './ImageModal.vue'
 import SourcePreviewModal from './SourcePreviewModal.vue'
 import AppButton from './AppButton.vue'
@@ -562,8 +475,8 @@ const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
 import type { QuizData } from './QuizBlock.vue'
 import { getData, setData } from '../utils/localData'
 import UploadingDots from './UploadingDots.vue'
+import { maxHeaderSize } from 'http'
 
-const MAX_VISIBLE_WELCOME_PROMPTS = 5
 const MAX_VISIBLE_ASSISTANT_ACTIONS = 3
 const outsideClickHandlers = new Set<(event: MouseEvent) => void>()
 let outsideClickListenerBound = false
@@ -597,7 +510,7 @@ const props = defineProps<{
   isFirstMessage?: boolean
   canUpload?: boolean
   files?: ConversationStatus['files']
-  suggestedQuestions?: string[]
+  maxVisibleActions?: number
   conversationName?: string
   fileName?: string
   isThread?: boolean
@@ -720,46 +633,6 @@ function triggerUpload() {
 defineExpose({ resetUploadState, setUploading, triggerUpload })
 
 const _renderedContent = computed(() => renderMarkdown(props.msg.content))
-const renderedSuggestedQuestions = computed(() =>
-  (props.suggestedQuestions ?? []).map((question) => ({
-    raw: question,
-    html: renderInlineMarkdown(question),
-  })),
-)
-const welcomeMoreDropdown = ref<InstanceType<typeof VDropdownType> | null>(null)
-const welcomeVisibleQuestions = computed(() =>
-  renderedSuggestedQuestions.value.slice(0, MAX_VISIBLE_WELCOME_PROMPTS),
-)
-const welcomeHiddenQuestions = computed(() =>
-  renderedSuggestedQuestions.value.slice(MAX_VISIBLE_WELCOME_PROMPTS),
-)
-
-function onSuggestedQuestionClick(event: MouseEvent, question: string) {
-  const target = event.target as HTMLElement | null
-  if (target?.closest('a')) return
-  closeWelcomeMore()
-  closeActionMenus()
-  emit('select-question', question)
-}
-
-function onSuggestedQuestionKeydown(event: KeyboardEvent, question: string) {
-  const target = event.target as HTMLElement | null
-  if (target?.closest('a')) return
-  if (event.key === 'Escape') {
-    closeWelcomeMore()
-    closeActionMenus()
-    return
-  }
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  if (event.key === ' ') event.preventDefault()
-  closeWelcomeMore()
-  closeActionMenus()
-  emit('select-question', question)
-}
-
-function closeWelcomeMore() {
-  welcomeMoreDropdown.value?.hide()
-}
 
 const messageContentEl = ref<HTMLElement | null>(null)
 const messageRootEl = ref<HTMLElement | null>(null)
@@ -1156,13 +1029,13 @@ function transformActionButtonGroups() {
     rows.forEach((row) => {
       if (row.dataset.moreReady === '1') return
       const buttons = Array.from(row.querySelectorAll<HTMLElement>(':scope > .action-btn'))
-      if (buttons.length <= MAX_VISIBLE_ASSISTANT_ACTIONS) {
+      if (buttons.length <= props.maxVisibleActions) {
         // Only lock this row when streaming is done — during streaming more buttons may still arrive
         if (!props.asking) row.dataset.moreReady = '1'
         return
       }
-      const visibleButtons = buttons.slice(0, MAX_VISIBLE_ASSISTANT_ACTIONS)
-      const rest = buttons.slice(MAX_VISIBLE_ASSISTANT_ACTIONS)
+      const visibleButtons = buttons.slice(0, props.maxVisibleActions)
+      const rest = buttons.slice(props.maxVisibleActions)
       const wrap = document.createElement('span')
       wrap.className = 'action-more-wrap'
       const visibleRow = document.createElement('span')
@@ -1339,7 +1212,6 @@ function onContentClick(e: MouseEvent) {
     const action = actionBtn.dataset.action
     if (action) {
       closeActionMenus()
-      closeWelcomeMore()
       emit('select-question', action)
     }
     return
@@ -1370,7 +1242,6 @@ function onDocumentClick(event: MouseEvent) {
   // the theme class, so we skip closing when either is clicked.
   if (target.closest('.v-popper--theme-more-questions')) return
   closeActionMenus()
-  closeWelcomeMore()
 }
 
 // Image modal state
@@ -1925,29 +1796,19 @@ function openFilePreview(file: FileInfo) {
   }
 }
 
-/* Welcome suggested questions (inline) */
-.welcome-suggested-questions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 14px 0 2px;
-}
-
-/* Translation fade: applies to assistant content, user text, and suggested questions.
+/* Translation fade: applies to assistant content and user text.
    Duration matches FADE_MIN_MS in LanguageToggle.vue so cached translations still animate.
    Image-containing blocks are deliberately excluded via :not(:has(img)) so pictures
    remain stable while surrounding text re-renders in the new language. */
 .message-content-wrap :deep(.markdown-content) > *:not(:has(img)),
-.user-text,
-.welcome-suggested-questions {
+.user-text {
   transition:
     opacity 200ms ease,
     filter 200ms ease;
 }
 
 .message-content-wrap.is-translating :deep(.markdown-content) > *:not(:has(img)),
-.user-text.is-translating,
-.welcome-suggested-questions.is-translating {
+.user-text.is-translating {
   opacity: 0;
   filter: blur(2px);
 }
@@ -1971,10 +1832,6 @@ function openFilePreview(file: FileInfo) {
   }
 }
 
-.welcome-suggested-questions .question-pill {
-  margin: 0 6px 8px 0;
-}
-
 @keyframes fade-in-right {
   from {
     opacity: 0;
@@ -1984,38 +1841,6 @@ function openFilePreview(file: FileInfo) {
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.welcome-suggested-questions .question-pill:focus-visible {
-  outline: 2px solid rgba(167, 139, 250, 0.6);
-  outline-offset: 2px;
-}
-
-.suggested-question-markdown {
-  white-space: nowrap;
-}
-
-.suggested-question-markdown :deep(a) {
-  color: inherit;
-  text-decoration: underline;
-}
-
-.suggested-question-markdown :deep(p) {
-  display: inline;
-  margin: 0;
-}
-
-@media (hover: hover) {
-  .welcome-suggested-questions .question-pill:hover {
-    background: rgba(167, 139, 250, 0.1);
-    border-color: rgba(167, 139, 250, 0.25);
-    color: #ddd6fe;
-  }
-}
-.welcome-suggested-questions .question-pill:active {
-  background: rgba(167, 139, 250, 0.1);
-  border-color: rgba(167, 139, 250, 0.25);
-  color: #ddd6fe;
 }
 
 /* Upload files row inside first message */

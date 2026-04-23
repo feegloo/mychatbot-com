@@ -52,7 +52,7 @@
           :is-welcome="isUploadMessage(index)"
           :is-first-message="index === 0 && msg.role === 'assistant'"
           :can-upload="false"
-          :suggested-questions="suggestedQuestionsForMessage(index)"
+          :max-visible-actions="5"
           :no-animation="index < initialMessageCount"
           @select-question="question = $event; submitQuestion()"
           @image-revealed="(success: boolean) => success && scrollToBottom(true)"
@@ -125,7 +125,6 @@ const status = ref<ConversationStatus>({
   parentConversationId: null,
   files: [],
   messages: [],
-  suggestedQuestions: [],
   accessRequests: [],
 })
 const messages = ref<ChatMessage[]>([])
@@ -174,25 +173,6 @@ watchEffect(() => {
   const idx = messages.value.findIndex((_, i) => isUploadMessage(i))
   welcomeMessageContent.value = idx >= 0 ? messages.value[idx].content : ''
 })
-
-function isLastUploadMessage(index: number): boolean {
-  if (!isUploadMessage(index)) return false
-  for (let i = index + 1; i < messages.value.length; i++) {
-    if (isUploadMessage(i)) return false
-  }
-  return true
-}
-
-function suggestedQuestionsForMessage(index: number): string[] | undefined {
-  if (!isUploadMessage(index)) return undefined
-  const msg = messages.value[index]
-  if (msg.suggestedQuestions?.length) return msg.suggestedQuestions
-  if (status.value.status === 'processing') return undefined
-  if (isLastUploadMessage(index) && status.value.suggestedQuestions.length) {
-    return status.value.suggestedQuestions
-  }
-  return undefined
-}
 
 async function loadConversation() {
   try {
