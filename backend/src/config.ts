@@ -42,11 +42,16 @@ export const config = {
   indexerSecret: process.env.INDEXER_SECRET || '',
   // Indexing backend: 'inline' (default) runs indexing inside the upload
   // request on the backend instance (works for local dev + single-node);
-  // 'cloud_run' enqueues into the indexing_jobs table so the separate
-  // chatrag-indexer Cloud Run service claims the work via SELECT FOR
-  // UPDATE SKIP LOCKED. Backend instances then LISTEN on indexing_events
-  // to relay worker progress to browsers via SSE.
+  // 'cloud_run' publishes a job to GCP Pub/Sub topic ``pubsubTopic`` so
+  // the chatrag-worker Cloud Run service can pull and process it. Backend
+  // instances then LISTEN on indexing_events to relay worker progress to
+  // browsers via SSE.
   workerMode: (process.env.WORKER_MODE || 'inline') as 'inline' | 'cloud_run',
+  // GCP Pub/Sub topic for indexing jobs. When unset, ``cloud_run`` mode
+  // falls back to inline processing (the publish helper throws and the
+  // upload route logs + degrades gracefully).
+  pubsubTopic: process.env.PUBSUB_TOPIC || 'chatrag-indexing',
+  gcpProjectId: process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '',
   // Per-instance Postgres pool size. Kept small because Cloud SQL
   // db-f1-micro only allows ~25 concurrent connections total and several
   // Cloud Run instances share that budget.

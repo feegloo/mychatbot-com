@@ -77,93 +77,24 @@ const PDF_PAGES_STATEMENTS = [
   'CREATE INDEX IF NOT EXISTS idx_pdf_pages_created_at ON pdf_pages(created_at DESC)',
 ]
 
-// Idempotent bootstrap for the indexing_jobs queue. Mirrors 013-indexing-jobs.sql
-// exactly; see that file for the design rationale (SELECT FOR UPDATE SKIP LOCKED
-// claim pattern, LISTEN/NOTIFY wake-up, heartbeat-based crash recovery).
-const INDEXING_JOBS_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS indexing_jobs (
-     id BIGSERIAL PRIMARY KEY,
-     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-     collection_name TEXT NOT NULL,
-     file_paths JSONB NOT NULL,
-     storage_namespace TEXT,
-     status TEXT NOT NULL DEFAULT 'queued'
-       CHECK (status IN ('queued', 'claimed', 'running', 'done', 'error')),
-     claimed_by TEXT,
-     claimed_at TIMESTAMPTZ,
-     heartbeat_at TIMESTAMPTZ,
-     attempts INT NOT NULL DEFAULT 0,
-     max_attempts INT NOT NULL DEFAULT 3,
-     error_message TEXT,
-     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-     finished_at TIMESTAMPTZ
-   )`,
-  `CREATE INDEX IF NOT EXISTS idx_indexing_jobs_pickup
-     ON indexing_jobs (created_at)
-     WHERE status IN ('queued', 'claimed', 'running')`,
-  `CREATE INDEX IF NOT EXISTS idx_indexing_jobs_conversation
-     ON indexing_jobs (conversation_id, status)`,
-  `CREATE INDEX IF NOT EXISTS idx_indexing_jobs_heartbeat
-     ON indexing_jobs (heartbeat_at)
-     WHERE status IN ('claimed', 'running')`,
-  `CREATE OR REPLACE FUNCTION indexing_jobs_touch_updated_at()
-   RETURNS TRIGGER AS $$
-   BEGIN
-     NEW.updated_at := NOW();
-     RETURN NEW;
-   END;
-   $$ LANGUAGE plpgsql`,
-  'DROP TRIGGER IF EXISTS indexing_jobs_touch_updated_at_trg ON indexing_jobs',
-  `CREATE TRIGGER indexing_jobs_touch_updated_at_trg
-     BEFORE UPDATE ON indexing_jobs
-     FOR EACH ROW
-     EXECUTE FUNCTION indexing_jobs_touch_updated_at()`,
-  `CREATE OR REPLACE FUNCTION indexing_jobs_notify_new()
-   RETURNS TRIGGER AS $$
-   BEGIN
-     IF NEW.status = 'queued' THEN
-       PERFORM pg_notify('indexing_jobs_new', NEW.id::text);
-     END IF;
-     RETURN NEW;
-   END;
-   $$ LANGUAGE plpgsql`,
-  'DROP TRIGGER IF EXISTS indexing_jobs_notify_insert_trg ON indexing_jobs',
-  `CREATE TRIGGER indexing_jobs_notify_insert_trg
-     AFTER INSERT ON indexing_jobs
-     FOR EACH ROW
-     EXECUTE FUNCTION indexing_jobs_notify_new()`,
-  `CREATE OR REPLACE FUNCTION indexing_jobs_notify_requeue()
-   RETURNS TRIGGER AS $$
-   BEGIN
-     IF NEW.status = 'queued' AND OLD.status <> 'queued' THEN
-       PERFORM pg_notify('indexing_jobs_new', NEW.id::text);
-     END IF;
-     RETURN NEW;
-   END;
-   $$ LANGUAGE plpgsql`,
-  'DROP TRIGGER IF EXISTS indexing_jobs_notify_requeue_trg ON indexing_jobs',
-  `CREATE TRIGGER indexing_jobs_notify_requeue_trg
-     AFTER UPDATE OF status ON indexing_jobs
-     FOR EACH ROW
-     EXECUTE FUNCTION indexing_jobs_notify_requeue()`,
-]
-
-// Idempotent bootstrap for indexing_events relay table. See
-// 014-indexing-events.sql for design rationale (worker→backend decoupling
-// via LISTEN/NOTIFY with DB-persisted events for reconnect replay).
+// Idempotent bootstrap for indexing_events relay table. See schema.sql for
+// the design rationale (worker→backend decoupling via Pub/Sub job delivery
+// and DB-persisted progress events for browser reconnect replay).
+//
+// job_id (Pub/Sub UUID) and per-job metadata are embedded in the JSONB
+// payload by the worker — there is no longer a foreign-key relation to a
+// jobs table. Migration 015-drop-indexing-jobs.sql removes the legacy FK.
 const INDEXING_EVENTS_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS indexing_events (
      id BIGSERIAL PRIMARY KEY,
      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-     job_id BIGINT REFERENCES indexing_jobs(id) ON DELETE CASCADE,
      event_type TEXT NOT NULL,
      payload JSONB NOT NULL DEFAULT '{}'::jsonb,
      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
      processed_at TIMESTAMPTZ
    )`,
-  'ALTER TABLE indexing_events ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ',
+  // Drop the legacy FK column on existing DBs that pre-date the Pub/Sub cutover.
+  'ALTER TABLE indexing_events DROP COLUMN IF EXISTS job_id',
   'CREATE INDEX IF NOT EXISTS idx_indexing_events_conversation ON indexing_events (conversation_id, id)',
   'CREATE INDEX IF NOT EXISTS idx_indexing_events_created_at ON indexing_events (created_at)',
   'CREATE INDEX IF NOT EXISTS idx_indexing_events_unprocessed ON indexing_events (id) WHERE processed_at IS NULL',
@@ -203,13 +134,6 @@ export async function ensureDebugIndexes(): Promise<void> {
       await pool.query(stmt)
     } catch (err) {
       console.warn('[db] ensurePdfPagesSchema failed:', (err as Error).message)
-    }
-  }
-  for (const stmt of INDEXING_JOBS_STATEMENTS) {
-    try {
-      await pool.query(stmt)
-    } catch (err) {
-      console.warn('[db] ensureIndexingJobsSchema failed:', (err as Error).message)
     }
   }
   for (const stmt of INDEXING_EVENTS_STATEMENTS) {

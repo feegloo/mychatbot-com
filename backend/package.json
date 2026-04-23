@@ -16,6 +16,7 @@
     "docker:init": "cat sql/schema.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag && cat sql/migration.sql | docker exec -i chatrag-postgres psql -U chatrag -d chatrag"
   },
   "dependencies": {
+    "@google-cloud/pubsub": "^5.3.0",
     "@google-cloud/storage": "^7.19.0",
     "@google-cloud/translate": "^9.3.0",
     "@koa/cors": "^5.0.0",

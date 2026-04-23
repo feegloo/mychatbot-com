@@ -33,7 +33,7 @@ import { deriveToken } from '../security.js'
 import { generateSignedUploadUrl, downloadGcsFileToLocal } from '../storage/gcs-storage.js'
 import { getConversationToken } from '../utils/request.js'
 import { MAX_FILE_SIZE } from '../constants.js'
-import { enqueueIndexingJob } from '../indexing-jobs.js'
+import { publishIndexingJob } from '../indexing-jobs.js'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } })
 export const uploadRouter = new Router()
@@ -152,21 +152,19 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
   }
 
   // Fire-and-forget: stream indexing events and emit SSE updates.
-  // In 'cloud_run' worker mode, hand the work off to the indexing queue;
-  // any chatrag-indexer replica will claim it and progress events flow
-  // back via NOTIFY indexing_events → startIndexingEventsListener.
-  // In 'inline' mode (default), keep the original in-request streaming
-  // behaviour — every other upload is delegated to chatrag-indexer
-  // (when INDEXER_URL is set) and falls back to local on delegation error.
+  // In 'cloud_run' worker mode, publish to GCP Pub/Sub; chatrag-worker
+  // pulls the job and emits progress to indexing_events, which the SSE
+  // listener relays to the browser. In 'inline' mode (dev / single-node),
+  // run indexing in-process and stream events directly.
   if (config.workerMode === 'cloud_run') {
-    enqueueIndexingJob({
+    publishIndexingJob({
       conversationId,
       collectionName,
       filePaths: jobFilePaths,
       storageNamespace: namespace,
       metadata: { uploadedFileNames, storedToOriginal },
     }).catch(async (err: Error) => {
-      logger.error({ conversationId, err: err.message }, 'enqueueIndexingJob failed')
+      logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')
       await updateConversationStatus(conversationId, 'failed', err.message)
       emitConversationEvent(conversationId, {
         event: 'error',
@@ -478,14 +476,14 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
   // Fire-and-forget: stream indexing events and emit SSE updates. See the
   // /upload route above for the full branch rationale.
   if (config.workerMode === 'cloud_run') {
-    enqueueIndexingJob({
+    publishIndexingJob({
       conversationId: conversationId as string,
       collectionName,
       filePaths: jobFilePaths,
       storageNamespace: conversationId as string,
       metadata: { uploadedFileNames, storedToOriginal },
     }).catch(async (err: Error) => {
-      logger.error({ conversationId, err: err.message }, 'enqueueIndexingJob failed')
+      logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')
       await updateConversationStatus(conversationId as string, 'failed', err.message)
       emitConversationEvent(conversationId as string, {
         event: 'error',

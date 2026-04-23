@@ -335,11 +335,169 @@ def index_documents(
     collection_name: str,
     file_paths: list[str],
     on_progress: "Callable[[str, dict], None] | None" = None,
+    *,
+    job_metadata: dict | None = None,
+    allow_delegation: bool = True,
 ) -> dict:
     logger.info(
         f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}"
     )
 
+    # ── CPU budget + delegation decision ─────────────────────────────
+    # Main instance caps its own CPU usage at 50% of system cores (see
+    # shared.cpu_budget). If the budget is exhausted, we publish the job
+    # to Pub/Sub so chatrag-worker can pick it up. ``allow_delegation``
+    # is False on workers themselves — they always run inline.
+    slots_reserved = _reserve_cpu_or_delegate(
+        conversation_id=conversation_id,
+        collection_name=collection_name,
+        file_paths=file_paths,
+        on_progress=on_progress,
+        job_metadata=job_metadata,
+        allow_delegation=allow_delegation,
+    )
+    if slots_reserved is None:
+        # Delegated — caller should rely on worker's NOTIFY events instead.
+        return {"delegated": True, "conversation_id": conversation_id}
+
+    try:
+        return _index_documents_inline(
+            conversation_id=conversation_id,
+            collection_name=collection_name,
+            file_paths=file_paths,
+            on_progress=on_progress,
+        )
+    finally:
+        from .cpu_budget import release as _release_cpu
+        _release_cpu(slots_reserved)
+
+
+def _reserve_cpu_or_delegate(
+    *,
+    conversation_id: str,
+    collection_name: str,
+    file_paths: list[str],
+    on_progress: "Callable[[str, dict], None] | None",
+    job_metadata: dict | None,
+    allow_delegation: bool,
+) -> int | None:
+    """Reserve CPU slots for this job or publish it to Pub/Sub.
+
+    Returns the slot count reserved (caller must release), or ``None``
+    when the job has been delegated to a remote worker.
+    """
+    from .cpu_budget import (
+        MAIN_MAX_CPU,
+        CpuBudgetExhausted,
+        estimate_slots_for_file,
+        try_reserve,
+    )
+
+    slots = max((estimate_slots_for_file(fp.split("|", 1)[0]) for fp in file_paths), default=1)
+    # A single job can never demand more than the entire main budget.
+    slots = min(slots, MAIN_MAX_CPU)
+
+    if try_reserve(slots):
+        logger.info(
+            f"🧮 Reserved {slots} CPU slot(s) for job (files={len(file_paths)})"
+        )
+        return slots
+
+    if not allow_delegation:
+        # Caller opted out (e.g. this IS the worker). Fall through and
+        # run anyway — over-subscription is less bad than dropping work.
+        logger.warning(
+            f"⚠️ CPU budget exhausted but delegation disabled; running inline "
+            f"({slots} slot(s) requested)"
+        )
+        return slots
+
+    delegated = _try_delegate_to_worker(
+        conversation_id=conversation_id,
+        collection_name=collection_name,
+        file_paths=file_paths,
+        on_progress=on_progress,
+        job_metadata=job_metadata,
+    )
+    if delegated:
+        return None
+
+    # Delegation failed (e.g. Pub/Sub unreachable). Run inline anyway
+    # rather than losing the upload; CpuBudgetExhausted would surface
+    # a worse UX than brief over-subscription.
+    logger.warning(
+        f"⚠️ Delegation unavailable; proceeding inline despite exhausted budget "
+        f"({slots} slot(s) requested)"
+    )
+    return slots
+
+
+def _try_delegate_to_worker(
+    *,
+    conversation_id: str,
+    collection_name: str,
+    file_paths: list[str],
+    on_progress: "Callable[[str, dict], None] | None",
+    job_metadata: dict | None,
+) -> bool:
+    """Publish the job to the chatrag-worker Pub/Sub topic. Returns
+    ``True`` on successful publish, ``False`` to signal the caller
+    should fall back to inline processing.
+    """
+    import socket
+    import uuid
+
+    try:
+        from .pubsub_client import (
+            IndexingJobPayload,
+            PubSubNotConfigured,
+            publish_indexing_job,
+        )
+    except ImportError:
+        # google-cloud-pubsub not installed (shouldn't happen in prod image).
+        return False
+
+    job_id = str(uuid.uuid4())
+    worker_name = os.environ.get("HOSTNAME") or socket.gethostname() or "unknown"
+    payload = IndexingJobPayload(
+        worker_name=worker_name,
+        file_names=file_paths,
+        conversation_id=conversation_id,
+        collection_name=collection_name,
+        job_id=job_id,
+        metadata=job_metadata or {},
+    )
+    try:
+        message_id = publish_indexing_job(payload)
+    except PubSubNotConfigured:
+        logger.info("Pub/Sub not configured; cannot delegate job")
+        return False
+    except Exception as e:
+        logger.exception(f"Pub/Sub publish failed: {e}")
+        return False
+
+    logger.info(
+        f"📤 Delegated job {job_id} to chatrag-worker "
+        f"(msg={message_id}, files={len(file_paths)})"
+    )
+    log_processing_event(
+        conversation_id,
+        ",".join(Path(fp.split('|', 1)[0]).name for fp in file_paths),
+        "job_delegated",
+        status="queued",
+        detail=f"job_id={job_id} msg={message_id}",
+    )
+    if on_progress:
+        on_progress("delegated", {"job_id": job_id, "worker_name": worker_name})
+    return True
+
+
+def _index_documents_inline(
+    conversation_id: str,
+    collection_name: str,
+    file_paths: list[str],
+    on_progress: "Callable[[str, dict], None] | None" = None,
+) -> dict:
     log_processing_event(
         conversation_id,
         ",".join(Path(fp).name for fp in file_paths),

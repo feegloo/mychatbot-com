@@ -94,6 +94,7 @@ jobs:
           INDEXER_URL=${{ secrets.INDEXER_URL }}"
 
       - name: Deploy chatrag-indexer worker service
+        if: ${{ vars.DEPLOY_INDEXER == 'true' }}
         run: |
           gcloud run deploy chatrag-indexer \
             --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest \

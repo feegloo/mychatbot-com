@@ -1,20 +1,23 @@
 /**
- * Stateless handler for indexing events emitted by the Python worker.
+ * Stateless handler for indexing events emitted by the chatrag-worker.
  *
- * In `WORKER_MODE=cloud_run`, workers run on a separate Cloud Run service
+ * In ``WORKER_MODE=cloud_run``, workers run on a separate Cloud Run service
  * and can't write messages/conversation state directly (that logic lives
- * in TypeScript). They instead emit events to `indexing_events`. Any
- * backend instance LISTEN'ing on that channel picks up NOTIFYs and calls
- * into this handler.
+ * in TypeScript). They instead INSERT events into ``indexing_events``.
+ * Any backend instance LISTEN'ing on that channel picks up NOTIFYs and
+ * calls into this handler.
  *
  * Key invariants:
  *   • The caller (indexing-events-listener.ts) has *already* claimed the
- *     event row via `claimIndexingEvent` — this is the cross-replica
+ *     event row via ``claimIndexingEvent`` — this is the cross-replica
  *     single-writer guarantee. So no further dedup is needed here.
- *   • State that used to live in the upload.ts closure (`welcomeMessageId`,
- *     `latestParsed`, `latestTotal`) is looked up from the DB on every
+ *   • State that used to live in the upload.ts closure (``welcomeMessageId``,
+ *     ``latestParsed``, ``latestTotal``) is looked up from the DB on every
  *     call instead.
- *   • `emitConversationEvent` fans out to whichever SSE clients are
+ *   • Per-job metadata (``uploadedFileNames``, ``storedToOriginal``) is
+ *     embedded in each event payload by the worker so we never need to
+ *     join against another table.
+ *   • ``emitConversationEvent`` fans out to whichever SSE clients are
  *     currently subscribed on *this* backend instance. The upstream
  *     issue of "which instance holds the browser socket" is solved by
  *     NOTIFY: all instances receive it, the one with the browser relays.
@@ -34,7 +37,6 @@ import { query } from './db.js'
 export type IndexingEventRecord = {
   id: number
   conversation_id: string
-  job_id: number | null
   event_type: string
   payload: Record<string, unknown>
 }
@@ -44,24 +46,21 @@ type JobContext = {
   storedToOriginal: Record<string, string>
 }
 
-async function getJobContext(jobId: number | null): Promise<JobContext> {
-  const empty: JobContext = { uploadedFileNames: [], storedToOriginal: {} }
-  if (jobId == null) return empty
-  const res = await query<{ metadata: any }>(
-    `SELECT metadata FROM indexing_jobs WHERE id = $1`,
-    [jobId],
-  )
-  if (!res.rows.length) return empty
-  const meta = res.rows[0].metadata || {}
-  return {
-    uploadedFileNames: Array.isArray(meta.uploadedFileNames)
-      ? (meta.uploadedFileNames as string[])
-      : [],
-    storedToOriginal:
-      meta.storedToOriginal && typeof meta.storedToOriginal === 'object'
-        ? (meta.storedToOriginal as Record<string, string>)
-        : {},
-  }
+/**
+ * Pull per-job metadata out of the event payload. The worker embeds this
+ * in every welcome/complete event under ``_meta`` so the handler doesn't
+ * have to join against any jobs table.
+ */
+function getJobContext(payload: Record<string, unknown>): JobContext {
+  const meta = (payload._meta as Record<string, unknown> | undefined) ?? {}
+  const uploadedFileNames = Array.isArray(meta.uploadedFileNames)
+    ? (meta.uploadedFileNames as string[])
+    : []
+  const storedToOriginal =
+    meta.storedToOriginal && typeof meta.storedToOriginal === 'object'
+      ? (meta.storedToOriginal as Record<string, string>)
+      : {}
+  return { uploadedFileNames, storedToOriginal }
 }
 
 /**
@@ -89,13 +88,13 @@ export async function handleIndexingEvent(
     }
 
     case 'welcome_message': {
-      const ctx = await getJobContext(event.job_id)
+      const ctx = getJobContext(payload)
       await handleWelcomeMessage(conversationId, payload, ctx)
       return
     }
 
     case 'complete': {
-      const ctx = await getJobContext(event.job_id)
+      const ctx = getJobContext(payload)
       await handleComplete(conversationId, payload, ctx)
       return
     }

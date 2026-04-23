@@ -156,6 +156,39 @@ npm run dev
 #### Python
 Python is called by the backend, so it does not need a long-running server for MVP.
 
+## Testing the Pub/Sub worker locally
+
+By default the backend runs indexing inline (`WORKER_MODE=inline`) — fine for casual dev, but it doesn't exercise the `chatrag-worker` code path that runs in production. To run the full publish → subscribe → index flow on your laptop, use the bundled GCP Pub/Sub emulator:
+
+```bash
+# 1. Start emulator + bootstrap topic/subscription (idempotent)
+docker compose up -d pubsub-emulator pubsub-init
+
+# 2. Worker (terminal A)
+cd python && source .venv/bin/activate
+export PUBSUB_EMULATOR_HOST=localhost:8085
+export GCP_PROJECT_ID=chatrag-local
+export PUBSUB_TOPIC=chatrag-indexing
+export PUBSUB_SUBSCRIPTION=chatrag-indexing-sub
+python worker_pubsub.py
+
+# 3. Backend (terminal B) — same env + cloud_run mode
+cd backend
+export PUBSUB_EMULATOR_HOST=localhost:8085
+export GCP_PROJECT_ID=chatrag-local
+export PUBSUB_TOPIC=chatrag-indexing
+export WORKER_MODE=cloud_run
+npm run dev
+```
+
+Both `@google-cloud/pubsub` (Node) and `google-cloud-pubsub` (Python) auto-detect `PUBSUB_EMULATOR_HOST` — no GCP credentials needed and no code changes between local and prod. Progress events still flow back through the existing `indexing_events` → Postgres NOTIFY → SSE pipeline.
+
+Verify the emulator is healthy:
+```bash
+curl -sS http://localhost:8085/v1/projects/chatrag-local/topics
+curl -sS http://localhost:8085/v1/projects/chatrag-local/subscriptions
+```
+
 ## Default URLs
 
 - Frontend: `http://localhost:5173`

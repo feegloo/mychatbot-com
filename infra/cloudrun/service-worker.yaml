@@ -1,0 +1,83 @@
+# Cloud Run Service: chatrag-worker
+#
+# Lightweight Python-only worker that subscribes to the Pub/Sub indexing
+# topic and processes whole PDFs delegated by the main chatrag service
+# when its CPU budget is exhausted.
+#
+# Image: built from python/Dockerfile.worker (Python + deps only — no
+# Node, no frontend dist, much smaller than the main chatrag image).
+#
+# Deploy with infra/cloudrun/deploy-gcp.sh (DEPLOY_WORKER=true) or:
+#   gcloud run services replace infra/cloudrun/service-worker.yaml \
+#     --region=europe-west1
+#
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chatrag-worker
+  annotations:
+    # Internal-only — workers consume from Pub/Sub; no public ingress needed.
+    run.googleapis.com/ingress: internal
+spec:
+  template:
+    metadata:
+      annotations:
+        # Always-warm to avoid cold-start when delegated work arrives.
+        # Bump maxScale once load exceeds a single worker.
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        # Workers stream-pull from Pub/Sub continuously; throttling CPU
+        # outside requests would freeze the subscriber loop.
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      # No HTTP traffic — the container just runs the subscriber loop.
+      # containerConcurrency is irrelevant but Cloud Run requires a value.
+      containerConcurrency: 1
+      timeoutSeconds: 600
+      containers:
+        - image: gcr.io/PROJECT_ID/chatrag-worker:latest
+          # No port: this is a pure background worker. Cloud Run accepts
+          # services without an HTTP listener as long as the container
+          # doesn't exit. (If your platform version requires a port,
+          # uncomment below and add a tiny health endpoint.)
+          # ports:
+          #   - containerPort: 8080
+          resources:
+            limits:
+              memory: 2Gi
+              # Spec: worker uses ~1 CPU per file. 2 CPU gives headroom
+              # for OCR / embedding background threads.
+              cpu: "2"
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: GCP_PROJECT_ID
+              value: "REPLACE_WITH_PROJECT_ID"
+            - name: PUBSUB_SUBSCRIPTION
+              value: chatrag-indexing-sub
+            - name: PUBSUB_MAX_MESSAGES
+              value: "1"
+            - name: DATABASE_URL
+              value: "REPLACE_WITH_CLOUD_SQL_URL"
+            - name: CHROMA_MODE
+              value: local
+            - name: ANONYMIZED_TELEMETRY
+              value: "False"
+            - name: OTEL_ENABLED
+              value: "false"
+            - name: OTEL_SDK_DISABLED
+              value: "true"
+            - name: OPENAI_API_KEY
+              value: "REPLACE_WITH_OPENAI_KEY"
+            - name: STORAGE_PROVIDER
+              value: gcs
+            - name: GCS_BUCKET
+              value: "REPLACE_WITH_GCS_BUCKET"
+            # The worker never re-delegates back to itself.
+            - name: WORKER_MODE
+              value: pubsub_worker
+            - name: SENTRY_DSN
+              value: "REPLACE_WITH_SENTRY_DSN"
+            - name: SENTRY_ENVIRONMENT
+              value: prod

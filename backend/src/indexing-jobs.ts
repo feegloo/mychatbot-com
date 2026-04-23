@@ -1,95 +1,102 @@
 /**
- * Enqueue + observe helpers for the indexing_jobs queue.
+ * Indexing pipeline glue between the upload route and the chatrag-worker
+ * Cloud Run service.
  *
- * Workers on the chatrag-indexer Cloud Run service claim rows from this
- * table (see python/shared/job_queue.py). This module is the backend's
- * *producer* side — it inserts jobs and looks them up for `/upload`
- * responses. Actual claim/heartbeat/complete logic lives in Python.
+ * Two responsibilities live here:
  *
- * Schema is owned by backend/sql/013-indexing-jobs.sql and auto-bootstrapped
- * in db.ts; this file never issues DDL.
+ * 1. **Publish** new indexing jobs to the GCP Pub/Sub topic
+ *    ``chatrag-indexing``. The worker pulls from
+ *    ``chatrag-indexing-sub`` and runs ``index_documents`` on its own
+ *    pod, then writes progress events back to ``indexing_events``.
+ *
+ * 2. **Claim/replay** worker-emitted events from ``indexing_events``.
+ *    ``claimIndexingEvent`` is the cross-replica single-writer guarantee
+ *    used by ``indexing-events-listener.ts``. ``getEventsSince`` powers
+ *    browser-reconnect replay.
+ *
+ * There is no jobs table any more — Pub/Sub owns the queue. The worker
+ * embeds its job UUID and per-job metadata directly in the JSONB
+ * ``payload`` column so the backend handler can correlate without
+ * touching another table.
  */
 
+import { PubSub, type Topic } from '@google-cloud/pubsub'
+import { config } from './config.js'
 import { query } from './db.js'
 
-export type EnqueueIndexingJobInput = {
+export type PublishIndexingJobInput = {
   conversationId: string
   collectionName: string
   /**
-   * Either local absolute paths (single-node dev) or gs:// URIs. The
-   * worker's _ensure_files_local resolves both shapes.
+   * Each entry is either:
+   *   - a local absolute path (single-machine dev), or
+   *   - a ``gs://bucket/key`` URI, or
+   *   - a ``<local>|gs://...`` pair so the worker tries the local file
+   *     first and falls back to GCS download.
    */
   filePaths: string[]
   storageNamespace?: string | null
   metadata?: Record<string, unknown>
-  maxAttempts?: number
 }
 
-export type IndexingJobRow = {
-  id: number
-  conversation_id: string
-  collection_name: string
-  file_paths: string[]
-  storage_namespace: string | null
-  status: 'queued' | 'claimed' | 'running' | 'done' | 'error'
-  claimed_by: string | null
-  attempts: number
-  max_attempts: number
-  error_message: string | null
-  created_at: Date
-  finished_at: Date | null
-}
-
-/**
- * Insert a job; the AFTER INSERT trigger fires NOTIFY indexing_jobs_new
- * so any worker LISTEN'ing wakes immediately. Returns the new job id.
- */
-export async function enqueueIndexingJob(
-  input: EnqueueIndexingJobInput,
-): Promise<number> {
-  const {
-    conversationId,
-    collectionName,
-    filePaths,
-    storageNamespace = null,
-    metadata = {},
-    maxAttempts = 3,
-  } = input
-
-  if (filePaths.length === 0) {
-    throw new Error('enqueueIndexingJob: filePaths must not be empty')
+export class PubSubNotConfigured extends Error {
+  constructor() {
+    super(
+      'Pub/Sub is not configured: set PUBSUB_TOPIC (and GOOGLE_APPLICATION_CREDENTIALS or run on GCP)',
+    )
+    this.name = 'PubSubNotConfigured'
   }
+}
 
-  const result = await query<{ id: string }>(
-    `INSERT INTO indexing_jobs (
-       conversation_id, collection_name, file_paths,
-       storage_namespace, metadata, max_attempts, status
-     ) VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, 'queued')
-     RETURNING id`,
-    [
-      conversationId,
-      collectionName,
-      JSON.stringify(filePaths),
-      storageNamespace,
-      JSON.stringify(metadata),
-      maxAttempts,
-    ],
-  )
-  return Number(result.rows[0].id)
+let _client: PubSub | null = null
+let _topic: Topic | null = null
+
+function getTopic(): Topic {
+  const topicName = config.pubsubTopic
+  if (!topicName) throw new PubSubNotConfigured()
+  if (!_client) _client = new PubSub({ projectId: config.gcpProjectId || undefined })
+  if (!_topic) _topic = _client.topic(topicName)
+  return _topic
 }
 
 /**
- * Fetch an event by id, marking it processed atomically. Returns null
- * when another backend instance already claimed it — this is the
- * mechanism that prevents duplicate welcome-message inserts when
- * multiple backend replicas LISTEN on 'indexing_events'.
+ * Publish a new indexing job. Resolves with the Pub/Sub message id once
+ * the publish RPC completes (sub-second on a warm client).
+ *
+ * The payload shape mirrors ``python/shared/pubsub_client.py`` so the
+ * Python ``IndexingJobPayload.from_json`` parser can decode it without
+ * special-casing the producer.
+ */
+export async function publishIndexingJob(
+  input: PublishIndexingJobInput,
+): Promise<string> {
+  if (input.filePaths.length === 0) {
+    throw new Error('publishIndexingJob: filePaths must not be empty')
+  }
+  const payload = {
+    workerName: 'chatrag-backend',
+    fileName: input.filePaths,
+    conversationId: input.conversationId,
+    collectionName: input.collectionName,
+    jobId: cryptoRandomId(),
+    storageNamespace: input.storageNamespace ?? null,
+    metadata: input.metadata ?? {},
+  }
+  const data = Buffer.from(JSON.stringify(payload), 'utf8')
+  return getTopic().publishMessage({ data })
+}
+
+/**
+ * Atomically claim one event row, returning null if another backend
+ * replica already processed it. The ``processed_at`` flip is the
+ * exactly-once guarantee for handlers that have side-effects (welcome
+ * message insert, status update, SSE emit).
  */
 export async function claimIndexingEvent(
   eventId: number,
 ): Promise<{
   id: number
   conversation_id: string
-  job_id: number | null
   event_type: string
   payload: Record<string, unknown>
 } | null> {
@@ -97,7 +104,7 @@ export async function claimIndexingEvent(
     `UPDATE indexing_events
         SET processed_at = NOW()
       WHERE id = $1 AND processed_at IS NULL
-      RETURNING id, conversation_id, job_id, event_type, payload`,
+      RETURNING id, conversation_id, event_type, payload`,
     [eventId],
   )
   if (result.rows.length === 0) return null
@@ -105,16 +112,15 @@ export async function claimIndexingEvent(
   return {
     id: Number(row.id),
     conversation_id: row.conversation_id,
-    job_id: row.job_id == null ? null : Number(row.job_id),
     event_type: row.event_type,
     payload: row.payload ?? {},
   }
 }
 
 /**
- * Replay events after a given id for a conversation. Used by browser
- * reconnects that need to catch up on progress emitted while they were
- * disconnected. ``sinceId`` of 0 returns all events ever persisted.
+ * Replay events after a given id for a conversation. Used by browsers
+ * that reconnect mid-indexing and need to catch up on progress emitted
+ * while disconnected. ``sinceId`` of 0 returns every event ever persisted.
  */
 export async function getEventsSince(
   conversationId: string,
@@ -140,4 +146,15 @@ export async function getEventsSince(
     event_type: row.event_type,
     payload: row.payload ?? {},
   }))
+}
+
+function cryptoRandomId(): string {
+  // Cheap UUIDv4 without pulling another dep — only used as a correlation
+  // id surfaced in Sentry/logs; not security-sensitive.
+  const bytes = new Uint8Array(16)
+  for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }

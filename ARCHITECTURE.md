@@ -93,6 +93,51 @@ Backend marks conversation READY
 Frontend redirects to /c/<conversationId>
 ```
 
+## CPU budget & worker delegation
+
+The main `chatrag` service caps its own indexing CPU usage at 50% of
+system cores (always leaving ≥1 CPU for HTTP traffic). When a new upload
+would exceed that budget, the job is published to a GCP Pub/Sub topic
+and picked up by `chatrag-worker` — a lightweight Python-only Cloud Run
+service that subscribes to the topic.
+
+```text
+chatrag (main)
+  ├─ small file + budget free → process inline
+  └─ large file OR budget full → publish to chatrag-indexing topic
+                                            │
+                                            ▼
+                                  chatrag-worker (warm, min=1)
+                                  - pulls JSON job payload
+                                  - downloads PDF (local or gs://)
+                                  - runs index_documents()
+                                  - emits progress to indexing_events
+                                            │
+                                            ▼
+                                  Backend SSE relay → browser
+```
+
+Per-file CPU slot allocation (1 or 2):
+- `<5MB AND <50 pages` → 1 slot
+- otherwise → 2 slots
+
+Job payload (`python/shared/pubsub_client.py::IndexingJobPayload`):
+```json
+{
+  "workerName": "chatrag-001",
+  "fileName": ["/local/path.pdf", "gs://bucket/key.pdf"],
+  "conversationId": "...",
+  "collectionName": "...",
+  "jobId": "uuid",
+  "metadata": {"uploadedFileNames": [...], "storedToOriginal": {...}}
+}
+```
+
+`workerName` is advisory — any worker on the shared subscription may
+consume the message. Pub/Sub provides retry + dead-letter; the
+`indexing_events` Postgres table remains the source of truth for
+progress events streamed back to the browser.
+
 ## Add-more-files flow
 
 ```text

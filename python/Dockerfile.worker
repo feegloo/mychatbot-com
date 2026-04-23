@@ -1,24 +1,28 @@
-# Worker Dockerfile for Cloud Run Jobs
-# Pre-caches all Python dependencies in the image for fast cold starts.
+# Worker Dockerfile — lightweight Python-only container for chatrag-worker.
+#
+# Used by the ``chatrag-worker`` Cloud Run service that subscribes to the
+# indexing Pub/Sub topic. Contains only the Python source + deps (no
+# Node, no frontend, no backend). All heavy imports (chromadb, fitz,
+# openai) are pre-compiled into .pyc so the subscriber cold-starts in
+# a few seconds.
 #
 # Build:
-#   docker build -f Dockerfile.worker -t chatrag-worker python/
+#   docker build -f python/Dockerfile.worker -t chatrag-worker python/
 #
-# Run locally (test):
-#   docker run -e WORKER_PDF_PATH=/data/test.pdf -e WORKER_PAGE_IDX=0 \
-#     -e WORKER_TOTAL_PAGES=5 -e WORKER_CONVERSATION_ID=test \
-#     -e WORKER_COLLECTION_NAME=test -e OPENAI_API_KEY=sk-... \
-#     -v $(pwd)/storage:/data chatrag-worker
+# Run locally (test — needs Pub/Sub creds + DATABASE_URL):
+#   docker run --rm \
+#     -e PUBSUB_SUBSCRIPTION=chatrag-indexing-sub \
+#     -e GCP_PROJECT_ID=my-project \
+#     -e DATABASE_URL=... -e OPENAI_API_KEY=sk-... \
+#     -v $HOME/.config/gcloud:/root/.config/gcloud:ro \
+#     chatrag-worker
 #
-# Deploy to Cloud Run Jobs:
-#   gcloud run jobs create chatrag-worker \
-#     --image=REGION-docker.pkg.dev/PROJECT/chatrag/worker:latest \
-#     --region=europe-west1 \
-#     --set-env-vars="OPENAI_API_KEY=...,DATABASE_URL=...,CHROMA_HTTP_HOST=..."
+# Deploy:
+#   ./infra/cloudrun/deploy-gcp.sh  (with DEPLOY_WORKER=true)
 
 FROM python:3.12-slim
 
-# System deps for PyMuPDF (C extension), psycopg2, Pillow
+# System deps for PyMuPDF, psycopg2, Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -28,15 +32,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python deps first (cached layer — biggest time saver for cold starts)
+# Install Python deps first (cached layer — biggest cold-start win).
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy Python source only — no Node / no frontend dist.
+COPY shared/ ./shared/
+COPY worker_pubsub.py ./worker_pubsub.py
+COPY index_documents.py ./index_documents.py
+COPY answer_question.py ./answer_question.py
 
-# Pre-compile .pyc files for faster startup
-RUN python -m compileall -q shared/ worker.py
+# Pre-compile .pyc files for faster startup.
+RUN python -m compileall -q shared/ worker_pubsub.py
 
-# Worker entry point
-CMD ["python", "worker.py"]
+# Subscriber entry point — blocks on streaming pull.
+CMD ["python", "worker_pubsub.py"]
+
