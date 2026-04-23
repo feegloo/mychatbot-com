@@ -181,6 +181,123 @@ const INDEXING_EVENTS_STATEMENTS = [
      EXECUTE FUNCTION indexing_events_notify_insert()`,
 ]
 
+// Idempotent bootstrap for the orchestrator-assigned worker pool tables.
+// Mirrors 015-workers-and-jobs.sql; see that file for design rationale
+// (orchestrator picks idle worker by name; hybrid SKIP LOCKED fallback
+// on `jobs_unassigned` channel; per-worker NOTIFY routing).
+const WORKERS_JOBS_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS workers (
+     name TEXT PRIMARY KEY,
+     kind TEXT NOT NULL DEFAULT 'pool'
+       CHECK (kind IN ('orchestrator', 'pool')),
+     status TEXT NOT NULL DEFAULT 'starting'
+       CHECK (status IN ('starting', 'idle', 'busy', 'offline')),
+     current_job_id BIGINT,
+     revision TEXT,
+     last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_workers_idle_heartbeat
+     ON workers (status, last_heartbeat DESC)
+     WHERE status = 'idle'`,
+  `CREATE TABLE IF NOT EXISTS jobs (
+     id BIGSERIAL PRIMARY KEY,
+     conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+     collection_name TEXT NOT NULL,
+     file_paths JSONB NOT NULL,
+     storage_namespace TEXT,
+     assigned_worker TEXT,
+     status TEXT NOT NULL DEFAULT 'waiting'
+       CHECK (status IN ('waiting', 'assigned', 'processing', 'finished', 'error')),
+     worker_message TEXT,
+     attempts INT NOT NULL DEFAULT 0,
+     max_attempts INT NOT NULL DEFAULT 3,
+     error_message TEXT,
+     heartbeat_at TIMESTAMPTZ,
+     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     started_at TIMESTAMPTZ,
+     finished_at TIMESTAMPTZ
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_jobs_open_assigned
+     ON jobs (assigned_worker, created_at)
+     WHERE status IN ('waiting', 'assigned', 'processing')`,
+  `CREATE INDEX IF NOT EXISTS idx_jobs_open_unassigned
+     ON jobs (created_at)
+     WHERE status IN ('waiting', 'assigned') AND assigned_worker IS NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_jobs_conversation ON jobs (conversation_id, status)`,
+  `CREATE INDEX IF NOT EXISTS idx_jobs_heartbeat
+     ON jobs (heartbeat_at) WHERE status = 'processing'`,
+  // FK from workers.current_job_id → jobs.id added post-hoc (both tables
+  // live in the same migration but CREATE TABLE workers runs first).
+  `DO $$
+   BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'workers_current_job_id_fkey'
+     ) THEN
+       ALTER TABLE workers
+         ADD CONSTRAINT workers_current_job_id_fkey
+         FOREIGN KEY (current_job_id) REFERENCES jobs(id) ON DELETE SET NULL;
+     END IF;
+   END$$`,
+  `CREATE OR REPLACE FUNCTION jobs_touch_updated_at()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     NEW.updated_at := NOW();
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql`,
+  'DROP TRIGGER IF EXISTS jobs_touch_updated_at_trg ON jobs',
+  `CREATE TRIGGER jobs_touch_updated_at_trg
+     BEFORE UPDATE ON jobs
+     FOR EACH ROW
+     EXECUTE FUNCTION jobs_touch_updated_at()`,
+  `CREATE OR REPLACE FUNCTION jobs_notify_insert()
+   RETURNS TRIGGER AS $$
+   DECLARE
+     channel TEXT;
+     safe_name TEXT;
+   BEGIN
+     IF NEW.assigned_worker IS NOT NULL THEN
+       safe_name := regexp_replace(NEW.assigned_worker, '[^A-Za-z0-9_]', '_', 'g');
+       channel := 'jobs_' || safe_name;
+     ELSE
+       channel := 'jobs_unassigned';
+     END IF;
+     PERFORM pg_notify(channel, NEW.id::text);
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql`,
+  'DROP TRIGGER IF EXISTS jobs_notify_insert_trg ON jobs',
+  `CREATE TRIGGER jobs_notify_insert_trg
+     AFTER INSERT ON jobs
+     FOR EACH ROW
+     EXECUTE FUNCTION jobs_notify_insert()`,
+  `CREATE OR REPLACE FUNCTION jobs_notify_assign()
+   RETURNS TRIGGER AS $$
+   DECLARE
+     channel TEXT;
+     safe_name TEXT;
+   BEGIN
+     IF NEW.assigned_worker IS NOT NULL
+        AND NEW.assigned_worker IS DISTINCT FROM OLD.assigned_worker
+     THEN
+       safe_name := regexp_replace(NEW.assigned_worker, '[^A-Za-z0-9_]', '_', 'g');
+       channel := 'jobs_' || safe_name;
+       PERFORM pg_notify(channel, NEW.id::text);
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql`,
+  'DROP TRIGGER IF EXISTS jobs_notify_assign_trg ON jobs',
+  `CREATE TRIGGER jobs_notify_assign_trg
+     AFTER UPDATE OF assigned_worker ON jobs
+     FOR EACH ROW
+     EXECUTE FUNCTION jobs_notify_assign()`,
+]
+
 export async function ensureDebugIndexes(): Promise<void> {
   for (const stmt of DEBUG_INDEX_STATEMENTS) {
     try {
@@ -217,6 +334,13 @@ export async function ensureDebugIndexes(): Promise<void> {
       await pool.query(stmt)
     } catch (err) {
       console.warn('[db] ensureIndexingEventsSchema failed:', (err as Error).message)
+    }
+  }
+  for (const stmt of WORKERS_JOBS_STATEMENTS) {
+    try {
+      await pool.query(stmt)
+    } catch (err) {
+      console.warn('[db] ensureWorkersJobsSchema failed:', (err as Error).message)
     }
   }
 }
