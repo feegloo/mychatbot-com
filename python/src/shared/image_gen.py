@@ -24,26 +24,19 @@ MAX_REFERENCE_IMAGES = 4
 # OpenAI edits endpoint accepts png/jpeg/webp for gpt-image-1.
 _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 
-# Aspect ratio → concrete image size (both dimensions divisible by 16, base ~1024px).
-# gpt-image-2 supports arbitrary WxH as long as each dimension is divisible by 16.
-# Calculations: fix the long side to 1024, scale the short side to match the ratio.
-#   1:1  → 1024×1024  (square)
-#   3:4  → 768×1024   (portrait — e.g. book cover, mobile; 768=16×48)
-#   4:3  → 1024×768   (landscape — presentation, photo)
-#   2:3  → 688×1024   (tall portrait — magazine editorial; 688=16×43 ≈ 1024×2/3)
-#   3:2  → 1024×688   (wide photo — standard DSLR landscape)
-#   16:9 → 1024×576   (cinematic widescreen; 576=16×36)
-#   9:16 → 576×1024   (vertical story / Reels)
-ASPECT_SIZE_MAP: dict[str, str] = {
-    "1:1":  "1024x1024",
-    "3:4":  "768x1024",
-    "4:3":  "1024x768",
-    "2:3":  "688x1024",
-    "3:2":  "1024x688",
-    "16:9": "1024x576",
-    "9:16": "576x1024",
-}
+# Keep a single fixed image size while image generation is being stabilized.
+# The previous aspect-ratio map is intentionally disabled for now.
+# ASPECT_SIZE_MAP: dict[str, str] = {
+#     "1:1":  "1024x1024",
+#     "3:4":  "768x1024",
+#     "4:3":  "1024x768",
+#     "2:3":  "688x1024",
+#     "3:2":  "1024x688",
+#     "16:9": "1024x576",
+#     "9:16": "576x1024",
+# }
 _DEFAULT_ASPECT = "1:1"
+_FIXED_IMAGE_SIZE = "1024x1024"
 
 
 def aspect_to_image_size(aspect: str) -> str:
@@ -51,7 +44,9 @@ def aspect_to_image_size(aspect: str) -> str:
 
     Falls back to the default 1:1 square if the aspect is unknown.
     """
-    return ASPECT_SIZE_MAP.get(aspect, ASPECT_SIZE_MAP[_DEFAULT_ASPECT])
+    # Aspect-based size selection is disabled intentionally.
+    _ = aspect
+    return _FIXED_IMAGE_SIZE
 
 
 from shared.config import get_settings
@@ -543,17 +538,18 @@ def build_image_prompt(
         "English when the source material itself is in English.\n"
         "3. A list of source indices (0-based integers) from the provided chunks that "
         "most directly informed the image concept. Include 1–5 indices; use [] if none apply.\n"
-        "4. The best aspect ratio for this image from: 1:1 (square), 3:4 (portrait/book cover), "
-        "4:3 (landscape/presentation), 2:3 (tall portrait/magazine), 3:2 (wide photo/DSLR), "
-        "16:9 (cinematic widescreen), 9:16 (vertical/story). Choose based on subject and composition:\n"
-        "  • Portraits, profiles, people standing → 3:4 or 2:3\n"
-        "  • Landscapes, panoramas, architecture exteriors → 3:2 or 16:9\n"
-        "  • Cinematic scenes, film stills → 16:9\n"
-        "  • Mobile/social content, vertical stories → 9:16\n"
-        "  • Book covers, posters, editorial → 2:3\n"
-        "  • Presentations, classic photos → 4:3\n"
-        "  • Logos, icons, balanced scenes → 1:1\n\n"
-        'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2], "aspect": "3:4"}'
+        # Aspect selection prompt removed on purpose.
+        # "4. The best aspect ratio for this image from: 1:1 (square), 3:4 (portrait/book cover), "
+        # "4:3 (landscape/presentation), 2:3 (tall portrait/magazine), 3:2 (wide photo/DSLR), "
+        # "16:9 (cinematic widescreen), 9:16 (vertical/story). Choose based on subject and composition:\n"
+        # "  • Portraits, profiles, people standing → 3:4 or 2:3\n"
+        # "  • Landscapes, panoramas, architecture exteriors → 3:2 or 16:9\n"
+        # "  • Cinematic scenes, film stills → 16:9\n"
+        # "  • Mobile/social content, vertical stories → 9:16\n"
+        # "  • Book covers, posters, editorial → 2:3\n"
+        # "  • Presentations, classic photos → 4:3\n"
+        # "  • Logos, icons, balanced scenes → 1:1\n\n"
+        'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2]}'
     )
 
     creative_seed = _random_creative_seed()
@@ -602,7 +598,7 @@ def build_image_prompt(
             "prompt": parsed["prompt"],
             "title": parsed.get("title", "Generated Image"),
             "source_indices": parsed.get("source_indices", []),
-            "aspect": parsed.get("aspect", _DEFAULT_ASPECT),
+            "aspect": _DEFAULT_ASPECT,
         }
     except (json.JSONDecodeError, KeyError):
         return {"prompt": raw, "title": "Generated Image", "source_indices": [], "aspect": _DEFAULT_ASPECT}
