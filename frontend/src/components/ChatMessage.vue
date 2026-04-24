@@ -114,6 +114,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         <div class="welcome-right-col">
           <PreviewFiles
             :files="files ?? []"
+            :conversation-id="effectiveStorageId"
             :get-url="getFileUrl"
             @open="openFilePreview"
           />

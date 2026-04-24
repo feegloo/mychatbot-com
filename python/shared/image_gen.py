@@ -124,7 +124,7 @@ def generate_image(
     storage_dir: str,
     size: str = "750x750",
     quality: str = "low",
-    model: str = "gpt-image-1",
+    model: str = "gpt-image-2",
     reference_image_paths: list[str] | None = None,
 ) -> dict:
     """Generate an image from a text prompt using OpenAI.

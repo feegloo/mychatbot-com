@@ -17,6 +17,7 @@ type File = NonNullable<ConversationStatus['files']>[number]
 
 const props = defineProps<{
   files: File[]
+  conversationId: string
   getUrl: (file: File) => string
 }>()
 const emit = defineEmits<{ open: [file: File] }>()
@@ -66,7 +67,8 @@ function prev(event: Event) {
     />
     <PreviewPdf
       v-else-if="isPdf(current)"
-      :url="getUrl(current)"
+      :conversation-id="props.conversationId"
+      :file-name="current.originalName"
       :name="current.originalName"
       @open="emit('open', current!)"
     />
