@@ -1104,9 +1104,9 @@ def _synthesize_welcome_messages(
             "1. **Title**: # Document Title - Author Name\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
-            "3. **Expert insight**: 2-3 sentences of valuable analysis.\n\n"
+            "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
             "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
-            "Aim for 250-350 words total (2-5 paragraphs, usually 4, sometimes 3, rarely 5). Do NOT ask the user anything. Do NOT use [source:N]. "
+            "Aim for 250-300 words total (2-5 paragraphs, usually 3, sometimes 4, rarely 5). Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         ) + WELCOME_QUESTIONS_RULES_EN
