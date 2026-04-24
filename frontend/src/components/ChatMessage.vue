@@ -66,7 +66,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       </div>
 
       <!-- Generating: image-gen announcement + progressive partial image -->
-      <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
+      <div v-if="msg.role === 'assistant' && msg.generatingImage && !isWelcome">
         <Transition name="image-morph-fade">
           <div v-if="msg.generatingImage && msg.imagePartialDataUrl" class="image-morph-wrap">
             <img
@@ -101,7 +101,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 :conversation-name="conversationName"
                 :file-name="fileName"
                 :citations="msg.citations"
-                :animate="animate"
+                :animate="isWelcome && animate"
                 @select="$emit('select-question', $event)"
                 @image-click="openImageModal"
                 @citation-click="openCitation"
@@ -148,7 +148,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               :conversation-name="conversationName"
               :file-name="fileName"
               :citations="msg.citations"
-              :animate="animate"
+              :animate="isWelcome && animate"
               @select="$emit('select-question', $event)"
               @image-click="openImageModal"
               @citation-click="openCitation"
@@ -158,7 +158,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             />
           </TextFade>
         </div>
-        <div v-if="!msg.id && !isWelcome && msg.generatingImage" class="typing-dots">
+        <div v-if="!isWelcome && msg.generatingImage" class="typing-dots">
           <span></span><span></span><span></span>
         </div>
       </template>

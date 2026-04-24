@@ -95,7 +95,7 @@
               v-if="(parsedPages ?? 0) > 0 && (totalPages ?? 0) > 0"
               class="indexing-tooltip-pages"
             >
-              Parsed {{ parsedPages }}/{{ totalPages }} pages
+              {{ parsedPages }}/{{ totalPages }} pages
             </div>
           </div>
         </template>

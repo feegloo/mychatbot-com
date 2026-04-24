@@ -266,21 +266,17 @@ onBeforeUnmount(() => {
  * and once it resolves each word fades in at its staggered delay.
  */
 .word-reveal {
-  display: inline-block;
+  display: inline;
   opacity: 0;
   animation: word-reveal-in 25ms ease-out forwards;
-  will-change: opacity, transform;
+  will-change: opacity;
 }
 @keyframes word-reveal-in {
   from {
     opacity: 0;
-    transform: translateY(2px);
-    filter: blur(3px);
   }
   to {
     opacity: 1;
-    transform: none;
-    filter: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

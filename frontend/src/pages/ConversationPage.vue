@@ -338,9 +338,9 @@ const processingStepLabel = computed(() => stepLabel(processingStep.value))
 // processing indicators.  Reflects live SSE page-progress updates so users see
 // "Parsed pages: 400 / 650" rather than a static "Processing…" label.
 const processingLoaderLabel = computed(() => {
-  const baseLabel = processingStepLabel.value || 'Processing'
+  const baseLabel = processingStepLabel.value || 'Processed'
   if (totalPages.value > 0) {
-    return `${baseLabel} — parsed ${parsedPages.value} / ${totalPages.value} pages`
+    return `${baseLabel} ${parsedPages.value} / ${totalPages.value} pages`
   }
   return baseLabel
 })

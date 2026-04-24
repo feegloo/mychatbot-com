@@ -271,11 +271,11 @@ def generate_image_streaming(
 ):
     """Streaming variant of ``generate_image`` that yields progressive frames.
 
-    Uses OpenAI's ``stream=True, partial_images=N`` parameters on gpt-image-2
-    to surface intermediate lower-fidelity frames while the final render is
-    still being computed. Falls back to a single non-streaming call when a
-    reference image is provided (``images.edit`` streaming is not universally
-    available — we prefer a working path over a pretty-but-broken one).
+    Uses OpenAI's ``stream=True, partial_images=N`` parameters to surface
+    intermediate lower-fidelity frames while the final render is still being
+    computed. When reference images are provided, we first try streaming
+    ``images.edit``. If the runtime/account does not support edit streaming,
+    we gracefully fall back to the blocking edit path.
 
     Yields dicts of shape:
       {"type": "partial", "b64": "...", "index": 0|1|...}
@@ -287,67 +287,27 @@ def generate_image_streaming(
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
     model = model or settings.openai_image_model
+    stream_model = model
+
+    # Morphing in the UI depends on streamed partial frames. If the runtime
+    # model is set to gpt-image-1, switch the streaming request to gpt-image-2
+    # because gpt-image-1 may not emit partial-image events.
+    if stream_model == "gpt-image-1":
+        logger.info(
+            "ℹ️ Switching streaming model from gpt-image-1 to gpt-image-2 to enable partial frames"
+        )
+        stream_model = "gpt-image-2"
 
     reference_paths = _validate_reference_paths(reference_image_paths)
 
-    # images.edit does not reliably support streaming partials across all
-    # accounts/regions — fall back to the blocking path and emit a single
-    # "completed" event so the UI code stays uniform.
-    if reference_paths:
-        logger.info("🎨 Streaming path unavailable with references; using blocking edit")
-        result = generate_image(
-            prompt=prompt,
-            storage_dir=storage_dir,
-            size=size,
-            quality=quality,
-            model=model,
-            reference_image_paths=reference_image_paths,
-        )
-        yield {
-            "type": "completed",
-            "file_name": result["file_name"],
-            "revised_prompt": result["revised_prompt"],
-        }
-        return
-
     logger.info(
         f"🎨 Streaming image: prompt='{prompt[:100]}...' size={size} "
-        f"quality={quality} model={model} partials={partial_images}"
+        f"quality={quality} model={stream_model} partials={partial_images}"
     )
 
-    def _stream(p: str):
-        return client.images.generate(
-            model=model,
-            prompt=p,
-            n=1,
-            size=size,
-            quality=quality,
-            stream=True,
-            partial_images=partial_images,
-        )
-
-    tracer = get_tracer("chatrag.image_gen")
-    span_attrs = {
-        "model": model,
-        "size": size,
-        "quality": quality,
-        "streaming": True,
-        "partial_images": partial_images,
-    }
-
-    with tracer.start_as_current_span("image.generate.stream", attributes=span_attrs):
-        try:
-            events = _stream(prompt)
-        except Exception as exc:
-            retry_prompt = _emphasize_inspired(prompt)
-            logger.warning(
-                f"⚠️ OpenAI streaming image gen failed ({exc}); "
-                f"retrying once with 'inspired' emphasis"
-            )
-            events = _stream(retry_prompt)
-
+    def _yield_stream(events, default_prompt: str):
         final_b64: str | None = None
-        revised_prompt = prompt
+        revised_prompt = default_prompt
         for event in events:
             ev_type = getattr(event, "type", "")
             if ev_type.endswith("partial_image"):
@@ -357,24 +317,95 @@ def generate_image_streaming(
                     yield {"type": "partial", "b64": b64, "index": idx}
             elif ev_type.endswith("completed"):
                 final_b64 = getattr(event, "b64_json", None)
-                revised_prompt = getattr(event, "revised_prompt", prompt) or prompt
+                revised_prompt = getattr(event, "revised_prompt", default_prompt) or default_prompt
 
-    if not final_b64:
-        raise ValueError("OpenAI streaming image response contained no final frame")
+        if not final_b64:
+            raise ValueError("OpenAI streaming image response contained no final frame")
 
-    image_bytes = base64.b64decode(final_b64)
-    file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
-    os.makedirs(storage_dir, exist_ok=True)
-    file_path = Path(storage_dir) / file_name
-    file_path.write_bytes(image_bytes)
+        image_bytes = base64.b64decode(final_b64)
+        file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
+        os.makedirs(storage_dir, exist_ok=True)
+        file_path = Path(storage_dir) / file_name
+        file_path.write_bytes(image_bytes)
 
-    logger.info(f"🖼️ Streamed image saved: {file_path} ({len(image_bytes)} bytes)")
+        logger.info(f"🖼️ Streamed image saved: {file_path} ({len(image_bytes)} bytes)")
+        yield {
+            "type": "completed",
+            "file_name": file_name,
+            "revised_prompt": revised_prompt,
+        }
 
-    yield {
-        "type": "completed",
-        "file_name": file_name,
-        "revised_prompt": revised_prompt,
+    tracer = get_tracer("chatrag.image_gen")
+    span_attrs = {
+        "model": stream_model,
+        "size": size,
+        "quality": quality,
+        "streaming": True,
+        "partial_images": partial_images,
     }
+
+    with tracer.start_as_current_span("image.generate.stream", attributes=span_attrs):
+        if reference_paths:
+            try:
+                with contextlib.ExitStack() as stack:
+                    handles = [stack.enter_context(open(p, "rb")) for p in reference_paths]
+                    image_arg = handles[0] if len(handles) == 1 else handles
+                    events = client.images.edit(
+                        model=stream_model,
+                        image=image_arg,
+                        prompt=prompt,
+                        n=1,
+                        size=size,
+                        quality=quality,
+                        stream=True,
+                        partial_images=partial_images,
+                    )
+                    for item in _yield_stream(events, prompt):
+                        yield item
+                return
+            except Exception as exc:
+                logger.warning(
+                    f"⚠️ Streaming edit unavailable ({exc}); falling back to blocking edit"
+                )
+                result = generate_image(
+                    prompt=prompt,
+                    storage_dir=storage_dir,
+                    size=size,
+                    quality=quality,
+                    model=stream_model,
+                    reference_image_paths=reference_image_paths,
+                )
+                yield {
+                    "type": "completed",
+                    "file_name": result["file_name"],
+                    "revised_prompt": result["revised_prompt"],
+                }
+                return
+
+        def _stream_generate(p: str):
+            return client.images.generate(
+                model=stream_model,
+                prompt=p,
+                n=1,
+                size=size,
+                quality=quality,
+                stream=True,
+                partial_images=partial_images,
+            )
+
+        try:
+            events = _stream_generate(prompt)
+            for item in _yield_stream(events, prompt):
+                yield item
+        except Exception as exc:
+            retry_prompt = _emphasize_inspired(prompt)
+            logger.warning(
+                f"⚠️ OpenAI streaming image gen failed ({exc}); "
+                f"retrying once with 'inspired' emphasis"
+            )
+            events = _stream_generate(retry_prompt)
+            for item in _yield_stream(events, retry_prompt):
+                yield item
 
 
 _ART_STYLES = [

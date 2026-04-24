@@ -188,6 +188,34 @@ class TestOutput:
         assert (tmp_path / result["file_name"]).is_file()
 
 
+class TestStreamingModelFallback:
+    def test_streaming_switches_from_gpt_image_1_to_gpt_image_2(self, tmp_path):
+        with patch("shared.image_gen.OpenAI") as mock_cls, patch(
+            "shared.image_gen.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value = MagicMock(
+                openai_api_key="sk-test", openai_image_model="gpt-image-1"
+            )
+            client = MagicMock()
+            mock_cls.return_value = client
+
+            partial_event = MagicMock(type="response.image.partial_image", b64_json="cA==", partial_image_index=0)
+            completed_event = MagicMock(type="response.image.completed", b64_json=base64.b64encode(PNG_1x1).decode(), revised_prompt="revised")
+            client.images.generate.return_value = [partial_event, completed_event]
+
+            events = list(
+                image_gen.generate_image_streaming(
+                    prompt="a calm scene",
+                    storage_dir=str(tmp_path),
+                )
+            )
+
+            assert events[0]["type"] == "partial"
+            assert events[-1]["type"] == "completed"
+            call_kwargs = client.images.generate.call_args.kwargs
+            assert call_kwargs["model"] == "gpt-image-2"
+
+
 class TestInspiredRetry:
     def test_retries_once_with_inspired_emphasis_on_failure(self, mock_openai, tmp_path):
         # First call fails (e.g. OpenAI content filter block), second succeeds.
