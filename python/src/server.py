@@ -169,7 +169,8 @@ class GenerateImageRequest(BaseModel):
     collection_name: str = ""
     conversation_id: str = ""
     chat_history: list[dict] | None = None
-    size: str = "640x640"
+    # size: str = "640x640"
+    size: str = "1024x1024"
     quality: Literal["auto", "high", "low"] = "low"
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.

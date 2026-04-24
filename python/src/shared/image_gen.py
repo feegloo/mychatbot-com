@@ -24,24 +24,24 @@ MAX_REFERENCE_IMAGES = 4
 # OpenAI edits endpoint accepts png/jpeg/webp for gpt-image-1.
 _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 
-# Aspect ratio → concrete image size (both dimensions divisible by 16, base ~640px).
+# Aspect ratio → concrete image size (both dimensions divisible by 16, base ~1024px).
 # gpt-image-2 supports arbitrary WxH as long as each dimension is divisible by 16.
-# Calculations: fix the long side to 640, scale the short side to match the ratio.
-#   1:1  → 640×640   (square)
-#   3:4  → 480×640   (portrait — e.g. book cover, mobile)
-#   4:3  → 640×480   (landscape — presentation, photo)
-#   2:3  → 416×624   (tall portrait — magazine editorial; 416=16×26, 624=16×39)
-#   3:2  → 624×416   (wide photo — standard DSLR landscape)
-#   16:9 → 512×288   (cinematic widescreen; 512=16×32, 288=16×18)
-#   9:16 → 288×512   (vertical story / Reels)
+# Calculations: fix the long side to 1024, scale the short side to match the ratio.
+#   1:1  → 1024×1024  (square)
+#   3:4  → 768×1024   (portrait — e.g. book cover, mobile; 768=16×48)
+#   4:3  → 1024×768   (landscape — presentation, photo)
+#   2:3  → 688×1024   (tall portrait — magazine editorial; 688=16×43 ≈ 1024×2/3)
+#   3:2  → 1024×688   (wide photo — standard DSLR landscape)
+#   16:9 → 1024×576   (cinematic widescreen; 576=16×36)
+#   9:16 → 576×1024   (vertical story / Reels)
 ASPECT_SIZE_MAP: dict[str, str] = {
-    "1:1":  "640x640",
-    "3:4":  "480x640",
-    "4:3":  "640x480",
-    "2:3":  "416x624",
-    "3:2":  "624x416",
-    "16:9": "512x288",
-    "9:16": "288x512",
+    "1:1":  "1024x1024",
+    "3:4":  "768x1024",
+    "4:3":  "1024x768",
+    "2:3":  "688x1024",
+    "3:2":  "1024x688",
+    "16:9": "1024x576",
+    "9:16": "576x1024",
 }
 _DEFAULT_ASPECT = "1:1"
 

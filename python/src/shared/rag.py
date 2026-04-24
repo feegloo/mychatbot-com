@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 _MATCHED_PAGES_MAX_CHARS = 40_000
 
 # Hard cap on total prompt tokens sent to the LLM.
-# Leaves headroom for the model's max output.  300 000 is the observed
-# per-request limit for GPT-4.1 / o-series; we stay 20 k below to be safe.
-_MAX_PROMPT_TOKENS = 280_000
+# gpt-5.4 has a 1M context window; we use 400K to stay well within budget
+# while allowing much larger documents to be processed in a single call.
+_MAX_PROMPT_TOKENS = 400_000
 
 # Baseline sampling temperature for the answering LLM (OpenAI).
 # The system prompt instructs the model to self-regulate its effective

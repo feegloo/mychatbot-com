@@ -77,9 +77,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, type WatchStopHandle } from 'vue'
 import { useRoute } from 'vue-router'
 import { listMyConversations, type ConversationSummary } from '../api'
+import { useSSERegistry } from '../composables/useGlobalSSE'
 import { cleanFileName } from '../utils/text'
 import DonateWidget from './DonateWidget.vue'
 
@@ -105,47 +106,41 @@ const route = useRoute()
 const conversations = ref<ConversationSummary[]>([])
 const loading = ref(false)
 const currentId = ref('')
+const { getSSE, releaseSSE } = useSSERegistry()
 
-// Open an SSE connection per processing conversation instead of polling.
-// When a conversation's indexing finishes (or errors), the backend emits
-// `complete` / `error` on `/conversations/:id/events`; we refresh the list
-// once to pick up the final status, displayName, and fileNames.
-const sseConnections = new Map<string, EventSource>()
+// Per-processing-conversation SSE watchers using the global multiplexed connection.
+// Key: conversationId, Value: watcher stop handle
+const processingWatchers = new Map<string, WatchStopHandle>()
 
-function apiBaseUrl(): string {
-  return (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
-}
-
-function closeSSE(conversationId: string) {
-  const es = sseConnections.get(conversationId)
-  if (es) {
-    es.close()
-    sseConnections.delete(conversationId)
-  }
-}
-
-function closeAllSSE() {
-  for (const id of sseConnections.keys()) closeSSE(id)
-}
-
-function ensureSSEForProcessing() {
+function syncProcessingSSE() {
   const processingIds = new Set(
     conversations.value.filter((c) => c.status === 'processing').map((c) => c.conversationId),
   )
-  // Close connections for conversations that are no longer processing
-  for (const id of [...sseConnections.keys()]) {
-    if (!processingIds.has(id)) closeSSE(id)
+  // Stop watchers for conversations no longer in processing state
+  for (const [id, stop] of processingWatchers) {
+    if (!processingIds.has(id)) {
+      stop()
+      processingWatchers.delete(id)
+      releaseSSE(id)
+    }
   }
-  // Open connections for newly processing conversations
+  // Start a watcher for each newly processing conversation
   for (const id of processingIds) {
-    if (sseConnections.has(id)) continue
-    const es = new EventSource(`${apiBaseUrl()}/conversations/${id}/events`)
-    // The backend emits `complete` for any terminal state (ready or failed),
-    // including catchup after auto-reconnects, so a single listener suffices.
-    es.addEventListener('complete', () => {
-      closeSSE(id)
-      load()
+    if (processingWatchers.has(id)) continue
+    const sseRef = getSSE(id)
+    const stop = watch(sseRef, (evt) => {
+      if (!evt) return
+      if (evt.event === 'complete' || evt.event === 'error') {
+        const stopFn = processingWatchers.get(id)
+        if (stopFn) {
+          stopFn()
+          processingWatchers.delete(id)
+        }
+        releaseSSE(id)
+        load()
+      }
     })
+    processingWatchers.set(id, stop)
   }
 }
 
@@ -153,7 +148,7 @@ async function load() {
   loading.value = true
   try {
     conversations.value = await listMyConversations()
-    ensureSSEForProcessing()
+    syncProcessingSSE()
   } catch {
     // silently fail – sidebar is non-critical
   } finally {
@@ -181,7 +176,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  closeAllSSE()
+  for (const [id, stop] of processingWatchers) {
+    stop()
+    releaseSSE(id)
+  }
+  processingWatchers.clear()
   window.removeEventListener('conversation-updated', load)
 })
 </script>

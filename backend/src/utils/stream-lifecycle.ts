@@ -1,9 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-type EventTargetLike = Pick<IncomingMessage, 'once' | 'off'> & Pick<ServerResponse, 'once' | 'off'>
+type EventListener = () => void
+
+type EventTargetLike = {
+  once(event: string, listener: EventListener): unknown
+  off(event: string, listener: EventListener): unknown
+}
 
 function detachListener(target: EventTargetLike, event: string, listener: () => void) {
-  target.off(event as Parameters<EventTargetLike['off']>[0], listener)
+  target.off(event, listener)
 }
 
 /**

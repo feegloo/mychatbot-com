@@ -233,11 +233,10 @@ _META_EXCLUDE_KEYS = {
 }
 
 # ── Token budget for the describe prompt ─────────────────────────────
-# Organization TPM (tokens per minute) limit for gpt-5.4-mini: 200K.
-# Context windows: gpt-5.4-mini ~1M.
-# We keep the content budget generous but respect TPM constraints.
-# ~30K tokens ≈ 120K chars is safe for a single call.
-_DESCRIBE_MAX_CONTENT_CHARS = 120_000
+# gpt-5.4 has a 1M context window. We set a generous content budget to allow
+# large PDFs to be parsed in a single call without aggressive truncation.
+# ~1M chars ≈ 250K tokens — well within the 1M context limit of gpt-5.4.
+_DESCRIBE_MAX_CONTENT_CHARS = 1_000_000
 
 # Placeholder used when no readable text was extracted but metadata is available.
 # The LLM is instructed to use the metadata block to describe the document.
@@ -272,7 +271,8 @@ _SPLIT_INTER_CALL_DELAY = 2.0
 _SYNTHESIS_RAW_TEXT_CHARS = 400_000
 # Whole-book path: if the book fits inside this estimated token budget,
 # send the full raw text to the welcome-message prompt instead of truncating.
-_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 250_000
+# gpt-5.4 has a 1M context window — raise threshold to 400K tokens.
+_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 400_000
 # Keep the extracted raw text in memory up to 500 MB as requested.
 _WHOLE_BOOK_MEMORY_LIMIT_BYTES = 500 * 1024 * 1024
 # Large-book compaction path packs adjacent chapters/page ranges into 4-8 LLM calls.
@@ -428,13 +428,13 @@ def _estimate_word_count(text: str) -> int:
 
 
 # ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
-# OpenAI hard per-request cap is 300K tokens for many models.
-# We leave ~50K headroom for the system prompt, rules, and completion.
-_MAX_REQUEST_TOKENS = 250_000
+# gpt-5.4 has a 1M context window. We cap at 400K tokens per request to
+# stay well within limits while parsing much larger PDFs in one shot.
+_MAX_REQUEST_TOKENS = 400_000
 # Safe budget for the *content* portion of a single LLM call.  The system
 # prompts in this module are large (~5-15K tokens of rules), so we reserve
 # extra headroom when packing raw text.
-_MAX_CONTENT_TOKENS = 180_000
+_MAX_CONTENT_TOKENS = 350_000
 
 _tiktoken_enc = None
 

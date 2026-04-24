@@ -74,6 +74,109 @@ conversationsRouter.post('/conversations', async (ctx) => {
   }
 })
 
+// Multiplexed SSE endpoint: one stream for multiple conversations.
+// The client sends ?ids=id1,id2,... and receives all events for those conversations
+// wrapped as: event: conversation_event / data: { conversationId, event, data }.
+// The stream stays open indefinitely; keepalive pings prevent proxy timeouts.
+conversationsRouter.get('/events', async (ctx) => {
+  const idsParam = ctx.query.ids as string | string[] | undefined
+  const raw = Array.isArray(idsParam) ? idsParam.join(',') : (idsParam ?? '')
+  const requestedIds = raw.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 30)
+
+  if (requestedIds.length === 0) {
+    ctx.status = 400
+    ctx.body = { error: 'Missing ids parameter' }
+    return
+  }
+
+  // Validate access in parallel — only subscribe to conversations that actually exist
+  const checks = await Promise.all(
+    requestedIds.map((id) =>
+      getConversation(id, 'viewer')
+        .then((d) => (d.conversation ? id : null))
+        .catch(() => null),
+    ),
+  )
+  const validIds = checks.filter((id): id is string => id !== null)
+
+  if (validIds.length === 0) {
+    ctx.status = 404
+    ctx.body = { error: 'No valid conversations found' }
+    return
+  }
+
+  ctx.req.socket.setTimeout(0)
+  ctx.req.socket.setNoDelay(true)
+  ctx.req.socket.setKeepAlive(true)
+  ctx.status = 200
+  ctx.respond = false
+  const res = ctx.res
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  })
+
+  const unsubscribers: (() => void)[] = []
+  let keepalive: NodeJS.Timeout | null = null
+
+  const cleanup = bindStreamLifecycle(ctx.req, res, () => {
+    unsubscribers.forEach((u) => u())
+    if (keepalive) { clearInterval(keepalive); keepalive = null }
+  })
+
+  function sendFor(conversationId: string, event: string, payload: Record<string, unknown>): boolean {
+    if (isStreamClosed(res)) { cleanup(); return false }
+    try {
+      res.write(
+        `event: conversation_event\ndata: ${JSON.stringify({ conversationId, event, data: payload })}\n\n`,
+      )
+      return true
+    } catch {
+      cleanup()
+      return false
+    }
+  }
+
+  // Send catchup events so clients that reconnect pick up the latest state
+  const conversationStates = await Promise.all(
+    validIds.map((id) => getConversation(id, 'viewer').catch(() => null)),
+  )
+
+  for (let i = 0; i < validIds.length; i++) {
+    const id = validIds[i]
+    const data = conversationStates[i]
+    if (!data?.conversation) continue
+
+    if (data.conversation.status === 'ready') {
+      if (!sendFor(id, 'welcome_message', {}) || !sendFor(id, 'complete', { status: 'ready' })) return
+    } else if (data.conversation.status === 'failed') {
+      // Don't close — other conversations in the batch may still be active
+      if (!sendFor(id, 'complete', { status: 'failed' })) return
+    } else {
+      const hasWelcome = data.messages.some((m: { role: string }) => m.role === 'assistant')
+      if (hasWelcome && !sendFor(id, 'welcome_message', {})) return
+    }
+  }
+
+  if (isStreamClosed(res)) return
+
+  // Subscribe to real-time events; unlike the single-conversation endpoint we
+  // never close the stream on complete/error — other conversations may still fire.
+  for (const id of validIds) {
+    const unsub = onConversationEvent(id, (evt) => {
+      sendFor(id, evt.event, evt.data)
+    })
+    unsubscribers.push(unsub)
+  }
+
+  keepalive = setInterval(() => {
+    if (isStreamClosed(res)) { cleanup(); return }
+    try { res.write(': keepalive\n\n') } catch { cleanup() }
+  }, 15_000)
+})
+
 // SSE endpoint: stream processing events (welcome_message, complete) to the frontend
 conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => {
   const { conversationId } = ctx.params

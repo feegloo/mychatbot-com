@@ -204,8 +204,18 @@ import LanguageToggle from '../components/LanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
-import { useConversationEvents, stepLabel } from '../composables/useConversationEvents'
+import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+
+type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
+const STEP_LABELS: Record<ProcessingStep, string> = {
+  generating_welcome: 'Processing',
+  indexing_pages: 'Indexing pages for Q&A…',
+  '': '',
+}
+function stepLabel(step: ProcessingStep): string {
+  return STEP_LABELS[step] || ''
+}
 import {newContent} from '../composables/newContent'
 import {
   attachRenderKey,
@@ -292,23 +302,35 @@ const {
   cleanup: cleanupAutoRead,
 } = useAutoRead(messages, asking, welcomeMessageContent, chatContainer, currentLanguage)
 
-// SSE: real-time processing events + message_appended for live sync
-const {
-  processingStep,
-  parsedPages,
-  totalPages,
-  connect: connectSSE,
-  disconnect: disconnectSSE,
-  onWelcome,
-  onComplete: onSSEComplete,
-  onMessageAppended,
-} = useConversationEvents(conversationId)
+// SSE: one global multiplexed connection, one ref per conversation.
+// The ref is mutated by useGlobalSSE whenever an event arrives; watching it
+// replaces the individual callback-based API from useConversationEvents.
+const processingStep = ref<ProcessingStep>('generating_welcome')
+const parsedPages = ref(0)
+const totalPages = ref(0)
 
-onWelcome(() => loadConversation())
-onSSEComplete(() => loadConversation())
-// New messages (from own submits, other tabs, or thread replies from other
-// users) trigger a reload. Replaces the 1s polling fallback.
-onMessageAppended(() => loadConversation())
+const { sse: sseEvent } = useSSE(conversationId)
+
+watch(sseEvent, (evt) => {
+  if (!evt) return
+  switch (evt.event) {
+    case 'welcome_message':
+      processingStep.value = 'indexing_pages'
+      loadConversation()
+      break
+    case 'complete':
+      processingStep.value = ''
+      loadConversation()
+      break
+    case 'page_progress':
+      parsedPages.value = (evt.data.parsed as number) ?? parsedPages.value
+      totalPages.value = (evt.data.total as number) ?? totalPages.value
+      break
+    case 'message_appended':
+      loadConversation()
+      break
+  }
+})
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
@@ -843,11 +865,6 @@ onMounted(async () => {
   // Listen for scroll events to persist position
   chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true })
 
-  // Connect SSE for processing events AND live message sync. Backend keeps
-  // the stream open after indexing completes so message_appended events can
-  // flow for ready conversations.
-  connectSSE()
-
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined
   if (pending) {
@@ -863,7 +880,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  disconnectSSE()
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
   cleanupAutoRead()
@@ -883,18 +899,17 @@ onActivated(async () => {
     hasActivated = true
     return
   }
+  // Reload from server when navigating back to a cached page.
+  // The SSE subscription stays active while cached so background events
+  // still update the ref; this call ensures state is fresh on re-entry.
   try {
     await loadConversation()
   } catch {
     // Network error – keep the cached state visible rather than crashing
   }
-  connectSSE()
 })
 
 onDeactivated(() => {
-  // Stop the SSE stream while the page is cached but inactive so we don't
-  // accumulate open connections for every visited conversation.
-  disconnectSSE()
   saveScrollPosition()
   if (scrollSaveTimer) {
     clearTimeout(scrollSaveTimer)
