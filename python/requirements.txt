@@ -3,14 +3,12 @@ langdetect==1.0.9
 chromadb==1.0.7
 chonkie>=1.6.0
 docx2txt==0.8
-jupyter==1.1.1
 langchain==1.2.15
 langchain-community==0.4.1
 langchain-openai==1.1.14
 openai==2.32.0
 openpyxl==3.1.5
 pandas==3.0.2
-papermill==2.7.0
 pypdf==6.10.2
 pymupdf>=1.25.0
 Pillow>=10.0.0

@@ -53,7 +53,7 @@ conversationsRouter.post('/conversations', async (ctx) => {
     status: 'ready',
     storage_namespace: namespace,
     vector_collection_name: collectionName,
-    indexing_mode: config.pythonIndexingMode,
+    indexing_mode: 'script',
     error_message: null,
     parent_message_id: null,
     parent_conversation_id: null,
@@ -320,7 +320,6 @@ conversationsRouter.post(
       conversationId,
       collectionName: data.conversation.vector_collection_name,
       files: absolutePaths,
-      mode: config.pythonIndexingMode === 'notebook' ? 'notebook' : 'script',
     })
       .then(async (result) => {
         const welcomeMessage = result.parsedJson?.welcome_message || ''

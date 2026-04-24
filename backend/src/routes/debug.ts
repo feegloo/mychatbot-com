@@ -1,7 +1,20 @@
 import Router from '@koa/router'
 import { timingSafeEqual } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import { pool, query } from '../db.js'
 import { config } from '../config.js'
+
+// Users tab runs an analytics query maintained as a standalone .sql file
+// so non-TS contributors can tweak it without touching route code.
+// Resolved once at module load; the SQL file is copied into the image at
+// /app/backend/sql (see root Dockerfile).
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const USERS_SQL = readFileSync(
+  resolve(__dirname, '../../sql/users.sql'),
+  'utf8',
+)
 
 function safeEq(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
@@ -44,7 +57,6 @@ const DEBUG_TABLES = [
   'prompt_history',
   'generated_images',
   'indexing_events',
-  'indexing_jobs',
   'pdf_pages',
   'workers',
   'jobs',
@@ -82,7 +94,6 @@ const TABLE_SELECT: Record<DebugTable, string> = {
      duration_ms, created_at`,
   generated_images: '*',
   indexing_events: '*',
-  indexing_jobs: '*',
   pdf_pages: '*',
   workers: '*',
   jobs: '*',
@@ -126,7 +137,6 @@ debugRouter.get('/debug/tables-overview', async (ctx) => {
         'prompt_history', (SELECT COUNT(*) FROM public.prompt_history),
         'generated_images', (SELECT COUNT(*) FROM public.generated_images),
         'indexing_events', (SELECT COUNT(*) FROM public.indexing_events),
-        'indexing_jobs', (SELECT COUNT(*) FROM public.indexing_jobs),
         'pdf_pages', (SELECT COUNT(*) FROM public.pdf_pages),
         'workers', (SELECT COUNT(*) FROM public.workers),
         'jobs', (SELECT COUNT(*) FROM public.jobs)
@@ -162,14 +172,10 @@ debugRouter.get('/debug/tables/:name', async (ctx) => {
   const limit = 1000
 
   if (name === 'users') {
-    const result = await query(
-      `SELECT cm.user_id, uf.fingerprint, COUNT(*) AS message_count,
-              MIN(cm.created_at) AS first_seen, MAX(cm.created_at) AS last_seen
-       FROM public.conversation_messages cm
-       LEFT JOIN public.user_fingerprints uf ON uf.user_id = cm.user_id
-       GROUP BY cm.user_id, uf.fingerprint
-       ORDER BY message_count DESC`,
-    )
+    // Runs the query maintained in backend/sql/users.sql. One row per
+    // (user, day); the SQL's window function adds total_messages so the
+    // UI can group/sort without a second round-trip.
+    const result = await query(USERS_SQL)
     ctx.body = { rows: result.rows }
     return
   }

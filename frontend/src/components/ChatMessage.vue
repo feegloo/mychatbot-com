@@ -65,7 +65,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         />
       </div>
 
-      <!-- Generating: image-gen announcement + typing dots -->
+      <!-- Generating: image-gen announcement + progressive partial image -->
       <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
         <div v-if="msg.generatingImage" class="image-generating-label">
           <TextFade :trigger="msg.imageAnnouncement || 'generic'">
@@ -73,6 +73,16 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             <span v-else>🎨 Generating image, please wait...</span>
           </TextFade>
         </div>
+        <Transition name="image-morph-fade">
+          <div v-if="msg.generatingImage && msg.imagePartialDataUrl" class="image-morph-wrap">
+            <img
+              :src="msg.imagePartialDataUrl"
+              :style="{ filter: `blur(${partialBlurPx}px)` }"
+              class="image-morph"
+              alt="Generating..."
+            />
+          </div>
+        </Transition>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
 
@@ -269,6 +279,16 @@ const emit = defineEmits<{
 
 // Use storageConversationId for file URLs (threads point to parent's storage).
 const effectiveStorageId = computed(() => props.storageConversationId || props.conversationId)
+
+// Blur intensity for the progressive "morphing" image. Decreases as later
+// partial frames arrive so the image visually sharpens into the final
+// render. Values picked to roughly match ChatGPT's visible diffusion effect.
+const partialBlurPx = computed(() => {
+  const idx = props.msg.imagePartialIndex ?? 0
+  if (idx <= 0) return 14
+  if (idx === 1) return 6
+  return 2
+})
 
 const senderLabel = computed(() => {
   if (props.msg.role === 'assistant') return 'Assistant'
@@ -621,6 +641,48 @@ function openFilePreview(file: FileInfo) {
   margin: 6px 0 8px;
   font-size: 13px;
   color: #c4b5fd;
+}
+
+/* Progressive (morphing) partial image while OpenAI streams the diffusion
+   intermediates. Grows to match the final image width (capped at 512px to
+   keep the bubble from dominating the viewport); the blur value is driven
+   inline by the partial frame index so each new frame sharpens. */
+.image-morph-wrap {
+  margin: 6px 0 8px;
+  max-width: min(512px, 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(167, 139, 250, 0.08);
+  animation: image-morph-pulse 2.2s ease-in-out infinite;
+}
+.image-morph {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: scale(1.02);
+  transition: filter 600ms ease-out;
+  will-change: filter;
+}
+@keyframes image-morph-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 24px 2px rgba(167, 139, 250, 0.35);
+  }
+}
+
+/* Fade-in for the first partial frame. Paired with the v-if above so the
+   wrap mounts at opacity 0 and eases to 1, giving the morph a smooth
+   "reveal" instead of popping in at full brightness. */
+.image-morph-fade-enter-active {
+  transition: opacity 700ms ease-out;
+}
+.image-morph-fade-enter-from {
+  opacity: 0;
+}
+.image-morph-fade-enter-to {
+  opacity: 1;
 }
 
 /* Highlight.js code block sizing. */

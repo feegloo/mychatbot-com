@@ -6,7 +6,7 @@ import {
   insertConversationMessage,
   resolveConversationRole,
 } from '../repositories/conversations.js'
-import { announceImage, generateImage } from '../python/image-gen.js'
+import { announceImage, generateImage, generateImageStream } from '../python/image-gen.js'
 import { registerReusableImage } from '../python/reusable-image.js'
 import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { buildChatHistory, getWelcomeMessages } from '../utils/chat-history.js'
@@ -33,6 +33,137 @@ const imageGenSchema = z.object({
 })
 
 export const imageGenRouter = new Router()
+
+type ImageGenResult = {
+  file_name: string
+  revised_prompt: string
+  image_prompt: string
+  image_title: string
+  rag_sources?: Array<{
+    chunk_id: string
+    text: string
+    file_name: string
+    section?: string | null
+    page?: number | null
+  }>
+}
+
+/**
+ * Shared post-generation pipeline: GCS upload + DB row + reusable-image
+ * index. Returns the response body used by both the blocking POST
+ * /generate-image route and the NDJSON streaming variant.
+ */
+async function finalizeGeneratedImage(params: {
+  conversationId: string
+  question: string
+  userMessageId: string
+  result: ImageGenResult
+  conversation: { storage_namespace: string }
+  files: Array<{ original_name: string; size_bytes: string | number }>
+  storageDir: string
+}): Promise<{
+  answer: string
+  citations: Array<{
+    fileName: string
+    chunkId: string
+    text: string
+    section: string | null
+    page: number | null
+  }>
+  assistantMessageId: string
+  generatedImage: {
+    fileName: string
+    imagePrompt: string
+    revisedPrompt: string
+    imageTitle: string
+  }
+}> {
+  const {
+    conversationId,
+    question,
+    result,
+    conversation,
+    files,
+    storageDir,
+  } = params
+
+  if (config.storageProvider === 'gcs' && config.gcsBucket) {
+    try {
+      const localPath = path.join(storageDir, result.file_name)
+      const gcsKey = `${conversation.storage_namespace}/${result.file_name}`
+      await uploadLocalFileToGcs(localPath, gcsKey, 'image/png')
+    } catch (err) {
+      logger.error({ err, fileName: result.file_name }, 'failed to upload generated image to GCS')
+    }
+  }
+
+  const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
+  const title = result.image_title || 'Generated Image'
+  const citations = (result.rag_sources || []).map((s) => ({
+    fileName: s.file_name,
+    chunkId: s.chunk_id,
+    text: s.text,
+    section: s.section ?? null,
+    page: s.page ?? null,
+  }))
+  const sourceMarkers = citations.length
+    ? ' ' + citations.map((_, i) => `[${i + 1}]`).join('')
+    : ''
+  const answer = `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"${sourceMarkers}</p>`
+
+  const assistantMsgId = await insertConversationMessage({
+    conversationId,
+    role: 'assistant',
+    content: answer,
+    citations: {
+      _generatedImageDescription: result.revised_prompt || result.image_prompt,
+      _imageSources: citations,
+    },
+  })
+
+  try {
+    const description = result.revised_prompt || result.image_prompt || title
+    const sourceOriginalNames = files.map((f) => f.original_name)
+    const imageId = await insertGeneratedImage({
+      conversationId,
+      messageId: assistantMsgId,
+      storageNamespace: conversation.storage_namespace,
+      fileName: result.file_name,
+      imageTitle: result.image_title || title,
+      imagePrompt: result.image_prompt || null,
+      revisedPrompt: result.revised_prompt || null,
+      userPrompt: question,
+      description,
+      sourceOriginalNames,
+      sourceSizeBytes: files.map((f) => Number(f.size_bytes)),
+    })
+    await registerReusableImage({
+      imageId,
+      description,
+      conversationId,
+      storageNamespace: conversation.storage_namespace,
+      fileName: result.file_name,
+      imageTitle: result.image_title || title,
+      imagePrompt: result.image_prompt,
+      userPrompt: question,
+      sourceOriginalNames,
+    })
+  } catch (err) {
+    logger.warn({ err, conversationId, assistantMsgId }, 'failed to register generated image')
+  }
+
+  return {
+    answer,
+    citations,
+    assistantMessageId: assistantMsgId,
+    generatedImage: {
+      fileName: result.file_name,
+      imagePrompt: result.image_prompt,
+      revisedPrompt: result.revised_prompt,
+      imageTitle: result.image_title,
+    },
+  }
+}
 
 imageGenRouter.post('/generate-image', async (ctx) => {
   const parsed = imageGenSchema.safeParse(ctx.request.body)
@@ -104,93 +235,22 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     referenceImagePaths,
   })
 
-  // Persist generated image to GCS so it survives Cloud Run instance turnover.
-  // Local disk is ephemeral and per-instance — without this, the /api/storage
-  // route falls back to a GCS signed URL for a key that does not exist.
-  if (config.storageProvider === 'gcs' && config.gcsBucket) {
-    try {
-      const localPath = path.join(storageDir, result.file_name)
-      const gcsKey = `${data.conversation.storage_namespace}/${result.file_name}`
-      await uploadLocalFileToGcs(localPath, gcsKey, 'image/png')
-    } catch (err) {
-      logger.error({ err, fileName: result.file_name }, 'failed to upload generated image to GCS')
-    }
-  }
-
-  // Build the assistant answer with the image
-  const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
-  const title = result.image_title || 'Generated Image'
-
-  // Map RAG sources returned by the model to citation objects
-  const citations = (result.rag_sources || []).map((s) => ({
-    fileName: s.file_name,
-    chunkId: s.chunk_id,
-    text: s.text,
-    section: s.section ?? null,
-    page: s.page ?? null,
-  }))
-
-  // Append [1][2]... source markers to the caption so they render as clickable source buttons
-  const sourceMarkers = citations.length
-    ? ' ' + citations.map((_, i) => `[${i + 1}]`).join('')
-    : ''
-  const answer = `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"${sourceMarkers}</p>`
-
-  const assistantMsgId = await insertConversationMessage({
+  const finalized = await finalizeGeneratedImage({
     conversationId,
-    role: 'assistant',
-    content: answer,
-    citations: {
-      _generatedImageDescription: result.revised_prompt || result.image_prompt,
-      _imageSources: citations,
-    },
+    question,
+    userMessageId: userMsgId,
+    result,
+    conversation: data.conversation,
+    files: data.files,
+    storageDir,
   })
 
-  // Register in the cross-conversation reuse index. Failures here must not
-  // break the response — the image is already saved and shown to the user;
-  // the only lost side effect is findability by other conversations.
-  try {
-    const description = result.revised_prompt || result.image_prompt || title
-    const sourceOriginalNames = data.files.map((f) => f.original_name)
-    const imageId = await insertGeneratedImage({
-      conversationId,
-      messageId: assistantMsgId,
-      storageNamespace: data.conversation.storage_namespace,
-      fileName: result.file_name,
-      imageTitle: result.image_title || title,
-      imagePrompt: result.image_prompt || null,
-      revisedPrompt: result.revised_prompt || null,
-      userPrompt: question,
-      description,
-      sourceOriginalNames,
-      sourceSizeBytes: data.files.map((f) => Number(f.size_bytes)),
-    })
-    await registerReusableImage({
-      imageId,
-      description,
-      conversationId,
-      storageNamespace: data.conversation.storage_namespace,
-      fileName: result.file_name,
-      imageTitle: result.image_title || title,
-      imagePrompt: result.image_prompt,
-      userPrompt: question,
-      sourceOriginalNames,
-    })
-  } catch (err) {
-    logger.warn({ err, conversationId, assistantMsgId }, 'failed to register generated image')
-  }
-
   ctx.body = {
-    answer,
-    citations,
+    answer: finalized.answer,
+    citations: finalized.citations,
     userMessageId: userMsgId,
-    assistantMessageId: assistantMsgId,
-    generatedImage: {
-      fileName: result.file_name,
-      imagePrompt: result.image_prompt,
-      revisedPrompt: result.revised_prompt,
-      imageTitle: result.image_title,
-    },
+    assistantMessageId: finalized.assistantMessageId,
+    generatedImage: finalized.generatedImage,
   }
 })
 
@@ -242,5 +302,130 @@ imageGenRouter.post('/announce-image', async (ctx) => {
     // rather than surfacing an error to the client.
     logger.warn({ err }, 'failed to build image announcement')
     ctx.body = { announcement: '' }
+  }
+})
+
+imageGenRouter.post('/generate-image-stream', async (ctx) => {
+  const parsed = imageGenSchema.safeParse(ctx.request.body)
+  if (!parsed.success) {
+    ctx.status = 400
+    ctx.body = { error: 'Invalid request' }
+    return
+  }
+
+  const { conversationId, question, userId, referenceImageFileNames } = parsed.data
+
+  const token = getConversationToken(ctx)
+  const role = await resolveConversationRole(conversationId, token)
+  if (role !== 'owner' && role !== 'editor') {
+    ctx.status = 403
+    ctx.body = { error: 'Only the conversation owner can generate images' }
+    return
+  }
+
+  const data = await getConversation(conversationId)
+  if (!data.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  const userMsgId = await insertConversationMessage({
+    conversationId,
+    role: 'user',
+    content: question,
+    userId: userId || 0,
+  })
+
+  const welcomeMessages = data.parentWelcomeContents.length
+    ? data.parentWelcomeContents
+    : getWelcomeMessages(data.messages)
+  const chatHistory = buildChatHistory(data.messages).slice(-6)
+  const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
+  const canHydrateFromGcs = config.storageProvider === 'gcs' && Boolean(config.gcsBucket)
+  const referenceImagePaths = await resolveReferenceImagePaths({
+    explicitFileNames: referenceImageFileNames,
+    files: data.files,
+    storageDir,
+    storageRoot: config.storageRoot,
+    hydrateFromGcs: canHydrateFromGcs
+      ? (storageKey, localPath) => downloadFromGcs(storageKey, localPath).then(() => undefined)
+      : undefined,
+    onHydrateError: (storageKey, err) =>
+      logger.warn({ err, storageKey }, 'failed to hydrate reference image from GCS'),
+  })
+
+  // Set up SSE stream. Using the same pattern as conversations-stream so
+  // proxies keep the connection alive and flush events eagerly.
+  ctx.req.socket.setTimeout(0)
+  ctx.req.socket.setNoDelay(true)
+  ctx.req.socket.setKeepAlive(true)
+  ctx.status = 200
+  ctx.respond = false
+  const res = ctx.res
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  const send = (event: string, payload: Record<string, unknown>) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+  }
+
+  send('user_message', { userMessageId: userMsgId })
+
+  try {
+    let finalResult: ImageGenResult | null = null
+    for await (const evt of generateImageStream({
+      question,
+      storageDir,
+      welcomeMessages,
+      collectionName: data.conversation.vector_collection_name,
+      conversationId,
+      chatHistory,
+      quality: 'low',
+      referenceImagePaths,
+    })) {
+      if (evt.event === 'prompt_ready') {
+        send('prompt_ready', evt.data as unknown as Record<string, unknown>)
+      } else if (evt.event === 'partial') {
+        send('partial', evt.data as unknown as Record<string, unknown>)
+      } else if (evt.event === 'complete') {
+        finalResult = evt.data
+      } else if (evt.event === 'error') {
+        send('error', evt.data as unknown as Record<string, unknown>)
+        res.end()
+        return
+      }
+    }
+
+    if (!finalResult) {
+      send('error', { error: 'Image generation produced no result' })
+      res.end()
+      return
+    }
+
+    const finalized = await finalizeGeneratedImage({
+      conversationId,
+      question,
+      userMessageId: userMsgId,
+      result: finalResult,
+      conversation: data.conversation,
+      files: data.files,
+      storageDir,
+    })
+    send('complete', {
+      answer: finalized.answer,
+      citations: finalized.citations,
+      userMessageId: userMsgId,
+      assistantMessageId: finalized.assistantMessageId,
+      generatedImage: finalized.generatedImage,
+    })
+    res.end()
+  } catch (err) {
+    logger.error({ err, conversationId }, 'generate-image-stream failed')
+    send('error', { error: err instanceof Error ? err.message : String(err) })
+    res.end()
   }
 })

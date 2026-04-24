@@ -13,6 +13,7 @@ from langchain_openai import ChatOpenAI
 from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
 from .llm_instrument import traced_llm_call
+from .prompts.quiz import QUIZ_PROMPT
 from .vector_store import query_chunks
 
 logger = logging.getLogger(__name__)
@@ -45,60 +46,6 @@ _QUIZ_PATTERNS = re.compile(
     r"\b(quiz|kwiz|test|egzamin)\b",
     re.IGNORECASE,
 )
-
-QUIZ_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
-
-If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
-
-IMPORTANT: Randomly choose ONE quiz type (roughly 50/50 chance):
-- **Single choice** ("multiple": false) — each question has exactly ONE correct answer.
-- **Multiple choice** ("multiple": true) — each question can have 1-4 correct answers (but never 0).
-
-Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
-
-[quiz:{{"title":"Quiz title","multiple":false,"questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[0],"explanation":"Why this is correct"}}]}}]
-
-Rules:
-- Generate exactly 5 questions based on the content
-- The top-level "multiple" field MUST be present: true for multiple choice, false for single choice
-- Each question has 3-4 options
-- For single choice ("multiple": false): "correct" must contain exactly ONE index
-- For multiple choice ("multiple": true): "correct" contains 1-4 indices (never 0)
-- Include a brief explanation for each correct answer
-- Questions should test understanding, not just recall
-- CRITICAL: NEVER include [source:N], [source:1], [source:2] or any source citations anywhere in the quiz JSON. No citations in questions, options, explanations, or title. Source references break the JSON rendering and must be completely omitted from the entire [quiz:...] block.
-- The quiz JSON must be valid JSON on a single line after [quiz:
-- Write the quiz in the same language as the retrieved context
-- Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
-- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).""",
-        ),
-        (
-            "human",
-            """Raw document text (original file content - use for quiz questions):
-    {raw_text}
-
-    Page summaries (overview of each page):
-    {page_summaries}
-
-    Uploaded file descriptions (in chronological order):
-    {welcome_messages}
-
-    Chat history (last exchange):
-    {chat_history}
-
-    Question:
-    {question}
-
-    Retrieved context (most relevant chunks):
-    {context}""",
-        ),
-    ]
-)
-
 
 ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -288,13 +235,20 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   - Use ++underline++ for key terms, definitions, or words that deserve visual emphasis different from bold/italic.
   - Use --- horizontal rules to separate major sections if the answer is very long.
 - Colored text: use color markers with [c:color]word[/c] when they add meaning, mood, or scanning clarity. Prefer meaningful color accents in most medium/long answers.
+    - **Emotional compass (primary guide — use this BEFORE the dictionary)**: color choice should first be steered by the emotional valence of the concept, not its literal meaning.
+        * **Positive / uplifting / desirable** (joy, hope, growth, success, kindness, health, progress, approval, love, beauty, safety, winning) → lean toward the **green family** first (green, teal, gold, and secondarily pink/yellow for warmer positives). Green is the default "this is good" color.
+        * **Negative / harmful / undesirable** (danger, error, pain, fear, anger, loss, failure, evil, disease, decay, conflict, rejection) → lean toward the **red family** first (red, orange for sharper alarm, gray for muted/dead negativity). Red is the default "this is bad" color.
+        * **Neutral / reflective / informational / ambiguous** (facts, concepts, systems, logic, distance, time, freedom, knowledge, contemplation, water, sky, technology) → lean toward the **blue family** first (blue, purple for abstract/spiritual neutrality, gray for truly flat neutrality). Blue is the default "this just is" color.
+        * The emotional compass OVERRIDES a literal dictionary match when they disagree. Example: "wound" is literally a body part but emotionally negative → red, not pink. "Milestone" is literally abstract but emotionally positive → green, not blue.
+        * When a concept is emotionally mixed, pick the dominant tone in the current answer's context.
     - Color usage should be natural but not too rare: many medium/long answers should include color markers when terms map clearly to the color dictionary.
     - Keep emphasis readable: usually 2-6 colored words/phrases in longer answers, and 1-3 in short/medium answers.
     - You may color a phrase of 2–5 neighboring words when the whole phrase belongs to one concept — treat it like a student's highlighter stroke: color "warm summer sand" in yellow, not just "sand". Never color full sentences or paragraphs.
     - **Contrast rule**: When the answer contains two clearly opposing concepts, use contrasting colors to make the opposition visually striking. Standard contrast pairs (adapt freely to context):
         * good vs evil / right vs wrong / truth vs lie → [c:green]good[/c] vs [c:red]evil[/c]
         * life vs death → [c:green]life[/c] vs [c:gray]death[/c]
-        * love vs hate → [c:pink]love[/c] vs [c:blue]hate[/c]
+        * love vs hate → [c:pink]love[/c] vs [c:red]hate[/c]
+        * freedom vs possession / liberty vs attachment → [c:blue]freedom[/c] vs [c:pink]possession[/c]
         * cold vs warm / ice vs fire → [c:blue]cold[/c] vs [c:orange]warm[/c]
         * hope vs despair → [c:yellow]hope[/c] vs [c:gray]despair[/c]
         * victory vs defeat / success vs failure → [c:gold]victory[/c] vs [c:gray]defeat[/c]
@@ -304,17 +258,17 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
         * Use your judgment — any clear duality deserves contrasting color treatment.
     - **Student marker rule**: When the uploaded material is a learning resource — language course, exam preparation, homework, textbook, vocabulary list, grammar guide, certificate preparation, or anything the user is studying — use color as a student would use a highlighter pen: mark key terms, definitions, rules, and important concepts with color to make them stand out. In creative writing or casual answers, use this sparingly or not at all.
     - **Consistency rule (critical)**: Once you assign a color to a concept/term in an answer, keep that SAME color for every subsequent mention of the same concept in that answer. Do NOT recolor the same word later with a different color — e.g. if "greenfield" is [c:green] in the intro, it must stay [c:green] in the bullets and verdict; "monorepo" stays one color throughout; "CI/CD", "GCP", "AWS", "BigQuery" each keep a single color per answer. Mixing colors for the same term (e.g. greenfield green in one paragraph, yellow in the next) looks like a bug and must be avoided. Intentional exception: a deliberate narrative shift where the meaning itself flips (e.g. the same word moves from "good" to "bad") — only then you may switch from [c:green] to [c:red] intentionally, and the flip should be obvious from context.
-  - Color dictionary — 10 colors; pick the closest fit:
-    * [c:green]word[/c] — correct, life, nature, plants, grass, slow life, positive, enthusiasm, health, bacteria, virus, growth, hope, go-signal, freshness, eco, spring, healing
-    * [c:red]word[/c] — wrong, danger, alarm, strong love, aggression, anger, rage, speed, passion, fire, blood, stop
-    * [c:yellow]word[/c] — sun, gold - money, warmth, summer, flame, sand, cheese, honey, bees, pause, light, too slow, radiance, warning, flowers, leaves
-    * [c:blue]word[/c] — water, cold, ice, slow, trust, sky, ocean, depth, sadness, melancholy, tranquility, calm, winter, night, technology, precision
-    * [c:purple]word[/c] — creativity, mystery, royalty, magic, wisdom, twilight, meditation, intuition, cosmos, night
-    * [c:orange]word[/c] — energy, organge fruit, excitement, caution, harvest, glow, transition, enthusiasm, sunset, pumpkin, citrus
-    * [c:gold]word[/c] — achievement, wealth, victory, success, luxury, excellence, treasure, radiance, medal, technology
-    * [c:teal]word[/c] — healing, balance, science, precision, tech, serenity, clarity, medical, harmony, aqua
-    * [c:pink]word[/c] — love, affection, tenderness, romance, sweetness, beauty, girly, blush, elegance, grace, blossom
-    * [c:gray]word[/c] — uncertainty, death, ambiguity, fog, neutrality, indifference, shadow, smoke, ash, silence
+  - Color dictionary — 10 colors; pick the closest fit (rich meaning list — pick the nearest concept, even if the exact word is not listed):
+    * [c:green]word[/c] — correct, life, nature, plants, grass, forest, moss, leaves, trees, jungle, garden, slow life, positive, enthusiasm, health, wellness, organic, bacteria, virus, growth, growth mindset, hope, go-signal, permission, freshness, eco, ecology, sustainability, spring, renewal, healing, recovery, fertility, abundance, vegetables, herbs, money/finance (in some contexts), envy, beginnings, rookie, apprentice, novice, safety, "all clear"
+    * [c:red]word[/c] — wrong, error, bug, danger, alarm, alert, emergency, strong love, passion, lust, aggression, anger, rage, fury, wrath, violence, war, conflict, battle, speed, urgency, fire, flames, heat, blood, wound, injury, pain, stop, forbidden, prohibition, sin, evil, devil, hell, crime, murder, revolution, rebellion, spicy, chili, wine, roses, heart (romantic/critical), critical, failure, defeat
+    * [c:yellow]word[/c] — sun, sunshine, sunlight, daylight, warmth, summer, flame, candle, sand, beach, desert, dune, cheese, honey, bees, butter, lemon, banana, corn, pause, caution, light, illumination, too slow, radiance, brightness, warning, flowers, dandelion, leaves (autumn), gold-money (informal), joy, happiness, optimism, playfulness, childhood, youth, cowardice, jealousy (in some traditions), sparkle, glow, rays, morning, dawn
+    * [c:blue]word[/c] — water, sea, river, lake, rain, ocean, waves, cold, ice, frost, snow, winter, sky, clouds, air, wind, breath, slow, trust, loyalty, honesty, reliability, depth, profundity, sadness, melancholy, tears, grief, tranquility, calm, peace, stillness, night, evening, dusk, technology, cyber, digital, data, precision, clinical, corporate, uniform, police, navy, denim, sapphire, stability, wisdom (cool-headed), rationality, logic, meditation, mindfulness, **freedom**, liberation, openness, infinity, horizon, distance, reflection, contemplation
+    * [c:purple]word[/c] — creativity, imagination, mystery, enigma, royalty, king/queen/emperor, noble, aristocracy, magic, spell, witchcraft, sorcery, wizardry, fantasy, wisdom (mystic), philosophy, twilight, dusk (violet), meditation, spirituality, soul, intuition, psyche, dream, subconscious, cosmos, galaxy, stars, universe, night (deep), lavender, lilac, orchid, amethyst, grapes, wine (rich), luxury (regal), ambiguity (soft), introspection, ritual, occult, enchantment, alchemy, transformation, transcendence
+    * [c:orange]word[/c] — energy, vitality, liveliness, orange fruit, excitement, thrill, caution, harvest, autumn, fall, glow, ember, transition, change, movement, enthusiasm, zeal, sunset, sunrise, pumpkin, squash, citrus, tangerine, apricot, mango, carrot, amber, rust, copper, terracotta, clay, brick, spice, cinnamon, ginger, paprika, adventure, sport, dynamism, friendliness, social warmth, creativity (playful), cheer, invitation
+    * [c:gold]word[/c] — achievement, wealth, riches, prosperity, victory, triumph, success, winning, first place, champion, luxury, opulence, excellence, quality, treasure, gem, jewel, radiance, shimmer, glitter, medal, trophy, prize, award, crown, scepter, throne, technology (premium), elite, honor, glory, prestige, fame, fortune, stardom, icon, legend, sacred, divine, holy, blessed, sunlit, halo, bullion, ingot, coin, vault
+    * [c:teal]word[/c] — healing, balance, equilibrium, science, research, laboratory, precision, tech (medical/clean), serenity, clarity, medical, hospital, surgery, hygiene, cleanliness, harmony, aqua, aquatic, turquoise, cyan, mint, sea-glass, lagoon, shallow water, pool, spa, wellness, meditation (calm), focus, concentration, mental clarity, neutrality (cool), diplomatic, professional, startup, SaaS, software, engineering, analytics, insights, dashboard, data-viz, breath work, yoga, hydration, detox, refresh
+    * [c:pink]word[/c] — love, affection, tenderness, romance, sweetness, beauty, girly, feminine, blush, elegance, grace, blossom, flowers (soft), cherry blossom, sakura, peach, strawberry, bubblegum, cotton candy, flamingo, rose, innocence, naivety, childhood (soft), playfulness, kindness, compassion, care, nurture, motherhood, baby, sentimentality, nostalgia, crush, flirt, dating, intimacy, vulnerability, softness, warmth (emotional), kawaii, pastel, cuteness, delicacy, charm, glamour, fashion, cosmetics, **possession**, clinging, attachment, obsession, jealous love, longing, yearning, heartbreak (bittersweet)
+    * [c:gray]word[/c] — uncertainty, ambiguity, vagueness, gray zone, compromise, death, mourning, loss, grief (muted), ashes, dust, fog, mist, haze, smog, smoke, neutrality, indifference, apathy, boredom, shadow, silhouette, silence, muteness, absence, void (soft), concrete, stone, steel, iron, industrial, urban, machinery, bureaucracy, paperwork, routine, monotony, dullness, rain (overcast), overcast sky, cloud cover, winter (bleak), old age, elderly, memory fading, forgotten, anonymous, ghostly, spectral, echo, ruin, decay (soft), oblivion, bureaucratic, corporate (dull), in-between, liminal
     - If a concept does not naturally map to a color, leave it uncolored rather than forcing a random color.
 - Math / LaTeX: Use KaTeX syntax not just for math — use it as a STYLE TOOL whenever it adds elegance or visual punch. The frontend renders beautiful LaTeX.
   * Obvious: $E = mc^2$, $\sum_{{i=1}}^{{n}} x_i$, $$\int_0^\infty e^{{-x}} dx = 1$$
@@ -343,6 +297,16 @@ c2) Natural-language page & chapter references (COMPLEMENT to [source:N], NOT a 
   * Never force it — if no chapter name is attached to the relevant sources, do not invent one; same for page numbers. When in doubt, skip. Overdoing it sounds robotic.
 - Weave the reference MID-SENTENCE inside flowing prose — never as a parenthetical footnote like "(p. 520)" or "(ch. 7)" tacked on, never as a dry "See page 520." footer. It should sound like a real reader / expert narrating.
 - Match the phrasing to the answer's language (Polish answer → Polish phrasing, English → English, etc.). Vary the phrasing — do NOT reuse the same opener twice in one answer, and do NOT mention the same chapter/page more than once per answer unless the user explicitly asks.
+
+- **Cross-message repetition — scan Section 5b history before citing a page/chapter**:
+  * Before weaving a page number or chapter name into the current answer, SCAN your recent Assistant Answers in Section 5b (the chat history). If you already mentioned that exact page (e.g. "page 91") or that exact chapter name in the last 1–3 assistant turns, STRONGLY prefer NOT to mention it again — it makes you sound like a broken record and signals that your retrieval is narrow.
+  * Prefer one of these alternatives instead: (a) reference a DIFFERENT page/chapter from the available sources that also supports the point, (b) drop the natural-language page/chapter mention entirely for this answer and rely on [source:N] alone, or (c) refer back to the earlier mention implicitly ("as noted earlier", "the same passage we looked at before", "jak wcześniej zauważyliśmy") without restating the number.
+  * Treat this as a probability nudge, not an absolute ban: if the SAME page genuinely IS the single best anchor for the user's new question (e.g. they explicitly ask a follow-up about that exact moment / product / table), you may mention it again — but rephrase the opener and keep it to one brief touch, never a full "On page 91, …" lead-in twice in a row.
+
+- **Document-type balancing — novels vs. product catalogs / brochures / reference works**:
+  * For NOVELS, literary fiction, memoirs, essays, and narrative non-fiction: pages are a weak anchor (readers re-read, editions differ, the story flows regardless of page). Keep page mentions RARE and almost never repeat a page across consecutive messages. Chapter names are fine to reuse across messages IF the conversation is genuinely centered on that chapter. Err on the side of SKIPPING the page mention when you've already used it recently.
+  * For PRODUCT CATALOGS, brochures, price lists, parts manuals, IKEA-style assembly books, cookbook recipe indexes, reference manuals, legal codes, clinical protocols, textbook problem sets: pages are a STRONG anchor — the whole point is to send the reader to the right page to find the product / part / recipe / statute / dosage. Here it IS useful to repeat a page across messages when the user keeps asking about items that live on that page, and to mention multiple specific pages per answer when multiple products are involved. Still vary the phrasing ("you'll find it on page 32", "page 32 has the matching SKU table", "the same page 32 also lists the refill sizes") rather than reusing the identical opener.
+  * When in doubt about document type, infer from Section 1 source labels and Section 4a content: presence of SKUs, part numbers, price columns, ingredient lists, product names, "Fig. N" captions → catalog/reference mode. Presence of character names, dialogue, narrative past tense, chapter titles → novel mode.
 
 - English phrasing — CHAPTER variants (creative / literary):
   * "by the middle of _The Descent into the Catacombs_, Raskolnikov has already made up his mind"

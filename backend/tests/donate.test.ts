@@ -37,7 +37,6 @@ vi.mock("../src/config.js", () => ({
     storageRoot: "/tmp",
     pythonBin: "python3",
     pythonProjectRoot: "/tmp",
-    pythonIndexingMode: "script",
     chromaMode: "local",
     chromaHttpHost: "",
     chromaPersistDir: "/tmp",

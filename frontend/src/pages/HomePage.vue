@@ -6,8 +6,8 @@
       <p class="home-subtitle">
         Upload your Big files securely 🔒, let AI extract insights and tell you what’s inside in the author’s
         voice.<br /><br />
-        Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG, share
-        answers<br />
+        Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG,
+        synthesize speech 🔊, share answers<br />
         <span style="font-size: 12px; padding-top: 6px"
           >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid
           diagram 🧩 recipe 🍝 checklist ✅ and more!</span
@@ -116,13 +116,12 @@ import {
   uploadUrl as apiUploadUrl,
   createConversation,
   askQuestion,
-  generateImage,
-  announceImage,
   saveConversationToken,
   extractError,
   httpStatus,
   type ChatMessage,
 } from '../api'
+import { runImageGenStream } from '../composables/useImageGenStream'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import UploadingDots from '../components/UploadingDots.vue'
@@ -289,20 +288,17 @@ async function submitQuestion() {
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
-    if (isImageGen) {
-      reactiveMsg.generatingImage = true
-      announceImage(convId, currentQuestion)
-        .then(({ announcement }) => {
-          if (announcement && reactiveMsg.generatingImage) {
-            reactiveMsg.imageAnnouncement = announcement
-          }
+    const response = isImageGen
+      ? await runImageGenStream({
+          conversationId: convId,
+          question: currentQuestion,
+          reactiveMsg,
+          timeoutMs: TIMEOUT_MS,
+          useUserId: false,
         })
-        .catch(() => {})
-    }
-    const response = await Promise.race([
-      isImageGen ? generateImage(convId, currentQuestion) : askQuestion(convId, currentQuestion),
-      timeout,
-    ])
+      : await Promise.race([askQuestion(convId, currentQuestion), timeout])
+    reactiveMsg.generatingImage = false
+    reactiveMsg.imagePartialDataUrl = undefined
     reactiveMsg.content = response.answer
     reactiveMsg.citations = response.citations
     if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId

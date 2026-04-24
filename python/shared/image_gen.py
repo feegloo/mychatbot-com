@@ -122,9 +122,9 @@ def _call_images_edit(
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "750x750",
+    size: str = "1024x1024",
     quality: str = "low",
-    model: str = "gpt-image-2",
+    model: str | None = None,
     reference_image_paths: list[str] | None = None,
 ) -> dict:
     """Generate an image from a text prompt using OpenAI.
@@ -134,12 +134,17 @@ def generate_image(
     uploaded references (style, subject, composition). Otherwise the standard
     ``images.generate`` endpoint is used.
 
+    ``model`` defaults to ``settings.openai_image_model`` (env:
+    ``OPENAI_IMAGE_MODEL``, fallback ``gpt-image-1``). Only gpt-image-1 and
+    dall-e-3 are actually shipping model IDs — passing an unknown name here
+    will surface as a 400 from OpenAI, not a silent fallback.
+
     Args:
         prompt: The text description for image generation.
         storage_dir: Directory to save the generated image.
-        size: Image size (750x750, 1024x1024, 1024x1792, 1792x1024).
-        quality: Image quality (auto, high, low).
-        model: OpenAI image model to use.
+        size: Image size. gpt-image-1 accepts 1024x1024, 1024x1536, 1536x1024.
+        quality: Image quality (auto, high, medium, low). "low" is fastest.
+        model: OpenAI image model id; default taken from settings.
         reference_image_paths: Optional list of local paths to reference images.
             Each must be a readable png/jpeg/webp file. Capped at
             ``MAX_REFERENCE_IMAGES``.
@@ -149,6 +154,7 @@ def generate_image(
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
+    model = model or settings.openai_image_model
 
     reference_paths = _validate_reference_paths(reference_image_paths)
 
@@ -224,6 +230,123 @@ def generate_image(
     logger.info(f"🖼️ Image saved: {file_path} ({len(image_bytes)} bytes)")
 
     return {
+        "file_name": file_name,
+        "revised_prompt": revised_prompt,
+    }
+
+
+def generate_image_streaming(
+    prompt: str,
+    storage_dir: str,
+    size: str = "1024x1024",
+    quality: str = "low",
+    model: str | None = None,
+    reference_image_paths: list[str] | None = None,
+    partial_images: int = 2,
+):
+    """Streaming variant of ``generate_image`` that yields progressive frames.
+
+    Uses OpenAI's ``stream=True, partial_images=N`` parameters on gpt-image-1
+    to surface intermediate lower-fidelity frames while the final render is
+    still being computed. Falls back to a single non-streaming call when a
+    reference image is provided (``images.edit`` streaming is not universally
+    available — we prefer a working path over a pretty-but-broken one).
+
+    Yields dicts of shape:
+      {"type": "partial", "b64": "...", "index": 0|1|...}
+      {"type": "completed", "file_name": "...", "revised_prompt": "..."}
+
+    Any exception during streaming falls through to the caller so the
+    endpoint can emit an "error" event.
+    """
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key)
+    model = model or settings.openai_image_model
+
+    reference_paths = _validate_reference_paths(reference_image_paths)
+
+    # images.edit does not reliably support streaming partials across all
+    # accounts/regions — fall back to the blocking path and emit a single
+    # "completed" event so the UI code stays uniform.
+    if reference_paths:
+        logger.info("🎨 Streaming path unavailable with references; using blocking edit")
+        result = generate_image(
+            prompt=prompt,
+            storage_dir=storage_dir,
+            size=size,
+            quality=quality,
+            model=model,
+            reference_image_paths=reference_image_paths,
+        )
+        yield {
+            "type": "completed",
+            "file_name": result["file_name"],
+            "revised_prompt": result["revised_prompt"],
+        }
+        return
+
+    logger.info(
+        f"🎨 Streaming image: prompt='{prompt[:100]}...' size={size} "
+        f"quality={quality} model={model} partials={partial_images}"
+    )
+
+    def _stream(p: str):
+        return client.images.generate(
+            model=model,
+            prompt=p,
+            n=1,
+            size=size,
+            quality=quality,
+            stream=True,
+            partial_images=partial_images,
+        )
+
+    tracer = get_tracer("chatrag.image_gen")
+    span_attrs = {
+        "model": model,
+        "size": size,
+        "quality": quality,
+        "streaming": True,
+        "partial_images": partial_images,
+    }
+
+    with tracer.start_as_current_span("image.generate.stream", attributes=span_attrs):
+        try:
+            events = _stream(prompt)
+        except Exception as exc:
+            retry_prompt = _emphasize_inspired(prompt)
+            logger.warning(
+                f"⚠️ OpenAI streaming image gen failed ({exc}); "
+                f"retrying once with 'inspired' emphasis"
+            )
+            events = _stream(retry_prompt)
+
+        final_b64: str | None = None
+        revised_prompt = prompt
+        for event in events:
+            ev_type = getattr(event, "type", "")
+            if ev_type.endswith("partial_image"):
+                b64 = getattr(event, "b64_json", None)
+                idx = getattr(event, "partial_image_index", 0)
+                if b64:
+                    yield {"type": "partial", "b64": b64, "index": idx}
+            elif ev_type.endswith("completed"):
+                final_b64 = getattr(event, "b64_json", None)
+                revised_prompt = getattr(event, "revised_prompt", prompt) or prompt
+
+    if not final_b64:
+        raise ValueError("OpenAI streaming image response contained no final frame")
+
+    image_bytes = base64.b64decode(final_b64)
+    file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
+    os.makedirs(storage_dir, exist_ok=True)
+    file_path = Path(storage_dir) / file_name
+    file_path.write_bytes(image_bytes)
+
+    logger.info(f"🖼️ Streamed image saved: {file_path} ({len(image_bytes)} bytes)")
+
+    yield {
+        "type": "completed",
         "file_name": file_name,
         "revised_prompt": revised_prompt,
     }

@@ -862,6 +862,7 @@ a {
      exceeds the bubble width. This is intentionally per-message, not a
      single global scroll on the chat log. */
   overflow-x: auto;
+  padding: 10px 14px 14px;
 }
 
 /* Welcome messages span wider and should not scroll horizontally —
@@ -913,14 +914,12 @@ a {
   overflow-wrap: anywhere;
 }
 
-.markdown-content img {
-  cursor: pointer;
-  border-radius: 8px;
-  transition: opacity 0.15s;
+.assistant.markdown-content {
+  margin: 0px;
 }
 
-.markdown-content img:hover {
-  opacity: 0.85;
+.markdown-content img {
+  cursor: pointer;
 }
 
 .markdown-content p {
@@ -1762,6 +1761,10 @@ h3 {
 }
 
 /* More-questions dropdown theme (VDropdown for suggested questions "More..." button) */
+.v-popper--theme-more-questions {
+  display: flex;
+}
+
 .v-popper--theme-more-questions .v-popper__inner {
   background: transparent;
   border: none;

@@ -68,7 +68,12 @@ from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402
 
-from shared.image_gen import build_image_announcement, build_image_prompt, generate_image  # noqa: E402
+from shared.image_gen import (  # noqa: E402
+    build_image_announcement,
+    build_image_prompt,
+    generate_image,
+    generate_image_streaming,
+)
 from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.indexing import index_documents  # noqa: E402
@@ -161,7 +166,7 @@ class GenerateImageRequest(BaseModel):
     collection_name: str = ""
     conversation_id: str = ""
     chat_history: list[dict] | None = None
-    size: str = "600x600"
+    size: str = "640x640"
     quality: Literal["auto", "high", "low"] = "low"
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
@@ -614,7 +619,120 @@ async def generate_image_endpoint(req: GenerateImageRequest):
 
         result = await asyncio.to_thread(_generate)
         return result
-    except Exception as e:
+    except Egenerate-image-stream")
+async def generate_image_stream_endpoint(req: GenerateImageRequest):
+    """Streaming variant of /generate-image.
+
+    Emits NDJSON events so the UI can show progressive "morphing" frames
+    before the final image is ready:
+      {"event": "prompt_ready", "data": {"image_prompt": ..., "image_title": ...}}
+      {"event": "partial",      "data": {"b64": "...", "index": 0}}
+      {"event": "complete",     "data": {file_name, revised_prompt, image_prompt, image_title, rag_sources}}
+      {"event": "error",        "data": {"error": "..."}}
+    """
+    from fastapi.responses import StreamingResponse  # noqa: E402
+
+    loop = asyncio.get_running_loop()
+    event_queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def _emit(event: str, data: dict) -> None:
+        loop.call_soon_threadsafe(event_queue.put_nowait, {"event": event, "data": data})
+
+    def _run() -> dict:
+        reference_image_paths = req.reference_image_paths
+        if not reference_image_paths:
+            reference_image_paths = _discover_uploaded_reference_files(req.storage_dir)
+            if reference_image_paths:
+                logger.info(
+                    f"📎 Auto-attaching {len(reference_image_paths)} uploaded PDF(s) "
+                    "as image-gen references (stream)"
+                )
+
+        rag_chunks: list[dict] = []
+        if req.collection_name and req.conversation_id:
+            try:
+                rag_chunks = query_chunks(
+                    collection_name=req.collection_name,
+                    conversation_id=req.conversation_id,
+                    question=req.question,
+                    top_k=10,
+                )
+            except Exception as exc:
+                logger.warning(f"⚠️ Could not query RAG chunks (stream): {exc}")
+
+        prompt_result = build_image_prompt(
+            question=req.question,
+            context=req.context,
+            welcome_messages=req.welcome_messages,
+            rag_chunks=rag_chunks if rag_chunks else None,
+            chat_history=req.chat_history,
+        )
+        image_prompt = prompt_result["prompt"]
+        image_title = prompt_result["title"]
+        source_indices = prompt_result.get("source_indices", [])
+
+        _emit("prompt_ready", {"image_prompt": image_prompt, "image_title": image_title})
+
+        final: dict | None = None
+        for item in generate_image_streaming(
+            prompt=image_prompt,
+            storage_dir=req.storage_dir,
+            size=req.size if req.size in ("1024x1024", "1024x1536", "1536x1024") else "1024x1024",
+            quality=req.quality,
+            reference_image_paths=reference_image_paths,
+        ):
+            if item["type"] == "partial":
+                _emit("partial", {"b64": item["b64"], "index": item["index"]})
+            elif item["type"] == "completed":
+                final = item
+
+        if not final:
+            raise RuntimeError("Streaming generator yielded no completion event")
+
+        cited_sources = [
+            rag_chunks[i]
+            for i in source_indices
+            if isinstance(i, int) and 0 <= i < len(rag_chunks)
+        ]
+        return {
+            "file_name": final["file_name"],
+            "revised_prompt": final["revised_prompt"],
+            "image_prompt": image_prompt,
+            "image_title": image_title,
+            "rag_sources": cited_sources,
+        }
+
+    async def generator():
+        task = asyncio.ensure_future(asyncio.to_thread(_run))
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(event_queue.get(), timeout=60.0)
+                    yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
+                except asyncio.TimeoutError:
+                    if task.done():
+                        break
+                    yield "\n"  # keepalive
+                if task.done() and event_queue.empty():
+                    break
+            exc = task.exception()
+            if exc:
+                yield json.dumps({"event": "error", "data": {"error": str(exc)}}) + "\n"
+            else:
+                yield json.dumps({"event": "complete", "data": task.result()}, ensure_ascii=False, default=str) + "\n"
+        except Exception as e:
+            logger.exception("Error in generate-image-stream generator")
+            yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
+            if not task.done():
+                try:
+                    await task
+                except Exception:
+                    pass
+
+    return StreamingResponse(generator(), media_type="application/x-ndjson")
+
+
+@app.post("/xception as e:
         logger.exception("Error generating image")
         raise HTTPException(status_code=500, detail=str(e)) from e
 

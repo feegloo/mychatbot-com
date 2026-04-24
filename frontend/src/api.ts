@@ -112,6 +112,12 @@ export type ChatMessage = {
   /** One-sentence teaser shown under the typing indicator while the image
    *  is being generated (populated by a quick LLM call). */
   imageAnnouncement?: string
+  /** Latest partial (progressive) image frame as a data URL, shown blurred
+   *  while generation is in progress and cross-fades into the final image. */
+  imagePartialDataUrl?: string
+  /** Index of the latest partial frame (0-based). Used to decrease blur
+   *  intensity per successive frame so the image visually sharpens. */
+  imagePartialIndex?: number
 }
 
 export type ConversationStatus = {
@@ -329,6 +335,107 @@ export async function announceImage(conversationId: string, question: string) {
   return response.data as { announcement: string }
 }
 
+export type ImageGenStreamCallbacks = {
+  onUserMessage?: (userMessageId: string) => void
+  onPromptReady?: (data: { image_prompt: string; image_title: string }) => void
+  onPartial?: (data: { b64: string; index: number }) => void
+  onComplete: (data: {
+    answer: string
+    citations: Array<{
+      fileName: string
+      chunkId: string
+      text: string
+      section?: string
+      page?: number | null
+    }>
+    userMessageId?: string
+    assistantMessageId?: string
+    generatedImage?: {
+      fileName: string
+      imagePrompt: string
+      revisedPrompt: string
+      imageTitle: string
+    }
+  }) => void
+  onError?: (message: string) => void
+  signal?: AbortSignal
+}
+
+/**
+ * Streams progressive image-generation events from `/generate-image-stream`.
+ * Parses the SSE protocol (`event: name\ndata: {json}\n\n`) and dispatches
+ * to the provided callbacks. Resolves when the stream ends.
+ *
+ * Fetch + ReadableStream is used instead of axios because axios does not
+ * expose incremental body chunks in the browser.
+ */
+export async function generateImageStream(
+  conversationId: string,
+  question: string,
+  userId: number | undefined,
+  callbacks: ImageGenStreamCallbacks,
+): Promise<void> {
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  }
+  const authToken = authHeaders(conversationId)
+  if ('x-conversation-token' in authToken) {
+    headers['x-conversation-token'] = authToken['x-conversation-token'] as string
+  }
+  const response = await fetch(`${baseUrl}/generate-image-stream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ conversationId, question, ...(userId ? { userId } : {}) }),
+    signal: callbacks.signal,
+    credentials: 'include',
+  })
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Image stream failed (${response.status}): ${text}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let sep = buffer.indexOf('\n\n')
+    while (sep !== -1) {
+      const rawEvent = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      sep = buffer.indexOf('\n\n')
+      let eventName = 'message'
+      let dataLine = ''
+      for (const line of rawEvent.split('\n')) {
+        if (line.startsWith('event: ')) eventName = line.slice(7).trim()
+        else if (line.startsWith('data: ')) dataLine += line.slice(6)
+      }
+      if (!dataLine) continue
+      let payload: unknown
+      try {
+        payload = JSON.parse(dataLine)
+      } catch {
+        continue
+      }
+      if (eventName === 'user_message') {
+        callbacks.onUserMessage?.((payload as { userMessageId: string }).userMessageId)
+      } else if (eventName === 'prompt_ready') {
+        callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
+      } else if (eventName === 'partial') {
+        callbacks.onPartial?.(payload as { b64: string; index: number })
+      } else if (eventName === 'complete') {
+        callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
+      } else if (eventName === 'error') {
+        callbacks.onError?.((payload as { error: string }).error)
+      }
+    }
+  }
+}
+
 function getBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '')
 }
@@ -413,7 +520,6 @@ export type DebugTableName =
   | 'prompt_history'
   | 'generated_images'
   | 'indexing_events'
-  | 'indexing_jobs'
   | 'pdf_pages'
   | 'workers'
   | 'jobs'

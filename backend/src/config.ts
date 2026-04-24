@@ -15,7 +15,6 @@ export const config = {
   storageRoot: resolvePath(process.env.STORAGE_ROOT || '../storage'),
   pythonBin: process.env.PYTHON_BIN || 'python3',
   pythonProjectRoot: resolvePath(process.env.PYTHON_PROJECT_ROOT || '../python'),
-  pythonIndexingMode: process.env.PYTHON_INDEXING_MODE || 'script',
   frontendDistPath: process.env.FRONTEND_DIST_PATH
     ? resolvePath(process.env.FRONTEND_DIST_PATH)
     : '',

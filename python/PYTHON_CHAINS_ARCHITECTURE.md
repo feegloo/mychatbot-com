@@ -187,32 +187,9 @@ After indexing, the system can also run another chain:
 [3-4 clickable suggested questions]
 ```
 
-## Notebook mode vs script mode
+## Runtime
 
-### Option A - notebook
-```text
-Node backend
-   │
-   ▼
-run_notebook_indexer.py
-   │
-   ▼
-Papermill executes parameterized notebook
-   │
-   ▼
-Notebook uses shared functions
-```
-
-### Option B - script
-```text
-Node backend
-   │
-   ▼
-index_documents.py / answer_question.py
-   │
-   ▼
-shared LangChain / Chroma logic
-```
+Node backend calls the persistent Python FastAPI `server.py` over HTTP; `server.py` dispatches to the `shared/` LangChain + Chroma logic. For GCP, large indexing jobs are also pulled by `worker_pubsub.py` from Pub/Sub.
 
 ## Summary
 

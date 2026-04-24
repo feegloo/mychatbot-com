@@ -176,7 +176,6 @@ const TABLE_NAMES: DebugTableName[] = [
   'prompt_history',
   'generated_images',
   'indexing_events',
-  'indexing_jobs',
   'pdf_pages',
   'workers',
   'jobs',

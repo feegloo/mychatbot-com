@@ -181,8 +181,6 @@ import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { AxiosError } from 'axios'
 import {
   askQuestion,
-  generateImage,
-  announceImage,
   getConversation,
   uploadMoreFiles,
   createConversationThread,
@@ -191,6 +189,7 @@ import {
   type ConversationStatus,
   type ChatMessage,
 } from '../api'
+import { runImageGenStream } from '../composables/useImageGenStream'
 import { cleanFileName } from '../utils/text'
 import { getUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
@@ -636,25 +635,19 @@ async function ask() {
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
-    if (isImageGen) {
-      reactiveMsg.generatingImage = true
-      // Fire-and-forget: populate the short announcement teaser as soon as
-      // the fast /announce-image call returns. Any failure is swallowed so
-      // the main generation path stays unaffected.
-      announceImage(conversationId, currentQuestion)
-        .then(({ announcement }) => {
-          if (announcement && reactiveMsg.generatingImage) {
-            reactiveMsg.imageAnnouncement = announcement
-          }
+    const response = isImageGen
+      ? await runImageGenStream({
+          conversationId,
+          question: currentQuestion,
+          reactiveMsg,
+          timeoutMs: TIMEOUT_MS,
         })
-        .catch(() => {})
-    }
-    const response = await Promise.race([
-      isImageGen
-        ? generateImage(conversationId, currentQuestion, getUserId() || undefined)
-        : askQuestion(conversationId, currentQuestion, getUserId() || undefined),
-      timeout,
-    ])
+      : await Promise.race([
+          askQuestion(conversationId, currentQuestion, getUserId() || undefined),
+          timeout,
+        ])
+    reactiveMsg.generatingImage = false
+    reactiveMsg.imagePartialDataUrl = undefined
     reactiveMsg.content = response.answer
     reactiveMsg.citations = response.citations
     if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId
