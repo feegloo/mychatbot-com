@@ -63,7 +63,7 @@ function getTopic(): Topic {
  * Publish a new indexing job. Resolves with the Pub/Sub message id once
  * the publish RPC completes (sub-second on a warm client).
  *
- * The payload shape mirrors ``python/shared/pubsub_client.py`` so the
+ * The payload shape mirrors ``python/src/shared/pubsub_client.py`` so the
  * Python ``IndexingJobPayload.from_json`` parser can decode it without
  * special-casing the producer.
  */

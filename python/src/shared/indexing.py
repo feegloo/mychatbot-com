@@ -94,7 +94,7 @@ def _ocr_prefetch_welcome(
     file_types: dict[str, str],
     *,
     conversation_id: str | None = None,
-) -> "DescribeResult | None":
+) -> DescribeResult | None:
     """OCR-first welcome strategy for scanned / image-based PDFs.
 
     When native text extraction yields fewer than 500 words (no text layer),
@@ -215,8 +215,8 @@ def _maybe_regenerate_heavy_ocr_welcome(
     detected_language: str | None,
     describe_chapters: list[dict] | None,
     current_welcome: str,
-    on_progress: "Callable[[str, dict], None] | None",
-) -> "DescribeResult | None":
+    on_progress: Callable[[str, dict], None] | None,
+) -> DescribeResult | None:
     """Regenerate the welcome message for heavy-OCR PDFs once indexing is done.
 
     The initial ("fast") welcome is built from the first few OCR'd pages so
@@ -334,7 +334,7 @@ def index_documents(
     conversation_id: str,
     collection_name: str,
     file_paths: list[str],
-    on_progress: "Callable[[str, dict], None] | None" = None,
+    on_progress: Callable[[str, dict], None] | None = None,
     *,
     job_metadata: dict | None = None,
     allow_delegation: bool = True,
@@ -377,7 +377,7 @@ def _reserve_cpu_or_delegate(
     conversation_id: str,
     collection_name: str,
     file_paths: list[str],
-    on_progress: "Callable[[str, dict], None] | None",
+    on_progress: Callable[[str, dict], None] | None,
     job_metadata: dict | None,
     allow_delegation: bool,
 ) -> int | None:
@@ -388,7 +388,6 @@ def _reserve_cpu_or_delegate(
     """
     from .cpu_budget import (
         MAIN_MAX_CPU,
-        CpuBudgetExhausted,
         estimate_slots_for_file,
         try_reserve,
     )
@@ -437,7 +436,7 @@ def _try_delegate_to_worker(
     conversation_id: str,
     collection_name: str,
     file_paths: list[str],
-    on_progress: "Callable[[str, dict], None] | None",
+    on_progress: Callable[[str, dict], None] | None,
     job_metadata: dict | None,
 ) -> bool:
     """Publish the job to the chatrag-worker Pub/Sub topic. Returns
@@ -496,7 +495,7 @@ def _index_documents_inline(
     conversation_id: str,
     collection_name: str,
     file_paths: list[str],
-    on_progress: "Callable[[str, dict], None] | None" = None,
+    on_progress: Callable[[str, dict], None] | None = None,
 ) -> dict:
     log_processing_event(
         conversation_id,
@@ -654,8 +653,8 @@ def _index_documents_inline(
                 # far cheaper (no container spin-ups), faster (parallel OCR from
                 # a single process), and searchable mid-indexing (chunks upserted
                 # per page instead of in one batch at the end).
-                from .streaming_pdf import process_pdf_streaming
                 from .pdf_pages_db import save_page
+                from .streaming_pdf import process_pdf_streaming
 
                 logger.info(f"☁️ Cloud mode: streaming {p.name} with hybrid OCR")
 

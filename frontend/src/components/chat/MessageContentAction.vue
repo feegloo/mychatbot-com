@@ -16,6 +16,7 @@ const emit = defineEmits<{ select: [label: string] }>()
 
 <style scoped>
 .message-content-action {
+  position: relative;
   text-align: left;
   display: inline-block;
   padding: 6px 12px;
@@ -27,7 +28,22 @@ const emit = defineEmits<{ select: [label: string] }>()
   cursor: pointer;
   transition: background 0.15s;
 }
+.message-content-action::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 11px;
+  width: 8px;
+  height: 7px;
+  background: rgba(147, 51, 234, 0.4);
+  clip-path: polygon(0 0, 100% 0, 3% 100%);
+  pointer-events: none;
+  transition: background 0.15s;
+}
 .message-content-action:hover {
   background: rgba(147, 51, 234, 0.22);
+}
+.message-content-action:hover::after {
+  background: rgba(147, 51, 234, 0.6);
 }
 </style>

@@ -973,7 +973,7 @@ def _extract_subject_phrase(
 
     # 2. First non-empty, non-heading line
     for text in texts:
-        lines = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+        lines = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
         if lines:
             candidate = lines[0]
             # Drop leading bold/italic markers

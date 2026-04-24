@@ -2,10 +2,10 @@ import json
 from unittest.mock import MagicMock, patch
 
 from shared.extractors import (
-    _vision_extract_or_describe,
-    _render_pdf_page_to_png,
     _reflow_pdf_text,
+    _render_pdf_page_to_png,
     _sanitize_text,
+    _vision_extract_or_describe,
     extract_csv,
     extract_json,
     extract_plain_text,

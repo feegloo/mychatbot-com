@@ -1,6 +1,5 @@
 from shared.suggested_questions import _append_contextual_prompts, _extract_subject_phrase
 
-
 # ---------------------------------------------------------------------------
 # _extract_subject_phrase
 # ---------------------------------------------------------------------------

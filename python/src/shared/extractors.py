@@ -14,11 +14,10 @@ import docx2txt
 import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
 import pandas as pd
 from openai import OpenAI
-
-from .llm_instrument import traced_openai_call
 from pypdf import PdfReader
 
 from .config import get_settings
+from .llm_instrument import traced_openai_call
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +307,7 @@ def _describe_image_with_context(
 
 
 def claim_xref_if_drawn_on_page(
-    page: "fitz.Page",
+    page: fitz.Page,
     xref: int,
     seen_xrefs: set[int],
     seen_xrefs_lock: threading.Lock,

@@ -37,14 +37,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Python source only — no Node / no frontend dist.
-COPY shared/ ./shared/
-COPY worker_pubsub.py ./worker_pubsub.py
-COPY index_documents.py ./index_documents.py
-COPY answer_question.py ./answer_question.py
+COPY src/ ./src/
 
 # Pre-compile .pyc files for faster startup.
-RUN python -m compileall -q shared/ worker_pubsub.py
+RUN python -m compileall -q src/
 
 # Subscriber entry point — blocks on streaming pull.
-CMD ["python", "worker_pubsub.py"]
+CMD ["python", "src/worker_pubsub.py"]
 

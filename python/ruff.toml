@@ -14,10 +14,22 @@ select = [
 ]
 
 [lint.per-file-ignores]
-"shared/rag.py" = ["E501"]
-"shared/describe.py" = ["E501"]
-"shared/suggested_questions.py" = ["E501"]
-"shared/prompts/*.py" = ["E501"]
+# Prompt-heavy modules — long string literals are intentional
+"src/shared/rag.py" = ["E501"]
+"src/shared/describe.py" = ["E501"]
+"src/shared/suggested_questions.py" = ["E501"]
+"src/shared/prompts/*.py" = ["E501"]
+# Other source files with occasional long lines (URLs, log messages, complex conditions)
+"src/server.py" = ["E501", "E402"]
+"src/shared/extractors.py" = ["E501"]
+"src/shared/image_gen.py" = ["E501", "E402"]
+"src/shared/video_gen.py" = ["E501"]
+"src/shared/music_gen.py" = ["E501"]
+"src/shared/page_worker.py" = ["E501"]
+"src/shared/indexing.py" = ["E501", "B023"]
+"src/shared/chapters.py" = ["E501"]
+# Test files — grouping imports near the test class/function is intentional
+"tests/*.py" = ["E501", "E402"]
 
 [lint.isort]
 known-first-party = ["shared"]

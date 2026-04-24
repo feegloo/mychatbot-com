@@ -10,19 +10,16 @@ Validates:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from shared.extractors import (
     MAX_IMAGE_ASPECT_RATIO,
-    MIN_IMAGE_DIM,
-    MIN_IMAGE_SIZE,
     _describe_image_with_context,
     _extract_and_save_images,
 )
 from shared.indexing import _build_document_context, _image_chunks
-from shared.chunkers import Chunk
 
 VACUUM_PDF = (
     Path(__file__).resolve().parent.parent.parent
@@ -308,7 +305,6 @@ class TestVacuumPDFExtraction:
     @patch("shared.extractors._describe_image_with_context", return_value="Mocked description.")
     def test_describe_with_context_called_during_describe_one(self, mock_describe, output_dir):
         """_describe_image_with_context must be called (not the plain _describe_image)."""
-        from shared.extractors import _describe_one
 
         item = {
             "image_path": str(output_dir / "test.png"),

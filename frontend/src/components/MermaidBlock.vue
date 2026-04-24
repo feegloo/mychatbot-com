@@ -462,9 +462,10 @@ watch(
   position: relative;
   padding: 16px;
   display: flex;
+  align-items: center;
   justify-content: center;
   overflow: hidden;
-  min-height: 80px;
+  min-height: 500px;
   cursor: grab;
   touch-action: none;
 }
@@ -624,10 +625,14 @@ watch(
   background: #1e1e2e;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  max-width: 90vw;
-  max-height: 90vh;
+  width: 90vw;
+  height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: auto;
   padding: 48px 24px 24px;
+  box-sizing: border-box;
 }
 
 .mermaid-fullscreen-close {
@@ -653,9 +658,18 @@ watch(
   color: #c4b5fd;
 }
 
+.mermaid-fullscreen-diagram {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .mermaid-fullscreen-diagram :deep(svg) {
-  max-width: 80vw;
-  max-height: 80vh;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: auto;
 }
 

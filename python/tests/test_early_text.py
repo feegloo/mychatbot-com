@@ -8,12 +8,9 @@ Verifies that:
 
 from __future__ import annotations
 
-import threading
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import fitz
-import pytest
 
 from shared.page_worker import FileProcessingResult, process_pdf_parallel
 

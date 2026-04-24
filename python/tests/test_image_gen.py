@@ -14,7 +14,6 @@ import pytest
 
 from shared import image_gen
 
-
 PNG_1x1 = base64.b64decode(
     b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 )

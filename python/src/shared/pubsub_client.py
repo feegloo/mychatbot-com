@@ -69,7 +69,7 @@ class IndexingJobPayload:
         return json.dumps(payload).encode("utf-8")
 
     @classmethod
-    def from_json(cls, data: bytes) -> "IndexingJobPayload":
+    def from_json(cls, data: bytes) -> IndexingJobPayload:
         obj = json.loads(data.decode("utf-8"))
         return cls(
             worker_name=obj.get("workerName", ""),

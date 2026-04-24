@@ -4,14 +4,16 @@ Production runtime for indexing uploaded files and answering questions over them
 
 ## Entry points
 
-- `server.py` — long-running FastAPI server. Backend calls it over HTTP (`/index`, `/answer`, `/enrich-metadata`, etc.). Primary production runtime.
-- `worker_pubsub.py` — Cloud Run Worker that pulls indexing jobs from GCP Pub/Sub (GCP prod).
-- `index_documents.py` — one-shot CLI wrapper around `shared.indexing` for local debugging.
-- `answer_question.py` — one-shot CLI wrapper around `shared.rag`.
-- `inspect_chunks.py` — debug helper: dumps chunker output for a file.
-- `bench_pdf_parse.py` — micro-benchmark for the PDF extraction path.
+All Python source lives under `src/` (shared modules under `src/shared/`).
 
-## shared/ layout
+- `src/server.py` — long-running FastAPI server. Backend calls it over HTTP (`/index`, `/answer`, `/enrich-metadata`, etc.). Primary production runtime.
+- `src/worker_pubsub.py` — Cloud Run Worker that pulls indexing jobs from GCP Pub/Sub (GCP prod).
+- `src/index_documents.py` — one-shot CLI wrapper around `shared.indexing` for local debugging.
+- `src/answer_question.py` — one-shot CLI wrapper around `shared.rag`.
+- `src/inspect_chunks.py` — debug helper: dumps chunker output for a file.
+- `src/bench_pdf_parse.py` — micro-benchmark for the PDF extraction path.
+
+## src/shared/ layout
 
 | Module | Purpose |
 |---|---|
@@ -48,7 +50,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # fill in OPENAI_API_KEY etc.
 
-uvicorn server:app --host 0.0.0.0 --port 8321 --reload
+uvicorn server:app --app-dir src --host 0.0.0.0 --port 8321 --reload
 ```
 
 ## Tests & lint
@@ -59,27 +61,3 @@ python -m pytest
 ruff check .
 ruff format --check .
 ```
-# Python engine
-
-This folder contains both approaches:
-
-## Option A - notebook execution
-- `LangChain_Project_parameterized.ipynb`
-- `run_notebook_indexer.py`
-
-Use this when you want notebook-first development and easy experimentation.
-
-Papermill parameterizes notebooks using a `parameters` cell and then executes them with injected values.
-
-## Option B - normal scripts
-- `index_documents.py`
-- `answer_question.py`
-
-Use this in production. The shared logic is inside `shared/`.
-
-## Chroma
-The code supports:
-- local persistent Chroma
-- HTTP Chroma mode
-
-Chroma collections are created per conversation. Querying the collection with a `where` filter scoped to the conversation is the retrieval step.

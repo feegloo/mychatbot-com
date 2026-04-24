@@ -21,6 +21,7 @@ All side effects are wired via callbacks so this module is test-friendly.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
@@ -152,10 +153,8 @@ def process_pdf_streaming(
                     f"⚠️ on_page_ready callback failed for p.{outcome.page_nr}: {e}"
                 )
         if on_progress is not None:
-            try:
+            with contextlib.suppress(Exception):
                 on_progress(current, total_pages)
-            except Exception:
-                pass
 
     start = time.monotonic()
     logger.info(

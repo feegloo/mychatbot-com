@@ -105,6 +105,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 @image-click="openImageModal"
                 @citation-click="openCitation"
                 @upload-trigger="$emit('trigger-upload')"
+                @image-loaded="onImageLoad"
               />
             </TextFade>
           </div>
@@ -149,6 +150,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               @image-click="openImageModal"
               @citation-click="openCitation"
               @upload-trigger="$emit('trigger-upload')"
+              @image-loaded="onImageLoad"
             />
           </TextFade>
         </div>
@@ -159,7 +161,19 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
       <!-- User message -->
       <TextFade v-else :trigger="msg.content">
-        <span class="user-text" :class="{ 'is-translating': isTranslating }">{{ msg.content }}</span>
+        <span class="user-text" :class="{ 'is-translating': isTranslating }">
+          <template v-if="appReady">
+            <template v-for="(tok, i) in userWordTokens" :key="i">
+              <span
+                v-if="tok.word"
+                class="word-reveal"
+                :style="{ animationDelay: tok.delay + 'ms' }"
+              >{{ tok.word }}</span>
+              <template v-else>{{ tok.ws }}</template>
+            </template>
+          </template>
+          <template v-else>{{ msg.content }}</template>
+        </span>
       </TextFade>
 
       <!-- Upload row fallback (no welcome files) -->
@@ -236,6 +250,7 @@ import { computed, ref } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
+import { appReady } from '../composables/appReady'
 import AppButton from './AppButton.vue'
 import TextFade from './TextFade.vue'
 import ImageModal from './ImageModal.vue'
@@ -298,6 +313,28 @@ const senderLabel = computed(() => {
     return `user${props.msg.userId}`
   }
   return 'You'
+})
+
+// --- Word-reveal staggering for user message ------------------------------
+// User text is plain (no markdown) so we split up-front in the template
+// instead of walking the DOM like we do for assistant content. Delay is
+// clamped so pasting a wall of text still finishes inside ~2 s.
+const USER_REVEAL_MAX_MS = 2000
+type UserWordToken = { word: string; ws?: undefined; delay: number } | { ws: string; word?: undefined; delay?: undefined }
+const userWordTokens = computed<UserWordToken[]>(() => {
+  if (props.msg.role !== 'user') return []
+  const parts = (props.msg.content ?? '').split(/(\s+)/).filter(Boolean)
+  const words = parts.filter((p) => !/^\s+$/.test(p)).length
+  if (!words) return []
+  // Same sqrt easing as wordReveal.ts: slow start → accelerating reveal.
+  const easedDelay = (i: number) =>
+    words <= 1 ? 0 : Math.round(USER_REVEAL_MAX_MS * Math.sqrt(i / (words - 1)))
+  let i = 0
+  return parts.map((p) =>
+    /^\s+$/.test(p)
+      ? { ws: p }
+      : { word: p, delay: easedDelay(i++) },
+  )
 })
 
 // --- Upload-more-files state ----------------------------------------------

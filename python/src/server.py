@@ -7,6 +7,7 @@ so answering questions doesn't pay the ~20s import cost each time.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -62,6 +63,7 @@ sentry_sdk.init(
 
 # Initialize OpenTelemetry (before FastAPI import so auto-instrumentation hooks in)
 from shared.otel import init_otel  # noqa: E402
+
 init_otel()
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
@@ -74,14 +76,14 @@ from shared.image_gen import (  # noqa: E402
     generate_image,
     generate_image_streaming,
 )
-from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
-from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.indexing import index_documents  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
+from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
 from shared.telemetry import close_db_pool  # noqa: E402
 from shared.url_fetch import _extract_visible_text, describe_url, fetch_url  # noqa: E402
 from shared.vector_store import collection_count, query_chunks  # noqa: E402
+from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -330,7 +332,7 @@ async def index_stream(req: IndexRequest):
                     yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
                     if item["event"] in ("complete", "error"):
                         break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if task.done():
                         exc = task.exception()
                         if exc:
@@ -343,10 +345,8 @@ async def index_stream(req: IndexRequest):
             yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
 
         if not task.done():
-            try:
+            with contextlib.suppress(Exception):
                 await task
-            except Exception:
-                pass
 
     sentry_logger.info(
         "Streaming index for conversation {conversation_id}",
@@ -619,7 +619,12 @@ async def generate_image_endpoint(req: GenerateImageRequest):
 
         result = await asyncio.to_thread(_generate)
         return result
-    except Egenerate-image-stream")
+    except Exception as e:
+        logger.exception("Error generating image")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/generate-image-stream")
 async def generate_image_stream_endpoint(req: GenerateImageRequest):
     """Streaming variant of /generate-image.
 
@@ -709,7 +714,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
                 try:
                     item = await asyncio.wait_for(event_queue.get(), timeout=60.0)
                     yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if task.done():
                         break
                     yield "\n"  # keepalive
@@ -724,17 +729,10 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
             logger.exception("Error in generate-image-stream generator")
             yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
             if not task.done():
-                try:
+                with contextlib.suppress(Exception):
                     await task
-                except Exception:
-                    pass
 
     return StreamingResponse(generator(), media_type="application/x-ndjson")
-
-
-@app.post("/xception as e:
-        logger.exception("Error generating image")
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/register-image")

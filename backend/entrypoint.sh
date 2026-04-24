@@ -2,7 +2,7 @@
 set -e
 
 echo "[entrypoint] Starting Python RAG server on port 8321..."
-/app/python/.venv/bin/python /app/python/server.py &
+/app/python/.venv/bin/python /app/python/src/server.py &
 PYTHON_PID=$!
 
 # Wait for Python server to be ready

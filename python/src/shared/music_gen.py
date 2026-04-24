@@ -17,7 +17,7 @@ import requests
 
 from shared.config import get_settings
 from shared.otel import get_tracer
-from shared.video_gen import _create_prediction, _poll_prediction, _extract_output_url
+from shared.video_gen import _create_prediction, _extract_output_url, _poll_prediction
 
 logger = logging.getLogger(__name__)
 

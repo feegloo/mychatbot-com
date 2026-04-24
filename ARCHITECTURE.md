@@ -121,7 +121,7 @@ Per-file CPU slot allocation (1 or 2):
 - `<5MB AND <50 pages` → 1 slot
 - otherwise → 2 slots
 
-Job payload (`python/shared/pubsub_client.py::IndexingJobPayload`):
+Job payload (`python/src/shared/pubsub_client.py::IndexingJobPayload`):
 ```json
 {
   "workerName": "chatrag-001",

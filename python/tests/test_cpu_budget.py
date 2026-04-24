@@ -53,17 +53,15 @@ def test_reserve_context_manager_releases_on_exit():
 
 
 def test_reserve_context_manager_releases_on_exception():
-    with pytest.raises(RuntimeError, match="boom"):
-        with reserve(3):
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError, match="boom"), reserve(3):
+        raise RuntimeError("boom")
     assert available_slots() == 4
 
 
 def test_reserve_raises_when_exhausted():
     try_reserve(4)
-    with pytest.raises(CpuBudgetExhausted):
-        with reserve(1):
-            pytest.fail("should not enter body")
+    with pytest.raises(CpuBudgetExhausted), reserve(1):
+        pytest.fail("should not enter body")
 
 
 def test_policy_snapshot_is_readable():

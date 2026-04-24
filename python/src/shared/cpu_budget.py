@@ -144,7 +144,7 @@ def try_reserve(slots: int) -> bool:
                 for _ in range(acquired):
                     _budget.release()
                 return False
-            acquired += 1
+            acquired += 1  # noqa: SIM113
         _in_use += slots
         return True
 

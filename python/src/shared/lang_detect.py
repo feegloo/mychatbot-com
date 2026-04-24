@@ -1,6 +1,5 @@
 from langdetect import DetectorFactory
 from langdetect import detect as _langdetect_detect
-from langdetect import detect_langs as _langdetect_detect_langs
 
 DetectorFactory.seed = 0  # for reproducibility
 

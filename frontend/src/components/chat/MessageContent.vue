@@ -10,6 +10,8 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
+import { appReady } from '../../composables/appReady'
+import { applyWordReveal } from '../../composables/wordReveal'
 import { parseMessageContent, splitTokens } from './parseContent'
 import { splitContent } from './splitContent'
 import Action from './Action.vue'
@@ -39,6 +41,10 @@ const emit = defineEmits<{
   'citation-click': [index: number]
   /** The inline `[upload]` button was clicked. */
   'upload-trigger': []
+  /** An inline `<img>` inside the rendered markdown finished loading.
+   *  Parents use this to re-scroll to bottom when a generated image grows
+   *  the message bubble after the text has already settled. */
+  'image-loaded': []
 }>()
 
 // First strip [prompt:] / [action:] tokens out of the raw content so they
@@ -150,7 +156,46 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-onBeforeUnmount(cleanupTooltips)
+// --- Word-reveal "typing" animation --------------------------------------
+// Run the staggered left-to-right reveal once per rendered content string.
+// Gated on `appReady` so restored conversations on page load don't replay
+// the animation for every historical message.
+watch(
+  () => props.content,
+  () => {
+    if (!appReady.value) return
+    nextTick(() => {
+      if (!rootEl.value) return
+      rootEl.value
+        .querySelectorAll<HTMLElement>('.markdown-content')
+        .forEach((el) => applyWordReveal(el))
+    })
+  },
+  { immediate: true, flush: 'post' },
+)
+
+// --- Inline image load → scroll parents ----------------------------------
+// `load` doesn't bubble, but it does fire during the capture phase. One
+// root-level capture listener covers every image in the rendered markdown
+// (including generated images that finish loading well after the text).
+function onImageLoadCapture(e: Event) {
+  if ((e.target as HTMLElement | null)?.tagName === 'IMG') {
+    emit('image-loaded')
+  }
+}
+watch(
+  rootEl,
+  (el, prev) => {
+    prev?.removeEventListener('load', onImageLoadCapture, true)
+    el?.addEventListener('load', onImageLoadCapture, true)
+  },
+  { flush: 'post' },
+)
+
+onBeforeUnmount(() => {
+  cleanupTooltips()
+  rootEl.value?.removeEventListener('load', onImageLoadCapture, true)
+})
 </script>
 
 <template>
@@ -209,5 +254,38 @@ onBeforeUnmount(cleanupTooltips)
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+</style>
+
+<style>
+/*
+ * Global (not scoped) so it applies to spans injected via v-html + the
+ * `applyWordReveal` walker. Layers cleanly on top of TextFade's color
+ * transition: during the 0.25s TextFade the letters are invisible anyway,
+ * and once it resolves each word fades in at its staggered delay.
+ */
+.word-reveal {
+  display: inline-block;
+  opacity: 0;
+  animation: word-reveal-in 220ms ease-out forwards;
+  will-change: opacity, transform;
+}
+@keyframes word-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .word-reveal {
+    animation: none;
+    opacity: 1;
+  }
 }
 </style>

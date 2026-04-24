@@ -424,7 +424,7 @@ def process_pdf_parallel(
     early_text_target_pages: int = 100,
     on_early_text: Callable[[str, list[dict]], None] | None = None,
     document_context: str = "",
-    on_page_done: "Callable[[int, int], None] | None" = None,
+    on_page_done: Callable[[int, int], None] | None = None,
 ) -> FileProcessingResult:
     """Process all pages of a PDF in parallel using ThreadPoolExecutor.
 

@@ -240,7 +240,7 @@ class TestPageProcessingPipeline:
                         if xref in seen_xrefs:
                             continue
                         seen_xrefs.add(xref)
-                        try:
+                        try:  # noqa: SIM105
                             doc.extract_image(xref)
                         except Exception:
                             pass  # Image extraction failures are non-fatal

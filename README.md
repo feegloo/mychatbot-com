@@ -4,25 +4,23 @@ A production-oriented hybrid RAG application with:
 
 - **Vue 3 + TypeScript** frontend
 - **Node.js + Koa + TypeScript** backend
-- **Python indexing/query engine**
+- **Python indexing/query engine** (FastAPI server + shared modules)
 - **Chroma** vector store
 - **PostgreSQL** for app metadata
-- **Option A:** parameterized Jupyter notebook execution via **Papermill**
-- **Option B:** normal Python scripts reusing the same shared logic
 
-## Main idea
+## How it works
 
-The web app uploads files to the Node backend. The backend stores files on disk (with an abstraction that can later switch to S3), creates a unique conversation URL, and then delegates document indexing to Python.
+The web app uploads files to the Node backend. The backend stores files on disk (can be swapped for S3), creates a unique conversation URL, and delegates document indexing to the Python engine.
 
 Python performs:
-- file loading and extraction
+- file loading and extraction (PDF, DOCX, XLSX, images, plain text)
 - paragraph / markdown / heading-aware splitting
 - smaller overlapping chunking
 - embeddings generation
-- vector storage in Chroma
-- optional suggested questions generation
+- vector storage in Chroma (one collection per conversation)
+- welcome message generation and suggested questions
 
-The user later visits a shareable URL like:
+The user visits a shareable URL:
 
 - `https://chatrag.app/c/<conversationId>`
 
@@ -31,48 +29,39 @@ and asks questions. The backend calls Python again to retrieve relevant chunks a
 ## Architecture
 
 ```text
-frontend (Vue)  ->  backend (Koa/TypeScript)  ->  python engine  ->  Chroma
+frontend (Vue)  →  backend (Koa/TypeScript)  →  python FastAPI engine  →  Chroma
                                   |
                                   v
                               PostgreSQL
 ```
 
-## Two indexing modes
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams.
 
-### Option A - keep notebook
-Node calls:
+## Python indexing entry points
 
-```bash
-python python/run_notebook_indexer.py   --conversation-id <id>   --collection-name <collection>   --file /absolute/path/file1.pdf   --file /absolute/path/file2.docx
-```
-
-This runs a parameterized notebook using Papermill.
-
-### Option B - normal Python scripts
-Node calls:
+The backend calls the Python FastAPI server (`src/server.py`) over HTTP. For local debugging:
 
 ```bash
-python python/index_documents.py   --conversation-id <id>   --collection-name <collection>   --file /absolute/path/file1.pdf   --file /absolute/path/file2.docx
+# Index a file directly
+python3.11 python/src/index_documents.py \
+  --conversation-id <id> \
+  --collection-name <collection> \
+  --file /absolute/path/file.pdf
+
+# Ask a question directly
+python3.11 python/src/answer_question.py \
+  --conversation-id <id> \
+  --collection-name <collection> \
+  --question "What is this document about?"
 ```
 
-This is the recommended production runtime.
-
-## Supported file types today
+## Supported file types
 
 - PDF
 - TXT / MD / CSV / JSON / HTML / XML
 - DOCX
 - XLS / XLSX
-- generic text-ish files
-
-## Future extension
-
-- images
-- OCR
-- audio/video transcripts
-- S3 / GCS storage
-- websocket streaming
-- auth / multi-tenant access control
+- Images (JPEG, PNG, WebP — with EXIF extraction and optional OCR)
 
 ## Quick start
 
@@ -213,13 +202,13 @@ If you buy the domain on GoDaddy:
 
 That URL is shareable and reopens the same uploaded knowledge base.
 
-## Notes on notebook execution
-
-Papermill supports parameterizing notebooks using a cell tagged `parameters`, then executing them with injected values.
-
 ## Notes on Chroma
 
-Chroma collections are the main storage unit, and querying collections is the retrieval step used by the RAG flow.
+Chroma collections are the main storage unit — one collection per conversation. Querying the collection is the retrieval step used by the RAG flow. `shared.vector_store` handles create / open / upsert / query.
+
+## Notes on notebook execution
+
+Papermill support has been removed. All indexing now runs through the Python FastAPI server (`src/server.py`) or the one-shot CLI scripts.
 
 # misc
 

@@ -51,10 +51,8 @@ def _sentry_llm_span(operation: str, model: str, conversation_id: str | None, pr
         yield span
     finally:
         if span_cm is not None:
-            try:
+            with contextlib.suppress(Exception):
                 span_cm.__exit__(None, None, None)
-            except Exception:
-                pass
 
 # ── OTel metrics (lazy-init on first use) ─────────────────────────────────────
 _meter = None

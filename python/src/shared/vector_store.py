@@ -30,6 +30,28 @@ EMBED_CHARS_PER_TOKEN = 4  # Conservative estimate for English text
 EMBED_MAX_WORKERS = 4  # Parallel embedding requests for very large batches
 CHROMA_BATCH_SIZE = 5000  # Chroma add() limit is ~5461
 
+# ---------------------------------------------------------------------------
+# Feature flag — set to True to enable hybrid L2 + cosine re-ranking.
+# False  → original L2-only path (fast, no extra Chroma round-trip overhead).
+# True   → hybrid path: fetches more candidates, re-ranks by combined score.
+# ---------------------------------------------------------------------------
+HYBRID_RETRIEVAL_ENABLED: bool = False
+
+# Hybrid retrieval weights — L2 similarity and cosine similarity are combined
+# into a single ranking score.  Both sit in [0, 1] after normalisation, so the
+# weights are directly comparable.  L2 is the primary signal (Chroma's native
+# distance); cosine adds a rotationally-invariant secondary signal that catches
+# cases where two embeddings have slightly different norms but point in nearly
+# the same direction.  For perfectly unit-normalised vectors (as returned by
+# OpenAI) the two metrics are equivalent, but in practice floating-point
+# rounding and batching produce small norm deviations that the hybrid scoring
+# smoothes out.
+HYBRID_L2_WEIGHT = 0.5
+HYBRID_COSINE_WEIGHT = 0.5
+# Pull more candidates than requested so the re-ranker has room to promote
+# results that score well on cosine but are ranked lower by raw L2.
+HYBRID_FETCH_MULTIPLIER = 3
+
 
 def get_client():
     global _chroma_client
@@ -220,6 +242,21 @@ def upsert_chunks(collection_name: str, conversation_id: str, chunks: list[Chunk
     }
 
 
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Cosine similarity between two vectors.
+
+    OpenAI embeddings are unit-normalised, so this reduces to the dot
+    product — but we compute the full formula for correctness in case a
+    vector arrives with a slightly non-unit norm due to float rounding.
+    """
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def query_chunks(
     collection_name: str,
     conversation_id: str,
@@ -227,10 +264,16 @@ def query_chunks(
     top_k: int = 4,
     max_distance: float = 1.3,
 ) -> list[dict]:
+    """Return the most relevant chunks for *question* from the given collection.
+
+    When ``HYBRID_RETRIEVAL_ENABLED`` is ``True`` the function uses a two-stage
+    approach: a wider L2 candidate fetch followed by cosine re-ranking.  When
+    the flag is ``False`` the original L2-only path is used (lower latency,
+    no stored-embedding round-trip).
+    """
     client = get_client()
     collection = client.get_or_create_collection(name=collection_name)
 
-    # Check if collection has any data
     if collection.count() == 0:
         logger.warning(
             f"⚠️ Collection {collection_name} is empty — "
@@ -239,30 +282,35 @@ def query_chunks(
         return []
 
     query_vector = list(_embed_single_cached(question))
+
+    if HYBRID_RETRIEVAL_ENABLED:
+        return _query_chunks_hybrid(collection, query_vector, top_k, max_distance)
+    return _query_chunks_l2(collection, query_vector, top_k, max_distance)
+
+
+def _query_chunks_l2(
+    collection,
+    query_vector: list[float],
+    top_k: int,
+    max_distance: float,
+) -> list[dict]:
+    """Original L2-only retrieval path."""
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=top_k,
         include=["documents", "metadatas", "distances"],
     )
 
-    rows = []
     ids = result.get("ids", [[]])[0]
     documents = result.get("documents", [[]])[0]
     metadatas = result.get("metadatas", [[]])[0]
     distances = result.get("distances", [[]])[0]
 
+    rows = []
     for chunk_id, document, metadata, distance in zip(
         ids, documents, metadatas, distances, strict=False
     ):
-        # Chroma returns L2 distance; convert to similarity
-        # (cosine) if needed, or use threshold directly
-        # For OpenAI embeddings, L2 distance is usually
-        # in [0,2], lower is better. We'll use a threshold.
-        # similarity = 1 - distance/2 (approx), so threshold 0.7 similarity ~ distance <= 0.3
         if distance > max_distance:
-            # continue
-            # Only include if similarity >= threshold (i.e., distance <= 0.3)
-            # if distance > (1 - similarity_threshold):
             continue
         rows.append(
             {
@@ -279,3 +327,71 @@ def query_chunks(
             }
         )
     return rows
+
+
+def _query_chunks_hybrid(
+    collection,
+    query_vector: list[float],
+    top_k: int,
+    max_distance: float,
+) -> list[dict]:
+    """Hybrid L2 + cosine re-ranking retrieval path.
+
+    Steps:
+    1. Fetch ``top_k * HYBRID_FETCH_MULTIPLIER`` candidates via Chroma's native
+       L2 HNSW index, requesting stored embeddings for cosine computation.
+    2. Filter candidates whose raw L2 distance exceeds ``max_distance``.
+    3. Score each survivor: ``hybrid = L2_WEIGHT * l2_sim + COSINE_WEIGHT * cosine``
+       where ``l2_sim = 1 - l2_dist / 2`` maps the [0, 2] L2 range to [1, 0].
+    4. Re-sort by hybrid score descending and return the best ``top_k``.
+    """
+    fetch_k = min(top_k * HYBRID_FETCH_MULTIPLIER, collection.count())
+    result = collection.query(
+        query_embeddings=[query_vector],
+        n_results=fetch_k,
+        include=["documents", "metadatas", "distances", "embeddings"],
+    )
+
+    ids = result.get("ids", [[]])[0]
+    documents = result.get("documents", [[]])[0]
+    metadatas = result.get("metadatas", [[]])[0]
+    distances = result.get("distances", [[]])[0]
+    embeddings = result.get("embeddings", [[]])[0]
+
+    candidates: list[dict] = []
+    for chunk_id, document, metadata, l2_dist, doc_emb in zip(
+        ids, documents, metadatas, distances, embeddings, strict=False
+    ):
+        if l2_dist > max_distance:
+            continue
+
+        # l2_sim ∈ [0, 1]: 1 = identical, 0 = maximally distant (L2 = 2)
+        l2_sim = 1.0 - l2_dist / 2.0
+        cosine = _cosine_similarity(query_vector, list(doc_emb))
+        hybrid_score = HYBRID_L2_WEIGHT * l2_sim + HYBRID_COSINE_WEIGHT * cosine
+
+        candidates.append(
+            {
+                "chunk_id": chunk_id,
+                "text": document,
+                "file_name": metadata.get("file_name", "Unknown file"),
+                "section": metadata.get("section") or None,
+                "page": None if metadata.get("page", -1) == -1 else metadata.get("page"),
+                "chapter_number": metadata.get("chapter_number") or None,
+                "chapter_name": metadata.get("chapter_name") or None,
+                "distance": l2_dist,
+                "cosine_similarity": cosine,
+                "hybrid_score": hybrid_score,
+                "metadata": metadata,
+                "image_name": metadata.get("image_name") or None,
+            }
+        )
+
+    candidates.sort(key=lambda r: r["hybrid_score"], reverse=True)
+    best = candidates[:top_k]
+
+    logger.info(
+        f"🔎 Hybrid retrieval: {len(ids)} fetched → {len(candidates)} passed L2 filter "
+        f"→ {len(best)} returned (top_k={top_k}, max_distance={max_distance})"
+    )
+    return best

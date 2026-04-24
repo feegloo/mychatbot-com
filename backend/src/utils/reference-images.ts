@@ -19,7 +19,7 @@ import type { UploadedFileRecord } from '../types.js'
 // `_ALLOWED_REFERENCE_MIME` on the Python side.
 export const REFERENCE_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
 
-// Matches `MAX_REFERENCE_IMAGES` in python/shared/image_gen.py. Capping here
+// Matches `MAX_REFERENCE_IMAGES` in python/src/shared/image_gen.py. Capping here
 // avoids wasting a round-trip just for the Python side to drop the extras.
 export const MAX_AUTO_REFERENCE_IMAGES = 4
 

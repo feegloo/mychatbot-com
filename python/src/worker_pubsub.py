@@ -27,7 +27,7 @@ Run end-to-end on your laptop without GCP credentials:
     export PUBSUB_SUBSCRIPTION=chatrag-indexing-sub
 
     # In one terminal: start the worker
-    python python/worker_pubsub.py
+    python python/src/worker_pubsub.py
 
     # In another: start the backend (with the same env vars + WORKER_MODE=cloud_run)
     cd backend && WORKER_MODE=cloud_run npm run dev
@@ -158,8 +158,8 @@ def _process_message(message) -> None:
     ACK on success / unrecoverable failure (don't retry broken payloads).
     NACK on transient failure so Pub/Sub redelivers.
     """
-    from shared.pubsub_client import IndexingJobPayload
     from shared.indexing import index_documents
+    from shared.pubsub_client import IndexingJobPayload
 
     try:
         payload = IndexingJobPayload.from_json(message.data)
@@ -239,9 +239,9 @@ def _process_message(message) -> None:
 
 
 def main() -> int:
-    from shared.pubsub_client import get_subscription_path
-
     from google.cloud import pubsub_v1
+
+    from shared.pubsub_client import get_subscription_path
 
     subscription_path = get_subscription_path()
     logger.info(f"🚀 chatrag-worker subscribing to {subscription_path}")
@@ -280,6 +280,9 @@ def main() -> int:
         sentry_sdk.capture_exception(e)
         return 1
     finally:
+        from shared.telemetry import flush_processing_errors
+
+        flush_processing_errors(timeout=10.0)
         subscriber.close()
     return 0
 

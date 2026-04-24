@@ -325,7 +325,7 @@ class TestInvokeWithRetry:
 
     @patch("shared.describe.time.sleep")
     def test_raises_after_max_retries(self, mock_sleep):
-        from shared.describe import _invoke_with_retry, _LLM_MAX_RETRIES
+        from shared.describe import _LLM_MAX_RETRIES, _invoke_with_retry
 
         def _invoke(params):
             raise Exception("429 rate_limit")
@@ -365,7 +365,7 @@ class TestSplitSynthesizeStrategy:
         self, _mock_lang, mock_get_llm, mock_sleep
     ):
         """Documents exceeding _SPLIT_THRESHOLD should use sequential split+synthesize."""
-        from shared.describe import _SPLIT_THRESHOLD, _SPLIT_PART_MAX_CHARS
+        from shared.describe import _SPLIT_PART_MAX_CHARS, _SPLIT_THRESHOLD
 
         mock_llm = _make_mock_llm("## Big Book\nA great summary.")
         mock_get_llm.return_value = mock_llm
@@ -389,7 +389,7 @@ class TestSplitSynthesizeStrategy:
         self, _mock_lang, mock_get_llm, mock_sleep
     ):
         """The synthesis call should include raw text from the beginning of the document."""
-        from shared.describe import _SPLIT_THRESHOLD, _SYNTHESIS_RAW_TEXT_CHARS
+        from shared.describe import _SPLIT_THRESHOLD
 
         mock_llm = _make_mock_llm("## Summary\nFinal result.")
         mock_get_llm.return_value = mock_llm
@@ -418,7 +418,7 @@ class TestSplitSynthesizeStrategy:
         self, _mock_lang, mock_get_llm, mock_sleep
     ):
         """Split strategy should add inter-call delays between sequential LLM calls."""
-        from shared.describe import _SPLIT_THRESHOLD, _SPLIT_PART_MAX_CHARS
+        from shared.describe import _SPLIT_PART_MAX_CHARS, _SPLIT_THRESHOLD
 
         mock_llm = _make_mock_llm("## Result\nSummary.")
         mock_get_llm.return_value = mock_llm

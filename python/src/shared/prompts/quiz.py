@@ -2,18 +2,18 @@
 
 Triggered when the user's question matches ``_QUIZ_PATTERNS`` in ``rag.py``
 (``quiz`` / ``kwiz`` / ``test`` / ``egzamin``). Produces an interactive
-``[quiz:{...}]`` JSON block the frontend renders as a clickable quiz.
+``[quiz:{...}]`` JSON block the frontend renders as a clickable quiz, followed
+by 7 ``[action:...]`` buttons: 3 alternative quiz suggestions and 4 other
+rich actions in the "More ..." overflow.
 """
 
 from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate
 
-QUIZ_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
+from .labels_actions import QUIZ_ACTIONS_RULES
+
+_QUIZ_SYSTEM_TEMPLATE = """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
 
 If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
@@ -37,7 +37,17 @@ Rules:
 - The quiz JSON must be valid JSON on a single line after [quiz:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
-- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).""",
+- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).
+
+<<QUIZ_ACTIONS>>"""
+
+_QUIZ_SYSTEM = _QUIZ_SYSTEM_TEMPLATE.replace("<<QUIZ_ACTIONS>>", QUIZ_ACTIONS_RULES)
+
+QUIZ_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            _QUIZ_SYSTEM,
         ),
         (
             "human",
@@ -63,3 +73,4 @@ Rules:
 )
 
 __all__ = ["QUIZ_PROMPT"]
+

@@ -169,7 +169,6 @@ def trace_step(
     total_pages: int | None = None,
     detail: str | None = None,
     worker_id: str | None = None,
-    parent_job_id: str | None = None,
 ) -> Generator[dict, None, None]:
     """Context manager that:
     1. Starts a Sentry performance span
