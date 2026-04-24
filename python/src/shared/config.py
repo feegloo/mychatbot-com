@@ -25,7 +25,7 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
-        openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-5.4-nano"),
+        openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-5.4-mini"),
         # Keep gpt-image-2 as default because progressive partial frames
         # (used by UI morph effect) are implemented on its streaming path.
         openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2"),
