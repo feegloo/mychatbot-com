@@ -53,7 +53,7 @@ function extractQuizJson(
         let j = i + 1
         while (j < content.length && /\s/.test(content[j])) j++
         if (j < content.length && content[j] === ']') {
-          return { jsonStr: content.slice(jsonStart, i), endIndex: j }
+          return { jsonStr: content.slice(jsonStart, i + 1), endIndex: j }
         }
         return null
       }

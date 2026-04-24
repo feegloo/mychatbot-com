@@ -384,6 +384,45 @@ export async function generateImageStream(
   userId: number | undefined,
   callbacks: ImageGenStreamCallbacks,
 ): Promise<void> {
+  const eventSeparator = /\r?\n\r?\n/
+  const dispatchEvent = (rawEvent: string) => {
+    let eventName = 'message'
+    let dataLine = ''
+    for (const line of rawEvent.split(/\r?\n/)) {
+      if (line.startsWith('event: ')) eventName = line.slice(7).trim()
+      else if (line.startsWith('data: ')) dataLine += line.slice(6)
+    }
+    if (!dataLine) return
+
+    let payload: unknown
+    try {
+      payload = JSON.parse(dataLine)
+    } catch {
+      return
+    }
+    if (eventName === 'user_message') {
+      callbacks.onUserMessage?.((payload as { userMessageId: string }).userMessageId)
+    } else if (eventName === 'prompt_ready') {
+      callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
+    } else if (eventName === 'partial') {
+      callbacks.onPartial?.(payload as { b64: string; index: number })
+    } else if (eventName === 'complete') {
+      callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
+    } else if (eventName === 'error') {
+      callbacks.onError?.((payload as { error: string }).error)
+    }
+  }
+
+  const consumeBufferedEvents = () => {
+    let match = buffer.match(eventSeparator)
+    while (match && match.index !== undefined) {
+      const rawEvent = buffer.slice(0, match.index)
+      buffer = buffer.slice(match.index + match[0].length)
+      dispatchEvent(rawEvent)
+      match = buffer.match(eventSeparator)
+    }
+  }
+
   const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -412,37 +451,11 @@ export async function generateImageStream(
     const { value, done } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    let sep = buffer.indexOf('\n\n')
-    while (sep !== -1) {
-      const rawEvent = buffer.slice(0, sep)
-      buffer = buffer.slice(sep + 2)
-      sep = buffer.indexOf('\n\n')
-      let eventName = 'message'
-      let dataLine = ''
-      for (const line of rawEvent.split('\n')) {
-        if (line.startsWith('event: ')) eventName = line.slice(7).trim()
-        else if (line.startsWith('data: ')) dataLine += line.slice(6)
-      }
-      if (!dataLine) continue
-      let payload: unknown
-      try {
-        payload = JSON.parse(dataLine)
-      } catch {
-        continue
-      }
-      if (eventName === 'user_message') {
-        callbacks.onUserMessage?.((payload as { userMessageId: string }).userMessageId)
-      } else if (eventName === 'prompt_ready') {
-        callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
-      } else if (eventName === 'partial') {
-        callbacks.onPartial?.(payload as { b64: string; index: number })
-      } else if (eventName === 'complete') {
-        callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
-      } else if (eventName === 'error') {
-        callbacks.onError?.((payload as { error: string }).error)
-      }
-    }
+    consumeBufferedEvents()
   }
+
+  const trailingEvent = buffer.trim()
+  if (trailingEvent) dispatchEvent(trailingEvent)
 }
 
 function getBaseUrl() {
