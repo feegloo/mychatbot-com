@@ -4,8 +4,8 @@
     <div class="home-hero">
       <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
       <p class="home-subtitle">
-        Upload your Big files securely 🔒, let AI extract insights and tell you what’s inside in the author’s
-        voice.<br /><br />
+        Upload your Big PDF's and files securely 🔒, let AI extract insights and tell you what’s inside in the author’s
+        voices.<br /><br />
         Ask prompt to <strong> AI Agent chatbot</strong>, research, use semantic search & RAG,
         synthesize speech 🔊, share answers<br />
         <span style="font-size: 12px; padding-top: 6px"

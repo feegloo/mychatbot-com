@@ -99,10 +99,10 @@
           </div>
           <ChatMessageItem
             v-for="(msg, index) in displayedMessages"
-            :key="msg.id || index"
+            :key="messageRenderKey(msg, index)"
             :ref="
               (el) => {
-                if (index === 0) firstMessageRef = el
+                if (index === 0) firstMessageRef = el as InstanceType<typeof ChatMessageItem> | null
               }
             "
             :msg="msg"
@@ -118,6 +118,7 @@
             :file-name="primaryFileName"
             :is-thread="isThread"
             :no-animation="index < initialMessageCount"
+            :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
             @select-question="
               question = $event;
@@ -127,6 +128,7 @@
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
             @image-revealed="(success) => success && scrollToBottom(true, true)"
+            @message-animated="onMessageAnimated(msg.id)"
           />
           <div
             v-if="showInlineProcessing"
@@ -183,6 +185,7 @@ import {
   askQuestion,
   getConversation,
   uploadMoreFiles,
+  addUrlToConversation,
   createConversationThread,
   saveConversationToken,
   extractError,
@@ -204,6 +207,13 @@ import { useAutoRead } from '../composables/useAutoRead'
 import { useConversationEvents, stepLabel } from '../composables/useConversationEvents'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import {newContent} from '../composables/newContent'
+import {
+  attachRenderKey,
+  buildRenderKeyIndex,
+  copyWithStableRenderKeys,
+  nextMessageRenderKey,
+  type MessageWithRenderKey,
+} from '../utils/messageRenderKey'
 
 const props = defineProps<{ conversationId: string }>()
 
@@ -229,9 +239,22 @@ const status = ref<ConversationStatus>({
   messages: [],
   accessRequests: [],
 })
-const messages = ref<ChatMessage[]>([])
+const messages = ref<MessageWithRenderKey<ChatMessage>[]>([])
 const initialMessageCount = ref(Infinity)
 const hasLocalError = ref(false)
+
+// Tracks which assistant message IDs have already had their word-reveal
+// animation played. Cleared only on full page navigation. Using IDs (not
+// indices) so the set stays correct after array replacements on reload.
+const animatedMessageIds = ref(new Set<string>())
+
+function onMessageAnimated(msgId: string | undefined) {
+  if (msgId) animatedMessageIds.value.add(msgId)
+}
+
+function messageRenderKey(msg: MessageWithRenderKey<ChatMessage>, index: number) {
+  return msg.__renderKey ?? (msg.id ? `server:${msg.id}` : `server-index:${index}`)
+}
 
 // While the backend is generating the assistant reply, the most recent server
 // message is still the user's question. After a page refresh we keep the
@@ -244,7 +267,7 @@ const assistantPending = computed(() => {
   return last?.role === 'user'
 })
 
-const displayedMessages = computed<ChatMessage[]>(() => {
+const displayedMessages = computed<MessageWithRenderKey<ChatMessage>[]>(() => {
   if (assistantPending.value && !asking.value) {
     return [...messages.value, { role: 'assistant', content: '' }]
   }
@@ -267,7 +290,7 @@ const {
   toggle: toggleAutoRead,
   readWelcomeIfEnabled,
   cleanup: cleanupAutoRead,
-} = useAutoRead(messages, asking, welcomeMessageContent)
+} = useAutoRead(messages, asking, welcomeMessageContent, chatContainer, currentLanguage)
 
 // SSE: real-time processing events + message_appended for live sync
 const {
@@ -441,6 +464,7 @@ watch(
 async function loadConversation() {
   const response = await getConversation(conversationId)
   status.value = response
+  const existingRenderKeysById = buildRenderKeyIndex(messages.value)
 
   // Viewer mode: show the original welcome message + a virtual hello message
   const viewerMode =
@@ -451,11 +475,14 @@ async function loadConversation() {
       const serverMessages = response.messages || []
       const firstWelcome = serverMessages.find((m: ChatMessage) => m.role === 'assistant')
 
-      const viewerMessages: ChatMessage[] = []
+      const viewerMessages: MessageWithRenderKey<ChatMessage>[] = []
 
       // 1st message: original welcome message (same as owner sees, with file previews)
       if (firstWelcome) {
-        viewerMessages.push({ ...firstWelcome })
+        viewerMessages.push({
+          ...firstWelcome,
+          __renderKey: firstWelcome.id ? `server:${firstWelcome.id}` : 'viewer-welcome',
+        })
       }
 
       // 2nd message: virtual hello. Action buttons live inline in the
@@ -463,6 +490,7 @@ async function loadConversation() {
       viewerMessages.push({
         role: 'assistant',
         content: `Hi! How can I help you with **${name}**?`,
+        __renderKey: 'viewer-hello',
       })
 
       messages.value = viewerMessages
@@ -476,24 +504,25 @@ async function loadConversation() {
 
   if (!asking.value && !hasLocalError.value) {
     const serverMessages = response.messages || []
+    const stableServerMessages = copyWithStableRenderKeys(serverMessages, existingRenderKeysById)
     if (originalMessages.value.size > 0) {
       // In translated mode: preserve translated content for existing messages
       // Update originals with fresh server data
       originalMessages.value.forEach((_, i) => {
-        if (serverMessages[i]) {
-          originalMessages.value.set(i, serverMessages[i].content)
+        if (stableServerMessages[i]) {
+          originalMessages.value.set(i, stableServerMessages[i].content)
         }
       })
       // Append any new messages from server (not yet translated)
-      for (let i = messages.value.length; i < serverMessages.length; i++) {
-        messages.value.push(serverMessages[i])
+      for (let i = messages.value.length; i < stableServerMessages.length; i++) {
+        messages.value.push(stableServerMessages[i])
       }
-    } else if (serverMessages.length !== messages.value.length) {
-      messages.value = serverMessages
+    } else if (stableServerMessages.length !== messages.value.length) {
+      messages.value = stableServerMessages
     } else {
       // Sync per-message metadata that may arrive after initial message creation.
-      for (let i = 0; i < serverMessages.length; i++) {
-        const srv = serverMessages[i]
+      for (let i = 0; i < stableServerMessages.length; i++) {
+        const srv = stableServerMessages[i]
         const local = messages.value[i]
         if (srv.uploadedFileNames?.length && !local.uploadedFileNames?.length) {
           local.uploadedFileNames = srv.uploadedFileNames
@@ -586,6 +615,28 @@ function scrollToBottom(smooth = false, toEnd = false) {
 
 async function ask() {
   if (!question.value.trim()) return
+
+  // If the user typed a lone URL, add it to the conversation as a new source
+  const trimmed = question.value.trim()
+  if (/^https?:\/\/\S+$/.test(trimmed) && !trimmed.includes(' ')) {
+    question.value = ''
+    asking.value = true
+    try {
+      await addUrlToConversation(conversationId, trimmed)
+      // Poll until the conversation is back to 'ready' with the welcome message
+      await loadConversation()
+    } catch (err: unknown) {
+      const { message, raw } = extractError(err)
+      messages.value.push({
+        role: 'assistant',
+        content: `⚠️ Error loading URL: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`,
+      })
+    } finally {
+      asking.value = false
+    }
+    return
+  }
+
   if (status.value.status !== 'ready') {
     // Allow questions once the welcome message has arrived (indexing still in progress).
     // The RAG will answer with whatever chunks are available so far.
@@ -624,9 +675,27 @@ async function ask() {
   hasLocalError.value = false
   const currentQuestion = question.value
   question.value = ''
-  messages.value.push({ role: 'user', content: currentQuestion })
+  const optimisticUserMessage: MessageWithRenderKey<ChatMessage> = {
+    role: 'user',
+    content: currentQuestion,
+  }
+  messages.value.push(
+    attachRenderKey(
+      optimisticUserMessage,
+      nextMessageRenderKey('local-user'),
+    ),
+  )
 
-  messages.value.push({ role: 'assistant', content: '' })
+  const optimisticAssistantMessage: MessageWithRenderKey<ChatMessage> = {
+    role: 'assistant',
+    content: '',
+  }
+  messages.value.push(
+    attachRenderKey(
+      optimisticAssistantMessage,
+      nextMessageRenderKey('local-assistant'),
+    ),
+  )
   // Use the reactive proxy so Vue detects content updates immediately
   const reactiveMsg = messages.value[messages.value.length - 1]
 
@@ -722,12 +791,13 @@ function onChatScroll() {
 let prevMessageCount = 0
 const conversationReady = ref(false)
 
-// Auto-read welcome message when conversation first becomes ready
+// Auto-read welcome message only for fresh conversations (no prior user messages)
 let welcomeReadTriggered = false
 watch(
   () => status.value.status,
   (newStatus) => {
-    if (newStatus === 'ready' && !welcomeReadTriggered && messages.value.length > 0) {
+    const hasUserMessages = messages.value.some((m) => m.role === 'user')
+    if (newStatus === 'ready' && !welcomeReadTriggered && messages.value.length > 0 && !hasUserMessages) {
       welcomeReadTriggered = true
       readWelcomeIfEnabled()
     }

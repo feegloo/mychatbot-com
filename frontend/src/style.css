@@ -1906,17 +1906,21 @@ h3 {
   position: absolute;
   z-index: 9999;
   pointer-events: none;
-  background: rgba(139, 92, 246, 0.18);
+  background: rgba(139, 92, 246, 0.18); /* overridden inline per language */
   border-radius: 3px;
   opacity: 0;
   transform: translateY(4px);
   transition:
     opacity 0.13s ease,
-    transform 0.13s ease;
+    transform 0.13s ease,
+    background 0.13s ease,
+    box-shadow 0.13s ease;
 }
 .speech-caption-highlight.caption-active {
   opacity: 1;
   transform: translateY(0);
+  /* Soft glow that picks up the inline background color */
+  box-shadow: 0 0 8px 2px var(--caption-glow, rgba(139, 92, 246, 0.25));
 }
 
 /* ── Ghost translation label (below active word during TTS playback) ── */
@@ -1926,13 +1930,15 @@ h3 {
   pointer-events: none;
   font-size: 11px;
   line-height: 1.2;
-  color: rgba(196, 181, 253, 0.75);
+  color: rgba(196, 181, 253, 0.75); /* overridden inline per language */
   white-space: nowrap;
   opacity: 0;
   transform: translateY(4px);
   transition:
     opacity 0.13s ease,
-    transform 0.13s ease;
+    transform 0.13s ease,
+    color 0.13s ease;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 .speech-caption-ghost.caption-active {
   opacity: 1;

@@ -87,7 +87,7 @@ export function applyWordReveal(root: HTMLElement, maxDurationMs = 500): void {
       const span = document.createElement('span')
       span.className = WORD_CLASS
       span.textContent = part
-      span.style.animationDelay = `${easedDelay(wordIndex).toFixed(1)}ms`
+      span.style.animationDelay = `${easedDelay(wordIndex).toFixed(0)}ms`
       frag.appendChild(span)
       wordIndex++
     }

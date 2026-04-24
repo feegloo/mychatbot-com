@@ -24,6 +24,36 @@ MAX_REFERENCE_IMAGES = 4
 # OpenAI edits endpoint accepts png/jpeg/webp for gpt-image-1.
 _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 
+# Aspect ratio → concrete image size (both dimensions divisible by 16, base ~640px).
+# gpt-image-2 supports arbitrary WxH as long as each dimension is divisible by 16.
+# Calculations: fix the long side to 640, scale the short side to match the ratio.
+#   1:1  → 640×640   (square)
+#   3:4  → 480×640   (portrait — e.g. book cover, mobile)
+#   4:3  → 640×480   (landscape — presentation, photo)
+#   2:3  → 416×624   (tall portrait — magazine editorial; 416=16×26, 624=16×39)
+#   3:2  → 624×416   (wide photo — standard DSLR landscape)
+#   16:9 → 512×288   (cinematic widescreen; 512=16×32, 288=16×18)
+#   9:16 → 288×512   (vertical story / Reels)
+ASPECT_SIZE_MAP: dict[str, str] = {
+    "1:1":  "640x640",
+    "3:4":  "480x640",
+    "4:3":  "640x480",
+    "2:3":  "416x624",
+    "3:2":  "624x416",
+    "16:9": "512x288",
+    "9:16": "288x512",
+}
+_DEFAULT_ASPECT = "1:1"
+
+
+def aspect_to_image_size(aspect: str) -> str:
+    """Map an aspect ratio string (e.g. "3:4") to a concrete WxH size string.
+
+    Falls back to the default 1:1 square if the aspect is unknown.
+    """
+    return ASPECT_SIZE_MAP.get(aspect, ASPECT_SIZE_MAP[_DEFAULT_ASPECT])
+
+
 from shared.config import get_settings
 from shared.llm_instrument import traced_openai_call
 from shared.otel import get_tracer
@@ -135,14 +165,14 @@ def generate_image(
     ``images.generate`` endpoint is used.
 
     ``model`` defaults to ``settings.openai_image_model`` (env:
-    ``OPENAI_IMAGE_MODEL``, fallback ``gpt-image-1``). Only gpt-image-1 and
-    dall-e-3 are actually shipping model IDs — passing an unknown name here
-    will surface as a 400 from OpenAI, not a silent fallback.
+    ``OPENAI_IMAGE_MODEL``, fallback ``gpt-image-2``). gpt-image-2 accepts any
+    WxH where both dimensions are multiples of 16 (range 16–4096).
 
     Args:
         prompt: The text description for image generation.
         storage_dir: Directory to save the generated image.
-        size: Image size. gpt-image-1 accepts 1024x1024, 1024x1536, 1536x1024.
+        size: Image size string "WxH" — use ``aspect_to_image_size()`` to get a
+            well-formed value from an aspect ratio.
         quality: Image quality (auto, high, medium, low). "low" is fastest.
         model: OpenAI image model id; default taken from settings.
         reference_image_paths: Optional list of local paths to reference images.
@@ -246,7 +276,7 @@ def generate_image_streaming(
 ):
     """Streaming variant of ``generate_image`` that yields progressive frames.
 
-    Uses OpenAI's ``stream=True, partial_images=N`` parameters on gpt-image-1
+    Uses OpenAI's ``stream=True, partial_images=N`` parameters on gpt-image-2
     to surface intermediate lower-fidelity frames while the final render is
     still being computed. Falls back to a single non-streaming call when a
     reference image is provided (``images.edit`` streaming is not universally
@@ -512,8 +542,18 @@ def build_image_prompt(
         "Polish sources → Polish title, Chinese sources → Chinese title). Only use "
         "English when the source material itself is in English.\n"
         "3. A list of source indices (0-based integers) from the provided chunks that "
-        "most directly informed the image concept. Include 1–5 indices; use [] if none apply.\n\n"
-        'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2]}'
+        "most directly informed the image concept. Include 1–5 indices; use [] if none apply.\n"
+        "4. The best aspect ratio for this image from: 1:1 (square), 3:4 (portrait/book cover), "
+        "4:3 (landscape/presentation), 2:3 (tall portrait/magazine), 3:2 (wide photo/DSLR), "
+        "16:9 (cinematic widescreen), 9:16 (vertical/story). Choose based on subject and composition:\n"
+        "  • Portraits, profiles, people standing → 3:4 or 2:3\n"
+        "  • Landscapes, panoramas, architecture exteriors → 3:2 or 16:9\n"
+        "  • Cinematic scenes, film stills → 16:9\n"
+        "  • Mobile/social content, vertical stories → 9:16\n"
+        "  • Book covers, posters, editorial → 2:3\n"
+        "  • Presentations, classic photos → 4:3\n"
+        "  • Logos, icons, balanced scenes → 1:1\n\n"
+        'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2], "aspect": "3:4"}'
     )
 
     creative_seed = _random_creative_seed()
@@ -562,6 +602,7 @@ def build_image_prompt(
             "prompt": parsed["prompt"],
             "title": parsed.get("title", "Generated Image"),
             "source_indices": parsed.get("source_indices", []),
+            "aspect": parsed.get("aspect", _DEFAULT_ASPECT),
         }
     except (json.JSONDecodeError, KeyError):
-        return {"prompt": raw, "title": "Generated Image", "source_indices": []}
+        return {"prompt": raw, "title": "Generated Image", "source_indices": [], "aspect": _DEFAULT_ASPECT}

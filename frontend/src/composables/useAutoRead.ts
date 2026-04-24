@@ -1,6 +1,17 @@
 import { ref, watch, type Ref } from 'vue'
-import { synthesizeSpeech } from '../api'
+import { synthesizeSpeech, synthesizeSpeechWithCaptions } from '../api'
 import { getData, setData } from '../utils/localData'
+import {
+  type MatchedCaption,
+  getLanguageColors,
+  extractWordRangesFromRange,
+  matchCaptionsToWords,
+  alignGhosts,
+  ensureHighlightEl,
+  ensureGhostEl,
+  renderCaptionVisuals,
+  findTextRangeInContainer,
+} from './captionUtils'
 
 const AUTO_READ_KEY = 'autoReadEnabled'
 const MAX_CHUNK_LENGTH = 4096
@@ -167,12 +178,62 @@ export function useAutoRead(
   messages: Ref<{ role: string; content: string }[]>,
   asking: Ref<boolean>,
   welcomeMessage?: Ref<string>,
+  containerRef?: Ref<HTMLElement | null>,
+  currentLanguage?: Ref<string>,
 ) {
+  const browserLang = navigator.language.split('-')[0]
   const enabled = ref(getData<boolean>(AUTO_READ_KEY) ?? false)
 
   let currentAudio: HTMLAudioElement | null = null
   let currentBlobUrl: string | null = null
   let aborted = false
+
+  // ── Caption overlay state ──
+  let captionHighlightEl: HTMLElement | null = null
+  let captionGhostEl: HTMLElement | null = null
+  let captionAnimFrame: number | null = null
+  let activeCaptionWords: MatchedCaption[] | null = null
+
+  function stopCaptionPlayback(): void {
+    if (captionAnimFrame !== null) {
+      cancelAnimationFrame(captionAnimFrame)
+      captionAnimFrame = null
+    }
+    activeCaptionWords = null
+    if (captionHighlightEl) captionHighlightEl.classList.remove('caption-active')
+    if (captionGhostEl) captionGhostEl.classList.remove('caption-active')
+  }
+
+  function startCaptionAnimation(audio: HTMLAudioElement): void {
+    let lastIdx = -1
+
+    function tick() {
+      if (!activeCaptionWords || !currentAudio) return
+
+      const time = audio.currentTime
+      let currentIdx = -1
+
+      for (let i = 0; i < activeCaptionWords.length; i++) {
+        const { caption } = activeCaptionWords[i]
+        if (time >= caption.start && time < caption.end) {
+          currentIdx = i
+          break
+        }
+      }
+
+      if (currentIdx !== lastIdx) {
+        lastIdx = currentIdx
+        if (!captionHighlightEl) captionHighlightEl = ensureHighlightEl(null)
+        if (!captionGhostEl) captionGhostEl = ensureGhostEl(null)
+        const colors = getLanguageColors(currentLanguage?.value || browserLang)
+        renderCaptionVisuals(currentIdx, activeCaptionWords, captionHighlightEl, captionGhostEl, colors)
+      }
+
+      captionAnimFrame = requestAnimationFrame(tick)
+    }
+
+    captionAnimFrame = requestAnimationFrame(tick)
+  }
 
   function toggle() {
     enabled.value = !enabled.value
@@ -184,6 +245,7 @@ export function useAutoRead(
 
   function stop() {
     aborted = true
+    stopCaptionPlayback()
     if (currentAudio) {
       currentAudio.pause()
       currentAudio = null
@@ -213,6 +275,29 @@ export function useAutoRead(
     })
   }
 
+  function playAudioBlobWithCaptions(blob: Blob): Promise<void> {
+    if (aborted) return Promise.resolve()
+    const url = URL.createObjectURL(blob)
+    currentBlobUrl = url
+    return new Promise<void>((resolve) => {
+      const audio = new Audio(url)
+      currentAudio = audio
+      const cleanup = () => {
+        stopCaptionPlayback()
+        URL.revokeObjectURL(url)
+        currentBlobUrl = null
+        currentAudio = null
+        resolve()
+      }
+      audio.addEventListener('ended', cleanup)
+      audio.addEventListener('error', cleanup)
+      audio.play().catch(cleanup)
+      if (activeCaptionWords) {
+        startCaptionAnimation(audio)
+      }
+    })
+  }
+
   async function readAloud(text: string) {
     stop()
     aborted = false
@@ -225,12 +310,74 @@ export function useAutoRead(
     const chunks = buildSynthesisChunks(sentences)
     const instructions = buildTtsInstructions(messages.value, welcomeMessage?.value || '')
 
-    // Fire all synthesis requests in parallel
+    const container = containerRef?.value
+    const lang = currentLanguage?.value
+    const canUseCaptions = !!(container && lang && lang !== browserLang)
+
+    if (canUseCaptions) {
+      // Use captions for single chunk; fall back to basic for multi-chunk
+      if (chunks.length === 1) {
+        const result = await synthesizeSpeechWithCaptions(
+          chunks[0],
+          lang,
+          browserLang,
+          instructions,
+        ).catch(() => null)
+        if (aborted || !result) return
+
+        if (result.captions && result.captions.length > 0) {
+          const textRange = findTextRangeInContainer(container, chunks[0])
+          if (textRange) {
+            const domWords = extractWordRangesFromRange(textRange)
+            const matched = matchCaptionsToWords(result.captions, domWords)
+            if (matched.length > 0 && result.translatedText) {
+              alignGhosts(matched, result.translatedText)
+            }
+            activeCaptionWords = matched.length > 0 ? matched : null
+          }
+        }
+
+        await playAudioBlobWithCaptions(result.audio)
+        return
+      }
+
+      // Multi-chunk: try captions per chunk sequentially
+      for (const chunk of chunks) {
+        if (aborted) return
+        const result = await synthesizeSpeechWithCaptions(
+          chunk,
+          lang,
+          browserLang,
+          instructions,
+        ).catch(() => null)
+        if (aborted) return
+        if (!result) continue
+
+        if (result.captions && result.captions.length > 0) {
+          const textRange = findTextRangeInContainer(container, chunk)
+          if (textRange) {
+            const domWords = extractWordRangesFromRange(textRange)
+            const matched = matchCaptionsToWords(result.captions, domWords)
+            if (matched.length > 0 && result.translatedText) {
+              alignGhosts(matched, result.translatedText)
+            }
+            activeCaptionWords = matched.length > 0 ? matched : null
+          }
+        } else {
+          activeCaptionWords = null
+        }
+
+        await playAudioBlobWithCaptions(result.audio)
+        if (aborted) return
+      }
+      return
+    }
+
+    // No container/language: plain synthesis (original behavior)
     const promises = chunks.map((chunk) =>
       synthesizeSpeech(chunk, undefined, instructions).catch(() => null),
     )
 
-    // Play sequentially as each resolves
     for (const promise of promises) {
       if (aborted) return
       const blob = await promise

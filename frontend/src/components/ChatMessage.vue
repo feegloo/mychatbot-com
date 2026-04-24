@@ -78,7 +78,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           </div>
         </Transition>
         <div v-if="msg.generatingImage" class="image-generating-label">
-          <TextFade :trigger="msg.imageAnnouncement || 'generic'">
+          <TextFade :trigger="msg.imageAnnouncement || 'generic'" :disabled="noAnimation">
             <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
             <span v-else>🎨 Generating image, please wait...</span>
           </TextFade>
@@ -93,7 +93,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             class="message-content-wrap"
             :class="{ 'is-translating': isTranslating }"
           >
-            <TextFade :trigger="msg.content">
+            <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
               <MessageContent
                 :content="msg.content"
                 :is-welcome="isWelcome"
@@ -101,11 +101,13 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 :conversation-name="conversationName"
                 :file-name="fileName"
                 :citations="msg.citations"
+                :animate="animate"
                 @select="$emit('select-question', $event)"
                 @image-click="openImageModal"
                 @citation-click="openCitation"
                 @upload-trigger="$emit('trigger-upload')"
                 @image-loaded="onImageLoad"
+                @animated="$emit('message-animated')"
               />
             </TextFade>
           </div>
@@ -138,7 +140,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           class="message-content-wrap"
           :class="{ 'is-translating': isTranslating }"
         >
-          <TextFade :trigger="msg.content">
+          <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
             <MessageContent
               :content="msg.content"
               :is-welcome="isWelcome"
@@ -146,11 +148,13 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               :conversation-name="conversationName"
               :file-name="fileName"
               :citations="msg.citations"
+              :animate="animate"
               @select="$emit('select-question', $event)"
               @image-click="openImageModal"
               @citation-click="openCitation"
               @upload-trigger="$emit('trigger-upload')"
               @image-loaded="onImageLoad"
+              @animated="$emit('message-animated')"
             />
           </TextFade>
         </div>
@@ -160,9 +164,9 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       </template>
 
       <!-- User message -->
-      <TextFade v-else :trigger="msg.content">
+      <TextFade v-else :trigger="msg.content" :disabled="noAnimation">
         <span class="user-text" :class="{ 'is-translating': isTranslating }">
-          <template v-if="appReady">
+          <template v-if="appReady && !noAnimation">
             <template v-for="(tok, i) in userWordTokens" :key="i">
               <span
                 v-if="tok.word"
@@ -276,6 +280,9 @@ const props = withDefaults(
     fileName?: string
     isThread?: boolean
     noAnimation?: boolean
+    /** When true, triggers the one-shot word-reveal animation for this message.
+     *  Only set for newly-arrived messages; cleared by parent after animation. */
+    animate?: boolean
     isTranslating?: boolean
   }>(),
   { maxVisibleActions: 2 },
@@ -290,6 +297,9 @@ const emit = defineEmits<{
    *  can re-scroll to bottom. `success` is always true in the rewritten
    *  version since we no longer re-attempt failed image loads. */
   'image-revealed': [success: boolean]
+  /** Fired once when the word-reveal animation has run so the parent can
+   *  mark this message as animated and prevent replaying on re-mounts. */
+  'message-animated': []
 }>()
 
 // Use storageConversationId for file URLs (threads point to parent's storage).
@@ -314,12 +324,22 @@ const senderLabel = computed(() => {
   }
   return 'You'
 })
-
+// --- TextFade trigger for assistant messages ------------------------------
+// During streaming the message has no id yet. Using `msg.content` as the
+// key would remount MessageContent on every streamed token, causing
+// animation chaos and UI jank. A stable `'streaming'` key prevents those
+// remounts; when streaming completes and `msg.id` is set the key switches
+// to the full content, triggering exactly one remount + transition.
+// Subsequent content changes (translations) are then keyed on content so
+// the fade transition plays correctly.
+const assistantFadeTrigger = computed(() =>
+  props.msg.id ? props.msg.content : 'streaming',
+)
 // --- Word-reveal staggering for user message ------------------------------
 // User text is plain (no markdown) so we split up-front in the template
 // instead of walking the DOM like we do for assistant content. Delay is
 // clamped so pasting a wall of text still finishes inside ~2 s.
-const USER_REVEAL_MAX_MS = 2000
+const USER_REVEAL_MAX_MS = 650
 type UserWordToken = { word: string; ws?: undefined; delay: number } | { ws: string; word?: undefined; delay?: undefined }
 const userWordTokens = computed<UserWordToken[]>(() => {
   if (props.msg.role !== 'user') return []
@@ -419,9 +439,24 @@ const previewCitation = ref<NonNullable<ChatMessage['citations']>[number]>()
 
 function openCitation(idx: number) {
   const citation = props.msg.citations?.[idx]
-  if (!citation) return
-  previewCitation.value = citation
-  previewOpen.value = true
+  if (citation) {
+    previewCitation.value = citation
+    previewOpen.value = true
+    return
+  }
+  // Welcome messages store citations as { _uploadedFileNames } on the backend,
+  // so the citations array is empty. Fall back to opening the Nth file (1-based
+  // source index) from the files associated with this message.
+  const file = props.files?.[idx]
+  if (file) {
+    previewCitation.value = {
+      fileName: file.originalName,
+      chunkId: '',
+      text: '',
+      page: 1,
+    }
+    previewOpen.value = true
+  }
 }
 
 // --- Image citations (clickable thumbnails row) ---------------------------

@@ -18,11 +18,12 @@ import { newContent } from '../composables/newContent';
  */
 defineProps<{
   trigger: string | number
+  disabled?: boolean
 }>()
 </script>
 
 <template>
-  <Transition name="fade-text" mode="out-in" :appear="newContent">
+  <Transition :name="disabled ? '' : 'fade-text'" mode="out-in" :appear="!disabled && newContent">
     <div :key="trigger" class="fade-text">
       <slot />
     </div>

@@ -1,6 +1,16 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
-import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from '../api'
+import { synthesizeSpeech, synthesizeSpeechWithCaptions } from '../api'
 import { buildSynthesisChunks, cleanTextForTTS, splitIntoSentences } from './useAutoRead'
+import {
+  type MatchedCaption,
+  getLanguageColors,
+  extractWordRangesFromRange,
+  matchCaptionsToWords,
+  alignGhosts,
+  ensureHighlightEl,
+  ensureGhostEl,
+  renderCaptionVisuals,
+} from './captionUtils'
 
 const TTS_INSTRUCTIONS_MAX = 4096
 const SELECTION_TTS_TEXT_MAX = 4096
@@ -43,7 +53,7 @@ export function useTextSelectionSpeech(
   let captionHighlightEl: HTMLElement | null = null
   let captionGhostEl: HTMLElement | null = null
   let captionAnimFrame: number | null = null
-  let activeCaptionWords: { caption: WordCaption; range: Range; ghostWord: string }[] | null = null
+  let activeCaptionWords: MatchedCaption[] | null = null
 
   /** Is TTS active (current display language differs from browser language)? */
   function isSpeechActive(): boolean {
@@ -104,20 +114,39 @@ export function useTextSelectionSpeech(
     const scrollY = window.scrollY
     const tooltipWidth = 34
     const tooltipHeight = 34
+    const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
-    // Position to the right of selected text, vertically centered
-    let left = rect.right + scrollX + 8
-    let top = rect.top + scrollY + rect.height / 2 - tooltipHeight / 2
+    let left: number
+    let top: number
 
-    // Fall back to left side if it would clip the right edge
-    if (left + tooltipWidth > scrollX + window.innerWidth - 4) {
-      left = rect.left + scrollX - tooltipWidth - 8
-    }
+    if (isMobile) {
+      // On mobile: place the icon just below the end of the selected text
+      left = rect.right + scrollX - tooltipWidth
+      top = rect.bottom + scrollY + 6
+      // Keep within viewport horizontally
+      if (left + tooltipWidth > scrollX + window.innerWidth - 4) {
+        left = scrollX + window.innerWidth - tooltipWidth - 4
+      }
+      if (left < scrollX + 4) left = scrollX + 4
+      // If it clips the bottom, place it above instead
+      if (top + tooltipHeight > scrollY + window.innerHeight - 4) {
+        top = rect.top + scrollY - tooltipHeight - 6
+      }
+    } else {
+      // Desktop: position to the right of selected text, vertically centered
+      left = rect.right + scrollX + 8
+      top = rect.top + scrollY + rect.height / 2 - tooltipHeight / 2
 
-    if (left < scrollX + 4) left = scrollX + 4
-    if (top < scrollY + 4) top = scrollY + 4
-    if (top + tooltipHeight > scrollY + window.innerHeight - 4) {
-      top = scrollY + window.innerHeight - tooltipHeight - 4
+      // Fall back to left side if it would clip the right edge
+      if (left + tooltipWidth > scrollX + window.innerWidth - 4) {
+        left = rect.left + scrollX - tooltipWidth - 8
+      }
+
+      if (left < scrollX + 4) left = scrollX + 4
+      if (top < scrollY + 4) top = scrollY + 4
+      if (top + tooltipHeight > scrollY + window.innerHeight - 4) {
+        top = scrollY + window.innerHeight - tooltipHeight - 4
+      }
     }
 
     tooltip.style.left = `${left}px`
@@ -350,114 +379,6 @@ export function useTextSelectionSpeech(
   // ── Caption playback functions ──
 
   /**
-   * Extract individual word Ranges from a parent Range in the DOM.
-   */
-  function extractWordRangesFromRange(parentRange: Range): { word: string; range: Range }[] {
-    const results: { word: string; range: Range }[] = []
-
-    // Single text node range (e.g. clicked one word)
-    if (
-      parentRange.startContainer === parentRange.endContainer &&
-      parentRange.startContainer.nodeType === Node.TEXT_NODE
-    ) {
-      const text = parentRange.toString()
-      const wordRegex = /[\p{L}\p{N}'\u2019-]+/gu
-      let match
-      while ((match = wordRegex.exec(text)) !== null) {
-        const r = document.createRange()
-        r.setStart(parentRange.startContainer, parentRange.startOffset + match.index)
-        r.setEnd(
-          parentRange.startContainer,
-          parentRange.startOffset + match.index + match[0].length,
-        )
-        results.push({ word: match[0], range: r })
-      }
-      return results
-    }
-
-    // Walk text nodes within the range's common ancestor
-    const ancestor = parentRange.commonAncestorContainer
-    const root =
-      ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement! : (ancestor as HTMLElement)
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-
-    let node: Text | null
-    while ((node = walker.nextNode() as Text | null)) {
-      if (!parentRange.intersectsNode(node)) continue
-      const text = node.textContent || ''
-      const nodeStart = node === parentRange.startContainer ? parentRange.startOffset : 0
-      const nodeEnd = node === parentRange.endContainer ? parentRange.endOffset : text.length
-
-      const wordRegex = /[\p{L}\p{N}'\u2019-]+/gu
-      let match
-      while ((match = wordRegex.exec(text)) !== null) {
-        const ws = match.index
-        const we = match.index + match[0].length
-        if (ws >= nodeStart && we <= nodeEnd) {
-          const r = document.createRange()
-          r.setStart(node, ws)
-          r.setEnd(node, we)
-          results.push({ word: match[0], range: r })
-        }
-      }
-    }
-
-    return results
-  }
-
-  /**
-   * Match Whisper word captions to DOM word ranges by fuzzy text comparison.
-   */
-  function matchCaptionsToWords(
-    captions: WordCaption[],
-    domWords: { word: string; range: Range }[],
-  ): { caption: WordCaption; range: Range; ghostWord: string }[] {
-    const result: { caption: WordCaption; range: Range; ghostWord: string }[] = []
-    let domIdx = 0
-
-    for (const cap of captions) {
-      const cleanCap = cap.word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
-      if (!cleanCap) continue
-
-      for (let j = domIdx; j < domWords.length; j++) {
-        const cleanDom = domWords[j].word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
-        if (
-          cleanDom === cleanCap ||
-          cleanDom.startsWith(cleanCap) ||
-          cleanCap.startsWith(cleanDom)
-        ) {
-          result.push({ caption: cap, range: domWords[j].range, ghostWord: '' })
-          domIdx = j + 1
-          break
-        }
-      }
-    }
-
-    return result
-  }
-
-  /**
-   * Assign ghost (translated) words to each matched caption using proportional alignment.
-   */
-  function alignGhosts(
-    matched: { caption: WordCaption; range: Range; ghostWord: string }[],
-    translatedText: string,
-  ): void {
-    if (!translatedText || !matched.length) return
-
-    const targetWords = translatedText.split(/\s+/).filter((w) => w.length > 0)
-    const n = matched.length
-    const m = targetWords.length
-    if (!m) return
-
-    for (let i = 0; i < n; i++) {
-      const start = Math.round((i * m) / n)
-      const end = Math.round(((i + 1) * m) / n)
-      matched[i].ghostWord = targetWords.slice(start, Math.max(start + 1, end)).join(' ')
-    }
-  }
-
-  /**
    * Prepare caption playback: extract DOM word ranges, match to Whisper captions, align ghosts.
    */
   function prepareCaptionPlayback(captions: WordCaption[], translatedText?: string): void {
@@ -514,59 +435,15 @@ export function useTextSelectionSpeech(
    * Update the caption highlight and ghost overlay for the given word index.
    */
   function updateCaptionVisuals(idx: number): void {
-    if (idx < 0 || !activeCaptionWords) {
-      if (captionHighlightEl) captionHighlightEl.classList.remove('caption-active')
-      if (captionGhostEl) captionGhostEl.classList.remove('caption-active')
+    if (!captionHighlightEl) captionHighlightEl = ensureHighlightEl(null)
+    if (!captionGhostEl) captionGhostEl = ensureGhostEl(null)
+    if (!activeCaptionWords) {
+      captionHighlightEl.classList.remove('caption-active')
+      captionGhostEl.classList.remove('caption-active')
       return
     }
-
-    const { range, ghostWord } = activeCaptionWords[idx]
-    const rect = range.getBoundingClientRect()
-    if (rect.width === 0 && rect.height === 0) return
-
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
-
-    // ── Active word highlight ──
-    if (!captionHighlightEl) {
-      captionHighlightEl = document.createElement('div')
-      captionHighlightEl.className = 'speech-caption-highlight'
-      document.body.appendChild(captionHighlightEl)
-    }
-    captionHighlightEl.style.left = `${rect.left + scrollX - 2}px`
-    captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`
-    captionHighlightEl.style.width = `${rect.width + 4}px`
-    captionHighlightEl.style.height = `${rect.height + 2}px`
-    captionHighlightEl.classList.add('caption-active')
-
-    // ── Ghost translation label (positioned BELOW the word) ──
-    if (ghostWord) {
-      if (!captionGhostEl) {
-        captionGhostEl = document.createElement('div')
-        captionGhostEl.className = 'speech-caption-ghost'
-        document.body.appendChild(captionGhostEl)
-      }
-      captionGhostEl.textContent = ghostWord
-      captionGhostEl.classList.add('caption-active')
-      // Force reflow to measure width
-      void captionGhostEl.offsetHeight
-      const ghostWidth = captionGhostEl.offsetWidth
-      let ghostLeft = rect.left + scrollX + rect.width / 2 - ghostWidth / 2
-      if (ghostLeft < scrollX + 4) ghostLeft = scrollX + 4
-      if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
-        ghostLeft = scrollX + window.innerWidth - ghostWidth - 4
-      }
-      // Position below the word
-      let ghostTop = rect.bottom + scrollY + 3
-      // If too close to viewport bottom, show above the word instead
-      if (rect.bottom + 20 > window.innerHeight) {
-        ghostTop = rect.top + scrollY - 18
-      }
-      captionGhostEl.style.left = `${ghostLeft}px`
-      captionGhostEl.style.top = `${ghostTop}px`
-    } else {
-      if (captionGhostEl) captionGhostEl.classList.remove('caption-active')
-    }
+    const colors = getLanguageColors(currentLanguage?.value || '')
+    renderCaptionVisuals(idx, activeCaptionWords, captionHighlightEl, captionGhostEl, colors)
   }
 
   /**
@@ -590,44 +467,15 @@ export function useTextSelectionSpeech(
   function showSingleWordGhost(range: Range, translatedText: string): void {
     const rect = range.getBoundingClientRect()
     if (rect.width === 0 && rect.height === 0) return
-
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
-
-    // Highlight the word
-    if (!captionHighlightEl) {
-      captionHighlightEl = document.createElement('div')
-      captionHighlightEl.className = 'speech-caption-highlight'
-      document.body.appendChild(captionHighlightEl)
-    }
-    captionHighlightEl.style.left = `${rect.left + scrollX - 2}px`
-    captionHighlightEl.style.top = `${rect.top + scrollY - 1}px`
-    captionHighlightEl.style.width = `${rect.width + 4}px`
-    captionHighlightEl.style.height = `${rect.height + 2}px`
-    captionHighlightEl.classList.add('caption-active')
-
-    // Ghost label (below the word)
-    if (!captionGhostEl) {
-      captionGhostEl = document.createElement('div')
-      captionGhostEl.className = 'speech-caption-ghost'
-      document.body.appendChild(captionGhostEl)
-    }
-    captionGhostEl.textContent = translatedText.trim()
-    captionGhostEl.classList.add('caption-active')
-    void captionGhostEl.offsetHeight
-    const ghostWidth = captionGhostEl.offsetWidth
-    let ghostLeft = rect.left + scrollX + rect.width / 2 - ghostWidth / 2
-    if (ghostLeft < scrollX + 4) ghostLeft = scrollX + 4
-    if (ghostLeft + ghostWidth > scrollX + window.innerWidth - 4) {
-      ghostLeft = scrollX + window.innerWidth - ghostWidth - 4
-    }
-    // Position below the word
-    let ghostTop = rect.bottom + scrollY + 3
-    if (rect.bottom + 20 > window.innerHeight) {
-      ghostTop = rect.top + scrollY - 18
-    }
-    captionGhostEl.style.left = `${ghostLeft}px`
-    captionGhostEl.style.top = `${ghostTop}px`
+    const colors = getLanguageColors(currentLanguage?.value || '')
+    if (!captionHighlightEl) captionHighlightEl = ensureHighlightEl(null)
+    if (!captionGhostEl) captionGhostEl = ensureGhostEl(null)
+    const singleWordMatched: MatchedCaption[] = [{
+      caption: { word: translatedText.trim(), start: 0, end: 9999 },
+      range,
+      ghostWord: translatedText.trim(),
+    }]
+    renderCaptionVisuals(0, singleWordMatched, captionHighlightEl, captionGhostEl, colors)
   }
 
   function stopSingleWordGhost(): void {

@@ -60,9 +60,57 @@ const POEM_TAG_RE = /\[\/?poem\]/gi
 // spanning over adjacent links on the same line.
 const IMAGE_MD_RE = /!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)/g
 
+/**
+ * Extract all [quiz:{...}] blocks from a string using brace-counting so that
+ * nested JSON brackets don't confuse a simple regex. Returns the text with
+ * each quiz block replaced by an opaque placeholder, plus the list of
+ * (placeholder → original) pairs needed to restore them after translation.
+ */
+function extractQuizBlocks(
+  text: string,
+  textIndex: number,
+  counterRef: { value: number },
+): { result: string; found: Array<{ placeholder: string; original: string }> } {
+  const found: Array<{ placeholder: string; original: string }> = []
+  const quizMarker = '[quiz:'
+  let result = text
+  let searchFrom = 0
+  while (searchFrom < result.length) {
+    const start = result.indexOf(quizMarker, searchFrom)
+    if (start === -1) break
+    const jsonStart = start + quizMarker.length
+    let depth = 0
+    let endIndex = -1
+    for (let i = jsonStart; i < result.length; i++) {
+      if (result[i] === '{') depth++
+      else if (result[i] === '}') {
+        depth--
+        if (depth === 0) {
+          let j = i + 1
+          while (j < result.length && /\s/.test(result[j])) j++
+          if (j < result.length && result[j] === ']') {
+            endIndex = j
+          }
+          break
+        }
+      }
+    }
+    if (endIndex === -1) {
+      searchFrom = start + quizMarker.length
+      continue
+    }
+    const original = result.slice(start, endIndex + 1)
+    const placeholder = `__MRK${textIndex}_${counterRef.value++}__`
+    found.push({ placeholder, original })
+    result = result.slice(0, start) + placeholder + result.slice(endIndex + 1)
+    searchFrom = start + placeholder.length
+  }
+  return { result, found }
+}
+
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action' | 'image' | 'poem'
+  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz'
   original: string
   label?: string // only for action markers; gets replaced with translated label
 }
@@ -74,21 +122,28 @@ function extractMarkers(texts: string[]): {
   const markers = new Map<number, MarkerInfo[]>()
   const cleaned = texts.map((text, i) => {
     const found: MarkerInfo[] = []
-    let counter = 0
-    // Extract markdown images first so their `[alt]` brackets don't collide
+    const counterRef = { value: 0 }
+    // Extract quiz blocks first — they contain JSON with nested brackets that
+    // would confuse all downstream regexes and break the rendered quiz widget
+    // if sent to the translation service.
+    const { result: afterQuiz, found: quizFound } = extractQuizBlocks(text, i, counterRef)
+    for (const q of quizFound) {
+      found.push({ placeholder: q.placeholder, kind: 'quiz', original: q.original })
+    }
+    // Extract markdown images so their `[alt]` brackets don't collide
     // with the [source:…]/[action:…] marker regex on the following pass.
-    let result = text.replace(IMAGE_MD_RE, (match) => {
-      const placeholder = `__MRK${i}_${counter++}__`
+    let result = afterQuiz.replace(IMAGE_MD_RE, (match) => {
+      const placeholder = `__MRK${i}_${counterRef.value++}__`
       found.push({ placeholder, kind: 'image', original: match })
       return placeholder
     })
     result = result.replace(POEM_TAG_RE, (match) => {
-      const placeholder = `__MRK${i}_${counter++}__`
+      const placeholder = `__MRK${i}_${counterRef.value++}__`
       found.push({ placeholder, kind: 'poem', original: match })
       return placeholder
     })
     result = result.replace(MARKER_RE, (match, kind: string, inner: string) => {
-      const placeholder = `__MRK${i}_${counter++}__`
+      const placeholder = `__MRK${i}_${counterRef.value++}__`
       const info: MarkerInfo = {
         placeholder,
         kind: kind.toLowerCase() === 'action' ? 'action' : 'source',

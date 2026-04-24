@@ -26,7 +26,7 @@ def get_settings() -> Settings:
     return Settings(
         openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
         openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-5.4-mini"),
-        openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1"),
+        openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2"),
         openai_embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
         openai_reasoning_effort=os.getenv("OPENAI_REASONING_EFFORT", "low"),
         chroma_mode=os.getenv("CHROMA_MODE", "local"),

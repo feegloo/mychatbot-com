@@ -28,7 +28,7 @@ import {
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
 import { config } from '../config.js'
-import { indexConversation } from '../python/indexing.js'
+import { indexConversation, describeUrl } from '../python/indexing.js'
 import { onConversationEvent } from '../events.js'
 import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
@@ -355,6 +355,72 @@ conversationsRouter.post(
     }
   },
 )
+
+// POST /conversations/:conversationId/add-url
+// Fetch a URL and add its HTML content to an existing conversation as a file
+conversationsRouter.post('/conversations/:conversationId/add-url', async (ctx) => {
+  const conversationId = ctx.params.conversationId
+  const token = getConversationToken(ctx)
+  const role = await resolveConversationRole(conversationId, token)
+
+  if (role !== 'owner' && role !== 'editor') {
+    ctx.status = 403
+    ctx.body = { error: "You don't have permission to add URLs to this conversation" }
+    return
+  }
+
+  const { url } = ctx.request.body as { url?: string }
+  if (!url || typeof url !== 'string') {
+    ctx.status = 400
+    ctx.body = { error: 'No URL provided' }
+    return
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Invalid protocol')
+  } catch {
+    ctx.status = 400
+    ctx.body = { error: 'Invalid URL' }
+    return
+  }
+
+  const data = await getConversation(conversationId, role)
+  if (!data.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  await updateConversationStatus(conversationId, 'processing')
+
+  describeUrl({
+    url,
+    conversationId,
+    collectionName: data.conversation.vector_collection_name,
+  })
+    .then(async (result) => {
+      const suggestedQuestions: string[] = result.parsedJson?.suggested_questions || []
+      const welcomeMessage: string = result.parsedJson?.welcome_message || ''
+      const fallbackMessage =
+        welcomeMessage ||
+        `## ${parsed.hostname}\n\nWebsite loaded and ready. Ask me anything about this page.`
+      await insertConversationMessage({
+        conversationId,
+        role: 'assistant',
+        content: fallbackMessage,
+        citations: { _sourceUrl: url },
+      })
+      await updateConversationStatus(conversationId, 'ready')
+    })
+    .catch(async (error: Error) => {
+      logger.error({ err: error.message, conversationId }, 'add-url indexing error')
+      await updateConversationStatus(conversationId, 'failed', error.message)
+    })
+
+  ctx.body = { conversationId, status: 'processing' }
+})
 
 // POST /conversations/:conversationId/access-requests
 // Viewer requests access to upload files

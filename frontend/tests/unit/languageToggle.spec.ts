@@ -588,6 +588,37 @@ describe("LanguageToggle", () => {
       expect(translated).toContain("[/poem]");
       expect(translated).not.toContain("[wiersz]");
     });
+
+    it("preserves [quiz:{...}] blocks verbatim (JSON must never be translated)", async () => {
+      // The entire quiz block must reach the frontend intact so splitContent
+      // can parse and render it as the interactive QuizBlock component.
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `PL:${t}`),
+      }));
+
+      const quizBlock = `[quiz:{"title":"Test Quiz","multiple":false,"questions":[{"q":"Question?","options":["A","B","C"],"correct":[0],"explanation":"Because A"}]}]`;
+      const original = `Here is your quiz:\n${quizBlock}`;
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: original }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      // The quiz block must NOT be sent to the translation service.
+      const sentTexts = translateTextsMock.mock.calls[0][0] as string[];
+      expect(sentTexts[0]).not.toContain("[quiz:");
+      expect(sentTexts[0]).not.toContain('"questions"');
+
+      // The translated output must contain the original quiz block unchanged.
+      const emitted = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const translated = emitted.get(0)!;
+      expect(translated).toContain(quizBlock);
+    });
   });
 
   // ── Whitespace preservation (prevents layout jump) ──

@@ -7,10 +7,9 @@
  * plus delegated clicks for [source:N] citations, inline images, the
  * [upload] button, and checklist boxes.
  */
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
-import { appReady } from '../../composables/appReady'
 import { applyWordReveal } from '../../composables/wordReveal'
 import { parseMessageContent, splitTokens } from './parseContent'
 import { splitContent } from './splitContent'
@@ -31,6 +30,10 @@ const props = defineProps<{
   /** When provided, hovering `[source:N]` buttons shows the citation text as
    *  a floating-vue tooltip (restored from the pre-refactor ChatMessage). */
   citations?: ChatMessage['citations']
+  /** When true, runs the one-shot word-reveal animation on mount.
+   *  Set only for newly-arrived messages; the parent clears it after
+   *  the `animated` event fires to prevent replaying on translation re-mounts. */
+  animate?: boolean
 }>()
 const emit = defineEmits<{
   /** A `[prompt:Label]` or `[action:Label]` was clicked. */
@@ -41,10 +44,12 @@ const emit = defineEmits<{
   'citation-click': [index: number]
   /** The inline `[upload]` button was clicked. */
   'upload-trigger': []
-  /** An inline `<img>` inside the rendered markdown finished loading.
-   *  Parents use this to re-scroll to bottom when a generated image grows
-   *  the message bubble after the text has already settled. */
+  /** An inline `<img>` inside the rendered markdown finished loading. */
   'image-loaded': []
+  /** Fired once, immediately after the word-reveal animation has been applied
+   *  on this mount. Parent uses this to clear the `animate` flag so future
+   *  re-mounts (e.g. translation) do not replay the animation. */
+  animated: []
 }>()
 
 // First strip [prompt:] / [action:] tokens out of the raw content so they
@@ -157,22 +162,18 @@ watch(
 )
 
 // --- Word-reveal "typing" animation --------------------------------------
-// Run the staggered left-to-right reveal once per rendered content string.
-// Gated on `appReady` so restored conversations on page load don't replay
-// the animation for every historical message.
-// watch(
-//   () => props.content,
-//   () => {
-//     if (!appReady.value) return
-//     nextTick(() => {
-//       if (!rootEl.value) return
-//       rootEl.value
-//         .querySelectorAll<HTMLElement>('.markdown-content')
-//         .forEach((el) => applyWordReveal(el))
-//     })
-//   },
-//   { flush: 'post' },
-// )
+// Runs once on mount when `animate` is true (new message) and immediately
+// signals the parent via `animated` so the parent can clear the flag before
+// any future re-mount (e.g. translation) would replay the animation.
+// Using onMounted (not a watcher) guarantees it fires exactly once per
+// component lifetime with no nextTick needed — the DOM is fully ready.
+onMounted(() => {
+  if (!props.animate || !rootEl.value) return
+  rootEl.value
+    .querySelectorAll<HTMLElement>('.markdown-content')
+    .forEach((el) => applyWordReveal(el))
+  emit('animated')
+})
 
 // --- Inline image load → scroll parents ----------------------------------
 // `load` doesn't bubble, but it does fire during the capture phase. One
@@ -267,7 +268,7 @@ onBeforeUnmount(() => {
 .word-reveal {
   display: inline-block;
   opacity: 0;
-  animation: word-reveal-in 220ms ease-out forwards;
+  animation: word-reveal-in 25ms ease-out forwards;
   will-change: opacity, transform;
 }
 @keyframes word-reveal-in {

@@ -71,6 +71,7 @@ from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402
 
 from shared.image_gen import (  # noqa: E402
+    aspect_to_image_size,
     build_image_announcement,
     build_image_prompt,
     generate_image,
@@ -595,13 +596,14 @@ async def generate_image_endpoint(req: GenerateImageRequest):
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
             source_indices = prompt_result.get("source_indices", [])
-            logger.info(f"🎨 Image prompt: {image_prompt[:150]}... (sources: {source_indices})")
+            image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
+            logger.info(f"🎨 Image prompt: {image_prompt[:150]}... (sources: {source_indices}, size: {image_size})")
 
             # Generate and save the image
             result = generate_image(
                 prompt=image_prompt,
                 storage_dir=req.storage_dir,
-                size=req.size,
+                size=image_size,
                 quality=req.quality,
                 reference_image_paths=reference_image_paths,
             )
@@ -675,6 +677,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         image_prompt = prompt_result["prompt"]
         image_title = prompt_result["title"]
         source_indices = prompt_result.get("source_indices", [])
+        image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
 
         _emit("prompt_ready", {"image_prompt": image_prompt, "image_title": image_title})
 
@@ -682,7 +685,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         for item in generate_image_streaming(
             prompt=image_prompt,
             storage_dir=req.storage_dir,
-            size=req.size if req.size in ("640x640", "1024x1024", "1024x1536", "1536x1024") else "640x640",
+            size=image_size,
             quality=req.quality,
             reference_image_paths=reference_image_paths,
         ):

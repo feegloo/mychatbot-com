@@ -256,6 +256,15 @@ export async function createConversation() {
   }
 }
 
+export async function addUrlToConversation(conversationId: string, url: string) {
+  const response = await api.post(
+    `/conversations/${conversationId}/add-url`,
+    { url },
+    { headers: authHeaders(conversationId) },
+  )
+  return response.data as { conversationId: string; status: string }
+}
+
 export async function uploadMoreFiles(conversationId: string, files: File[]) {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
