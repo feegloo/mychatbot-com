@@ -11,15 +11,15 @@ const emit = defineEmits<{ select: [label: string] }>()
 </script>
 
 <template>
-  <VDropdown v-if="actions.length" :distance="6">
+  <VDropdown v-if="actions.length" theme="more-questions" :distance="6">
     <button class="more-btn" type="button">More… ({{ actions.length }})</button>
-    <template #popper>
-      <div class="more-menu">
+    <template #popper="{ hide }">
+      <div class="more-actions-popper">
         <MessageContentAction
           v-for="label in actions"
           :key="label"
           :label="label"
-          @select="emit('select', $event)"
+          @select="(value) => { emit('select', value); hide() }"
         />
       </div>
     </template>
@@ -39,12 +39,5 @@ const emit = defineEmits<{ select: [label: string] }>()
 }
 .more-btn:hover {
   background: rgba(255, 255, 255, 0.06);
-}
-.more-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  min-width: 180px;
 }
 </style>

@@ -47,8 +47,8 @@ export function parseMessageContent(content: string): ContentToken[] {
  *   - overflow actions (grouped under MessageContentActionMore)
  *
  * Visibility rules per user spec:
- *   - welcome message: 3 prompts + 2 actions visible, rest -> overflow
- *   - regular assistant: 2 prompts + 1 action visible, rest -> overflow
+ *   - welcome message: 3 prompts + 5 actions visible, rest -> overflow
+ *   - regular assistant: 2 prompts + 3 actions visible, rest -> overflow
  */
 export interface SplitTokens {
   text: Array<{ type: 'text'; value: string }>
@@ -59,7 +59,7 @@ export interface SplitTokens {
 
 export function splitTokens(tokens: ContentToken[], isWelcome: boolean): SplitTokens {
   const promptLimit = isWelcome ? 3 : 2
-  const actionLimit = isWelcome ? 2 : 1
+  const actionLimit = isWelcome ? 5 : 3
   const text: Array<{ type: 'text'; value: string }> = []
   const prompts: string[] = []
   const actions: string[] = []

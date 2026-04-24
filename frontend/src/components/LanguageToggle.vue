@@ -47,10 +47,14 @@ import { getStoredTranslation, setStoredTranslation } from '../utils/translation
 // - [action:Label] markers are also opaque during translation, but their Label
 //   text is translated separately and re-inserted so suggested-action buttons
 //   appear in the target language.
+// - [poem] / [/poem] tags are opaque so the literal word "poem" isn't
+//   translated (e.g. to "wiersz" in Polish), while the verse content between
+//   the tags is still translated naturally as part of the surrounding text.
 // - ![alt](url) markdown images are opaque: the URL must never be translated
 //   (e.g. Pollinations URLs embed the prompt in the path, and translating it
 //   produces an unreachable src and a broken-image icon after the v-html swap).
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
+const POEM_TAG_RE = /\[\/?poem\]/gi
 // Markdown image: `![alt](url "optional title")`. Uses negated character
 // classes so the match stops at the first closing `]` / `)` rather than
 // spanning over adjacent links on the same line.
@@ -58,7 +62,7 @@ const IMAGE_MD_RE = /!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)/g
 
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action' | 'image'
+  kind: 'source' | 'action' | 'image' | 'poem'
   original: string
   label?: string // only for action markers; gets replaced with translated label
 }
@@ -76,6 +80,11 @@ function extractMarkers(texts: string[]): {
     let result = text.replace(IMAGE_MD_RE, (match) => {
       const placeholder = `__MRK${i}_${counter++}__`
       found.push({ placeholder, kind: 'image', original: match })
+      return placeholder
+    })
+    result = result.replace(POEM_TAG_RE, (match) => {
+      const placeholder = `__MRK${i}_${counter++}__`
+      found.push({ placeholder, kind: 'poem', original: match })
       return placeholder
     })
     result = result.replace(MARKER_RE, (match, kind: string, inner: string) => {

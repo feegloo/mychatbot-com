@@ -141,6 +141,7 @@ function prev(event: Event) {
   text-align: center;
   max-width: 100%;
   overflow: hidden;
+  margin: 8px 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -37,10 +37,8 @@ const emit = defineEmits<{ open: [] }>()
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.2);
 }
 .preview-pdf-obj {
   width: 100%;

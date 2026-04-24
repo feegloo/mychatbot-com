@@ -392,27 +392,17 @@ function getFileUrl(file: FileInfo) {
   return getStorageUrl(effectiveStorageId.value, file.originalName)
 }
 
-function isImageFile(file: FileInfo) {
-  return file.mimeType?.startsWith('image/') ?? false
-}
-function isPdfFile(file: FileInfo) {
-  return file.mimeType === 'application/pdf'
-}
-
+// Clicking a welcome-message file preview opens the same modal used by
+// citation buttons. PDFs land on page 1; non-PDFs fall back to the text
+// preview layout with no highlighted quote.
 function openFilePreview(file: FileInfo) {
-  if (isImageFile(file)) {
-    openImageModal(getFileUrl(file), file.originalName)
-  } else if (isPdfFile(file)) {
-    previewCitation.value = {
-      fileName: file.originalName,
-      chunkId: '',
-      text: '',
-      page: 1,
-    }
-    previewOpen.value = true
-  } else {
-    window.open(getFileUrl(file), '_blank')
+  previewCitation.value = {
+    fileName: file.originalName,
+    chunkId: '',
+    text: '',
+    page: 1,
   }
+  previewOpen.value = true
 }
 </script>
 

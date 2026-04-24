@@ -122,7 +122,7 @@ def _call_images_edit(
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "1024x1024",
+    size: str = "750x750",
     quality: str = "low",
     model: str = "gpt-image-1",
     reference_image_paths: list[str] | None = None,
@@ -137,7 +137,7 @@ def generate_image(
     Args:
         prompt: The text description for image generation.
         storage_dir: Directory to save the generated image.
-        size: Image size (1024x1024, 1024x1792, 1792x1024).
+        size: Image size (750x750, 1024x1024, 1024x1792, 1792x1024).
         quality: Image quality (auto, high, low).
         model: OpenAI image model to use.
         reference_image_paths: Optional list of local paths to reference images.
@@ -321,7 +321,7 @@ def build_image_announcement(
         model=settings.openai_chat_model,
         operation="image_announcement",
         max_completion_tokens=120,
-        temperature=0.8,
+        temperature=0.7,
     )
     # Normalise whitespace / stray quotes the model sometimes adds.
     cleaned = (text or "").strip().strip('"').strip("'").strip()
@@ -429,7 +429,7 @@ def build_image_prompt(
         model=settings.openai_chat_model,
         operation="image_prompt_build",
         max_completion_tokens=500,
-        temperature=1.0,
+        temperature=0.9,
     )
     try:
         import json

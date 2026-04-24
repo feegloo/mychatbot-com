@@ -16,11 +16,12 @@ const emit = defineEmits<{ select: [label: string] }>()
 
 <style scoped>
 .message-content-action {
+  text-align: left;
   display: inline-block;
   padding: 6px 12px;
   border: 1px solid rgba(147, 51, 234, 0.4);
   border-radius: 999px;
-  background: rgba(147, 51, 234, 0.12);
+  background: transparent;
   color: inherit;
   font-size: 13px;
   cursor: pointer;

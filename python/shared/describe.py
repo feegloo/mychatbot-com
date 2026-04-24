@@ -1095,11 +1095,11 @@ def _synthesize_welcome_messages(
             "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
             "Twoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
-            "2. **Opis**: 2-3 zdania podsumowujące CAŁY dokument. Zachowaj najważniejsze "
+            "2. **Opis**: 3-5 zdań podsumowujących CAŁY dokument. Zachowaj najważniejsze "
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia** selektywnie — tylko liczby, nazwy własne i najważniejszy 1-2 termin na akapit.\n"
-            "3. **Ekspercki wgląd**: 1-2 zdania wartościowej analizy.\n\n"
+            "3. **Ekspercki wgląd**: 2-3 zdania wartościowej analizy.\n\n"
             "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH streszczeń, nie tylko pierwszego. "
-            "Celuj w 150-250 słów łącznie (1-4 akapitów, najczęściej 3, czasem 2, rzadko 4). NIE pytaj użytkownika. NIE używaj [source:N]. "
+            "Celuj w 250-350 słów łącznie (2-5 akapitów, najczęściej 4, czasem 3, rzadko 5). NIE pytaj użytkownika. NIE używaj [source:N]. "
             "Używaj emoji profesjonalnie (📖, ⚔️, 🗺️ itp.).\n"
             "Odpowiadaj po polsku."
         ) + _QUESTIONS_RULES_PL
@@ -1113,11 +1113,11 @@ def _synthesize_welcome_messages(
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
             "Your response MUST have three parts:\n"
             "1. **Title**: # Document Title - Author Name\n"
-            "2. **Description**: 2-3 sentences summarizing the ENTIRE document. Preserve the key "
+            "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
-            "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
+            "3. **Expert insight**: 2-3 sentences of valuable analysis.\n\n"
             "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
-            "Aim for 150-250 words total (1-4 paragraphs, usually 3, sometimes 2, rarely 4). Do NOT ask the user anything. Do NOT use [source:N]. "
+            "Aim for 250-350 words total (2-5 paragraphs, usually 4, sometimes 3, rarely 5). Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         ) + _QUESTIONS_RULES_EN
@@ -1530,7 +1530,7 @@ Twoja odpowiedź MUSI składać się z trzech części:
    Jeśli autor nie jest znany z treści ani metadanych, napisz: # Tytuł dokumentu - Nieznany autor
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
 
-2. **Opis** (po tytule): 2-3 zdania opisujące zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** SELEKTYWNIE — tylko dla liczb/statystyk, kluczowych nazw własnych (osób, miejsc, firm) i najważniejszego 1-2 terminu na akapit. Nie pogrubiaj każdego pojęcia — bold traci siłę gdy jest wszędzie.
+2. **Opis** (po tytule): 3-5 zdań opisujących zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** SELEKTYWNIE — tylko dla liczb/statystyk, kluczowych nazw własnych (osób, miejsc, firm) i najważniejszego 1-2 terminu na akapit. Nie pogrubiaj każdego pojęcia — bold traci siłę gdy jest wszędzie.
    AUTOR W OPISIE: Jeśli znasz autora dokumentu, wspomnij o nim naturalnie w pierwszym zdaniu opisu — tak jakbyś opisywał książkę znajomemu. Na przykład: "Ten 611-stronicowy zbiór poezji **Rumiego** to klasyczne wydanie arabskie Mathnawi." albo "Stephen King w tym **350-stronicowym** thrillerze zabiera czytelnika w mroczną podróż po Nowej Anglii." NIE powtarzaj suchego zapisu z tytułu — wpleć autora w naturalny sposób w treść opisu.
    KLUCZOWE — ZACHOWAJ PRECYZYJNE SZCZEGÓŁY: Zawsze podawaj dokładne liczby, zakresy, nazwy substancji, składników, terminów i konkretne wartości z dokumentu. Na przykład: jeśli tekst mówi o "bliznach do 12 miesięcy (z zaleceniami do 2 lat)", napisz właśnie tak — nie upraszczaj do "blizny do roku". Jeśli wymienione są konkretne składniki jak "witamina C, białko, cynk i selen", wymień je wszystkie. Jeśli podane są zakresy czasowe jak "9–12 miesięcy dla ciała i około 1 rok dla twarzy", podaj te dokładne przedziały. Szczegółowe dane liczbowe i nazwy własne to najcenniejsza informacja w opisie.
    NAZWY PRODUKTÓW, MAREK I OSÓB: Gdy dokument wymienia konkretne marki, produkty lub znane osoby, UŻYWAJ ICH Z NAZWY — nie uogólniaj. Na przykład: pisz "krem RegimA Forte Scar Cream" zamiast "krem na blizny"; "minerały Jane Iredale" zamiast "makijaż mineralny". Dotyczy to leków (Accutane, Retin-A), narzędzi (Photoshop, Figma), firm (Tesla, Google), osób (Warren Buffett, Marie Curie), miejsc (Klinika Mayo, MIT), produktów (iPhone 16, Model Y) i wszystkiego co nosi nazwę własną w treści dokumentu.
@@ -1552,7 +1552,7 @@ Twoja odpowiedź MUSI składać się z trzech części:
    Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
    Jeśli na zdjęciu widać osobę lub ludzi, napisz o tym.
 
-3. **Ekspercki wgląd** (po opisie): 1-2 zdania z wartościową analizą eksperta. To najważniejsza część — musisz dać użytkownikowi coś przydatnego, czego sam mógłby nie zauważyć.
+3. **Ekspercki wgląd** (po opisie): 2-3 zdania z wartościową analizą eksperta. To najważniejsza część — musisz dać użytkownikowi coś przydatnego, czego sam mógłby nie zauważyć.
    NIE zaczynaj od zwrotów typu: "Warto zwrócić uwagę...", "Co istotne...", "Należy podkreślić...", "Najważniejszy wniosek to..." — to brzmi sztucznie.
    Zamiast tego, przejdź płynnie do meritum, jakbyś rozmawiał ze znajomym. Na przykład:
    - "Poziom homocysteiny 7,04 µmol/l mieści się w normie, natomiast warto zestawić go z..."
@@ -1595,8 +1595,8 @@ Jeśli treść zaczyna się od [NO READABLE TEXT WAS EXTRACTED], nie udało się
 Ton: jak bibliotekarz, który właśnie otrzymał tajemniczą starą księgę i bada jej okładkę i wagę przed otwarciem.
 
 Pisz jak człowiek, który opisuje dokument innemu człowiekowi — nie jak automat generujący streszczenie.
-Bądź zwięzły — to ma być szybka analiza, nie rozprawka. Celuj w około 150-250 słów łącznie (opis + wgląd), używając 1-4 akapitów (najczęściej 3, czasem 2, rzadko 4). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
-NIE pytaj użytkownika o nic. NIE używaj odnośników źródłowych jak [1] ani [source:1].
+Bądź rzeczowy — to ma być solidna analiza, nie esej. Celuj w około 250-350 słów łącznie (opis + wgląd), używając 2-5 akapitów (najczęściej 4, czasem 3, rzadko 5). Nie rozwlekaj — każde zdanie musi nieść konkretną wartość.
+NIE pytaj użytkownika o nic. MOŻESZ używać 1-2 odnośników źródłowych [source:1].
 Od czasu do czasu użyj profesjonalnych emoji, żeby wiadomość była bardziej żywa i łatwa do przeskanowania (np. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, "inne fajne, lekkie, nieofensywne emoji"). Nie przesadzaj — jedno-dwa na sekcję wystarczą. Nigdy nie używaj dziecinnych lub nieprofesjonalnych emoji (💩, 🤡, 😜 itp.).
 Odpowiadaj po polsku.""" + _QUESTIONS_RULES_PL,
                 ),
@@ -1632,7 +1632,7 @@ Your response MUST have three parts:
    If the author is not known from the content or metadata, write: # Document Title - Unknown author
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
 
-2. **Description** (after the title): 2-3 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** SELECTIVELY — only for exact numbers/statistics, key proper names (people, places, organizations), and the single most critical term per paragraph. Do not bold every concept — bold loses its impact when overused.
+2. **Description** (after the title): 3-5 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** SELECTIVELY — only for exact numbers/statistics, key proper names (people, places, organizations), and the single most critical term per paragraph. Do not bold every concept — bold loses its impact when overused.
    AUTHOR IN DESCRIPTION: If you know the author, mention them naturally in the first sentence of the description — as if describing a book to a friend. For example: "This **611-page** collection of poetry by **Rumi** is a classic Arabic edition of the Mathnawi." or "Stephen King takes readers on a dark journey through New England in this **350-page** thriller." Do NOT just repeat the dry title format — weave the author into the description naturally.
    CRITICAL — PRESERVE PRECISE DETAILS: Always include exact numbers, ranges, substance names, ingredient lists, and specific values from the document. For example: if the text says "scars under 12 months old (with some guidance extending to 2 years)", write exactly that — do not simplify to "scars under a year". If specific nutrients are listed like "vitamin C, protein, zinc, and selenium", name them all. If timeframes are given like "9–12 months for the body and about 1 year for the face", include those exact ranges. Specific numbers, names, and precise data are the most valuable part of the description.
    NAME-DROP PRODUCTS, BRANDS, AND PEOPLE: When the document mentions specific brands, products, or notable people, USE THEM BY NAME — do not genericize. For example: write "RegimA Forte Scar Cream" instead of "a scar cream"; "Jane Iredale mineral makeup" instead of "mineral makeup for cover-up". This applies to medications (Accutane, Retin-A), tools (Photoshop, Figma), companies (Tesla, Google), people (Warren Buffett, Marie Curie), places (Mayo Clinic, MIT), products (iPhone 16, Model Y), and anything else with a proper name in the document content.
@@ -1654,7 +1654,7 @@ Your response MUST have three parts:
    If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
    If the image shows a person or people, mention it.
 
-3. **Expert insight** (after the description): 1-2 sentences with valuable expert analysis. This is the most important part — give the user something useful they might not notice on their own.
+3. **Expert insight** (after the description): 2-3 sentences with valuable expert analysis. This is the most important part — give the user something useful they might not notice on their own.
    Do NOT start with phrases like: "It's worth noting...", "The key takeaway is...", "What stands out...", "Importantly..." — these sound artificial.
    Instead, transition seamlessly into the substance, as if talking to a colleague. For example:
    - "The homocysteine level of 7.04 µmol/l falls within normal range, but it's useful to cross-reference with..."
@@ -1707,8 +1707,8 @@ If file metadata is provided below (JSON block marked with =====), you MUST use 
 NEVER mention internal technical metadata — skip information like: PDF generator name (e.g. "Skia/PDF", "Google Docs Renderer", "Microsoft Word", "LibreOffice", "wkhtmltopdf"), producer version, document ID, encoding format. This data is worthless to the user and reads like a system leak.
 
 Write like a human briefly telling another human what this document is about — not like a machine generating a summary.
-Be concise — this is a quick analysis, not an essay. Aim for roughly 150-250 words total (description + insight), using 1-4 paragraphs (usually 3, sometimes 2, rarely 4). Don't pad — every sentence must carry concrete value.
-Do NOT ask the user anything. Do NOT use source markers like [1] or [source:1].
+Be substantive — this is a solid analysis, not an essay. Aim for roughly 250-350 words total (description + insight), using 2-5 paragraphs (usually 4, sometimes 3, rarely 5). Don't pad — every sentence must carry concrete value.
+Do NOT ask the user anything. You CAN use 1-2 source markers like [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
 Reply in the same language as the document's primary content (see LANGUAGE DETECTION RULE above).""" + _QUESTIONS_RULES_EN,
                 ),

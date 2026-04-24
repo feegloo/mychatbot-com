@@ -177,6 +177,16 @@ else
   warn "  Bucket ${GCS_BUCKET} already exists, skipping."
 fi
 
+# Apply CORS so the browser can fetch signed URLs directly from storage.googleapis.com
+# (needed for PDF embeds and range requests served via redirect from /api/storage).
+CORS_FILE="${SCRIPT_DIR}/gcs-cors.json"
+if [[ -f "$CORS_FILE" ]]; then
+  gsutil cors set "$CORS_FILE" "gs://${GCS_BUCKET}"
+  info "  Applied CORS config to bucket ${GCS_BUCKET}"
+else
+  warn "  CORS config file not found at ${CORS_FILE}, skipping."
+fi
+
 # ── Step 6: Build Docker image ───────────────────────────────────────────────
 info "Step 6/9: Building Docker image..."
 gcloud auth configure-docker --quiet

@@ -37,7 +37,7 @@
 import { computed } from 'vue'
 import { getStorageUrl } from '../api'
 import { linkify } from '../utils/text'
-const PdfPageViewer = defineAsyncComponent(() => import('./PdfPageViewer.vue'))
+import PdfPageViewer from './PdfPageViewer.vue'
 
 const props = defineProps<{
   visible: boolean

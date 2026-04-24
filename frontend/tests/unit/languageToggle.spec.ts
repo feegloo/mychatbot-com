@@ -557,6 +557,37 @@ describe("LanguageToggle", () => {
       const translated = emitted.get(0)!;
       expect(translated).toContain(imageMd);
     });
+
+    it("preserves [poem] / [/poem] tags verbatim (never translated to 'wiersz' etc.)", async () => {
+      // The literal tag tokens must be opaque so markdown.ts can still
+      // recognise the block and render the styled poem layout after
+      // translation. The verse content between the tags is still translated.
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `PL:${t}`),
+      }));
+
+      const original = "Here is a poem:\n[poem]\nRoses are red\nViolets are blue\n[/poem]\nEnjoy!";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: original }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      const sentTexts = translateTextsMock.mock.calls[0][0] as string[];
+      expect(sentTexts[0]).not.toContain("[poem]");
+      expect(sentTexts[0]).not.toContain("[/poem]");
+
+      const emitted = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const translated = emitted.get(0)!;
+      expect(translated).toContain("[poem]");
+      expect(translated).toContain("[/poem]");
+      expect(translated).not.toContain("[wiersz]");
+    });
   });
 
   // ── Whitespace preservation (prevents layout jump) ──

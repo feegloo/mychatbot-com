@@ -281,7 +281,7 @@ async function loadPdf() {
     }
   } catch (err) {
     if (myToken !== loadToken) return
-    console.error('PDF load failed:', err)
+    console.error('PDF load failed:', err, { url: props.url, page: props.page })
     error.value = 'Could not load PDF'
     loading.value = false
   }
