@@ -74,6 +74,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               :style="{ filter: `blur(${partialBlurPx}px)` }"
               class="image-morph"
               alt="Generating..."
+              @load="onMorphFrameLoad"
             />
           </div>
         </Transition>
@@ -87,6 +88,27 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             {{ msg.imageDetailedPrompt }}
           </div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+
+      <div v-else-if="msg.role === 'assistant' && imageSwapActive && !isWelcome" class="image-swap-wrap">
+        <div
+          class="image-swap-shell"
+          :class="{ 'is-loaded': imageSwapFinalLoaded }"
+          :style="imageSwapStyle"
+        >
+          <img
+            :src="imageSwapFromSrc"
+            class="image-swap-image image-swap-old"
+            alt="Generated preview"
+          />
+          <img
+            :src="imageSwapToSrc"
+            class="image-swap-image image-swap-new"
+            alt="Generated image"
+            @load="onSwapFinalLoad"
+            @error="finishImageSwap"
+          />
+        </div>
       </div>
 
       <!-- Welcome message with files: 2-col on desktop, stacked on mobile -->
@@ -253,7 +275,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
  * parent pages (ConversationPage, SharedMessagePage, HomePage) work
  * without modification.
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
@@ -316,6 +338,143 @@ const partialBlurPx = computed(() => {
   if (idx <= 0) return 14
   if (idx === 1) return 6
   return 2
+})
+
+const MORPH_SWAP_HOLD_MS = 260
+const MORPH_SWAP_FAILSAFE_MS = 1800
+const lastMorphSrc = ref('')
+const lastMorphSize = ref<{ width: number; height: number } | null>(null)
+const pendingMorphSwap = ref(false)
+const imageSwapActive = ref(false)
+const imageSwapFinalLoaded = ref(false)
+const imageSwapFromSrc = ref('')
+const imageSwapToSrc = ref('')
+let morphSwapHoldTimer: ReturnType<typeof setTimeout> | null = null
+let morphSwapFailsafeTimer: ReturnType<typeof setTimeout> | null = null
+
+const finalGeneratedImageUrl = computed(() => {
+  const content = props.msg.content || ''
+  const match = content.match(/!\[[^\]]*\]\(([^)]+)\)/)
+  if (!match) return ''
+  const target = match[1].trim()
+  if (target.startsWith('<')) {
+    const end = target.indexOf('>')
+    return end > 1 ? target.slice(1, end) : ''
+  }
+  return target.split(/\s+/)[0] || ''
+})
+
+const imageSwapStyle = computed(() => {
+  const size = lastMorphSize.value
+  if (!size) return undefined
+  return {
+    width: `${size.width}px`,
+    height: `${size.height}px`,
+  }
+})
+
+function clearMorphSwapTimers() {
+  if (morphSwapHoldTimer) {
+    clearTimeout(morphSwapHoldTimer)
+    morphSwapHoldTimer = null
+  }
+  if (morphSwapFailsafeTimer) {
+    clearTimeout(morphSwapFailsafeTimer)
+    morphSwapFailsafeTimer = null
+  }
+}
+
+function resetMorphSnapshot() {
+  lastMorphSrc.value = ''
+  lastMorphSize.value = null
+}
+
+function finishImageSwap() {
+  clearMorphSwapTimers()
+  imageSwapActive.value = false
+  imageSwapFinalLoaded.value = false
+  imageSwapFromSrc.value = ''
+  imageSwapToSrc.value = ''
+}
+
+function startImageSwap(fromSrc: string, toSrc: string) {
+  clearMorphSwapTimers()
+  imageSwapFromSrc.value = fromSrc
+  imageSwapToSrc.value = toSrc
+  imageSwapFinalLoaded.value = false
+  imageSwapActive.value = true
+  morphSwapFailsafeTimer = setTimeout(finishImageSwap, MORPH_SWAP_FAILSAFE_MS)
+}
+
+function onMorphFrameLoad(event: Event) {
+  const el = event.target as HTMLImageElement
+  if (el.currentSrc) {
+    lastMorphSrc.value = el.currentSrc
+  }
+  const rect = el.getBoundingClientRect()
+  if (rect.width > 0 && rect.height > 0) {
+    lastMorphSize.value = {
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    }
+  }
+}
+
+function onSwapFinalLoad() {
+  imageSwapFinalLoaded.value = true
+  if (morphSwapHoldTimer) {
+    clearTimeout(morphSwapHoldTimer)
+  }
+  morphSwapHoldTimer = setTimeout(finishImageSwap, MORPH_SWAP_HOLD_MS)
+}
+
+function maybeStartMorphSwap() {
+  if (!pendingMorphSwap.value || props.msg.generatingImage) return
+  if (!lastMorphSrc.value || !finalGeneratedImageUrl.value) return
+  pendingMorphSwap.value = false
+  startImageSwap(lastMorphSrc.value, finalGeneratedImageUrl.value)
+}
+
+watch(
+  () => props.msg.imagePartialDataUrl,
+  (src) => {
+    if (!src) return
+    lastMorphSrc.value = src
+  },
+)
+
+watch(
+  () => props.msg.generatingImage,
+  (isGenerating, wasGenerating) => {
+    if (isGenerating) {
+      pendingMorphSwap.value = false
+      finishImageSwap()
+      // Start each generation with a clean snapshot so a previous message
+      // cannot accidentally drive a swap when this run has no partial frame.
+      resetMorphSnapshot()
+      return
+    }
+    if (wasGenerating && lastMorphSrc.value) {
+      pendingMorphSwap.value = true
+      void nextTick(() => {
+        maybeStartMorphSwap()
+      })
+      return
+    }
+
+    // No partial image was ever observed for this generation.
+    // Fall through to normal final-image rendering with no swap stage.
+    pendingMorphSwap.value = false
+    finishImageSwap()
+  },
+)
+
+watch(finalGeneratedImageUrl, () => {
+  maybeStartMorphSwap()
+})
+
+onBeforeUnmount(() => {
+  clearMorphSwapTimers()
 })
 
 const senderLabel = computed(() => {
@@ -718,6 +877,10 @@ function openFilePreview(file: FileInfo) {
   line-height: 1.3;
 }
 
+.welcome-message :deep(.markdown-content) {
+  margin: 0;
+}
+
 /* Image generating label. */
 .image-generating-label {
   margin: 6px 0 8px;
@@ -773,6 +936,45 @@ function openFilePreview(file: FileInfo) {
   opacity: 0;
 }
 .image-morph-fade-enter-to {
+  opacity: 1;
+}
+
+.image-swap-wrap {
+  margin: 6px 0 8px;
+}
+
+.image-swap-shell {
+  position: relative;
+  width: min(70vh, 420px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.image-swap-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 260ms ease;
+}
+
+.image-swap-old {
+  opacity: 1;
+}
+
+.image-swap-new {
+  opacity: 0;
+}
+
+.image-swap-shell.is-loaded .image-swap-old {
+  opacity: 0;
+}
+
+.image-swap-shell.is-loaded .image-swap-new {
   opacity: 1;
 }
 

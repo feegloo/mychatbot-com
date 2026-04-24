@@ -648,28 +648,6 @@ function scrollToBottom(smooth = false, toEnd = false) {
   }
 }
 
-function scrollToLatestExchange(smooth = false) {
-  if (!chatContainer.value) return
-  const container = chatContainer.value
-  const messageEls = container.querySelectorAll('.message')
-  const lastMsg = messageEls[messageEls.length - 1] as HTMLElement | undefined
-  const prevMsg = messageEls[messageEls.length - 2] as HTMLElement | undefined
-
-  // Desired position for a fresh assistant reply:
-  // keep the user's prompt visible and show as much assistant content as possible.
-  if (lastMsg?.classList.contains('assistant') && prevMsg?.classList.contains('user')) {
-    const targetTop = prevMsg.offsetTop - container.offsetTop
-    const maxScroll = container.scrollHeight - container.clientHeight
-    container.scrollTo({
-      top: Math.min(targetTop, maxScroll),
-      behavior: smooth ? 'smooth' : 'instant',
-    })
-    return
-  }
-
-  scrollToBottom(smooth)
-}
-
 function onMessageImageRevealed(index: number, success: boolean) {
   if (!success) return
   // Only auto-follow images for newly-arrived messages.
@@ -791,10 +769,10 @@ async function ask() {
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
-    scrollToLatestExchange(true)
+    scrollToBottom(true)
     await loadConversation()
     await nextTick()
-    scrollToLatestExchange(true)
+    setTimeout(() => scrollToBottom(true), 0)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
@@ -878,7 +856,7 @@ watch(
   async (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
       await nextTick()
-      setTimeout(() => scrollToLatestExchange(true), 0)
+      setTimeout(() => scrollToBottom(), 0)
     }
     prevMessageCount = newLen
   },

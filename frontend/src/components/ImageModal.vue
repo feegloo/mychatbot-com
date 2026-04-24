@@ -43,14 +43,14 @@ defineEmits<{
 .image-modal-close {
   position: absolute;
   top: 0px;
-  right: -9px;
+  right: -16px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   border: none;
   background: #1e293b;
   color: #e2e8f0;
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
   display: flex;
