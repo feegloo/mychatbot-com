@@ -121,7 +121,7 @@ export async function* generateImageStream(options: {
       collection_name: options.collectionName || '',
       conversation_id: options.conversationId || '',
       chat_history: options.chatHistory || [],
-      size: options.size || '1024x1024',
+      size: options.size || '640x640',
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
