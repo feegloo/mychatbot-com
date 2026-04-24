@@ -686,8 +686,9 @@ function openFilePreview(file: FileInfo) {
    inline by the partial frame index so each new frame sharpens. */
 .image-morph-wrap {
   margin: 6px 0 8px;
-  max-width: min(512px, 100%);
+  max-width: min(70vh, 420px);
   border-radius: 12px;
+  float: right;
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
   animation: image-morph-pulse 2.2s ease-in-out infinite;

@@ -160,19 +160,19 @@ watch(
 // Run the staggered left-to-right reveal once per rendered content string.
 // Gated on `appReady` so restored conversations on page load don't replay
 // the animation for every historical message.
-watch(
-  () => props.content,
-  () => {
-    if (!appReady.value) return
-    nextTick(() => {
-      if (!rootEl.value) return
-      rootEl.value
-        .querySelectorAll<HTMLElement>('.markdown-content')
-        .forEach((el) => applyWordReveal(el))
-    })
-  },
-  { flush: 'post' },
-)
+// watch(
+//   () => props.content,
+//   () => {
+//     if (!appReady.value) return
+//     nextTick(() => {
+//       if (!rootEl.value) return
+//       rootEl.value
+//         .querySelectorAll<HTMLElement>('.markdown-content')
+//         .forEach((el) => applyWordReveal(el))
+//     })
+//   },
+//   { flush: 'post' },
+// )
 
 // --- Inline image load → scroll parents ----------------------------------
 // `load` doesn't bubble, but it does fire during the capture phase. One

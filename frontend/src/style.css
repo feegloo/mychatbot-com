@@ -1156,10 +1156,13 @@ li:has(.checklist-box) {
   display: block;
   width: auto;
   height: auto;
-  max-width: none;
-  max-height: min(70vh, 420px);
+  max-width: min(70vh, 420px);
   margin: 0 auto;
   transition: box-shadow 300ms ease, transform 300ms ease;
+}
+
+.image-generating-label {
+  max-width: min(70vh, 420px);
 }
 
 .markdown-content .markdown-image-scroll img:hover {
