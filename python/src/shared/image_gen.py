@@ -36,7 +36,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 #     "9:16": "576x1024",
 # }
 _DEFAULT_ASPECT = "1:1"
-_FIXED_IMAGE_SIZE = "1024x1024"
+_FIXED_IMAGE_SIZE = "768x768"
 
 
 def aspect_to_image_size(aspect: str) -> str:
@@ -147,7 +147,7 @@ def _call_images_edit(
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "1024x1024",
+    size: str = "768x768",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
@@ -263,7 +263,7 @@ def generate_image(
 def generate_image_streaming(
     prompt: str,
     storage_dir: str,
-    size: str = "1024x1024",
+    size: str = "768x768",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,

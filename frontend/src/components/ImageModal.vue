@@ -26,7 +26,7 @@ defineEmits<{
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -36,14 +36,14 @@ defineEmits<{
 .image-modal-content {
   position: relative;
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: 100vh;
   cursor: default;
 }
 
 .image-modal-close {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  top: 0px;
+  right: -9px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -57,7 +57,6 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   z-index: 1;
-  transition: background 0.15s;
 }
 
 @media (hover: hover) {
@@ -71,8 +70,7 @@ defineEmits<{
 
 .image-modal-img {
   max-width: 90vw;
-  max-height: 85vh;
-  border-radius: 8px;
+  max-height: 100vh;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   object-fit: contain;
 }

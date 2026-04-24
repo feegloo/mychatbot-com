@@ -151,7 +151,7 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
      - prawa użytkownika w tej konkretnej sytuacji
      - organ/urząd/firma do kontaktu lub odwołania
    Przykładowe pytania: "Jaki jest termin na odpowiedź?", "Co dokładnie muszę złożyć i gdzie?", "Czy mogę odwołać się od tej decyzji?", "Jakie konsekwencje grożą za brak działania?", "Co muszę zrobić, by zarejestrować się jako bezrobotny?", "Jakie dokumenty potwierdzają ubezpieczenie zdrowotne?"
-   Akcje z emoji: "Lista kroków do rozwiązania problemu ✅", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów 📋", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
+   Akcje z emoji: "Lista kroków do rozwiązania problemu 🚩", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów ✅", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
 
 5. EBOOK / MINIBOOK / PODRĘCZNIK / PRZEWODNIK O KONKRETNYM TEMACIE (np. minibook o granicach, ebook o żywieniu, podręcznik psychologii, przewodnik po ogrodnictwie — książka, która uczy czegoś o danym temacie):
    → OBOWIĄZKOWO jako 3. akcja (zaraz po "Wygeneruj obraz…" i po akcji "Napisz inspirowany rozdział/wskazówki…") DODAJ: "Stwórz quiz z najważniejszych faktów 🧠".
@@ -475,7 +475,7 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
      - user's rights in this specific situation
      - office/authority/company to contact or appeal to
    Example natural questions: "What is the deadline to respond?", "What exactly do I need to submit and where?", "Can I appeal this decision?", "What happens if I don't respond?", "What do I need to do to register as unemployed?", "What documents prove health insurance coverage?", "Who issued this demand and what authority do they have?", "What are my options if I can't pay?"
-   Action prompts with emoji: "Step-by-step action plan ✅", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents 📋", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
+   Action prompts with emoji: "Step-by-step action plan 🚩", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents ✅", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
 
 5. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
    → MANDATORY: as the 3rd action (right after "Generate image…" and the "Write inspired chapter/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".

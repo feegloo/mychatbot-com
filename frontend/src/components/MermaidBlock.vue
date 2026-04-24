@@ -225,6 +225,30 @@ const PAN_STEP = 40
 const MIN_SCALE = 0.2
 const MAX_SCALE = 5
 
+/**
+ * Scale the rendered SVG so its natural width fills the container on first render.
+ * Reads dimensions from the SVG viewBox/width attribute and the always-visible
+ * outer .mermaid-block element (which is never hidden by v-show).
+ */
+function fitToWidth() {
+  if (!diagramEl.value) return
+  const svg = diagramEl.value.querySelector('svg')
+  if (!svg) return
+
+  const block = diagramEl.value.closest('.mermaid-block') as HTMLElement | null
+  const containerWidth = block ? block.clientWidth : 0
+  if (containerWidth <= 0) return
+
+  const vb = svg.viewBox?.baseVal
+  const svgNaturalWidth =
+    vb && vb.width > 0 ? vb.width : parseFloat(svg.getAttribute('width') ?? '0')
+  if (svgNaturalWidth <= 0) return
+
+  scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
+  panX.value = 0
+  panY.value = 0
+}
+
 function zoomIn() {
   scale.value = Math.min(MAX_SCALE, +(scale.value + ZOOM_STEP).toFixed(2))
 }
@@ -353,6 +377,8 @@ async function renderDiagram() {
     const { svg } = await m.render(id, props.code)
     diagramEl.value.innerHTML = svg
     renderedSvg.value = svg
+    // Auto-zoom to fit width before revealing
+    fitToWidth()
     // Wait one frame so the browser paints the SVG before revealing
     requestAnimationFrame(() => {
       ready.value = true

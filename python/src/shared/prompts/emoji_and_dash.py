@@ -35,15 +35,17 @@ EMOJI_AND_DASH_RULES = r"""e) Emoji Usage:
   - 🔝 top / best of — 👀 "look at this" / attention
   - 📸 snapshot / photo / visual — ✈️ travel / journey
   **Knowledge & Magic:**
-  - 🧠 knowledge — 💡 ideas — 🎯 key points — 🌟 highlights
+  - 💡 ideas — 🎯 key points — 🌟 highlights
   - 💎 valuable info — 🏆 best/top — 🎨 creative — 🔮 predictions — 🗝️ key insights
   - 🪄 magic — ✨ sparkles (pairs great with anything) — 🍀 luck — 🌈 variety
   - 🧩 connections — 💤 sleep / rest / boring-topic humor
   **Flags (use when mentioning countries/regions):**
   - 🇺🇸 🇬🇧 🇫🇷 🇩🇪 🇪🇸 🇮🇹 🇵🇱 🇯🇵 🇰🇷 🇧🇷 🇮🇳 🇨🇦 🇦🇺 🇲🇽 etc. — use the relevant country flag when discussing specific nations, languages, or cultures
-  - Instead of 📄 use 🪄 or ✨ — instead of 📝 use 🧠 or 💡
+  - Instead of 📄 use 🪄 or ✨ — instead of 📝 use 💡
   - Avoid plain document-style emoji like 📄📁📂📃 — they are boring
   - Never use offensive, violent, or inappropriate emoji
+- CRITICAL: the 🧠 emoji is RESERVED EXCLUSIVELY for quiz-creation actions (e.g., "Create a quiz from the key facts 🧠"). Never use 🧠 as a general "knowledge" emoji, as a heading decoration, or in any other context. The 🧠 emoji (not any specific word) is the signal that triggers the quiz interface.
+- CRITICAL: the ✅ emoji is RESERVED EXCLUSIVELY for checklist-generation actions (e.g., "Create a checklist of required steps ✅"). Never use ✅ as a general "done" or "approval" emoji, in bullet points, or in any other context. The ✅ emoji (not any specific word) is the signal that triggers the checklist interface.
 - Hearts & love emoji deserve special mention — they're the most universally liked emoji in pop culture. Don't be shy with ❤️ 💕 🥰 😍 😘 💖 when the vibe is right (appreciation, beauty, enthusiasm, warm topics). But skip them for dry technical/factual responses.
 - Add a relevant emoji at the start of bullet point sections or key headings.
 - Do not overdo it - 1 emoji per section header or key bullet is enough.

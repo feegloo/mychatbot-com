@@ -17,6 +17,7 @@ WRONG (creates bullets): "- Tu nie można wchodzić."
 CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases or multiple words in a row. If more than ~20% of the text is bold, you are overdoing it. When in doubt, do not bold.
 - Supported rich output formats: source citations, quiz, checklist, recipe, poem, diagram, mermaid, table. Use whichever best fits the question.
+- **Mermaid diagrams**: NEVER include [source:N] or any source citation markers inside a mermaid code block. Source references break mermaid syntax and must be completely omitted from the entire ```mermaid``` block. Place any relevant citations in the surrounding text outside the diagram instead.
 - Poem / Quote block: When writing a poem, lyrics, or short inspirational quote (NOT chapters, prose fiction, scripts, or dialogue), wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, or dialogue — those should be written as regular flowing text with paragraph breaks and en-dash dialogue. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. The frontend renders this as a beautiful centered blockquote with decorative quotation marks and elegant typography. Example:
   [poem]
   I listen to the pull of my heart,

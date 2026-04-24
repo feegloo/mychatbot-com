@@ -27,7 +27,7 @@ export async function generateImage(options: {
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
       // size: options.size || '1024x1024',
-      size: '1024x1024',
+      size: '768x768',
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
@@ -127,7 +127,7 @@ export async function* generateImageStream(options: {
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
       // size: options.size || '1024x1024',
-      size: '1024x1024',
+      size: '768x768',
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
