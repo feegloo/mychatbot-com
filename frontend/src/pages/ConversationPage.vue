@@ -127,7 +127,7 @@
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
-            @image-revealed="(success) => success && scrollToBottom(true, true)"
+            @image-revealed="(success) => onMessageImageRevealed(index, success)"
             @message-animated="onMessageAnimated(msg.id)"
           />
           <div
@@ -648,6 +648,14 @@ function scrollToBottom(smooth = false, toEnd = false) {
   }
 }
 
+function onMessageImageRevealed(index: number, success: boolean) {
+  if (!success) return
+  // Only auto-follow images for newly-arrived messages.
+  // Historical messages can emit image load events during initial render.
+  if (index < initialMessageCount.value) return
+  scrollToBottom(true, true)
+}
+
 async function ask() {
   if (!question.value.trim()) return
 
@@ -753,6 +761,7 @@ async function ask() {
         ])
     reactiveMsg.generatingImage = false
     reactiveMsg.imagePartialDataUrl = undefined
+    reactiveMsg.imageDetailedPrompt = undefined
     reactiveMsg.content = response.answer
     reactiveMsg.citations = response.citations
     if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId
@@ -760,10 +769,11 @@ async function ask() {
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
-    scrollToBottom(true)
+    scrollToBottom(true, true)
     await loadConversation()
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
+    reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
       reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
     } else {
@@ -844,7 +854,7 @@ watch(
   async (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
       await nextTick()
-      setTimeout(() => scrollToBottom(true), 0)
+      setTimeout(() => scrollToBottom(true, true), 0)
     }
     prevMessageCount = newLen
   },

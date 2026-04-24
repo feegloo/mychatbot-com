@@ -299,6 +299,7 @@ async function submitQuestion() {
       : await Promise.race([askQuestion(convId, currentQuestion), timeout])
     reactiveMsg.generatingImage = false
     reactiveMsg.imagePartialDataUrl = undefined
+    reactiveMsg.imageDetailedPrompt = undefined
     reactiveMsg.content = response.answer
     reactiveMsg.citations = response.citations
     if (response.assistantMessageId) reactiveMsg.id = response.assistantMessageId
@@ -308,6 +309,7 @@ async function submitQuestion() {
     scrollToBottom(true)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
+    reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
       reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
     } else {

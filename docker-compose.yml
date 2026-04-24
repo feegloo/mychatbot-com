@@ -24,7 +24,7 @@ services:
   # Jaeger — distributed tracing UI + OTLP collector
   # Open http://localhost:16686 to view traces, timelines, and service dependencies
   jaeger:
-    image: jaegertracing/jaeger:2
+    image: jaegertracing/jaeger:latest
     container_name: chatrag-jaeger
     ports:
       - "16686:16686"   # Jaeger UI

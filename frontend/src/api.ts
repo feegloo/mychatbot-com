@@ -112,6 +112,8 @@ export type ChatMessage = {
   /** One-sentence teaser shown under the typing indicator while the image
    *  is being generated (populated by a quick LLM call). */
   imageAnnouncement?: string
+  /** Detailed image prompt prepared by LLM and emitted by `prompt_ready`. */
+  imageDetailedPrompt?: string
   /** Latest partial (progressive) image frame as a data URL, shown blurred
    *  while generation is in progress and cross-fades into the final image. */
   imagePartialDataUrl?: string
@@ -385,6 +387,7 @@ export async function generateImageStream(
   callbacks: ImageGenStreamCallbacks,
 ): Promise<void> {
   const eventSeparator = /\r?\n\r?\n/
+  let eventCount = 0
   const dispatchEvent = (rawEvent: string) => {
     let eventName = 'message'
     let dataLine = ''
@@ -392,19 +395,26 @@ export async function generateImageStream(
       if (line.startsWith('event: ')) eventName = line.slice(7).trim()
       else if (line.startsWith('data: ')) dataLine += line.slice(6)
     }
-    if (!dataLine) return
+    if (!dataLine) {
+      console.debug('🎬 Frontend: Skipping empty event', { rawEvent })
+      return
+    }
 
     let payload: unknown
     try {
       payload = JSON.parse(dataLine)
-    } catch {
+    } catch (e) {
+      console.error('🎬 Frontend: Failed to parse JSON', { dataLine, error: e })
       return
     }
+    eventCount++
+    console.log(`🎬 Frontend: Dispatching event #${eventCount} (type=${eventName})`, { payload })
     if (eventName === 'user_message') {
       callbacks.onUserMessage?.((payload as { userMessageId: string }).userMessageId)
     } else if (eventName === 'prompt_ready') {
       callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
     } else if (eventName === 'partial') {
+      console.log(`🎬 Frontend: Calling onPartial callback for index=${(payload as any)?.index}`)
       callbacks.onPartial?.(payload as { b64: string; index: number })
     } else if (eventName === 'complete') {
       callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])

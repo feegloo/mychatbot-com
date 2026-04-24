@@ -41,6 +41,7 @@ export async function runImageGenStream(options: {
   const timeoutMs = options.timeoutMs ?? 120_000
 
   reactiveMsg.generatingImage = true
+  reactiveMsg.imageDetailedPrompt = undefined
 
   announceImage(conversationId, question)
     .then(({ announcement }) => {
@@ -59,11 +60,15 @@ export async function runImageGenStream(options: {
 
     generateImageStream(conversationId, question, userId, {
       onPromptReady: (data) => {
+        if (data.image_prompt) {
+          reactiveMsg.imageDetailedPrompt = data.image_prompt
+        }
         if (data.image_title && !reactiveMsg.imageAnnouncement) {
           reactiveMsg.imageAnnouncement = `Generating: ${data.image_title}`
         }
       },
       onPartial: ({ b64, index }) => {
+        console.log(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
         reactiveMsg.imagePartialDataUrl = `data:image/png;base64,${b64}`
         reactiveMsg.imagePartialIndex = index
       },

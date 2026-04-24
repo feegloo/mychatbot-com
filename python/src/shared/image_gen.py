@@ -346,6 +346,7 @@ def generate_image_streaming(
 
     with tracer.start_as_current_span("image.generate.stream", attributes=span_attrs):
         if reference_paths:
+            logger.info(f"🎬 Streaming with {len(reference_paths)} reference image(s)")
             try:
                 with contextlib.ExitStack() as stack:
                     handles = [stack.enter_context(open(p, "rb")) for p in reference_paths]
@@ -361,6 +362,7 @@ def generate_image_streaming(
                         partial_images=partial_images,
                     )
                     for item in _yield_stream(events, prompt):
+                        logger.debug(f"📸 Streaming edit event: {item.get('type')}")
                         yield item
                 return
             except Exception as exc:

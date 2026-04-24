@@ -83,6 +83,9 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             <span v-else>🎨 Generating image, please wait...</span>
           </TextFade>
         </div>
+          <div v-if="msg.generatingImage && msg.imageDetailedPrompt" class="image-prompt-detail">
+            {{ msg.imageDetailedPrompt }}
+          </div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
 
@@ -158,7 +161,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             />
           </TextFade>
         </div>
-        <div v-if="!isWelcome && msg.generatingImage" class="typing-dots">
+        <div v-if="showTypingDots" class="typing-dots">
           <span></span><span></span><span></span>
         </div>
       </template>
@@ -335,6 +338,13 @@ const senderLabel = computed(() => {
 const assistantFadeTrigger = computed(() =>
   props.msg.id ? props.msg.content : 'streaming',
 )
+
+const showTypingDots = computed(() => {
+  if (props.msg.role !== 'assistant' || props.isWelcome) return false
+  if (props.msg.generatingImage) return true
+  return !(props.msg.content ?? '').trim()
+})
+
 // --- Word-reveal staggering for user message ------------------------------
 // User text is plain (no markdown) so we split up-front in the template
 // instead of walking the DOM like we do for assistant content. Delay is
@@ -713,6 +723,14 @@ function openFilePreview(file: FileInfo) {
   margin: 6px 0 8px;
   font-size: 13px;
   color: #c4b5fd;
+}
+
+.image-prompt-detail {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: pre-wrap;
 }
 
 /* Progressive (morphing) partial image while OpenAI streams the diffusion

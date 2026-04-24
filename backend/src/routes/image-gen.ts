@@ -395,6 +395,7 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
 
   try {
     let finalResult: ImageGenResult | null = null
+    let partialCount = 0
     for await (const evt of generateImageStream({
       question,
       storageDir,
@@ -407,12 +408,20 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
       signal: upstreamAbort.signal,
     })) {
       if (evt.event === 'prompt_ready') {
+        logger.info('🎬 Backend forwarding prompt_ready event')
         if (!send('prompt_ready', evt.data as unknown as Record<string, unknown>)) return
       } else if (evt.event === 'partial') {
-        if (!send('partial', evt.data as unknown as Record<string, unknown>)) return
+        partialCount++
+        logger.info(`🎬 Backend forwarding partial #${partialCount} (index=${(evt.data as any)?.index})`)
+        if (!send('partial', evt.data as unknown as Record<string, unknown>)) {
+          logger.warn('⚠️ Failed to send partial event - stream may be closed')
+          return
+        }
       } else if (evt.event === 'complete') {
+        logger.info('🎬 Backend received completion event')
         finalResult = evt.data
       } else if (evt.event === 'error') {
+        logger.error(`❌ Backend received error event: ${(evt.data as any)?.error}`)
         send('error', evt.data as unknown as Record<string, unknown>)
         cleanup()
         if (!isStreamClosed(res)) res.end()

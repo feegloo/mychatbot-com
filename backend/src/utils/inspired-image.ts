@@ -15,7 +15,7 @@
 // still requiring the "inspired" keyword to avoid false positives on
 // ordinary Q&A traffic.
 const INSPIRED_CREATIVE_RE =
-  /\binspired\b[^\n]{0,80}?\b(chapter|poem|poet|story|stories|tale|fairy|song|lyric|essay|monologue|scene|parable|short\s+story)\b|\b(chapter|poem|poet|story|tale|fairy|song|lyric|essay|monologue|scene|parable)s?\b[^\n]{0,80}?\binspired\b/i
+  /\binspired\b[^\n]{0,80}?\b(chapter|large\s+chapter|poem|poet|story|stories|tale|fairy|song|lyric|essay|monologue|scene|parable|short\s+story)\b|\b(chapter|large\s+chapter|poem|poet|story|tale|fairy|song|lyric|essay|monologue|scene|parable)s?\b[^\n]{0,80}?\binspired\b/i
 
 // Only auto-generate when the answer is clearly a "large chunk of text".
 // Creative chapters/poems usually blow well past this threshold; short

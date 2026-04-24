@@ -1003,6 +1003,17 @@ def _index_documents_inline(
     # fall back to the separate suggest_questions_from_chunks call.
     if not suggested_questions and chunk_texts:
         logger.info("💡 Generating suggested prompts via fallback (separate call)...")
+        # Extract page_count from file_metadata for large-chapter detection
+        page_count_for_suggestions = None
+        if file_metadata:
+            for meta in file_metadata.values():
+                if isinstance(meta, dict) and meta.get("page_count"):
+                    try:
+                        page_count_for_suggestions = int(meta["page_count"])
+                        break
+                    except (TypeError, ValueError):
+                        pass
+        
         with trace_step(conversation_id, "*", "generate_suggested_questions"):
             suggested_questions = suggest_questions_from_chunks(
                 chunk_texts,
@@ -1011,6 +1022,7 @@ def _index_documents_inline(
                 file_names=file_name_list,
                 file_types=file_types,
                 welcome_message=welcome_message or "",
+                page_count=page_count_for_suggestions,
             )
     else:
         logger.info("💡 Suggested questions generated inline with welcome message")

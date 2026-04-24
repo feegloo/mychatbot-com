@@ -686,6 +686,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         _emit("prompt_ready", {"image_prompt": image_prompt, "image_title": image_title})
 
         final: dict | None = None
+        partial_count = 0
         for item in generate_image_streaming(
             prompt=image_prompt,
             storage_dir=req.storage_dir,
@@ -694,8 +695,11 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
             reference_image_paths=reference_image_paths,
         ):
             if item["type"] == "partial":
+                partial_count += 1
+                logger.info(f"✅ Endpoint emitting partial #{partial_count} (index={item['index']})")
                 _emit("partial", {"b64": item["b64"], "index": item["index"]})
             elif item["type"] == "completed":
+                logger.info("✅ Endpoint emitting completion event")
                 final = item
 
         if not final:

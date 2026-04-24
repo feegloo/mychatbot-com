@@ -1,5 +1,5 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
-import { synthesizeSpeech, synthesizeSpeechWithCaptions } from '../api'
+import { synthesizeSpeech, synthesizeSpeechWithCaptions, type WordCaption } from '../api'
 import { buildSynthesisChunks, cleanTextForTTS, splitIntoSentences } from './useAutoRead'
 import {
   type MatchedCaption,

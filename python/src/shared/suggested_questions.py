@@ -41,6 +41,7 @@ def suggest_questions_from_chunks(
     file_names: list[str] = None,
     file_types: dict[str, str] = None,
     welcome_message: str = "",
+    page_count: int | None = None,
 ) -> list[str]:
     from .rag import get_llm
 
@@ -731,6 +732,7 @@ Document description: {description}""",
                 language,
                 welcome_message,
                 description,
+                page_count,
             )
     except (json.JSONDecodeError, AttributeError):
         logger.warning(
@@ -746,6 +748,7 @@ Document description: {description}""",
         language,
         welcome_message,
         description,
+        page_count,
     )
 
 
@@ -998,6 +1001,7 @@ def _append_contextual_prompts(
     language: str | None,
     welcome_message: str = "",
     description: str = "",
+    page_count: int | None = None,
 ) -> list[str]:
     """Build final list: up to 3 normal questions + up to 7 action prompts = max 10.
 
@@ -1005,6 +1009,9 @@ def _append_contextual_prompts(
     over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.
     'create recipe' is added when the welcome message mentions ingredients.
+    
+    For fiction books with 300+ pages, occasionally suggest 'write inspired large chapter'
+    instead of or alongside 'write inspired chapter'.
     """
     # Split LLM output: first 3 are questions, next prompts are actions
     normal_questions = questions[:MAX_NORMAL_QUESTIONS]
@@ -1088,12 +1095,23 @@ def _append_contextual_prompts(
     is_language_learning = bool(_LANGUAGE_LEARNING_PATTERN.search(combined_text))
     is_educational_ebook = bool(_EDUCATIONAL_EBOOK_PATTERN.search(combined_text))
 
+    # Threshold for "large" book: 300+ pages (e.g., J.K. Rowling novels)
+    _IS_LARGE_BOOK = page_count and page_count >= 300
+
     if is_fiction and author_name:
-        pinned_creative_prompt = (
-            f"Napisz inspirowany rozdział w stylu {author_name} ✏️"
-            if language == "pl"
-            else f"Write inspired chapter like {author_name} ✏️"
-        )
+        if _IS_LARGE_BOOK:
+            # For large books, occasionally suggest "large chapter" to match the epic scope
+            pinned_creative_prompt = (
+                f"Napisz inspirowany duży rozdział w stylu {author_name} ✏️"
+                if language == "pl"
+                else f"Write inspired large chapter like {author_name} ✏️"
+            )
+        else:
+            pinned_creative_prompt = (
+                f"Napisz inspirowany rozdział w stylu {author_name} ✏️"
+                if language == "pl"
+                else f"Write inspired chapter like {author_name} ✏️"
+            )
     elif is_poetry_quotes and author_name:
         pinned_creative_prompt = (
             f"Napisz inspirowany wiersz w stylu {author_name} 📜"

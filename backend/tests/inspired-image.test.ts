@@ -10,6 +10,7 @@ import {
 describe('isInspiredCreativeQuestion', () => {
   it('matches the action-button phrasings produced by the suggestion engine', () => {
     expect(isInspiredCreativeQuestion('Write inspired chapter like Stephen King ✏️')).toBe(true)
+    expect(isInspiredCreativeQuestion('Write inspired large chapter like J. K. Rowling ✏️')).toBe(true)
     expect(isInspiredCreativeQuestion('Write inspired poem like Paulo Coelho 📜')).toBe(true)
     expect(
       isInspiredCreativeQuestion('Draft a fairy tale inspired by the story of Hermione'),
