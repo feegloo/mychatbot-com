@@ -67,12 +67,6 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
       <!-- Generating: image-gen announcement + progressive partial image -->
       <div v-if="msg.role === 'assistant' && !msg.content && !msg.id && !isWelcome">
-        <div v-if="msg.generatingImage" class="image-generating-label">
-          <TextFade :trigger="msg.imageAnnouncement || 'generic'">
-            <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
-            <span v-else>🎨 Generating image, please wait...</span>
-          </TextFade>
-        </div>
         <Transition name="image-morph-fade">
           <div v-if="msg.generatingImage && msg.imagePartialDataUrl" class="image-morph-wrap">
             <img
@@ -83,6 +77,12 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             />
           </div>
         </Transition>
+        <div v-if="msg.generatingImage" class="image-generating-label">
+          <TextFade :trigger="msg.imageAnnouncement || 'generic'">
+            <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
+            <span v-else>🎨 Generating image, please wait...</span>
+          </TextFade>
+        </div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
 

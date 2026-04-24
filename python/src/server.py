@@ -682,7 +682,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         for item in generate_image_streaming(
             prompt=image_prompt,
             storage_dir=req.storage_dir,
-            size=req.size if req.size in ("1024x1024", "1024x1536", "1536x1024") else "1024x1024",
+            size=req.size if req.size in ("640x640", "1024x1024", "1024x1536", "1536x1024") else "640x640",
             quality=req.quality,
             reference_image_paths=reference_image_paths,
         ):
