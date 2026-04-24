@@ -1,6 +1,17 @@
 import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { execSync } from "node:child_process";
+
+function getCommitHash(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["pipe", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "unknown";
+  }
+}
 import { cp, stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
@@ -114,6 +125,9 @@ export default defineConfig({
       },
     }),
   ],
+  define: {
+    __COMMIT_HASH__: JSON.stringify(getCommitHash()),
+  },
   build: {
     sourcemap: "hidden",
     rollupOptions: {

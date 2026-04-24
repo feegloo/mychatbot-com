@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import FloatingVue from 'floating-vue'
+
+console.log(__COMMIT_HASH__)
 import 'floating-vue/dist/style.css'
 import * as Sentry from '@sentry/vue'
 import App from './App.vue'
