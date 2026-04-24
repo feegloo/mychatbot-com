@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { appReady } from '../composables/appReady'
+import { newContent } from '../composables/newContent';
 
 /**
  * Wraps a block of content (typically assistant text) with a fade-out /
@@ -22,7 +22,7 @@ defineProps<{
 </script>
 
 <template>
-  <Transition name="fade-text" mode="out-in" :appear="appReady">
+  <Transition name="fade-text" mode="out-in" :appear="newContent">
     <div :key="trigger" class="fade-text">
       <slot />
     </div>

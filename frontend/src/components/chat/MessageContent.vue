@@ -136,7 +136,7 @@ function setupTooltips() {
       btn,
       {
         content: truncate(text, MAX_TOOLTIP_LENGTH),
-        delay: { show: 500, hide: 0 },
+        delay: { show: 750, hide: 0 },
         themes: ['tooltip'],
       },
       false,
@@ -171,7 +171,7 @@ watch(
         .forEach((el) => applyWordReveal(el))
     })
   },
-  { immediate: true, flush: 'post' },
+  { flush: 'post' },
 )
 
 // --- Inline image load → scroll parents ----------------------------------

@@ -203,6 +203,7 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useConversationEvents, stepLabel } from '../composables/useConversationEvents'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import {newContent} from '../composables/newContent'
 
 const props = defineProps<{ conversationId: string }>()
 
@@ -677,6 +678,7 @@ function submitQuestion() {
   if (questionInput.value) {
     questionInput.value.style.height = 'auto'
   }
+  newContent.value = true
 }
 
 function autoResize(e: Event) {
