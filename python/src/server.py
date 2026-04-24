@@ -648,14 +648,11 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         loop.call_soon_threadsafe(event_queue.put_nowait, {"event": event, "data": data})
 
     def _run() -> dict:
+        # Keep the streaming path on pure text-to-image unless the caller
+        # explicitly selected reference images. Auto-attaching uploaded PDFs
+        # pushes generation into the edit/reference branch, which often
+        # suppresses progressive partial frames and breaks the morph UI.
         reference_image_paths = req.reference_image_paths
-        if not reference_image_paths:
-            reference_image_paths = _discover_uploaded_reference_files(req.storage_dir)
-            if reference_image_paths:
-                logger.info(
-                    f"📎 Auto-attaching {len(reference_image_paths)} uploaded PDF(s) "
-                    "as image-gen references (stream)"
-                )
 
         rag_chunks: list[dict] = []
         if req.collection_name and req.conversation_id:

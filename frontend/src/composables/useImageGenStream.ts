@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../api'
 import { announceImage, generateImageStream } from '../api'
+import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 
 export type ImageGenStreamResponse = {
@@ -52,6 +53,22 @@ export async function runImageGenStream(options: {
     .catch(() => {})
 
   const userId = useUserId ? getUserId() || undefined : undefined
+  const minMorphMs = 700
+  let firstPartialAt: number | null = null
+
+  const settleAfterMinMorph = (resolve: (value: ImageGenStreamResponse) => void, data: ImageGenStreamResponse) => {
+    if (firstPartialAt === null) {
+      resolve(data)
+      return
+    }
+    const elapsed = Date.now() - firstPartialAt
+    const waitMs = Math.max(0, minMorphMs - elapsed)
+    if (waitMs === 0) {
+      resolve(data)
+      return
+    }
+    setTimeout(() => resolve(data), waitMs)
+  }
 
   return new Promise<ImageGenStreamResponse>((resolve, reject) => {
     const timeoutHandle = setTimeout(() => {
@@ -69,12 +86,23 @@ export async function runImageGenStream(options: {
       },
       onPartial: ({ b64, index }) => {
         console.log(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
+        if (firstPartialAt === null) firstPartialAt = Date.now()
         reactiveMsg.imagePartialDataUrl = `data:image/png;base64,${b64}`
         reactiveMsg.imagePartialIndex = index
       },
       onComplete: (data) => {
         clearTimeout(timeoutHandle)
-        resolve(data)
+
+        // Some providers/routes emit only a final image and no partials.
+        // Show that final image briefly as a synthetic frame so users still
+        // see a morph stage before the final markdown answer appears.
+        if (firstPartialAt === null && data.generatedImage?.fileName) {
+          reactiveMsg.imagePartialDataUrl = getStorageUrl(conversationId, data.generatedImage.fileName)
+          reactiveMsg.imagePartialIndex = 0
+          firstPartialAt = Date.now()
+        }
+
+        settleAfterMinMorph(resolve, data)
       },
       onError: (message) => {
         clearTimeout(timeoutHandle)

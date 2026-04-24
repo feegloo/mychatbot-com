@@ -233,10 +233,9 @@ _META_EXCLUDE_KEYS = {
 }
 
 # ── Token budget for the describe prompt ─────────────────────────────
-# gpt-5.4 has a 1M context window. We set a generous content budget to allow
-# large PDFs to be parsed in a single call without aggressive truncation.
-# ~1M chars ≈ 250K tokens — well within the 1M context limit of gpt-5.4.
-_DESCRIBE_MAX_CONTENT_CHARS = 1_000_000
+# gpt-5.4-nano has a ~400K context window. Keep the char-budget conservative
+# so the large-document path engages earlier before token budgets get tight.
+_DESCRIBE_MAX_CONTENT_CHARS = 600_000
 
 # Placeholder used when no readable text was extracted but metadata is available.
 # The LLM is instructed to use the metadata block to describe the document.
@@ -256,8 +255,8 @@ _TWO_PASS_THRESHOLD = 200_000
 # Threshold for triggering multi-part split+synthesize strategy.
 # Documents above this size get split into N parts, each generating a
 # detailed condensed summary, then synthesized into one welcome message.
-# ~800K chars ≈ 200K tokens. Well above single-call capacity.
-_SPLIT_THRESHOLD = 800_000
+# ~600K chars can approach token limits on non-Latin text; split earlier.
+_SPLIT_THRESHOLD = 600_000
 # Max chars of text to send per partial welcome message call.
 # ~150K chars ≈ 37K tokens. Each part produces a detailed "condensed summary"
 # of its section (~10 pages worth of detail).
@@ -271,8 +270,9 @@ _SPLIT_INTER_CALL_DELAY = 2.0
 _SYNTHESIS_RAW_TEXT_CHARS = 400_000
 # Whole-book path: if the book fits inside this estimated token budget,
 # send the full raw text to the welcome-message prompt instead of truncating.
-# gpt-5.4 has a 1M context window — raise threshold to 400K tokens.
-_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 400_000
+# For a 400K-context model, keep whole-book mode below the hard request cap
+# to leave room for system/developer instructions.
+_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 300_000
 # Keep the extracted raw text in memory up to 500 MB as requested.
 _WHOLE_BOOK_MEMORY_LIMIT_BYTES = 500 * 1024 * 1024
 # Large-book compaction path packs adjacent chapters/page ranges into 4-8 LLM calls.
@@ -428,8 +428,7 @@ def _estimate_word_count(text: str) -> int:
 
 
 # ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
-# gpt-5.4 has a 1M context window. We cap at 400K tokens per request to
-# stay well within limits while parsing much larger PDFs in one shot.
+# gpt-5.4-nano has a ~400K context window. Hard-cap requests at 400K tokens.
 _MAX_REQUEST_TOKENS = 400_000
 # Safe budget for the *content* portion of a single LLM call.  The system
 # prompts in this module are large (~5-15K tokens of rules), so we reserve
@@ -1300,7 +1299,7 @@ def describe_documents(
         logger.warning("⚠️ Book compaction produced no summaries, falling back to split/truncated strategy")
 
     # ── Strategy 3: Split+Synthesize for very large documents ────────
-    # For documents > _SPLIT_THRESHOLD chars (~800K), split the full text
+    # For documents > _SPLIT_THRESHOLD chars (~600K), split the full text
     # into N parts, generate a detailed condensed summary for each (sequentially
     # to respect TPM limits), then synthesize all summaries + raw beginning
     # into one final welcome message.

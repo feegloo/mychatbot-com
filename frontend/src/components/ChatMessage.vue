@@ -726,6 +726,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 .image-prompt-detail {
+  display:none;
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.4;
@@ -821,7 +822,6 @@ function openFilePreview(file: FileInfo) {
 :deep(.text-color-purple) { color: #c4b5fd; }
 :deep(.text-color-orange) { color: #fdba74; }
 :deep(.text-color-gold) { color: #e8b84b; }
-:deep(.text-color-teal) { color: #2dd4bf; }
 :deep(.text-color-pink) { color: #f9a8d4; }
 :deep(.text-color-gray) { color: #94a3b8; }
 </style>

@@ -150,8 +150,8 @@ export function renderMarkdown(content: string): string {
   // Replace ++underline++ markers with <u> tags
   const withUnderline = withPoems.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
   // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
-  // Palette matches the 10 colors defined in the AI system prompt:
-  // green, red, yellow, blue, purple, orange, gold, teal, pink, gray
+  // Palette matches the 9 colors defined in the AI system prompt:
+  // green, red, yellow, blue, purple, orange, gold, pink, gray
   const allowedColors = new Set([
     'green',
     'red',
@@ -160,7 +160,6 @@ export function renderMarkdown(content: string): string {
     'purple',
     'orange',
     'gold',
-    'teal',
     'pink',
     'gray',
   ])

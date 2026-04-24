@@ -1,5 +1,6 @@
 import Router from '@koa/router'
 import path from 'node:path'
+import fs from 'node:fs/promises'
 import { z } from 'zod'
 import {
   getConversation,
@@ -47,6 +48,13 @@ type ImageGenResult = {
     section?: string | null
     page?: number | null
   }>
+}
+
+const imageStreamTelemetry = {
+  totalStreams: 0,
+  streamsWithRealPartial: 0,
+  streamsWithSyntheticPartial: 0,
+  totalForwardedPartials: 0,
 }
 
 /**
@@ -393,9 +401,46 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
 
   if (!send('user_message', { userMessageId: userMsgId })) return
 
+  imageStreamTelemetry.totalStreams += 1
+
+  const logImageStreamTelemetry = (params: {
+    partialCount: number
+    syntheticPartialUsed: boolean
+    status: 'completed' | 'failed'
+    reason?: string
+  }) => {
+    if (params.partialCount > 0) {
+      imageStreamTelemetry.streamsWithRealPartial += 1
+      imageStreamTelemetry.totalForwardedPartials += params.partialCount
+    }
+    if (params.syntheticPartialUsed) {
+      imageStreamTelemetry.streamsWithSyntheticPartial += 1
+    }
+
+    logger.info(
+      {
+        event: 'image_stream_partial_telemetry',
+        status: params.status,
+        reason: params.reason,
+        conversationId,
+        partial_count: params.partialCount,
+        synthetic_partial_used: params.syntheticPartialUsed,
+        counters: {
+          total_streams: imageStreamTelemetry.totalStreams,
+          streams_with_real_partial: imageStreamTelemetry.streamsWithRealPartial,
+          streams_with_synthetic_partial: imageStreamTelemetry.streamsWithSyntheticPartial,
+          total_forwarded_partials: imageStreamTelemetry.totalForwardedPartials,
+        },
+      },
+      'image stream partial telemetry',
+    )
+  }
+
+  let partialCount = 0
+  let syntheticPartialUsed = false
+
   try {
     let finalResult: ImageGenResult | null = null
-    let partialCount = 0
     for await (const evt of generateImageStream({
       question,
       storageDir,
@@ -430,10 +475,31 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
     }
 
     if (!finalResult) {
+      logImageStreamTelemetry({
+        partialCount,
+        syntheticPartialUsed,
+        status: 'failed',
+        reason: 'no_final_result',
+      })
       send('error', { error: 'Image generation produced no result' })
       cleanup()
       if (!isStreamClosed(res)) res.end()
       return
+    }
+
+    // Fallback for providers/modes that return only the final image frame:
+    // synthesize a single "partial" event from the generated file so the
+    // frontend can still show the morph stage instead of jumping straight to final.
+    if (partialCount === 0) {
+      try {
+        const generatedPath = path.join(storageDir, finalResult.file_name)
+        const imageBytes = await fs.readFile(generatedPath)
+        const b64 = imageBytes.toString('base64')
+        logger.info('🎬 Backend emitting synthetic partial from final image fallback')
+        syntheticPartialUsed = send('partial', { b64, index: 0 })
+      } catch (err) {
+        logger.warn({ err }, 'failed to emit synthetic partial fallback')
+      }
     }
 
     const finalized = await finalizeGeneratedImage({
@@ -452,10 +518,21 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
       assistantMessageId: finalized.assistantMessageId,
       generatedImage: finalized.generatedImage,
     })
+    logImageStreamTelemetry({
+      partialCount,
+      syntheticPartialUsed,
+      status: 'completed',
+    })
     cleanup()
     if (!isStreamClosed(res)) res.end()
   } catch (err) {
     if (upstreamAbort.signal.aborted) return
+    logImageStreamTelemetry({
+      partialCount,
+      syntheticPartialUsed,
+      status: 'failed',
+      reason: err instanceof Error ? err.message : String(err),
+    })
     logger.error({ err, conversationId }, 'generate-image-stream failed')
     send('error', { error: err instanceof Error ? err.message : String(err) })
     cleanup()
