@@ -677,7 +677,7 @@ a {
   justify-content: center;
   flex-shrink: 0;
   transition: background 0.15s;
-  padding: 4px 8px;
+  padding: 5px 5px;
 }
 
 @media (hover: hover) {
@@ -1149,7 +1149,7 @@ li:has(.checklist-box) {
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  box-shadow: 0 0 10px #50b4ff17, 0 0 20px #5078ff1f;
+  box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.15);
 }
 
 .markdown-content .markdown-image-scroll img {

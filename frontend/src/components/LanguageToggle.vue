@@ -689,7 +689,7 @@ defineExpose({ detectedLang, isTranslated, currentLang, availableLangs })
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   cursor: pointer;
   font-size: 18px;
   line-height: 1;

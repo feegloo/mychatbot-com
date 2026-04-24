@@ -179,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
+import { computed, onMounted, onUnmounted, onActivated, onDeactivated, ref, watch, nextTick } from 'vue'
 import { AxiosError } from 'axios'
 import {
   askQuestion,
@@ -461,7 +461,20 @@ watch(
   { immediate: true },
 )
 
+let isLoadingConversation = false
+
+// Thin wrapper that prevents concurrent calls. If the network throws, the
+// error propagates to the caller so onActivated can gracefully fall back to
+// the cached state, while onMounted / SSE callbacks still surface the error.
 async function loadConversation() {
+  if (isLoadingConversation) return
+  isLoadingConversation = true
+  return doLoadConversation().finally(() => {
+    isLoadingConversation = false
+  })
+}
+
+async function doLoadConversation() {
   const response = await getConversation(conversationId)
   status.value = response
   const existingRenderKeysById = buildRenderKeyIndex(messages.value)
@@ -809,7 +822,7 @@ watch(
   async (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
       await nextTick()
-      setTimeout(() => scrollToBottom(), 0)
+      setTimeout(() => scrollToBottom(true), 0)
     }
     prevMessageCount = newLen
   },
@@ -854,5 +867,38 @@ onUnmounted(() => {
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
   cleanupAutoRead()
+})
+
+// KeepAlive lifecycle hooks.
+// onActivated fires on first mount AND on every navigation back to a cached
+// page. onDeactivated fires when navigating away from a cached page.
+// We skip the first activation because onMounted already did the initial
+// load + SSE connect. On subsequent activations we reload fresh from the
+// server (falling back to the cached state on network errors) and reconnect
+// the SSE stream that was closed during deactivation.
+let hasActivated = false
+
+onActivated(async () => {
+  if (!hasActivated) {
+    hasActivated = true
+    return
+  }
+  try {
+    await loadConversation()
+  } catch {
+    // Network error – keep the cached state visible rather than crashing
+  }
+  connectSSE()
+})
+
+onDeactivated(() => {
+  // Stop the SSE stream while the page is cached but inactive so we don't
+  // accumulate open connections for every visited conversation.
+  disconnectSSE()
+  saveScrollPosition()
+  if (scrollSaveTimer) {
+    clearTimeout(scrollSaveTimer)
+    scrollSaveTimer = undefined
+  }
 })
 </script>

@@ -339,7 +339,7 @@ const assistantFadeTrigger = computed(() =>
 // User text is plain (no markdown) so we split up-front in the template
 // instead of walking the DOM like we do for assistant content. Delay is
 // clamped so pasting a wall of text still finishes inside ~2 s.
-const USER_REVEAL_MAX_MS = 650
+const USER_REVEAL_MAX_MS = 500
 type UserWordToken = { word: string; ws?: undefined; delay: number } | { ws: string; word?: undefined; delay?: undefined }
 const userWordTokens = computed<UserWordToken[]>(() => {
   if (props.msg.role !== 'user') return []
@@ -639,8 +639,8 @@ function openFilePreview(file: FileInfo) {
 .message-content-wrap :deep(.markdown-content) > *:not(:has(img)),
 .user-text {
   transition:
-    opacity 200ms ease,
-    filter 200ms ease;
+    opacity 150ms ease,
+    filter 150ms ease;
 }
 .message-content-wrap.is-translating :deep(.markdown-content) > *:not(:has(img)),
 .user-text.is-translating {
@@ -725,7 +725,7 @@ function openFilePreview(file: FileInfo) {
   border-radius: 12px;
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2.2s ease-in-out infinite;
+  animation: image-morph-pulse 2s ease-in-out infinite;
 }
 .image-morph {
   display: block;
@@ -737,10 +737,10 @@ function openFilePreview(file: FileInfo) {
 }
 @keyframes image-morph-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.25);
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.35);
   }
   50% {
-    box-shadow: 0 0 24px 2px rgba(167, 139, 250, 0.35);
+    box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.35);
   }
 }
 

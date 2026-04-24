@@ -23,9 +23,9 @@
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
-      <router-view v-slot="{ Component }" :key="$route.fullPath">
-        <KeepAlive :include="['ConversationPage']" :max="10">
-          <component :is="Component" />
+      <router-view v-slot="{ Component }">
+        <KeepAlive :include="['ConversationPage']" :max="5">
+          <component :is="Component" :key="$route.fullPath" />
         </KeepAlive>
       </router-view>
     </main>

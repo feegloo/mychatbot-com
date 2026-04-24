@@ -34,7 +34,7 @@ const SKIP_TAGS = new Set([
  * Safe to call multiple times on the same element — we mark the root with
  * `data-word-reveal` and bail out on subsequent calls.
  */
-export function applyWordReveal(root: HTMLElement, maxDurationMs = 500): void {
+export function applyWordReveal(root: HTMLElement, maxDurationMs = 1000): void {
   if (!root || root.getAttribute(APPLIED_ATTR) === '1') return
   root.setAttribute(APPLIED_ATTR, '1')
 
