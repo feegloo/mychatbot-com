@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import math
+from pathlib import Path
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -26,11 +27,121 @@ from .rag import get_llm
 logger = logging.getLogger(__name__)
 
 _PAGE_HEADER_RE = re.compile(r"^#\s*Page\s+(\d+)\s*$", re.MULTILINE)
+_IDENTITY_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_FILENAME_NAME_PART_RE = re.compile(r"^[A-Z][A-Za-zÀ-ÿ'’.-]+$")
+_FILENAME_AUTHOR_STOPWORDS = {
+    "the",
+    "a",
+    "an",
+    "guide",
+    "ultimate",
+    "manual",
+    "report",
+    "book",
+    "notes",
+    "lesson",
+    "chapter",
+    "part",
+    "scar",
+    "scars",
+    "treatment",
+    "treatments",
+}
 
 
 class DescribeResult(TypedDict):
     welcome_message: str
     suggested_questions: list[str]
+
+
+def _tokenize_identity_text(text: str) -> set[str]:
+    return {token for token in _IDENTITY_TOKEN_RE.findall(text.lower()) if len(token) >= 2}
+
+
+def _looks_like_filename_name_part(part: str) -> bool:
+    return bool(_FILENAME_NAME_PART_RE.match(part))
+
+
+def _extract_filename_author_hint(cleaned_name: str, reference_texts: list[str]) -> str | None:
+    stem = Path(cleaned_name).stem
+    parts = [part for part in re.split(r"[-_]+", stem) if part]
+    if len(parts) < 3:
+        return None
+
+    reference_tokens: set[str] = set()
+    for text in reference_texts:
+        if text:
+            reference_tokens.update(_tokenize_identity_text(text))
+    if not reference_tokens:
+        return None
+
+    for index, part in enumerate(parts):
+        normalized = re.sub(r"[^A-Za-z0-9]+", "", part).lower()
+        if not normalized or normalized in _FILENAME_AUTHOR_STOPWORDS:
+            continue
+        if normalized in reference_tokens:
+            prefix = parts[:index]
+            if 1 <= len(prefix) <= 3 and all(_looks_like_filename_name_part(chunk) for chunk in prefix):
+                return "-".join(prefix)
+            break
+    return None
+
+
+def _build_filename_identity_section(
+    extracted: list[dict],
+    images: list[dict],
+    file_metadata: dict[str, dict] | None,
+) -> str:
+    reference_samples = {
+        item.get("file_name", ""): (item.get("text") or "")[:1500]
+        for item in [*extracted, *images]
+        if item.get("file_name")
+    }
+
+    ordered_names = list(dict.fromkeys([*reference_samples.keys(), *((file_metadata or {}).keys())]))
+    identity_parts: list[str] = []
+
+    for original_name in ordered_names:
+        cleaned_name = clean_file_name(original_name)
+        meta = file_metadata.get(original_name, {}) if file_metadata else {}
+        reference_texts = [
+            str(meta.get("title") or ""),
+            str(meta.get("subject") or ""),
+            reference_samples.get(original_name, ""),
+        ]
+        filename_author = _extract_filename_author_hint(cleaned_name, reference_texts)
+        metadata_author = ""
+        if isinstance(meta, dict):
+            metadata_author = str(meta.get("author") or meta.get("artist") or "").strip()
+
+        identity_payload: dict[str, object] = {
+            "uploaded_filename": original_name,
+            "cleaned_filename": cleaned_name,
+        }
+        if filename_author:
+            identity_payload["preferred_author_from_filename"] = filename_author
+        if metadata_author:
+            identity_payload["embedded_metadata_author"] = metadata_author
+        if filename_author and metadata_author and filename_author != metadata_author:
+            identity_payload["author_conflict"] = True
+            identity_payload["resolution"] = (
+                "Prefer the filename-derived author in the heading and mention the mismatch in the welcome message."
+            )
+
+        if len(identity_payload) > 2:
+            identity_parts.append(
+                f"[{original_name}]\n{json.dumps(identity_payload, ensure_ascii=False)}"
+            )
+
+    if not identity_parts:
+        return ""
+
+    return (
+        "\n\n=====\n"
+        "Filename identity hints (uploaded filename takes priority when it conflicts with embedded author metadata):\n"
+        + "\n\n".join(identity_parts)
+        + "\n====="
+    )
 
 
 def _fallback_from_metadata(
@@ -1076,6 +1187,10 @@ def describe_documents(
         metadata_section = (
             f"\n\n=====\nFile metadata (from EXIF / PDF info):\n{metadata_block}\n====="
         )
+
+    filename_identity_section = _build_filename_identity_section(extracted, images, file_metadata)
+    if filename_identity_section:
+        metadata_section += filename_identity_section
 
     # Build a supplemental identification block with normally-excluded fields
     # (file size, creation date).  Appended only when there is no text to read,

@@ -110,10 +110,12 @@ export async function* generateImageStream(options: {
   size?: string
   quality?: ImageQuality
   referenceImagePaths?: string[]
+  signal?: AbortSignal
 }): AsyncGenerator<ImageStreamEvent, void, void> {
   const response = await fetch(`${config.pythonServerUrl}/generate-image-stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    signal: options.signal,
     body: JSON.stringify({
       question: options.question,
       storage_dir: options.storageDir,

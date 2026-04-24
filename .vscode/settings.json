@@ -1,3 +1,11 @@
 {
-  "chat.agent.maxRequests": 500
+  "chat.agent.maxRequests": 500,
+  "chat.mcp.serverSampling": {
+    "chatrag-app/.vscode/mcp.json: sentry": {
+      "allowedModels": [
+        "copilot/auto",
+        "copilotcli/claude-sonnet-4.6"
+      ]
+    }
+  }
 }

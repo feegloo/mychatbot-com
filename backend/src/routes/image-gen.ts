@@ -16,6 +16,7 @@ import { SHORT_ID_RE } from '../constants.js'
 import { uploadLocalFileToGcs, downloadFromGcs } from '../storage/gcs-storage.js'
 import { resolveReferenceImagePaths } from '../utils/reference-images.js'
 import logger from '../logger.js'
+import { bindStreamLifecycle, isStreamClosed } from '../utils/stream-lifecycle.js'
 
 // File names are resolved against the conversation's storage dir server-side.
 // We reject anything that could escape the storage dir (slashes, `..`) to
@@ -369,11 +370,28 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   })
-  const send = (event: string, payload: Record<string, unknown>) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+
+  const upstreamAbort = new AbortController()
+  const cleanup = bindStreamLifecycle(ctx.req, res, () => {
+    upstreamAbort.abort()
+  })
+
+  const send = (event: string, payload: Record<string, unknown>): boolean => {
+    if (isStreamClosed(res)) {
+      cleanup()
+      return false
+    }
+
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+      return true
+    } catch {
+      cleanup()
+      return false
+    }
   }
 
-  send('user_message', { userMessageId: userMsgId })
+  if (!send('user_message', { userMessageId: userMsgId })) return
 
   try {
     let finalResult: ImageGenResult | null = null
@@ -386,23 +404,26 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
       chatHistory,
       quality: 'low',
       referenceImagePaths,
+      signal: upstreamAbort.signal,
     })) {
       if (evt.event === 'prompt_ready') {
-        send('prompt_ready', evt.data as unknown as Record<string, unknown>)
+        if (!send('prompt_ready', evt.data as unknown as Record<string, unknown>)) return
       } else if (evt.event === 'partial') {
-        send('partial', evt.data as unknown as Record<string, unknown>)
+        if (!send('partial', evt.data as unknown as Record<string, unknown>)) return
       } else if (evt.event === 'complete') {
         finalResult = evt.data
       } else if (evt.event === 'error') {
         send('error', evt.data as unknown as Record<string, unknown>)
-        res.end()
+        cleanup()
+        if (!isStreamClosed(res)) res.end()
         return
       }
     }
 
     if (!finalResult) {
       send('error', { error: 'Image generation produced no result' })
-      res.end()
+      cleanup()
+      if (!isStreamClosed(res)) res.end()
       return
     }
 
@@ -422,10 +443,13 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
       assistantMessageId: finalized.assistantMessageId,
       generatedImage: finalized.generatedImage,
     })
-    res.end()
+    cleanup()
+    if (!isStreamClosed(res)) res.end()
   } catch (err) {
+    if (upstreamAbort.signal.aborted) return
     logger.error({ err, conversationId }, 'generate-image-stream failed')
     send('error', { error: err instanceof Error ? err.message : String(err) })
-    res.end()
+    cleanup()
+    if (!isStreamClosed(res)) res.end()
   }
 })

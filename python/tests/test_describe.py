@@ -45,6 +45,17 @@ def _get_human_message_text(mock_llm) -> str:
     return ""
 
 
+def _get_system_message_text(mock_llm) -> str:
+    """Extract the system message text from the last captured LLM invocation."""
+    assert mock_llm.captured, "LLM was never invoked"
+    prompt_value = mock_llm.captured[-1]
+    messages = prompt_value.messages if hasattr(prompt_value, "messages") else list(prompt_value)
+    for msg in messages:
+        if hasattr(msg, "type") and msg.type == "system":
+            return msg.content
+    return ""
+
+
 SAMPLE_EXTRACTED = [{"file_name": "test.pdf", "text": "Hello world, this is a test document."}]
 SAMPLE_IMAGES = []
 
@@ -192,6 +203,53 @@ class TestMetadataBlock:
         assert "48.8566" in human_text
         assert "2.3522" in human_text
         assert "400" in human_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_filename_author_hint_is_added_when_filename_conflicts_with_metadata(
+        self, _mock_lang, mock_get_llm
+    ):
+        """Filename-derived author hints should be sent to the LLM when they conflict with embedded metadata."""
+        mock_llm = _make_mock_llm("### Title\nDescription.")
+        mock_get_llm.return_value = mock_llm
+
+        extracted = [
+            {
+                "file_name": "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf",
+                "text": "Ultimate Scar Guide for Scars Under 1 Year\nA practical scar guide.",
+            }
+        ]
+        meta = {
+            "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf": {
+                "file_type": "pdf",
+                "file_name": "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf",
+                "title": "Ultimate Guide To Scar Treatments",
+                "author": "Amanda Keyes",
+                "page_count": 14,
+            }
+        }
+
+        describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        human_text = _get_human_message_text(mock_llm)
+
+        assert "Filename identity hints" in human_text
+        assert '"preferred_author_from_filename": "Nikki-Butler"' in human_text
+        assert '"embedded_metadata_author": "Amanda Keyes"' in human_text
+        assert '"author_conflict": true' in human_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_system_prompt_mentions_uploaded_filename_precedence(self, _mock_lang, mock_get_llm):
+        """The welcome prompt should explicitly tell the LLM to prefer uploaded filename authors on conflict."""
+        mock_llm = _make_mock_llm("### Title\nDescription.")
+        mock_get_llm.return_value = mock_llm
+
+        describe_documents(SAMPLE_EXTRACTED, SAMPLE_IMAGES, language="en", file_metadata=None)
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "UPLOADED FILENAME PRECEDENCE" in system_text
+        assert "the uploaded filename wins for the author shown in the heading" in system_text
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")

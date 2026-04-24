@@ -34,6 +34,7 @@ import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
 import { SHORT_ID_RE, MAX_FILE_SIZE } from '../constants.js'
 import logger from '../logger.js'
+import { bindStreamLifecycle, isStreamClosed } from '../utils/stream-lifecycle.js'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } })
 export const conversationsRouter = new Router()
@@ -98,8 +99,30 @@ conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => 
     'Access-Control-Allow-Origin': '*',
   })
 
-  function send(event: string, payload: Record<string, unknown>) {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+  let unsubscribe = () => {}
+  let keepalive: NodeJS.Timeout | null = null
+
+  const cleanup = bindStreamLifecycle(ctx.req, res, () => {
+    unsubscribe()
+    if (keepalive) {
+      clearInterval(keepalive)
+      keepalive = null
+    }
+  })
+
+  function send(event: string, payload: Record<string, unknown>): boolean {
+    if (isStreamClosed(res)) {
+      cleanup()
+      return false
+    }
+
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+      return true
+    } catch {
+      cleanup()
+      return false
+    }
   }
 
   // If conversation has already reached a terminal state, send catchup events
@@ -108,8 +131,7 @@ conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => 
   // (enables real-time multi-tab message sync without 1s polling). For 'failed'
   // convs we close immediately since no more events are expected.
   if (data.conversation.status === 'ready') {
-    send('welcome_message', {})
-    send('complete', { status: 'ready' })
+    if (!send('welcome_message', {}) || !send('complete', { status: 'ready' })) return
   } else if (data.conversation.status === 'failed') {
     send('complete', { status: 'failed' })
     res.end()
@@ -117,29 +139,31 @@ conversationsRouter.get('/conversations/:conversationId/events', async (ctx) => 
   } else {
     // Processing: emit welcome catchup if already saved.
     const hasWelcome = data.messages.some((m: { role: string }) => m.role === 'assistant')
-    if (hasWelcome) send('welcome_message', {})
+    if (hasWelcome && !send('welcome_message', {})) return
   }
 
-  send('connected', { conversationId })
+  if (!send('connected', { conversationId })) return
 
-  const unsubscribe = onConversationEvent(conversationId, (evt) => {
-    send(evt.event, evt.data)
+  unsubscribe = onConversationEvent(conversationId, (evt) => {
+    if (!send(evt.event, evt.data)) return
     if (evt.event === 'complete' || evt.event === 'error') {
       cleanup()
-      res.end()
+      if (!isStreamClosed(res)) res.end()
     }
   })
 
-  const keepalive = setInterval(() => {
-    res.write(': keepalive\n\n')
+  keepalive = setInterval(() => {
+    if (isStreamClosed(res)) {
+      cleanup()
+      return
+    }
+
+    try {
+      res.write(': keepalive\n\n')
+    } catch {
+      cleanup()
+    }
   }, 15_000)
-
-  function cleanup() {
-    unsubscribe()
-    clearInterval(keepalive)
-  }
-
-  ctx.req.on('close', cleanup)
 })
 
 conversationsRouter.get('/conversations/:conversationId', async (ctx) => {
