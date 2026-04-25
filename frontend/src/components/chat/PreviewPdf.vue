@@ -5,11 +5,8 @@
  * inline PDF embedding. Parent handles click-to-open.
  *
  * The embed URL is resolved asynchronously via `/storage/:id/:name/url`
- * so `<object>` points directly at the final origin (for GCS: the signed
- * storage.googleapis.com URL). If we embedded the same-origin proxy URL
- * instead, the browser would refuse to follow the cross-origin redirect
- * from inside the PDF viewer frame ("Unsafe attempt to load URL ... from
- * frame with URL ...") and the preview would fail to render.
+ * and always resolves to a stable same-origin `/api/storage/:id/:name` link,
+ * which keeps previews consistent and avoids expiring signed URLs.
  */
 import { ref, watch } from 'vue'
 import { resolveStorageUrl } from '../../api'
