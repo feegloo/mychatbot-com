@@ -3,8 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "gcp-build": "npm run build",
     "dev": "npm run build && functions-framework --target=uploadProxy --signature-type=http --source=dist",
     "start": "functions-framework --target=uploadProxy --signature-type=http --source=dist"
   },
