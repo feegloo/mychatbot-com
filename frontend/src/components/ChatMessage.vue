@@ -73,9 +73,10 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             :key="msg.imagePartialDataUrl"
             :src="msg.imagePartialDataUrl"
             :image-style="{ filter: `blur(${partialBlurPx}px)` }"
-            class="image-morph-wrap image-morph"
+            class="image-morph-wrap image-morph image-morph-clickable"
             alt="Generating..."
             @load="onMorphFrameLoad"
+            @click="openMorphModal"
           />
         </Transition>
         <div v-if="msg.generatingImage" class="image-generating-label">
@@ -255,7 +256,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         </span>
       </div>
 
-      <ImageModal :visible="modalOpen" :src="modalSrc" :alt="modalAlt" @close="modalOpen = false" />
+      <ImageModal :visible="modalOpen" :src="modalSrc" :alt="modalAlt" :title="modalTitle" @close="modalOpen = false" />
       <SourcePreviewModal
         v-if="previewCitation"
         :visible="previewOpen"
@@ -526,6 +527,7 @@ const assistantFadeTrigger = computed(() =>
 
 const showTypingDots = computed(() => {
   if (props.msg.role !== 'assistant' || props.isWelcome) return false
+  if (props.asking && !props.msg.id) return true
   if (props.msg.generatingImage) return true
   return !(props.msg.content ?? '').trim()
 })
@@ -622,12 +624,51 @@ async function downloadMessagePdf() {
 const modalOpen = ref(false)
 const modalSrc = ref('')
 const modalAlt = ref('')
+const modalTitle = ref('')
+// True when modal was opened by clicking the morph/partial image. While set,
+// the modal src tracks new partials and the final generated image live.
+const morphModalActive = ref(false)
 
 function openImageModal(src: string, alt: string) {
   modalSrc.value = src
   modalAlt.value = alt
+  modalTitle.value = alt
+  morphModalActive.value = false
   modalOpen.value = true
 }
+
+function openMorphModal() {
+  const src = props.msg.imagePartialDataUrl || lastMorphSrc.value
+  if (!src) return
+  modalSrc.value = src
+  modalAlt.value = props.msg.imageAnnouncement || 'Generating...'
+  modalTitle.value = props.msg.imageAnnouncement || ''
+  morphModalActive.value = true
+  modalOpen.value = true
+}
+
+// Keep modal src in sync as new morph partials arrive
+watch(
+  () => props.msg.imagePartialDataUrl,
+  (newSrc) => {
+    if (newSrc && morphModalActive.value && modalOpen.value) {
+      modalSrc.value = newSrc
+    }
+  },
+)
+
+// Advance modal to the final generated image when ready
+watch(finalGeneratedImageUrl, (newUrl) => {
+  if (newUrl && morphModalActive.value && modalOpen.value) {
+    modalSrc.value = newUrl
+    modalTitle.value = props.msg.imageAnnouncement || ''
+    morphModalActive.value = false
+  }
+})
+
+watch(modalOpen, (open) => {
+  if (!open) morphModalActive.value = false
+})
 
 const previewOpen = ref(false)
 const previewCitation = ref<NonNullable<ChatMessage['citations']>[number]>()
@@ -939,6 +980,9 @@ function openFilePreview(file: FileInfo) {
   transform: scale(1.02);
   transition: filter 600ms ease-out;
   will-change: filter;
+}
+.image-morph-clickable {
+  cursor: pointer;
 }
 @keyframes image-morph-pulse {
   0%, 100% {

@@ -52,4 +52,8 @@ export const config = {
   dbPoolMax: Number(process.env.DB_POOL_MAX || 3),
   dbIdleTimeoutMs: Number(process.env.DB_IDLE_TIMEOUT_MS || 10_000),
   dbConnectionTimeoutMs: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 5_000),
+  uiDistPath: process.env.UI_DIST_PATH
+    ? resolvePath(process.env.UI_DIST_PATH)
+    : '',
+  serverUrl: process.env.SERVER_URL || 'http://localhost:4300',
 }

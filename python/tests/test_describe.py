@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from unittest.mock import patch
 
@@ -241,15 +242,47 @@ class TestMetadataBlock:
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")
     def test_system_prompt_mentions_uploaded_filename_precedence(self, _mock_lang, mock_get_llm):
-        """The welcome prompt should explicitly tell the LLM to prefer uploaded filename authors on conflict."""
+        """The welcome prompt should explicitly reject URL/domain filename authors on conflict."""
         mock_llm = _make_mock_llm("### Title\nDescription.")
         mock_get_llm.return_value = mock_llm
 
         describe_documents(SAMPLE_EXTRACTED, SAMPLE_IMAGES, language="en", file_metadata=None)
 
         system_text = _get_system_message_text(mock_llm)
-        assert "UPLOADED FILENAME PRECEDENCE" in system_text
-        assert "the uploaded filename wins for the author shown in the heading" in system_text
+        assert "AUTHOR PRIORITY" in system_text
+        assert "DO NOT use it as author" in system_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_domain_like_filename_author_hint_is_ignored(self, _mock_lang, mock_get_llm):
+        """Domain-like filename fragments must not be treated as preferred authors."""
+        mock_llm = _make_mock_llm("### Title\nDescription.")
+        mock_get_llm.return_value = mock_llm
+
+        extracted = [
+            {
+                "file_name": "_OceanofPDF.com_The_Alchemist.pdf",
+                "text": "The Alchemist\nPaulo Coelho\nA novel about Santiago.",
+            }
+        ]
+        meta = {
+            "_OceanofPDF.com_The_Alchemist.pdf": {
+                "file_type": "pdf",
+                "file_name": "_OceanofPDF.com_The_Alchemist.pdf",
+                "title": "The Alchemist",
+                "author": "Paulo Coelho",
+                "page_count": 158,
+            }
+        }
+
+        describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        human_text = _get_human_message_text(mock_llm)
+
+        assert "Filename identity hints" in human_text
+        assert '"embedded_metadata_author": "Paulo Coelho"' in human_text
+        assert '"preferred_author_from_filename"' not in human_text
+        assert '"author_conflict": true' not in human_text
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")
@@ -276,7 +309,7 @@ class TestMetadataBlock:
             },
         }
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level(logging.WARNING, logger="shared.describe"):
             describe_documents(
                 [{"file_name": "good.pdf", "text": "Some text"}],
                 [],
@@ -289,7 +322,7 @@ class TestMetadataBlock:
         # good.pdf metadata should still be present
         assert "Good Author" in human_text
         # A warning should have been logged for bad.pdf
-        assert any("bad.pdf" in r.message for r in caplog.records)
+        assert any("bad.pdf" in msg for msg in caplog.messages)
 
 
 # ---------------------------------------------------------------------------
@@ -301,13 +334,13 @@ class TestEdgeCases:
     def test_returns_fallback_when_no_content(self):
         """No extracted text and no images → fallback message (not empty)."""
         result = describe_documents([], [], language="en", file_metadata=None)
-        assert "has been uploaded" in result["welcome_message"]
-        assert "Text extraction was not possible" in result["welcome_message"]
+        assert "was uploaded" in result["welcome_message"]
+        assert "no text could be extracted" in result["welcome_message"]
 
     def test_returns_fallback_when_text_is_blank(self):
         result = describe_documents([{"file_name": "empty.txt", "text": "   "}], [], language="en")
         assert "empty.txt" in result["welcome_message"]
-        assert "has been uploaded" in result["welcome_message"]
+        assert "was uploaded" in result["welcome_message"]
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")

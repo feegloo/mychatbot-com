@@ -25,6 +25,18 @@ RUN echo "=== vue-tsc type-check ===" && npx vue-tsc --noEmit 2>&1 || echo "=== 
 RUN echo "=== vite build ===" && npx vite build 2>&1 && echo "=== frontend build OK ===" || (echo "=== FRONTEND BUILD FAILED ===" && exit 1)
 RUN ls -la /app/frontend/dist/ || (echo "=== ERROR: dist/ not found after build ===" && exit 1)
 
+# ── Stage 1b: Build ui (new SPA, served under /v2/) ──────────────────────────
+FROM node:22-alpine AS ui-build
+WORKDIR /app/ui
+COPY ui/package.json ui/package-lock.json* ./
+RUN npm ci
+COPY ui/ ./
+# ui imports HomeHero from frontend via alias ../../frontend/src/...
+COPY frontend/src /app/frontend/src
+ENV NODE_ENV=production
+RUN echo "=== ui vite build ===" && npx vite build 2>&1 && echo "=== ui build OK ===" || (echo "=== UI BUILD FAILED ===" && exit 1)
+RUN ls -la /app/ui/dist/ || (echo "=== ERROR: ui/dist/ not found after build ===" && exit 1)
+
 # ── Stage 2: Build backend ───────────────────────────────────────────────────
 FROM node:22-alpine AS backend-build
 WORKDIR /app/backend
@@ -60,6 +72,9 @@ COPY --from=backend-build /app/backend/dist /app/backend/dist
 # -- Frontend static files --
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
+# -- New ui SPA (served under /v2/) --
+COPY --from=ui-build /app/ui/dist /app/ui/dist
+
 # -- SQL schemas --
 COPY backend/sql /app/backend/sql
 
@@ -73,6 +88,7 @@ RUN chmod +x /app/backend/entrypoint.sh
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV FRONTEND_DIST_PATH=/app/frontend/dist
+ENV UI_DIST_PATH=/app/ui/dist
 ENV PYTHON_BIN=/app/python/.venv/bin/python3
 ENV PYTHON_PROJECT_ROOT=/app/python
 ENV PYTHON_SERVER_URL=http://localhost:8321

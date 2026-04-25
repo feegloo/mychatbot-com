@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 _PAGE_HEADER_RE = re.compile(r"^#\s*Page\s+(\d+)\s*$", re.MULTILINE)
 _IDENTITY_TOKEN_RE = re.compile(r"[a-z0-9]+")
 _FILENAME_NAME_PART_RE = re.compile(r"^[A-Z][A-Za-zÀ-ÿ'’.-]+$")
+_DOMAIN_LIKE_RE = re.compile(r"(?i)^(?:https?://|www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,24}$")
 _FILENAME_AUTHOR_STOPWORDS = {
     "the",
     "a",
@@ -62,6 +63,27 @@ def _looks_like_filename_name_part(part: str) -> bool:
     return bool(_FILENAME_NAME_PART_RE.match(part))
 
 
+def _looks_like_domain_or_url(text: str) -> bool:
+    value = text.strip().lower().rstrip(".,;:!?")
+    if not value:
+        return False
+    if "://" in value or value.startswith("www."):
+        return True
+    compact = re.sub(r"\s+", "", value)
+    return bool(_DOMAIN_LIKE_RE.match(compact))
+
+
+def _is_usable_filename_author_part(part: str) -> bool:
+    normalized = re.sub(r"[^A-Za-z0-9.]+", "", part)
+    if not normalized:
+        return False
+    if normalized.lower() in _FILENAME_AUTHOR_STOPWORDS:
+        return False
+    if _looks_like_domain_or_url(normalized):
+        return False
+    return _looks_like_filename_name_part(part)
+
+
 def _extract_filename_author_hint(cleaned_name: str, reference_texts: list[str]) -> str | None:
     stem = Path(cleaned_name).stem
     parts = [part for part in re.split(r"[-_]+", stem) if part]
@@ -77,11 +99,15 @@ def _extract_filename_author_hint(cleaned_name: str, reference_texts: list[str])
 
     for index, part in enumerate(parts):
         normalized = re.sub(r"[^A-Za-z0-9]+", "", part).lower()
-        if not normalized or normalized in _FILENAME_AUTHOR_STOPWORDS:
+        if not normalized:
             continue
-        if normalized in reference_tokens:
+        # Both stopwords and content-matching tokens signal the end of the name prefix.
+        # Skipping stopwords (as `continue`) used to make them invisible to prefix length
+        # checks, causing the prefix to exceed the 1-3 cap. Treating them as boundary
+        # markers here gives a clean name like "Nikki-Butler" instead of nothing.
+        if normalized in _FILENAME_AUTHOR_STOPWORDS or normalized in reference_tokens:
             prefix = parts[:index]
-            if 1 <= len(prefix) <= 3 and all(_looks_like_filename_name_part(chunk) for chunk in prefix):
+            if 1 <= len(prefix) <= 3 and all(_is_usable_filename_author_part(chunk) for chunk in prefix):
                 return "-".join(prefix)
             break
     return None
@@ -125,7 +151,7 @@ def _build_filename_identity_section(
         if filename_author and metadata_author and filename_author != metadata_author:
             identity_payload["author_conflict"] = True
             identity_payload["resolution"] = (
-                "Prefer the filename-derived author in the heading and mention the mismatch in the welcome message."
+                "Prefer filename-derived author only if it looks like a real person/creator name; if it looks like a URL/site watermark, keep embedded metadata author. Mention the mismatch naturally."
             )
 
         if len(identity_payload) > 2:
@@ -138,7 +164,7 @@ def _build_filename_identity_section(
 
     return (
         "\n\n=====\n"
-        "Filename identity hints (uploaded filename takes priority when it conflicts with embedded author metadata):\n"
+        "Filename identity hints (use filename-derived author only when it looks like a real person/creator name, not a URL/domain watermark):\n"
         + "\n\n".join(identity_parts)
         + "\n====="
     )

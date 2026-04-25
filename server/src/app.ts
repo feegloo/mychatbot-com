@@ -15,6 +15,10 @@ export function createApp(options: CreateAppOptions = {}) {
     ctx.body = buildHelloPayload(options.getMessage)
   })
 
+  router.get('/api2/hello-world', (ctx) => {
+    ctx.body = buildHelloPayload(options.getMessage)
+  })
+
   app.use(router.routes())
   app.use(router.allowedMethods())
 

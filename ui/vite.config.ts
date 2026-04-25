@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/v2/',
   plugins: [vue()],
   resolve: {
     dedupe: ['vue'],
@@ -16,6 +17,9 @@ export default defineConfig({
   server: {
     fs: {
       allow: [fileURLToPath(new URL('..', import.meta.url))],
+    },
+    proxy: {
+      '/api2': 'http://localhost:4300',
     },
   },
 })

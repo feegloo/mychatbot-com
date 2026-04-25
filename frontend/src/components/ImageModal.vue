@@ -3,7 +3,12 @@
     <div v-if="visible" class="image-modal-overlay" @click.self="$emit('close')">
       <div class="image-modal-content">
         <button class="image-modal-close" @click="$emit('close')">&times;</button>
-        <img :src="src" :alt="alt" class="image-modal-img" />
+        <Transition name="modal-img-fade" mode="out-in">
+          <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
+        </Transition>
+        <Transition name="modal-title-fade">
+          <div v-if="title" :key="title" class="image-modal-title">{{ title }}</div>
+        </Transition>
       </div>
     </div>
   </Teleport>
@@ -14,6 +19,7 @@ defineProps<{
   visible: boolean
   src: string
   alt?: string
+  title?: string
 }>()
 
 defineEmits<{
@@ -73,5 +79,51 @@ defineEmits<{
   max-height: 100vh;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   object-fit: contain;
+  display: block;
+}
+
+/* Fade transition when src changes (morph progression) */
+.modal-img-fade-enter-active,
+.modal-img-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-img-fade-enter-from,
+.modal-img-fade-leave-to {
+  opacity: 0;
+}
+
+/* Title overlay at bottom of image */
+.image-modal-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 14px 20px 16px;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  border-radius: 0 0 4px 4px;
+  pointer-events: none;
+}
+
+.modal-title-fade-enter-active {
+  transition: opacity 0.5s ease 0.15s, transform 0.5s ease 0.15s;
+}
+.modal-title-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-title-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.modal-title-fade-leave-to {
+  opacity: 0;
+}
+.modal-title-fade-enter-to,
+.modal-title-fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

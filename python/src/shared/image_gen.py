@@ -27,7 +27,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 # Keep a single fixed image size while image generation is being stabilized.
 # The previous aspect-ratio map is intentionally disabled for now.
 # ASPECT_SIZE_MAP: dict[str, str] = {
-#     "1:1":  "880x880",
+#     "1:1":  "848x848",
 #     "3:4":  "768x1024",
 #     "4:3":  "1024x768",
 #     "2:3":  "688x1024",
@@ -36,7 +36,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 #     "9:16": "576x1024",
 # }
 _DEFAULT_ASPECT = "1:1"
-_FIXED_IMAGE_SIZE = "880x880"
+_FIXED_IMAGE_SIZE = "848x848"
 
 
 def aspect_to_image_size(aspect: str) -> str:
@@ -153,7 +153,7 @@ def _call_images_edit(
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "880x880",
+    size: str = "848x848",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
@@ -278,7 +278,7 @@ def generate_image(
 def generate_image_streaming(
     prompt: str,
     storage_dir: str,
-    size: str = "880x880",
+    size: str = "848x848",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,

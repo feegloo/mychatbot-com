@@ -45,6 +45,17 @@ export function createApp() {
     .use(imageGenRouter.routes())
 
   app.use(async (ctx, next) => {
+    if (ctx.path.startsWith('/api2')) {
+      const target = `${config.serverUrl}${ctx.path}${ctx.querystring ? '?' + ctx.querystring : ''}`
+      const response = await fetch(target, { method: ctx.method })
+      ctx.status = response.status
+      ctx.body = await response.json()
+      return
+    }
+    return next()
+  })
+
+  app.use(async (ctx, next) => {
     if (ctx.path.startsWith('/api')) {
       ctx.path = ctx.path.replace(/^\/api/, '') || '/'
       const start = Date.now()
@@ -66,6 +77,34 @@ export function createApp() {
       return
     }
     return next()
+  })
+
+  // Serve the ui SPA (built with base /v2/) for all /v2/* requests.
+  // Static assets (hashed filenames) get long-lived cache; HTML gets revalidation.
+  app.use(async (ctx, next) => {
+    if (!ctx.path.startsWith('/v2')) return next()
+    if (!config.uiDistPath || !fs.existsSync(config.uiDistPath)) return next()
+
+    const uiRoot = path.resolve(config.uiDistPath)
+    // Strip /v2 prefix to get the path relative to the ui dist root
+    const relativePath = ctx.path.replace(/^\/v2/, '') || '/'
+    const ext = path.extname(relativePath)
+
+    if (ext && ext !== '.html') {
+      // Serve static asset directly; 404 if not found
+      const filePath = path.resolve(path.join(uiRoot, relativePath))
+      if (!filePath.startsWith(uiRoot)) { ctx.status = 400; return }
+      if (!fs.existsSync(filePath)) { ctx.status = 404; return }
+      await send(ctx, relativePath, { root: uiRoot })
+      if (relativePath.startsWith('/assets/')) {
+        ctx.set('Cache-Control', 'public, max-age=31536000, immutable')
+      }
+      return
+    }
+
+    // All navigable routes (/v2/, /v2/c/:uid) return index.html for SPA routing
+    await send(ctx, 'index.html', { root: uiRoot })
+    ctx.set('Cache-Control', 'public, max-age=0, must-revalidate')
   })
 
   if (config.frontendDistPath && fs.existsSync(config.frontendDistPath)) {
