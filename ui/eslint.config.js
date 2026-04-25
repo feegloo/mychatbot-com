@@ -12,6 +12,17 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
   {
+    // vue-eslint-parser handles .vue files; delegate <script> parsing to
+    // @typescript-eslint/parser so TypeScript generics (e.g. defineProps<{}>)
+    // are understood inside <script setup lang="ts"> blocks.
+    files: ['**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,vue}'],
     languageOptions: {
       globals: {
