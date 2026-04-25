@@ -17,6 +17,14 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
+# Optional overrides for Cloud Function deployment.
+CF_ENV_FILE="${SCRIPT_DIR}/../../cloud-function/.env.gcp"
+if [[ -f "$CF_ENV_FILE" ]]; then
+  set -a
+  source "$CF_ENV_FILE"
+  set +a
+fi
+
 # ── Configuration (edit these) ───────────────────────────────────────────────
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="europe-west1"
@@ -37,6 +45,15 @@ VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
 VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
 GIT_COMMIT_HASH="${GIT_COMMIT_HASH:-$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
+DEPLOY_CLOUD_FUNCTION="${DEPLOY_CLOUD_FUNCTION:-true}"
+CLOUD_FUNCTION_NAME="${CLOUD_FUNCTION_NAME:-chatrag-upload}"
+CLOUD_FUNCTION_REGION="${CLOUD_FUNCTION_REGION:-$REGION}"
+CLOUD_FUNCTION_RUNTIME="${CLOUD_FUNCTION_RUNTIME:-nodejs20}"
+CF_PUBLIC_APP_BASE_URL="${CF_PUBLIC_APP_BASE_URL:-https://chatrag.app}"
+CF_ALLOWED_ORIGINS="${CF_ALLOWED_ORIGINS:-https://chatrag.app,https://www.chatrag.app}"
+CF_UPSTREAM_UPLOAD_URL="${CF_UPSTREAM_UPLOAD_URL:-}"
+CF_SENTRY_DSN="${CF_SENTRY_DSN:-${SENTRY_DSN:-}}"
+CF_SENTRY_ENVIRONMENT="${CF_SENTRY_ENVIRONMENT:-${SENTRY_ENVIRONMENT:-prod}}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
 # CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
@@ -76,6 +93,11 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
+if ! command -v npm &>/dev/null; then
+  warn "Installing Node.js (npm required for cloud-function build)..."
+  brew install node
+fi
+
 # ── Step 2: Authenticate & set project ───────────────────────────────────────
 info "Step 2/8: Authenticating with GCP..."
 if ! gcloud auth print-access-token &>/dev/null; then
@@ -84,6 +106,9 @@ fi
 gcloud config set project "$PROJECT_ID"
 gcloud services enable \
   run.googleapis.com \
+  cloudfunctions.googleapis.com \
+  artifactregistry.googleapis.com \
+  eventarc.googleapis.com \
   sqladmin.googleapis.com \
   containerregistry.googleapis.com \
   cloudbuild.googleapis.com \
@@ -328,8 +353,39 @@ else
 fi
 
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
-info "Step 9/9: Getting service URL..."
+info "Step 9/10: Getting service URL..."
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
+
+if [[ -z "$CF_UPSTREAM_UPLOAD_URL" ]]; then
+  CF_UPSTREAM_UPLOAD_URL="${SERVICE_URL}/api/upload"
+fi
+
+# ── Step 10: Deploy Cloud Function upload proxy ────────────────────────────
+FUNCTION_URL=""
+if [[ "$DEPLOY_CLOUD_FUNCTION" == "true" ]]; then
+  info "Step 10/10: Deploying Cloud Function ${CLOUD_FUNCTION_NAME}..."
+  pushd "${SCRIPT_DIR}/../../cloud-function" >/dev/null
+  npm ci
+  npm run build
+
+  gcloud functions deploy "$CLOUD_FUNCTION_NAME" \
+    --gen2 \
+    --runtime "$CLOUD_FUNCTION_RUNTIME" \
+    --region "$CLOUD_FUNCTION_REGION" \
+    --source . \
+    --entry-point uploadProxy \
+    --trigger-http \
+    --allow-unauthenticated \
+    --set-env-vars "UPSTREAM_UPLOAD_URL=${CF_UPSTREAM_UPLOAD_URL},PUBLIC_APP_BASE_URL=${CF_PUBLIC_APP_BASE_URL},ALLOWED_ORIGINS=${CF_ALLOWED_ORIGINS},SENTRY_DSN=${CF_SENTRY_DSN},SENTRY_ENVIRONMENT=${CF_SENTRY_ENVIRONMENT}"
+
+  FUNCTION_URL=$(gcloud functions describe "$CLOUD_FUNCTION_NAME" \
+    --gen2 \
+    --region "$CLOUD_FUNCTION_REGION" \
+    --format='value(serviceConfig.uri)')
+  popd >/dev/null
+else
+  warn "Step 10/10: Skipping Cloud Function deploy (DEPLOY_CLOUD_FUNCTION=false)"
+fi
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
@@ -337,5 +393,9 @@ echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Pub/Sub topic:  $PUBSUB_TOPIC  (subscription: $PUBSUB_SUBSCRIPTION)"
 echo "  Worker pool:    ${DEPLOY_WORKER:-true}  (chatrag-worker, instances=${EFFECTIVE_WORKER_INSTANCES:-skipped})"
+if [[ -n "$FUNCTION_URL" ]]; then
+  echo "  Function URL:   ${FUNCTION_URL}"
+  echo "  UI env var:     VITE_CLOUD_FUNCTION_UPLOAD_URL=${FUNCTION_URL}/upload"
+fi
 echo "  PDF offload:    Pub/Sub pull → chatrag-worker pool (idle replicas fetch next job)"
 echo "═══════════════════════════════════════════════════════════════"

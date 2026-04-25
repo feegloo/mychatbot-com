@@ -18,7 +18,23 @@ The script will:
 3. Create a Cloud SQL PostgreSQL instance (db-f1-micro, ~$7/mo)
 4. Build & push the Docker image to GCR
 5. Deploy to Cloud Run (auto-scales 0→3 instances)
-6. Print the live URL
+6. Deploy Cloud Function `chatrag-upload` (upload proxy to `/api/upload`)
+7. Print live URLs
+
+## Cloud Function env config
+
+`./deploy` now also deploys `cloud-function/`.
+
+Optional overrides file:
+
+- copy `cloud-function/.env.gcp.example` to `cloud-function/.env.gcp`
+- tune values for function name/region and CORS origins
+
+To skip function deployment for one run:
+
+```bash
+DEPLOY_CLOUD_FUNCTION=false ./deploy
+```
 
 ## Files
 

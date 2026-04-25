@@ -1,4 +1,20 @@
 import { config } from '../config.js'
+import * as Sentry from '@sentry/node'
+
+function buildTracingHeaders(traceId?: string): Headers {
+  const headers = new Headers({ 'Content-Type': 'application/json' })
+  const traceData = Sentry.getTraceData()
+  if (traceData['sentry-trace']) {
+    headers.set('sentry-trace', traceData['sentry-trace'])
+  }
+  if (traceData.baggage) {
+    headers.set('baggage', traceData.baggage)
+  }
+  if (traceId) {
+    headers.set('x-trace-id', traceId)
+  }
+  return headers
+}
 
 export async function enrichMetadata(options: {
   filePaths: string[]
@@ -27,14 +43,16 @@ export async function indexConversation(options: {
   conversationId: string
   collectionName: string
   files: string[]
+  traceId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/index`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildTracingHeaders(options.traceId),
     body: JSON.stringify({
       conversation_id: options.conversationId,
       collection_name: options.collectionName,
       file_paths: options.files,
+      trace_id: options.traceId || null,
     }),
   })
 
@@ -68,14 +86,16 @@ export async function* indexConversationStream(options: {
   conversationId: string
   collectionName: string
   files: string[]
+  traceId?: string
 }): AsyncGenerator<IndexStreamEvent> {
   const response = await fetch(`${config.pythonServerUrl}/index-stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildTracingHeaders(options.traceId),
     body: JSON.stringify({
       conversation_id: options.conversationId,
       collection_name: options.collectionName,
       file_paths: options.files,
+      trace_id: options.traceId || null,
     }),
   })
 
@@ -125,14 +145,16 @@ export async function describeUrl(options: {
   url: string
   conversationId: string
   collectionName: string
+  traceId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/describe-url`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildTracingHeaders(options.traceId),
     body: JSON.stringify({
       url: options.url,
       conversation_id: options.conversationId,
       collection_name: options.collectionName,
+      trace_id: options.traceId || null,
     }),
   })
 

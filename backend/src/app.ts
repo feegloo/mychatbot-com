@@ -59,20 +59,44 @@ export function createApp() {
     if (ctx.path.startsWith('/api')) {
       ctx.path = ctx.path.replace(/^\/api/, '') || '/'
       const start = Date.now()
-      try {
-        await apiRouter.routes()(ctx as any, next)
-      } catch (err: any) {
-        const status = err.status || err.statusCode || 500
-        const message = err.message || 'Unknown error'
-        logger.error({ err, method: ctx.method, url: ctx.url, status, durationMs: Date.now() - start }, 'API error')
-        if (status >= 500) Sentry.captureException(err)
-        ctx.status = status
-        ctx.body = { error: message, stack: err.stack || null }
-        return
-      }
+      const sentryTrace = ctx.get('sentry-trace') || undefined
+      const baggage = ctx.get('baggage') || undefined
+      const traceId = (ctx.state.traceId as string | undefined) || ''
+
+      await Sentry.continueTrace({ sentryTrace, baggage }, async () => {
+        await Sentry.startSpan(
+          {
+            name: `${ctx.method} ${ctx.path}`,
+            op: 'http.server',
+            forceTransaction: true,
+            attributes: {
+              'http.method': ctx.method,
+              'http.route': ctx.path,
+              'chatrag.trace_id': traceId,
+            },
+          },
+          async () => {
+            if (traceId) {
+              Sentry.setTag('trace_id', traceId)
+            }
+            try {
+              await apiRouter.routes()(ctx as any, next)
+            } catch (err: any) {
+              const status = err.status || err.statusCode || 500
+              const message = err.message || 'Unknown error'
+              logger.error({ err, method: ctx.method, url: ctx.url, status, durationMs: Date.now() - start, traceId }, 'API error')
+              if (status >= 500) Sentry.captureException(err)
+              ctx.status = status
+              ctx.body = { error: message, stack: err.stack || null }
+              return
+            }
+          },
+        )
+      })
+
       const durationMs = Date.now() - start
       if (durationMs > 500) {
-        logger.warn({ method: ctx.method, url: ctx.url, status: ctx.status, durationMs }, 'Slow API request')
+        logger.warn({ method: ctx.method, url: ctx.url, status: ctx.status, durationMs, traceId }, 'Slow API request')
       }
       return
     }

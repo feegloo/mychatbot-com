@@ -113,14 +113,30 @@ async def _request_id_middleware(request, call_next):
     is visible in the Sentry trace.
     """
     request_id = request.headers.get("x-request-id") or ""
-    if request_id:
-        with sentry_sdk.new_scope() as scope:
+    trace_id = request.headers.get("x-trace-id") or ""
+    with sentry_sdk.new_scope() as scope:
+        if request_id:
             scope.set_tag("request_id", request_id)
-            logger.info(f"▶️  {request.method} {request.url.path} | request_id={request_id}")
-            response = await call_next(request)
+        if trace_id:
+            scope.set_tag("trace_id", trace_id)
+            sentry_logger.debug(
+                "Python server accepted traced request",
+                attributes={
+                    "trace_id": trace_id,
+                    "path": request.url.path,
+                    "method": request.method,
+                },
+            )
+        logger.info(
+            f"▶️  {request.method} {request.url.path} "
+            f"| request_id={request_id} trace_id={trace_id}"
+        )
+        response = await call_next(request)
+    if request_id:
         response.headers["X-Request-Id"] = request_id
-        return response
-    return await call_next(request)
+    if trace_id:
+        response.headers["X-Trace-Id"] = trace_id
+    return response
 
 
 class AnswerRequest(BaseModel):
@@ -140,6 +156,7 @@ class IndexRequest(BaseModel):
     conversation_id: str
     collection_name: str
     file_paths: list[str]
+    trace_id: str | None = None
 
 
 class EnrichMetadataRequest(BaseModel):
@@ -152,6 +169,7 @@ class DescribeUrlRequest(BaseModel):
     url: str
     conversation_id: str
     collection_name: str
+    trace_id: str | None = None
 
 
 class GenerateImageRequest(BaseModel):
@@ -265,18 +283,29 @@ async def get_collection_count(collection_name: str):
 @app.post("/index")
 async def index(req: IndexRequest):
     try:
+        if req.trace_id:
+            sentry_sdk.set_tag("trace_id", req.trace_id)
         sentry_logger.info(
             "Indexing documents for conversation {conversation_id}",
             conversation_id=req.conversation_id,
             collection_name=req.collection_name,
             file_count=len(req.file_paths),
+            attributes={"trace_id": req.trace_id or ""},
         )
-        result = await asyncio.to_thread(
-            index_documents,
-            conversation_id=req.conversation_id,
-            collection_name=req.collection_name,
-            file_paths=req.file_paths,
-        )
+        with sentry_sdk.start_span(
+            name="python.index_documents",
+            op="task.index",
+            attributes={
+                "conversation_id": req.conversation_id,
+                "chatrag.trace_id": req.trace_id or "",
+            },
+        ):
+            result = await asyncio.to_thread(
+                index_documents,
+                conversation_id=req.conversation_id,
+                collection_name=req.collection_name,
+                file_paths=req.file_paths,
+            )
         sentry_logger.info(
             "Indexing completed for conversation {conversation_id}",
             conversation_id=req.conversation_id,
@@ -346,6 +375,7 @@ async def index_stream(req: IndexRequest):
     sentry_logger.info(
         "Streaming index for conversation {conversation_id}",
         conversation_id=req.conversation_id,
+        attributes={"trace_id": req.trace_id or ""},
     )
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
@@ -436,6 +466,8 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
     ask follow-up questions about the website content.
     """
     try:
+        if req.trace_id:
+            sentry_sdk.set_tag("trace_id", req.trace_id)
 
         def _process_url():
             from shared.chunkers import split_into_chunks

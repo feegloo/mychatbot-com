@@ -2,6 +2,7 @@ import type { Context, Next } from 'koa'
 import { randomUUID } from 'node:crypto'
 import * as Sentry from '@sentry/node'
 import logger from '../logger.js'
+import { TRACE_ID_HEADER } from '../constants.js'
 
 const HEADER = 'x-request-id'
 
@@ -13,16 +14,29 @@ const HEADER = 'x-request-id'
 export async function requestIdMiddleware(ctx: Context, next: Next) {
   const incoming = ctx.get(HEADER)
   const requestId = incoming && incoming.length <= 80 ? incoming : randomUUID()
+  const incomingTraceId = ctx.get(TRACE_ID_HEADER)
+  const traceId = incomingTraceId && incomingTraceId.length <= 64 ? incomingTraceId : ''
   ctx.state.requestId = requestId
+  ctx.state.traceId = traceId
   ctx.set('X-Request-Id', requestId)
+  if (traceId) {
+    ctx.set('X-Trace-Id', traceId)
+  }
 
   Sentry.getCurrentScope().setTag('request_id', requestId)
-  ctx.state.log = logger.child({ requestId })
+  if (traceId) {
+    Sentry.getCurrentScope().setTag('trace_id', traceId)
+  }
+  ctx.state.log = logger.child({ requestId, traceId: traceId || undefined })
   await next()
 }
 
 export function getRequestId(ctx: Context): string {
   return (ctx.state.requestId as string | undefined) || ''
+}
+
+export function getTraceId(ctx: Context): string {
+  return (ctx.state.traceId as string | undefined) || ''
 }
 
 /**

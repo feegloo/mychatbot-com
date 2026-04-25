@@ -27,7 +27,7 @@ import logger from '../logger.js'
 import { emitConversationEvent } from '../events.js'
 import { deriveToken } from '../security.js'
 import { generateSignedUploadUrl, downloadGcsFileToLocal } from '../storage/gcs-storage.js'
-import { getConversationToken } from '../utils/request.js'
+import { getConversationToken, getTraceIdHeader } from '../utils/request.js'
 import { MAX_FILE_SIZE } from '../constants.js'
 import { publishIndexingJob } from '../indexing-jobs.js'
 
@@ -61,6 +61,14 @@ async function appendWelcomeUpdate(
 }
 
 uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
+  const traceId = getTraceIdHeader(ctx) || (ctx.state.traceId as string | undefined) || ''
+  const sentryTrace = ctx.get('sentry-trace') || ''
+  const baggage = ctx.get('baggage') || ''
+  if (traceId) {
+    Sentry.setTag('trace_id', traceId)
+    Sentry.captureMessage(`Backend accepted /upload [${traceId}]`, 'debug')
+  }
+
   const files = (ctx.files as multer.File[]) || []
   if (!files.length) {
     ctx.status = 400
@@ -158,7 +166,13 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
       collectionName,
       filePaths: jobFilePaths,
       storageNamespace: namespace,
-      metadata: { uploadedFileNames, storedToOriginal },
+      metadata: {
+        uploadedFileNames,
+        storedToOriginal,
+        traceId,
+        sentryTrace,
+        baggage,
+      },
     }).catch(async (err: Error) => {
       logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')
       await updateConversationStatus(conversationId, 'failed', err.message)
@@ -173,7 +187,12 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     let latestParsed = 0
     let latestTotal = 0
     try {
-      const stream = indexConversationStream({ conversationId, collectionName, files: absolutePaths })
+      const stream = indexConversationStream({
+        conversationId,
+        collectionName,
+        files: absolutePaths,
+        traceId,
+      })
 
       for await (const { event, data } of stream) {
         if (event === 'welcome_message') {
@@ -366,6 +385,10 @@ uploadRouter.post('/upload/signed-url', async (ctx) => {
 })
 
 uploadRouter.post('/upload/finalize', async (ctx) => {
+  const traceId = getTraceIdHeader(ctx) || (ctx.state.traceId as string | undefined) || ''
+  const sentryTrace = ctx.get('sentry-trace') || ''
+  const baggage = ctx.get('baggage') || ''
+
   const { conversationId, files: fileEntries } = ctx.request.body as {
     conversationId?: string
     files?: Array<{
@@ -454,7 +477,13 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
       collectionName,
       filePaths: jobFilePaths,
       storageNamespace: conversationId as string,
-      metadata: { uploadedFileNames, storedToOriginal },
+      metadata: {
+        uploadedFileNames,
+        storedToOriginal,
+        traceId,
+        sentryTrace,
+        baggage,
+      },
     }).catch(async (err: Error) => {
       logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')
       await updateConversationStatus(conversationId as string, 'failed', err.message)
@@ -473,6 +502,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
         conversationId: conversationId as string,
         collectionName,
         files: absolutePaths,
+        traceId,
       })
 
       for await (const { event, data } of stream) {
@@ -572,6 +602,8 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
 })
 
 uploadRouter.post('/upload-url', async (ctx) => {
+  const traceId = getTraceIdHeader(ctx) || (ctx.state.traceId as string | undefined) || ''
+
   const { url } = ctx.request.body as { url?: string }
   if (!url || typeof url !== 'string') {
     ctx.status = 400
@@ -621,6 +653,7 @@ uploadRouter.post('/upload-url', async (ctx) => {
     url,
     conversationId,
     collectionName,
+    traceId,
   })
     .then(async (result) => {
       const suggestedQuestions = result.parsedJson?.suggested_questions || []

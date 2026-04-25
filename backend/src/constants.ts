@@ -1,4 +1,5 @@
 export const CONVERSATION_TOKEN_HEADER = 'x-conversation-token'
+export const TRACE_ID_HEADER = 'x-trace-id'
 
 export const SHORT_ID_RE = /^[0-9A-Za-z]{16}$/
 
