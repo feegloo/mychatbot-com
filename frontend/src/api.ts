@@ -385,6 +385,7 @@ export async function generateImageStream(
   question: string,
   userId: number | undefined,
   callbacks: ImageGenStreamCallbacks,
+  referenceImageFileNames?: string[],
 ): Promise<void> {
   const eventSeparator = /\r?\n\r?\n/
   let eventCount = 0
@@ -445,7 +446,12 @@ export async function generateImageStream(
   const response = await fetch(`${baseUrl}/generate-image-stream`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ conversationId, question, ...(userId ? { userId } : {}) }),
+    body: JSON.stringify({
+      conversationId,
+      question,
+      ...(userId ? { userId } : {}),
+      ...(referenceImageFileNames?.length ? { referenceImageFileNames } : {}),
+    }),
     signal: callbacks.signal,
     credentials: 'include',
   })

@@ -26,8 +26,8 @@ export async function generateImage(options: {
       conversation_id: options.conversationId || '',
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
-      // size: options.size || '1024x1024',
-      size: '1024x1024',
+      // size: options.size || '816x816',
+      size: '816x816',
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
@@ -126,8 +126,8 @@ export async function* generateImageStream(options: {
       conversation_id: options.conversationId || '',
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
-      // size: options.size || '1024x1024',
-      size: '1024x1024',
+      // size: options.size || '816x816',
+      size: '816x816',
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),

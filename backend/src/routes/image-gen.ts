@@ -118,7 +118,14 @@ async function finalizeGeneratedImage(params: {
   const sourceMarkers = citations.length
     ? ' ' + citations.map((_, i) => `[${i + 1}]`).join('')
     : ''
-  const answer = `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"${sourceMarkers}</p>`
+  // Append a "Generate next variant" action so the user can immediately
+  // produce a follow-up image using the just-generated file as a reference.
+  // The |ref: suffix encodes the file name; the frontend strips it from the
+  // visible label and passes it as referenceImageFileNames to the backend.
+  const variantAction = `[action:Generate next variant 🎨|ref:${result.file_name}]`
+  const answer =
+    `![${title}](${imageUrl})\n\n<p class="image-caption">"${title}"${sourceMarkers}</p>\n\n` +
+    variantAction
 
   const assistantMsgId = await insertConversationMessage({
     conversationId,

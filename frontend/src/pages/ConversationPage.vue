@@ -124,6 +124,7 @@
               question = $event;
               submitQuestion();
             "
+            @select-image-variant="handleSelectImageVariant"
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
             @view-threads="viewThreads"
@@ -234,6 +235,11 @@ const question = ref('')
 const asking = ref(false)
 const questionInput = ref<HTMLTextAreaElement | null>(null)
 const chatContainer = ref<HTMLDivElement | null>(null)
+
+// Holds a generated-image file name to pass as a reference when the user
+// clicks "Generate next variant 🎨". Cleared immediately after being consumed
+// by ask() so it only affects the next single generation call.
+const pendingRefImageFileNames = ref<string[]>([])
 
 const currentLanguage = ref('')
 const isTranslating = ref(false)
@@ -748,12 +754,15 @@ async function ask() {
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
+    const refFileNames = pendingRefImageFileNames.value.slice()
+    pendingRefImageFileNames.value = []
     const response = isImageGen
       ? await runImageGenStream({
           conversationId,
           question: currentQuestion,
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
+          referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
         })
       : await Promise.race([
           askQuestion(conversationId, currentQuestion, getUserId() || undefined),
@@ -795,6 +804,12 @@ function submitQuestion() {
     questionInput.value.style.height = 'auto'
   }
   newContent.value = true
+}
+
+function handleSelectImageVariant(label: string, refFileName: string) {
+  question.value = label
+  pendingRefImageFileNames.value = [refFileName]
+  submitQuestion()
 }
 
 function autoResize(e: Event) {

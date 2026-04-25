@@ -128,6 +128,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 :citations="msg.citations"
                 :animate="false"
                 @select="$emit('select-question', $event)"
+                @select-image-variant="(label, ref) => $emit('select-image-variant', label, ref)"
                 @image-click="openImageModal"
                 @citation-click="openCitation"
                 @upload-trigger="$emit('trigger-upload')"
@@ -175,6 +176,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               :citations="msg.citations"
               :animate="false"
               @select="$emit('select-question', $event)"
+              @select-image-variant="(label, ref) => $emit('select-image-variant', label, ref)"
               @image-click="openImageModal"
               @citation-click="openCitation"
               @upload-trigger="$emit('trigger-upload')"
@@ -315,6 +317,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'select-question': [question: string]
+  /** Fires when an action with a |ref: image file is clicked for image-to-image generation. */
+  'select-image-variant': [label: string, refFileName: string]
   'upload-files': [files: File[]]
   'trigger-upload': []
   'view-threads': [messageId: string]

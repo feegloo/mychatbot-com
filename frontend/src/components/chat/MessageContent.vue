@@ -11,7 +11,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
 import { applyWordReveal } from '../../composables/wordReveal'
-import { parseMessageContent, splitTokens } from './parseContent'
+import { parseMessageContent, splitTokens, type ActionToken } from './parseContent'
 import { splitContent } from './splitContent'
 import Action from './Action.vue'
 import MessageContentAction from './MessageContentAction.vue'
@@ -36,8 +36,10 @@ const props = defineProps<{
   animate?: boolean
 }>()
 const emit = defineEmits<{
-  /** A `[prompt:Label]` or `[action:Label]` was clicked. */
+  /** A `[prompt:Label]` or a plain `[action:Label]` (without ref) was clicked. */
   select: [label: string]
+  /** A `[action:Label|ref:fileName]` was clicked — triggers image-to-image generation. */
+  'select-image-variant': [label: string, refFileName: string]
   /** An inline `<img>` inside the rendered markdown was clicked. */
   'image-click': [src: string, alt: string]
   /** A `[source:N]` button was clicked; payload is the 0-based citation index. */
@@ -69,6 +71,24 @@ const hasActions = computed(
     parsedTokens.value.visibleActions.length > 0 ||
     parsedTokens.value.overflowActions.length > 0,
 )
+
+// Fast label → ActionToken lookup to find refFileName on click.
+const actionByLabel = computed<Map<string, ActionToken>>(() => {
+  const map = new Map<string, ActionToken>()
+  for (const a of [...parsedTokens.value.visibleActions, ...parsedTokens.value.overflowActions]) {
+    map.set(a.label, a)
+  }
+  return map
+})
+
+function onActionSelect(label: string) {
+  const token = actionByLabel.value.get(label)
+  if (token?.refFileName) {
+    emit('select-image-variant', label, token.refFileName)
+  } else {
+    emit('select', label)
+  }
+}
 
 function onContentClick(e: MouseEvent) {
   const target = e.target as HTMLElement
@@ -231,14 +251,14 @@ onBeforeUnmount(() => {
 
     <div v-if="hasActions" class="actions-row">
       <MessageContentAction
-        v-for="label in parsedTokens.visibleActions"
-        :key="label"
-        :label="label"
-        @select="emit('select', $event)"
+        v-for="action in parsedTokens.visibleActions"
+        :key="action.label"
+        :label="action.label"
+        @select="onActionSelect($event)"
       />
       <MessageContentActionMore
-        :actions="parsedTokens.overflowActions"
-        @select="emit('select', $event)"
+        :actions="parsedTokens.overflowActions.map((a) => a.label)"
+        @select="onActionSelect($event)"
       />
     </div>
   </div>

@@ -37,8 +37,9 @@ export async function runImageGenStream(options: {
   reactiveMsg: ChatMessage
   timeoutMs?: number
   useUserId?: boolean
+  referenceImageFileNames?: string[]
 }): Promise<ImageGenStreamResponse> {
-  const { conversationId, question, reactiveMsg, useUserId = true } = options
+  const { conversationId, question, reactiveMsg, useUserId = true, referenceImageFileNames } = options
   const timeoutMs = options.timeoutMs ?? 120_000
 
   reactiveMsg.generatingImage = true
@@ -87,7 +88,13 @@ export async function runImageGenStream(options: {
       onPartial: ({ b64, index }) => {
         console.log(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
         if (firstPartialAt === null) firstPartialAt = Date.now()
-        reactiveMsg.imagePartialDataUrl = `data:image/png;base64,${b64}`
+        // Detect the actual image format from the base64 magic bytes rather
+        // than assuming PNG. With output_format="jpeg" the partial frames are
+        // JPEG; PNG partials start with "iVBO", JPEG with "/9j/".
+        const mime = b64.startsWith('/9j/') ? 'image/jpeg'
+          : b64.startsWith('iVBO') ? 'image/png'
+          : 'image/jpeg'
+        reactiveMsg.imagePartialDataUrl = `data:${mime};base64,${b64}`
         reactiveMsg.imagePartialIndex = index
       },
       onComplete: (data) => {
@@ -108,7 +115,7 @@ export async function runImageGenStream(options: {
         clearTimeout(timeoutHandle)
         reject(new Error(message))
       },
-    }).catch((err) => {
+    }, referenceImageFileNames).catch((err) => {
       clearTimeout(timeoutHandle)
       reject(err)
     })

@@ -27,7 +27,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 # Keep a single fixed image size while image generation is being stabilized.
 # The previous aspect-ratio map is intentionally disabled for now.
 # ASPECT_SIZE_MAP: dict[str, str] = {
-#     "1:1":  "1024x1024",
+#     "1:1":  "816x816",
 #     "3:4":  "768x1024",
 #     "4:3":  "1024x768",
 #     "2:3":  "688x1024",
@@ -36,7 +36,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 #     "9:16": "576x1024",
 # }
 _DEFAULT_ASPECT = "1:1"
-_FIXED_IMAGE_SIZE = "1024x1024"
+_FIXED_IMAGE_SIZE = "816x816"
 
 
 def aspect_to_image_size(aspect: str) -> str:
@@ -129,8 +129,12 @@ def _call_images_edit(
     size: str,
     quality: str,
     reference_paths: list[Path],
+    output_format: str = "jpeg",
+    output_compression: int = 85,
 ):
     """Call OpenAI images.edit with one or more reference images."""
+    # output_compression is only valid for jpeg/webp — omit for png to avoid API error.
+    compression_kwarg = {} if output_format == "png" else {"output_compression": output_compression}
     with contextlib.ExitStack() as stack:
         handles = [stack.enter_context(open(p, "rb")) for p in reference_paths]
         image_arg = handles[0] if len(handles) == 1 else handles
@@ -141,16 +145,20 @@ def _call_images_edit(
             n=1,
             size=size,
             quality=quality,
+            output_format=output_format,
+            **compression_kwarg,
         )
 
 
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "1024x1024",
+    size: str = "816x816",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
+    output_format: str = "jpeg",
+    output_compression: int = 85,
 ) -> dict:
     """Generate an image from a text prompt using OpenAI.
 
@@ -185,7 +193,7 @@ def generate_image(
 
     logger.info(
         f"🎨 Generating image: prompt='{prompt[:100]}...' size={size} "
-        f"quality={quality} model={model} refs={len(reference_paths)}"
+        f"quality={quality} format={output_format} model={model} refs={len(reference_paths)}"
     )
 
     tracer = get_tracer("chatrag.image_gen")
@@ -196,6 +204,8 @@ def generate_image(
         "reference_count": len(reference_paths),
     }
 
+    compression_kwarg = {} if output_format == "png" else {"output_compression": output_compression}
+
     def _call(p: str):
         if reference_paths:
             return _call_images_edit(
@@ -205,6 +215,8 @@ def generate_image(
                 size=size,
                 quality=quality,
                 reference_paths=reference_paths,
+                output_format=output_format,
+                output_compression=output_compression,
             )
         return client.images.generate(
             model=model,
@@ -212,6 +224,8 @@ def generate_image(
             n=1,
             size=size,
             quality=quality,
+            output_format=output_format,
+            **compression_kwarg,
         )
 
     with tracer.start_as_current_span("image.generate", attributes=span_attrs):
@@ -246,8 +260,9 @@ def generate_image(
     else:
         raise ValueError("OpenAI image response contained neither url nor b64_json")
 
-    # Save to storage dir
-    file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
+    # Save to storage dir — use the correct extension for the chosen output format.
+    ext = "jpg" if output_format == "jpeg" else output_format
+    file_name = f"generated-{uuid.uuid4().hex[:12]}.{ext}"
     os.makedirs(storage_dir, exist_ok=True)
     file_path = Path(storage_dir) / file_name
     file_path.write_bytes(image_bytes)
@@ -263,11 +278,17 @@ def generate_image(
 def generate_image_streaming(
     prompt: str,
     storage_dir: str,
-    size: str = "1024x1024",
+    size: str = "816x816",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
-    partial_images: int = 2,
+    # 3 partial frames gives the morph animation enough stages to look smooth
+    # and, crucially, makes the FIRST intermediate arrive at ~25% of generation
+    # time instead of ~50% (which is where a single partial lands).  More frames
+    # earlier = morph starts sooner and has more visible sharpening steps.
+    partial_images: int = 3,
+    output_format: str = "jpeg",
+    output_compression: int = 85,
 ):
     """Streaming variant of ``generate_image`` that yields progressive frames.
 
@@ -302,8 +323,11 @@ def generate_image_streaming(
 
     logger.info(
         f"🎨 Streaming image: prompt='{prompt[:100]}...' size={size} "
-        f"quality={quality} model={stream_model} partials={partial_images}"
+        f"quality={quality} format={output_format} model={stream_model} partials={partial_images}"
     )
+
+    _ext = "jpg" if output_format == "jpeg" else output_format
+    _compression_kwarg = {} if output_format == "png" else {"output_compression": output_compression}
 
     def _yield_stream(events, default_prompt: str):
         final_b64: str | None = None
@@ -323,7 +347,7 @@ def generate_image_streaming(
             raise ValueError("OpenAI streaming image response contained no final frame")
 
         image_bytes = base64.b64decode(final_b64)
-        file_name = f"generated-{uuid.uuid4().hex[:12]}.png"
+        file_name = f"generated-{uuid.uuid4().hex[:12]}.{_ext}"
         os.makedirs(storage_dir, exist_ok=True)
         file_path = Path(storage_dir) / file_name
         file_path.write_bytes(image_bytes)
@@ -358,6 +382,8 @@ def generate_image_streaming(
                         n=1,
                         size=size,
                         quality=quality,
+                        output_format=output_format,
+                        **_compression_kwarg,
                         stream=True,
                         partial_images=partial_images,
                     )
@@ -391,6 +417,8 @@ def generate_image_streaming(
                 n=1,
                 size=size,
                 quality=quality,
+                output_format=output_format,
+                **_compression_kwarg,
                 stream=True,
                 partial_images=partial_images,
             )
@@ -528,60 +556,76 @@ def build_image_prompt(
     client = OpenAI(api_key=settings.openai_api_key)
 
     system = (
-        "You are an expert prompt engineer for AI image generation. "
-        "Given the user's request, document sources, conversation history, and the CREATIVE DIRECTION, create:\n"
-        "1. A detailed, vivid image generation prompt (max 200 words). "
-        "FIRST classify the subject, then pick a visual register that fits it. "
-        "The CREATIVE DIRECTION is a suggestion — override any element of it that "
-        "clashes with the subject-type rules below.\n\n"
-        "SUBJECT-TYPE RULES (these take precedence over the creative direction):\n"
-        "• People, portraits, real individuals, biographies, interviews, medical/anatomy → "
-        "photorealistic photography. Natural skin, anatomically correct proportions, realistic "
-        "lighting (softbox, natural light, cinematic key light). Avoid cartoon, caricature, "
-        "surreal distortion, or heavy stylization unless the user explicitly asks for it.\n"
-        "• Books, novels, stories, chapters, fiction, screenplays, films → cinematic film-still "
-        "aesthetic. Think wide anamorphic framing, teal-and-orange or moody color grading, "
-        "shallow depth of field, production-design detail, 35mm film grain.\n"
-        "• Poetry, song lyrics, creative writing, philosophy, dreams, emotions, abstract ideas → "
-        "abstract, surreal, or symbolic imagery. Flowing forms, metaphorical composition, "
-        "impressionist or surrealist style, evocative color palettes.\n"
-        "• Science, cosmos, space, physics, math, biology at a conceptual level → abstract "
-        "scientific visualization. Nebulae, particle fields, data-art, luminous geometry, "
-        "macro/micro imagery, dark backgrounds with vibrant accents.\n"
-        "• History, historical figures, ancient civilizations → period-appropriate painting or "
-        "photograph style (e.g., Renaissance oil, sepia daguerreotype, Dutch Golden Age).\n"
-        "• Food, recipes, cooking → realistic overhead or three-quarter food photography with "
-        "natural light, shallow depth of field, rustic props.\n"
-        "• Nature, landscapes, travel, architecture → cinematic photography or impressionist "
-        "painting; emphasize atmosphere and scale.\n"
-        "• Technology, code, UI, diagrams → clean isometric illustration or minimalist "
-        "digital art; avoid realism of text (generate no readable text).\n"
-        "• Children's books, fairy tales, whimsical → storybook illustration, watercolor, or "
-        "soft digital painting.\n\n"
-        "Ground the image in the actual content from the provided sources when relevant. "
-        "Focus on visual elements: composition, style, colors, mood, lighting. "
-        "Never render readable text, logos, or watermarks in the image. "
-        "Do NOT produce the most literal or predictable interpretation of the subject — "
-        "within the register the rules dictate, still find a fresh angle.\n"
-        "2. A short, evocative title for the image (max 8 words) that reflects the "
-        "specific creative angle chosen — NOT a generic description of the subject. "
-        "Write the title in the SAME LANGUAGE AND SCRIPT as the user's request and "
-        "the document sources (e.g. Arabic sources → Arabic title in Arabic script, "
-        "Polish sources → Polish title, Chinese sources → Chinese title). Only use "
-        "English when the source material itself is in English.\n"
-        "3. A list of source indices (0-based integers) from the provided chunks that "
-        "most directly informed the image concept. Include 1–5 indices; use [] if none apply.\n"
-        # Aspect selection prompt removed on purpose.
-        # "4. The best aspect ratio for this image from: 1:1 (square), 3:4 (portrait/book cover), "
-        # "4:3 (landscape/presentation), 2:3 (tall portrait/magazine), 3:2 (wide photo/DSLR), "
-        # "16:9 (cinematic widescreen), 9:16 (vertical/story). Choose based on subject and composition:\n"
-        # "  • Portraits, profiles, people standing → 3:4 or 2:3\n"
-        # "  • Landscapes, panoramas, architecture exteriors → 3:2 or 16:9\n"
-        # "  • Cinematic scenes, film stills → 16:9\n"
-        # "  • Mobile/social content, vertical stories → 9:16\n"
-        # "  • Book covers, posters, editorial → 2:3\n"
-        # "  • Presentations, classic photos → 4:3\n"
-        # "  • Logos, icons, balanced scenes → 1:1\n\n"
+        "You are an expert prompt engineer for gpt-image-2, an AI image generation model. "
+        "Given the user's request, document sources, conversation history, and the CREATIVE DIRECTION, produce:\n\n"
+        "─────────────────────────────────────────────\n"
+        "OUTPUT 1 — IMAGE PROMPT  (max 200 words)\n"
+        "─────────────────────────────────────────────\n"
+        "Structure the prompt in this fixed order:\n"
+        "  [SCENE/BACKGROUND] → [SUBJECT] → [KEY DETAILS] → [COMPOSITION] → [CONSTRAINTS]\n\n"
+        "STEP 1 — CLASSIFY the subject and choose a visual register:\n"
+        "• People, portraits, real individuals, biographies, interviews, medical/anatomy →\n"
+        "  Include the word 'photorealistic' at the start of the prompt. Describe natural skin\n"
+        "  texture, hair detail, anatomically correct proportions. Add lighting type: softbox,\n"
+        "  natural window light, or cinematic key light. State body framing explicitly\n"
+        "  ('waist-up', 'full body visible, feet included', etc.). For gaze, say what the\n"
+        "  subject is looking at ('looking slightly off-camera, not directly at viewer').\n"
+        "  Avoid cartoon, caricature, or heavy stylization unless explicitly requested.\n"
+        "• Books, novels, fiction, screenplays, films →\n"
+        "  Cinematic film-still aesthetic. Wide anamorphic framing or medium shot, shallow depth\n"
+        "  of field, 35mm film grain, moody color grading (teal-and-orange, desaturated tones,\n"
+        "  or high-contrast chiaroscuro). Describe set-dressing materials (worn leather, cracked\n"
+        "  plaster, heavy velvet) and atmosphere (smoky haze, rain on glass, candlelight flicker).\n"
+        "• Poetry, philosophy, dreams, emotions, abstract ideas →\n"
+        "  Abstract or symbolic composition. Describe flowing or geometric forms, a dominant\n"
+        "  color palette (two or three specific hues), and the emotional register\n"
+        "  (melancholic, euphoric, uncanny). Reference a visual medium: oil impasto,\n"
+        "  impressionist brushstrokes, or surrealist digital painting.\n"
+        "• Science, cosmos, space, physics, math, biology →\n"
+        "  Abstract scientific visualization. Name specific elements: nebulae with specific\n"
+        "  color cast, particle field density, luminous geometry on dark background,\n"
+        "  macro/micro scale indicator. Add quality lever: macro detail, luminous glows.\n"
+        "• History, historical figures, ancient civilizations →\n"
+        "  Period-appropriate style with named technique (Renaissance oil on canvas,\n"
+        "  sepia daguerreotype with vignette, Dutch Golden Age side-lighting).\n"
+        "• Food, recipes, cooking →\n"
+        "  Overhead or 45° three-quarter shot. Shallow depth of field, natural diffuse light,\n"
+        "  rustic wooden or marble surface. Name textures (glossy glaze, charred crust,\n"
+        "  steam wisps).\n"
+        "• Nature, landscapes, travel, architecture →\n"
+        "  Specify time of day and light quality (golden hour, blue-hour twilight, overcast\n"
+        "  diffuse). Name atmosphere cues (mist in the valley, rain-slicked cobblestones,\n"
+        "  neon reflections). Include scale reference if scene is wide or cinematic.\n"
+        "• Technology, code, UI, diagrams →\n"
+        "  Clean isometric illustration or flat minimalist digital art. No readable labels\n"
+        "  or text anywhere in the scene. Name color palette (muted pastels, cyberpunk neons).\n"
+        "• Children's books, fairy tales, whimsical →\n"
+        "  Storybook illustration style. Watercolor wash or soft digital painting, warm palette,\n"
+        "  gentle rounded forms.\n\n"
+        "STEP 2 — ADD COMPOSITION details:\n"
+        "  Framing/viewpoint: close-up | medium shot | wide | top-down | low-angle | eye-level\n"
+        "  Perspective: describe camera angle and distance from subject.\n"
+        "  Lighting/mood: name the light source and quality (soft diffuse, harsh rim, golden hour).\n"
+        "  Layout (if relevant): placement of key element ('subject centered with negative space\n"
+        "  on left', 'horizon line at lower third', 'logo top-right').\n\n"
+        "STEP 3 — ADD EXPLICIT CONSTRAINTS at the end of the prompt (always include):\n"
+        "  'No watermark. No readable text. No logos or trademarks. No extra limbs.\n"
+        "  Preserve natural proportions. No signature overlay.'\n\n"
+        "Ground the prompt in actual content from the provided sources when relevant. "
+        "Do NOT produce the most literal interpretation — find a fresh angle within the chosen register. "
+        "The CREATIVE DIRECTION is a suggestion; override it only when the subject-type rules above conflict with it.\n\n"
+        "─────────────────────────────────────────────\n"
+        "OUTPUT 2 — TITLE  (max 8 words)\n"
+        "─────────────────────────────────────────────\n"
+        "An evocative title reflecting the specific creative angle — NOT a generic description. "
+        "Write in the SAME LANGUAGE AND SCRIPT as the user's request and document sources "
+        "(Arabic → Arabic script, Polish → Polish, Chinese → Chinese). Use English only when "
+        "source material is in English.\n\n"
+        "─────────────────────────────────────────────\n"
+        "OUTPUT 3 — SOURCE INDICES\n"
+        "─────────────────────────────────────────────\n"
+        "A list of 0-based integers from the provided chunks that most directly informed the "
+        "image concept. Include 1–5 indices; use [] if none apply.\n\n"
         'Output ONLY valid JSON: {"prompt": "...", "title": "...", "source_indices": [0, 2]}'
     )
 
@@ -620,7 +664,9 @@ def build_image_prompt(
         messages=messages,
         model=settings.openai_chat_model,
         operation="image_prompt_build",
-        max_completion_tokens=500,
+        # The structured prompt we generate is concise; 350 tokens is sufficient
+        # and cuts prompt-builder latency noticeably vs the old 500-token limit.
+        max_completion_tokens=350,
         temperature=0.9,
     )
     try:

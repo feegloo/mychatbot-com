@@ -36,7 +36,7 @@ test.describe('Real image streaming morph', () => {
 
     const firstMorphSrc = await morphImage.getAttribute('src')
     expect(firstMorphSrc).toBeTruthy()
-    expect(firstMorphSrc ?? '').toMatch(/^data:image\/png;base64,/)
+    expect(firstMorphSrc ?? '').toMatch(/^data:image\/(png|jpeg);base64,/)
 
     const initialFilter = await morphImage.evaluate((el) =>
       window.getComputedStyle(el as HTMLImageElement).filter,
