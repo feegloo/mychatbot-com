@@ -1795,7 +1795,7 @@ h3 {
   transform-origin: center;
   will-change: transform, filter, opacity;
 
-  animation: morphCinematic 2s ease infinite alternate;
+  animation: morphCinematic 1s ease infinite alternate;
 }
 
 /* Progressive (morphing) partial image while OpenAI streams the diffusion
@@ -1808,7 +1808,7 @@ h3 {
   border-radius: 12px;
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2s ease-in-out infinite;
+  animation: image-morph-pulse 1s ease-in-out infinite;
 }
 .image-morph {
   display: block;

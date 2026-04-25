@@ -18,8 +18,8 @@ describe('App shell', () => {
   it('renders left and right columns with HomeHero', () => {
     const wrapper = mount(App)
 
-    expect(wrapper.find('[data-testid="menu-column"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="content-column"]').exists()).toBe(true)
+    expect(wrapper.find('.menu').exists()).toBe(true)
+    expect(wrapper.find('.content').exists()).toBe(true)
     expect(wrapper.text()).toContain('securely encrypted')
     expect(wrapper.find('img.home-logo').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cloud-function-file-input"]').exists()).toBe(true)
