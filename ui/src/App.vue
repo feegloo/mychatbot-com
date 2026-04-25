@@ -134,7 +134,7 @@ async function handleUpload() {
           conversationUrl.value = payload.url
           Sentry.captureMessage(`Upload journey accepted [${traceId}]`, 'info')
           window.location.assign(payload.url)
-        },
+        }
       )
     })
   } catch (error) {

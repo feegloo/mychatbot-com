@@ -11,7 +11,7 @@ describe('App shell', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ message: 'Hello World' }),
-      }),
+      })
     )
   })
 

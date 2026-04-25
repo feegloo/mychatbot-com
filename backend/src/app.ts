@@ -84,7 +84,17 @@ export function createApp() {
             } catch (err: any) {
               const status = err.status || err.statusCode || 500
               const message = err.message || 'Unknown error'
-              logger.error({ err, method: ctx.method, url: ctx.url, status, durationMs: Date.now() - start, traceId }, 'API error')
+              logger.error(
+                {
+                  err,
+                  method: ctx.method,
+                  url: ctx.url,
+                  status,
+                  durationMs: Date.now() - start,
+                  traceId,
+                },
+                'API error',
+              )
               if (status >= 500) Sentry.captureException(err)
               ctx.status = status
               ctx.body = { error: message, stack: err.stack || null }
@@ -96,7 +106,10 @@ export function createApp() {
 
       const durationMs = Date.now() - start
       if (durationMs > 500) {
-        logger.warn({ method: ctx.method, url: ctx.url, status: ctx.status, durationMs, traceId }, 'Slow API request')
+        logger.warn(
+          { method: ctx.method, url: ctx.url, status: ctx.status, durationMs, traceId },
+          'Slow API request',
+        )
       }
       return
     }
@@ -117,8 +130,14 @@ export function createApp() {
     if (ext && ext !== '.html') {
       // Serve static asset directly; 404 if not found
       const filePath = path.resolve(path.join(uiRoot, relativePath))
-      if (!filePath.startsWith(uiRoot)) { ctx.status = 400; return }
-      if (!fs.existsSync(filePath)) { ctx.status = 404; return }
+      if (!filePath.startsWith(uiRoot)) {
+        ctx.status = 400
+        return
+      }
+      if (!fs.existsSync(filePath)) {
+        ctx.status = 404
+        return
+      }
       await send(ctx, relativePath, { root: uiRoot })
       if (relativePath.startsWith('/assets/')) {
         ctx.set('Cache-Control', 'public, max-age=31536000, immutable')

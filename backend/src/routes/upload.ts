@@ -17,11 +17,7 @@ import {
   getMessageById,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
-import {
-  indexConversation,
-  indexConversationStream,
-  describeUrl,
-} from '../python/indexing.js'
+import { indexConversation, indexConversationStream, describeUrl } from '../python/indexing.js'
 import logger from '../logger.js'
 
 import { emitConversationEvent } from '../events.js'
@@ -147,9 +143,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     // reuse) and falls back to downloading from GCS otherwise.
     if (config.workerMode === 'cloud_run' && config.storageProvider === 'gcs') {
       const gsUri = `gs://${config.gcsBucket}/${saved.storageKey}`
-      jobFilePaths.push(
-        saved.absolutePath ? `${saved.absolutePath}|${gsUri}` : gsUri,
-      )
+      jobFilePaths.push(saved.absolutePath ? `${saved.absolutePath}|${gsUri}` : gsUri)
     } else if (saved.absolutePath) {
       jobFilePaths.push(saved.absolutePath)
     }
@@ -182,65 +176,25 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
       })
     })
   } else {
-  ;(async () => {
-    let welcomeMessageId: string | undefined
-    let latestParsed = 0
-    let latestTotal = 0
-    try {
-      const stream = indexConversationStream({
-        conversationId,
-        collectionName,
-        files: absolutePaths,
-        traceId,
-      })
+    ;(async () => {
+      let welcomeMessageId: string | undefined
+      let latestParsed = 0
+      let latestTotal = 0
+      try {
+        const stream = indexConversationStream({
+          conversationId,
+          collectionName,
+          files: absolutePaths,
+          traceId,
+        })
 
-      for await (const { event, data } of stream) {
-        if (event === 'welcome_message') {
-          const welcomeMessage = (data.welcome_message as string) || ''
-          const fileMetadata = (data.file_metadata as Record<string, any>) || {}
-          const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
-          const fallbackMessage =
-            welcomeMessage ||
-            `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
-          welcomeMessageId = await insertConversationMessage({
-            conversationId,
-            role: 'assistant',
-            content: fallbackMessage,
-            citations: { _uploadedFileNames: uploadedFileNames },
-          })
-          for (const [fileName, metadata] of Object.entries(fileMetadata)) {
-            try {
-              const origName = storedToOriginal[fileName] || fileName
-              await updateFileMetadata(conversationId, origName, metadata)
-            } catch (err: any) {
-              console.error(`[metadata update error for ${fileName}]:`, err.message)
-            }
-          }
-          emitConversationEvent(conversationId, {
-            event: 'welcome_message',
-            data: {
-              messageId: welcomeMessageId,
-              suggestedQuestions: earlySuggestedQuestions,
-            },
-          })
-        } else if (event === 'complete') {
-          Sentry.logger.info(
-            Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`,
-            {
-              conversation_id: conversationId,
-              file_count: files.length,
-              suggested_questions_count: ((data.suggested_questions as string[]) || []).length,
-              has_welcome_message: !!data.welcome_message,
-            },
-          )
-          const suggestedQuestions = (data.suggested_questions as string[]) || []
-          const finalWelcomeMessage = (data.welcome_message as string) || ''
-          // If welcome message was not emitted earlier (no on_progress callback hit),
-          // insert it now as a fallback
-          if (!welcomeMessageId) {
+        for await (const { event, data } of stream) {
+          if (event === 'welcome_message') {
+            const welcomeMessage = (data.welcome_message as string) || ''
             const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+            const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
             const fallbackMessage =
-              finalWelcomeMessage ||
+              welcomeMessage ||
               `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
             welcomeMessageId = await insertConversationMessage({
               conversationId,
@@ -256,46 +210,86 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
                 console.error(`[metadata update error for ${fileName}]:`, err.message)
               }
             }
-          } else if (finalWelcomeMessage) {
-            // A richer synthesized welcome message arrived after the initial
-            // OCR-prefetch version — merge it into the original under an UPDATE
-            // section so the user sees both the warm first-impression and the
-            // full-document synthesis.
-            try {
-              await appendWelcomeUpdate(
-                welcomeMessageId,
-                finalWelcomeMessage,
-                latestParsed,
-                latestTotal,
-              )
-            } catch (err: any) {
-              console.error('[welcome update error]:', err.message)
+            emitConversationEvent(conversationId, {
+              event: 'welcome_message',
+              data: {
+                messageId: welcomeMessageId,
+                suggestedQuestions: earlySuggestedQuestions,
+              },
+            })
+          } else if (event === 'complete') {
+            Sentry.logger.info(
+              Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`,
+              {
+                conversation_id: conversationId,
+                file_count: files.length,
+                suggested_questions_count: ((data.suggested_questions as string[]) || []).length,
+                has_welcome_message: !!data.welcome_message,
+              },
+            )
+            const suggestedQuestions = (data.suggested_questions as string[]) || []
+            const finalWelcomeMessage = (data.welcome_message as string) || ''
+            // If welcome message was not emitted earlier (no on_progress callback hit),
+            // insert it now as a fallback
+            if (!welcomeMessageId) {
+              const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+              const fallbackMessage =
+                finalWelcomeMessage ||
+                `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+              welcomeMessageId = await insertConversationMessage({
+                conversationId,
+                role: 'assistant',
+                content: fallbackMessage,
+                citations: { _uploadedFileNames: uploadedFileNames },
+              })
+              for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+                try {
+                  const origName = storedToOriginal[fileName] || fileName
+                  await updateFileMetadata(conversationId, origName, metadata)
+                } catch (err: any) {
+                  console.error(`[metadata update error for ${fileName}]:`, err.message)
+                }
+              }
+            } else if (finalWelcomeMessage) {
+              // A richer synthesized welcome message arrived after the initial
+              // OCR-prefetch version — merge it into the original under an UPDATE
+              // section so the user sees both the warm first-impression and the
+              // full-document synthesis.
+              try {
+                await appendWelcomeUpdate(
+                  welcomeMessageId,
+                  finalWelcomeMessage,
+                  latestParsed,
+                  latestTotal,
+                )
+              } catch (err: any) {
+                console.error('[welcome update error]:', err.message)
+              }
             }
+            await updateConversationStatus(conversationId, 'ready')
+            emitConversationEvent(conversationId, {
+              event: 'complete',
+              data: { suggestedQuestions },
+            })
+          } else if (event === 'page_progress') {
+            latestParsed = Number(data.parsed) || latestParsed
+            latestTotal = Number(data.total) || latestTotal
+            emitConversationEvent(conversationId, {
+              event: 'page_progress',
+              data: { parsed: data.parsed, total: data.total },
+            })
+          } else if (event === 'error') {
+            throw new Error((data.error as string) || 'Indexing failed')
           }
-          await updateConversationStatus(conversationId, 'ready')
-          emitConversationEvent(conversationId, {
-            event: 'complete',
-            data: { suggestedQuestions },
-          })
-        } else if (event === 'page_progress') {
-          latestParsed = Number(data.parsed) || latestParsed
-          latestTotal = Number(data.total) || latestTotal
-          emitConversationEvent(conversationId, {
-            event: 'page_progress',
-            data: { parsed: data.parsed, total: data.total },
-          })
-        } else if (event === 'error') {
-          throw new Error((data.error as string) || 'Indexing failed')
         }
+      } catch (error: any) {
+        await updateConversationStatus(conversationId, 'failed', error.message)
+        emitConversationEvent(conversationId, {
+          event: 'error',
+          data: { message: error.message },
+        })
       }
-    } catch (error: any) {
-      await updateConversationStatus(conversationId, 'failed', error.message)
-      emitConversationEvent(conversationId, {
-        event: 'error',
-        data: { message: error.message },
-      })
-    }
-  })()
+    })()
   }
 
   ctx.body = {
@@ -459,9 +453,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
     if (config.workerMode === 'cloud_run') {
       // Prefer local (cached on this instance after downloadGcsFileToLocal)
       // and fall back to gs:// for workers on other instances.
-      jobFilePaths.push(
-        `${absolutePath}|gs://${config.gcsBucket}/${entry.gcsKey}`,
-      )
+      jobFilePaths.push(`${absolutePath}|gs://${config.gcsBucket}/${entry.gcsKey}`)
     } else {
       jobFilePaths.push(absolutePath)
     }
@@ -493,57 +485,28 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
       })
     })
   } else {
-  ;(async () => {
-    let welcomeMessageId: string | undefined
-    let latestParsed = 0
-    let latestTotal = 0
-    try {
-      const stream = indexConversationStream({
-        conversationId: conversationId as string,
-        collectionName,
-        files: absolutePaths,
-        traceId,
-      })
+    ;(async () => {
+      let welcomeMessageId: string | undefined
+      let latestParsed = 0
+      let latestTotal = 0
+      try {
+        const stream = indexConversationStream({
+          conversationId: conversationId as string,
+          collectionName,
+          files: absolutePaths,
+          traceId,
+        })
 
-      for await (const { event, data } of stream) {
-        if (event === 'welcome_message') {
-          const welcomeMessage = (data.welcome_message as string) || ''
-          const fileMetadata = (data.file_metadata as Record<string, any>) || {}
-          const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
-          const fallbackMessage =
-            welcomeMessage ||
-            `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
-          welcomeMessageId = await insertConversationMessage({
-            conversationId: conversationId as string,
-            role: 'assistant',
-            content: fallbackMessage,
-            citations: { _uploadedFileNames: uploadedFileNames },
-          })
-          for (const [fileName, metadata] of Object.entries(fileMetadata)) {
-            try {
-              const origName = storedToOriginal[fileName] || fileName
-              await updateFileMetadata(conversationId as string, origName, metadata)
-            } catch (err: any) {
-              console.error(`[metadata update error for ${fileName}]:`, err.message)
-            }
-          }
-          emitConversationEvent(conversationId, {
-            event: 'welcome_message',
-            data: {
-              messageId: welcomeMessageId,
-              suggestedQuestions: earlySuggestedQuestions,
-            },
-          })
-        } else if (event === 'complete') {
-          const suggestedQuestions = (data.suggested_questions as string[]) || []
-          const finalWelcomeMessage = (data.welcome_message as string) || ''
-          if (!welcomeMessageId) {
+        for await (const { event, data } of stream) {
+          if (event === 'welcome_message') {
+            const welcomeMessage = (data.welcome_message as string) || ''
             const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+            const earlySuggestedQuestions = (data.suggested_questions as string[]) || []
             const fallbackMessage =
-              finalWelcomeMessage ||
+              welcomeMessage ||
               `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
             welcomeMessageId = await insertConversationMessage({
-              conversationId,
+              conversationId: conversationId as string,
               role: 'assistant',
               content: fallbackMessage,
               citations: { _uploadedFileNames: uploadedFileNames },
@@ -551,47 +514,76 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
             for (const [fileName, metadata] of Object.entries(fileMetadata)) {
               try {
                 const origName = storedToOriginal[fileName] || fileName
-                await updateFileMetadata(conversationId, origName, metadata)
+                await updateFileMetadata(conversationId as string, origName, metadata)
               } catch (err: any) {
                 console.error(`[metadata update error for ${fileName}]:`, err.message)
               }
             }
-          } else if (finalWelcomeMessage) {
-            try {
-              await appendWelcomeUpdate(
-                welcomeMessageId,
-                finalWelcomeMessage,
-                latestParsed,
-                latestTotal,
-              )
-            } catch (err: any) {
-              console.error('[welcome update error]:', err.message)
+            emitConversationEvent(conversationId, {
+              event: 'welcome_message',
+              data: {
+                messageId: welcomeMessageId,
+                suggestedQuestions: earlySuggestedQuestions,
+              },
+            })
+          } else if (event === 'complete') {
+            const suggestedQuestions = (data.suggested_questions as string[]) || []
+            const finalWelcomeMessage = (data.welcome_message as string) || ''
+            if (!welcomeMessageId) {
+              const fileMetadata = (data.file_metadata as Record<string, any>) || {}
+              const fallbackMessage =
+                finalWelcomeMessage ||
+                `## ${uploadedFileNames.join(', ')}\n\nFile uploaded and ready. Ask me anything about ${uploadedFileNames.length === 1 ? 'this document' : 'these documents'}.`
+              welcomeMessageId = await insertConversationMessage({
+                conversationId,
+                role: 'assistant',
+                content: fallbackMessage,
+                citations: { _uploadedFileNames: uploadedFileNames },
+              })
+              for (const [fileName, metadata] of Object.entries(fileMetadata)) {
+                try {
+                  const origName = storedToOriginal[fileName] || fileName
+                  await updateFileMetadata(conversationId, origName, metadata)
+                } catch (err: any) {
+                  console.error(`[metadata update error for ${fileName}]:`, err.message)
+                }
+              }
+            } else if (finalWelcomeMessage) {
+              try {
+                await appendWelcomeUpdate(
+                  welcomeMessageId,
+                  finalWelcomeMessage,
+                  latestParsed,
+                  latestTotal,
+                )
+              } catch (err: any) {
+                console.error('[welcome update error]:', err.message)
+              }
             }
+            await updateConversationStatus(conversationId, 'ready')
+            emitConversationEvent(conversationId, {
+              event: 'complete',
+              data: { suggestedQuestions },
+            })
+          } else if (event === 'page_progress') {
+            latestParsed = Number(data.parsed) || latestParsed
+            latestTotal = Number(data.total) || latestTotal
+            emitConversationEvent(conversationId, {
+              event: 'page_progress',
+              data: { parsed: data.parsed, total: data.total },
+            })
+          } else if (event === 'error') {
+            throw new Error((data.error as string) || 'Indexing failed')
           }
-          await updateConversationStatus(conversationId, 'ready')
-          emitConversationEvent(conversationId, {
-            event: 'complete',
-            data: { suggestedQuestions },
-          })
-        } else if (event === 'page_progress') {
-          latestParsed = Number(data.parsed) || latestParsed
-          latestTotal = Number(data.total) || latestTotal
-          emitConversationEvent(conversationId, {
-            event: 'page_progress',
-            data: { parsed: data.parsed, total: data.total },
-          })
-        } else if (event === 'error') {
-          throw new Error((data.error as string) || 'Indexing failed')
         }
+      } catch (error: any) {
+        await updateConversationStatus(conversationId, 'failed', error.message)
+        emitConversationEvent(conversationId, {
+          event: 'error',
+          data: { message: error.message },
+        })
       }
-    } catch (error: any) {
-      await updateConversationStatus(conversationId, 'failed', error.message)
-      emitConversationEvent(conversationId, {
-        event: 'error',
-        data: { message: error.message },
-      })
-    }
-  })()
+    })()
   }
 
   ctx.body = {
