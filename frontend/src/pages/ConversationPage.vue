@@ -635,7 +635,7 @@ function viewHeaderThreads() {
   }
 }
 
-function scrollToBottom(smooth = false, toEnd = false) {
+function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
   // When `toEnd` is true, scroll all the way to the bottom — used when the
@@ -648,13 +648,23 @@ function scrollToBottom(smooth = false, toEnd = false) {
     })
     return
   }
-  // Find the last message element
   const messageEls = container.querySelectorAll('.message')
-  const lastMsg = messageEls[messageEls.length - 1] as HTMLElement | undefined
-  if (lastMsg) {
-    // Scroll so the top of the last message aligns with the top of the container.
-    // If the message is shorter than the viewport, scrolling to its top is enough.
-    const msgTop = lastMsg.offsetTop - container.offsetTop
+  // When `showUserQuestion` is true, scroll so the last user message is at the
+  // top of the container — this keeps the question visible with the response
+  // flowing below it, matching the desired layout after submitting a question.
+  let targetMsg: HTMLElement | undefined
+  if (showUserQuestion) {
+    for (let i = messageEls.length - 1; i >= 0; i--) {
+      if ((messageEls[i] as HTMLElement).classList.contains('user')) {
+        targetMsg = messageEls[i] as HTMLElement
+        break
+      }
+    }
+  }
+  targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
+  if (targetMsg) {
+    // Scroll so the top of the target message aligns with the top of the container.
+    const msgTop = targetMsg.offsetTop - container.offsetTop
     const maxScroll = container.scrollHeight - container.clientHeight
     container.scrollTo({
       top: Math.min(msgTop, maxScroll),
@@ -792,10 +802,11 @@ async function ask() {
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
-    scrollToBottom(true)
+    // Scroll so user question is at top with the response visible below
+    scrollToBottom(true, false, true)
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true), 0)
+    setTimeout(() => scrollToBottom(true, false, true), 0)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
@@ -886,7 +897,8 @@ watch(
   async (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
       await nextTick()
-      setTimeout(() => scrollToBottom(), 0)
+      // Show user question at top so the response streams into view below it
+      setTimeout(() => scrollToBottom(false, false, true), 0)
     }
     prevMessageCount = newLen
   },

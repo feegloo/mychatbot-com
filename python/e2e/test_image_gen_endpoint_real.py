@@ -18,6 +18,7 @@ import base64
 import json
 import os
 import time
+import uuid
 from pathlib import Path
 
 import pytest
@@ -95,8 +96,9 @@ def test_generate_image_stream_saves_artifacts(tmp_path: Path):
     )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    run_hash = uuid.uuid4().hex[:8]
 
-    _log(f"Starting e2e image stream test")
+    _log(f"Starting e2e image stream test  [run={run_hash})")
     _log(f"  size  : {requested_size}")
     _log(f"  prompt: {prompt}")
     _log(f"  output: {OUTPUT_DIR}")
@@ -121,7 +123,7 @@ def test_generate_image_stream_saves_artifacts(tmp_path: Path):
         data = event.get("data", {})
 
         if event_type == "partial":
-            frame_path = OUTPUT_DIR / f"partial_{partial_count}.jpg"
+            frame_path = OUTPUT_DIR / f"{run_hash}_partial_{partial_count}.jpg"
             frame_path.write_bytes(base64.b64decode(data["b64"]))
             _log(f"  Saved partial frame [{partial_count}]: {frame_path.name}")
             partial_count += 1
@@ -129,7 +131,7 @@ def test_generate_image_stream_saves_artifacts(tmp_path: Path):
         elif event_type == "complete":
             src = tmp_path / data["file_name"]
             if src.is_file():
-                dest = OUTPUT_DIR / "final.jpg"
+                dest = OUTPUT_DIR / f"{run_hash}_final.jpg"
                 dest.write_bytes(src.read_bytes())
                 final_file = dest
                 _log(f"  Saved final image: {dest.name}  ({dest.stat().st_size // 1024} KB)")

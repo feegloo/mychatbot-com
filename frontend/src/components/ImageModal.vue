@@ -48,15 +48,15 @@ defineEmits<{
 
 .image-modal-close {
   position: absolute;
-  top: 0px;
-  right: -16px;
-  width: 32px;
-  height: 32px;
+  top: -18px;
+  right: -18px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   background: #1e293b;
   color: #e2e8f0;
-  font-size: 24px;
+  font-size: 36px;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -109,7 +109,9 @@ defineEmits<{
 }
 
 .modal-title-fade-enter-active {
-  transition: opacity 0.5s ease 0.15s, transform 0.5s ease 0.15s;
+  transition:
+    opacity 0.5s ease 0.15s,
+    transform 0.5s ease 0.15s;
 }
 .modal-title-fade-leave-active {
   transition: opacity 0.2s ease;

@@ -81,7 +81,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         <div v-if="msg.generatingImage" class="image-generating-label">
           <TextFade :trigger="msg.imageAnnouncement || 'generic'" :disabled="noAnimation">
             <span v-if="msg.imageAnnouncement" style="display: block;text-align: center;">🎨 {{ msg.imageAnnouncement }}</span>
-            <span v-else>🎨 Generating image, please wait...</span>
+            <span v-else class="generating-image-please-wait">🎨 Generating image, please wait...</span>
           </TextFade>
         </div>
           <div v-if="msg.generatingImage && msg.imageDetailedPrompt" class="image-prompt-detail">
@@ -724,10 +724,13 @@ function getFileUrl(file: FileInfo) {
   return getStorageUrl(effectiveStorageId.value, file.originalName)
 }
 
-// Clicking a welcome-message file preview opens the same modal used by
-// citation buttons. PDFs land on page 1; non-PDFs fall back to the text
-// preview layout with no highlighted quote.
+// Clicking a welcome-message file preview opens ImageModal for images,
+// SourcePreviewModal for PDFs and other file types.
 function openFilePreview(file: FileInfo) {
+  if (file.mimeType?.startsWith('image/')) {
+    openImageModal(getFileUrl(file), file.originalName)
+    return
+  }
   previewCitation.value = {
     fileName: file.originalName,
     chunkId: '',
@@ -977,7 +980,7 @@ function openFilePreview(file: FileInfo) {
   /* border-radius: 12px; */
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  /* animation: image-morph-pulse 2s ease-in-out infinite; */
+  animation: image-morph-pulse 2s ease-in-out infinite;
 }
 /* .image-morph {
   transform: scale(1.02);

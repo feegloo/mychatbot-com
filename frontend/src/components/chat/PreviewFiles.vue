@@ -25,6 +25,7 @@ const emit = defineEmits<{ open: [file: File] }>()
 const index = ref(0)
 const current = computed<File | undefined>(() => props.files[index.value] ?? props.files[0])
 const hasMultiple = computed(() => props.files.length > 1)
+const currentIsPdf = computed(() => (current.value ? isPdf(current.value) : false))
 
 function isImage(f: File) {
   return f.mimeType?.startsWith('image/') ?? false
@@ -44,7 +45,7 @@ function prev(event: Event) {
 </script>
 
 <template>
-  <div v-if="current" class="preview-files">
+  <div v-if="current" class="preview-files" :class="{ 'preview-files--pdf': currentIsPdf }">
     <button v-if="hasMultiple" class="arrow arrow-left" title="Previous" @click="prev">
       <svg
         width="24"
@@ -59,20 +60,22 @@ function prev(event: Event) {
       </svg>
     </button>
 
-    <PreviewImg
-      v-if="isImage(current)"
-      :url="getUrl(current)"
-      :name="current.originalName"
-      @open="emit('open', current!)"
-    />
-    <PreviewPdf
-      v-else-if="isPdf(current)"
-      :conversation-id="props.conversationId"
-      :file-name="current.originalName"
-      :name="current.originalName"
-      @open="emit('open', current!)"
-    />
-    <PreviewText v-else :name="current.originalName" @open="emit('open', current!)" />
+    <div class="preview-stage">
+      <PreviewImg
+        v-if="isImage(current)"
+        :url="getUrl(current)"
+        :name="current.originalName"
+        @open="emit('open', current!)"
+      />
+      <PreviewPdf
+        v-else-if="isPdf(current)"
+        :conversation-id="props.conversationId"
+        :file-name="current.originalName"
+        :name="current.originalName"
+        @open="emit('open', current!)"
+      />
+      <PreviewText v-else :name="current.originalName" @open="emit('open', current!)" />
+    </div>
 
     <button v-if="hasMultiple" class="arrow arrow-right" title="Next" @click="next">
       <svg
@@ -109,9 +112,28 @@ function prev(event: Event) {
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 100%;
+  height: auto;
+}
+
+.preview-stage {
+  width: 100%;
   min-height: 240px;
 }
+
+@media (max-width: 768px) {
+  .preview-files--pdf {
+    gap: 0;
+  }
+
+  .preview-files--pdf .preview-stage {
+    min-height: 360px;
+  }
+
+  .preview-files--pdf .name {
+    margin: -6px 0 0;
+  }
+}
+
 .arrow {
   position: absolute;
   top: 50%;

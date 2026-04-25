@@ -45,6 +45,20 @@ describe("renderMarkdown table wrapping", () => {
     expect(html).toContain("value");
     expect(html).not.toContain("text-color-brown");
   });
+
+  it("renders checklist boxes for shorthand [] syntax", () => {
+    const html = renderMarkdown("- [] Feed Aurora\n- [x] Refill water");
+
+    expect(html).toContain('class="checklist-box"');
+    expect(html).toContain('class="checklist-box checked"');
+  });
+
+  it("does not convert checklist lines to dialogue dashes", () => {
+    const html = renderMarkdown("- [ ] First task\n- [ ] Second task");
+
+    expect(html).toContain('class="checklist-box"');
+    expect(html).not.toContain("\u2013 [ ]");
+  });
 });
 
 describe("renderInlineMarkdown", () => {

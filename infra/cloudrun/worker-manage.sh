@@ -6,7 +6,7 @@
 #   ./infra/cloudrun/worker-manage.sh pause          # scale to 0 instances
 #   ./infra/cloudrun/worker-manage.sh resume         # scale to 1 instance
 #   ./infra/cloudrun/worker-manage.sh status         # show current instance count
-#   ./infra/cloudrun/worker-manage.sh setup-autopause [IDLE_HOURS]  # install Cloud Scheduler auto-pause (default: 1h)
+#   ./infra/cloudrun/worker-manage.sh setup-autopause [IDLE_WINDOW]  # install Cloud Scheduler auto-pause (default: 30m)
 #   ./infra/cloudrun/worker-manage.sh remove-autopause              # remove Cloud Scheduler auto-pause
 #
 set -euo pipefail
@@ -74,23 +74,45 @@ cmd_resume() {
   warn "Remember: it will auto-pause after the configured idle period (if setup-autopause was run)."
 }
 
+build_autopause_schedule() {
+  local idle_window="$1"
+
+  case "$idle_window" in
+    30m)
+      echo "*/30 * * * *|30 minutes"
+      ;;
+    1h)
+      echo "0 * * * *|1 hour"
+      ;;
+    ''|*[!0-9h])
+      error "Unsupported idle window '$idle_window'. Use 30m, 1h, Nh, or a bare hour count like 2."
+      ;;
+    *h)
+      local hours="${idle_window%h}"
+      [[ -z "$hours" || "$hours" == "0" ]] && error "Idle window hours must be greater than 0."
+      echo "0 */${hours} * * *|${hours} hour(s)"
+      ;;
+    *)
+      [[ "$idle_window" == "0" ]] && error "Idle window hours must be greater than 0."
+      echo "0 */${idle_window} * * *|${idle_window} hour(s)"
+      ;;
+  esac
+}
+
 # Sets up a Cloud Scheduler job that:
 #  1. Checks whether the Pub/Sub subscription has 0 undelivered messages
 #  2. If yes (worker is truly idle), scales instances to 0
 #
-# The scheduler runs every hour and uses the Cloud Run Admin API via a
+# The scheduler runs on the configured interval and uses the Cloud Run Admin API via a
 # service-account-authenticated HTTP call.
 cmd_setup_autopause() {
-  local idle_hours="${1:-1}"
-  # Convert hours to a cron expression: run every N hours
-  # For simplicity we run every hour and let the script decide; for >1h idle
-  # we'd need state — keep it simple: run every hour, pause if idle.
-  local cron_schedule="0 * * * *"
-  if [[ "$idle_hours" != "1" ]]; then
-    cron_schedule="0 */${idle_hours} * * *"
-  fi
+  local idle_window="${1:-30m}"
+  local schedule_config
+  schedule_config="$(build_autopause_schedule "$idle_window")"
+  local cron_schedule="${schedule_config%%|*}"
+  local schedule_label="${schedule_config#*|}"
 
-  info "Setting up Cloud Scheduler auto-pause job (checks every ${idle_hours}h)..."
+  info "Setting up Cloud Scheduler auto-pause job (checks every ${schedule_label})..."
 
   # The scheduler HTTP target calls the Cloud Run Admin API to patch instances=0
   # only when Pub/Sub numUndeliveredMessages == 0.
@@ -134,10 +156,10 @@ cmd_setup_autopause() {
           --format='value(email)' | head -1)" \
       --http-method PATCH \
       --headers "Content-Type=application/json" \
-      --description "Auto-pause chatrag-worker after ${idle_hours}h idle window"
+        --description "Auto-pause chatrag-worker after ${schedule_label} idle window"
   fi
 
-  info "Auto-pause configured. chatrag-worker will be paused every ${idle_hours} hour(s)."
+      info "Auto-pause configured. chatrag-worker will be paused every ${schedule_label}."
   info "To wake it up: ./infra/cloudrun/worker-manage.sh resume"
 }
 
@@ -159,10 +181,10 @@ case "$COMMAND" in
   pause)          cmd_pause ;;
   resume)         cmd_resume ;;
   status)         cmd_status ;;
-  setup-autopause) cmd_setup_autopause "${1:-1}" ;;
+  setup-autopause) cmd_setup_autopause "${1:-30m}" ;;
   remove-autopause) cmd_remove_autopause ;;
   *)
-    echo "Usage: $0 {pause|resume|status|setup-autopause [IDLE_HOURS]|remove-autopause}"
+    echo "Usage: $0 {pause|resume|status|setup-autopause [IDLE_WINDOW]|remove-autopause}"
     exit 1
     ;;
 esac

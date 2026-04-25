@@ -4,6 +4,20 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { execSync } from "node:child_process";
 
 function getCommitHash(): string {
+  const envHash = [
+    process.env.VITE_COMMIT_HASH,
+    process.env.COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.CI_COMMIT_SHA,
+    process.env.SOURCE_VERSION,
+  ]
+    .map((value) => value?.trim())
+    .find((value) => Boolean(value));
+
+  if (envHash) {
+    return envHash.slice(0, 12);
+  }
+
   try {
     return execSync("git rev-parse --short HEAD", { stdio: ["pipe", "pipe", "ignore"] })
       .toString()

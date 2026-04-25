@@ -205,11 +205,14 @@ def get_llm() -> Any:
     logger.info(
         f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})"
     )
+    # Explicit timeout prevents a stalled API call from blocking indexing
+    # indefinitely (default SDK timeout is 600 s = 10 min).
     _llm_instance = ChatOpenAI(
         model=settings.openai_chat_model,
         api_key=settings.openai_api_key,
         temperature=_DEFAULT_LLM_TEMPERATURE,
         reasoning_effort=settings.openai_reasoning_effort,
+        timeout=180.0,
     )
     _llm_provider_key = cache_key
 

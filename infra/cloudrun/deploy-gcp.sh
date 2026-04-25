@@ -36,6 +36,7 @@ STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
 VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
 VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
+GIT_COMMIT_HASH="${GIT_COMMIT_HASH:-$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
 # CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
@@ -194,6 +195,7 @@ docker build \
   --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
   --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
   --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
+  --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
   --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
   --build-arg SENTRY_ORG="${SENTRY_ORG}" \
   --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
@@ -279,6 +281,20 @@ if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
   docker build -f python/Dockerfile.worker -t "${WORKER_IMAGE}:latest" python/
   docker push "${WORKER_IMAGE}:latest"
 
+  # Preserve the current instance count so a paused worker stays paused after deploy.
+  # Only fall back to WORKER_INSTANCES if the pool doesn't exist yet.
+  CURRENT_WORKER_INSTANCES=$(gcloud beta run worker-pools describe "$WORKER_SERVICE_NAME" \
+    --project "$PROJECT_ID" \
+    --region "$REGION" \
+    --format="value(scaling.manualInstanceCount)" 2>/dev/null || echo "")
+  if [[ -n "$CURRENT_WORKER_INSTANCES" ]]; then
+    EFFECTIVE_WORKER_INSTANCES="$CURRENT_WORKER_INSTANCES"
+    info "  Preserving current instance count: ${EFFECTIVE_WORKER_INSTANCES} (worker stays $([ "$EFFECTIVE_WORKER_INSTANCES" = "0" ] && echo "PAUSED" || echo "RUNNING"))"
+  else
+    EFFECTIVE_WORKER_INSTANCES="${WORKER_INSTANCES:-1}"
+    info "  Worker pool not found — creating with ${EFFECTIVE_WORKER_INSTANCES} instance(s)"
+  fi
+
   gcloud beta run worker-pools deploy "$WORKER_SERVICE_NAME" \
     --image "${WORKER_IMAGE}:latest" \
     --region "$REGION" \
@@ -287,7 +303,7 @@ if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
     --vpc-egress private-ranges-only \
     --memory 1Gi \
     --cpu 1 \
-    --instances "${WORKER_INSTANCES:-1}" \
+    --instances "${EFFECTIVE_WORKER_INSTANCES}" \
     --set-env-vars "\
 PYTHONUNBUFFERED=1,\
 GCP_PROJECT_ID=${GCP_PROJECT_ID},\
@@ -320,6 +336,6 @@ echo "════════════════════════�
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Pub/Sub topic:  $PUBSUB_TOPIC  (subscription: $PUBSUB_SUBSCRIPTION)"
-echo "  Worker pool:    ${DEPLOY_WORKER:-true}  (chatrag-worker, min=1 max=${WORKER_MAX_INSTANCES:-2})"
+echo "  Worker pool:    ${DEPLOY_WORKER:-true}  (chatrag-worker, instances=${EFFECTIVE_WORKER_INSTANCES:-skipped})"
 echo "  PDF offload:    Pub/Sub pull → chatrag-worker pool (idle replicas fetch next job)"
 echo "═══════════════════════════════════════════════════════════════"

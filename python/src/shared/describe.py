@@ -1127,7 +1127,7 @@ def _synthesize_welcome_messages(
             "to capture the author's voice, tone, and opening context.\n\n"
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
             "Your response MUST have three parts:\n"
-            "1. **Title**: # Document Title - Author Name\n"
+            "1. **Title**: # Document Title (append \" - Author Name\" only if the author is known; do NOT write \"Unknown author\")\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"

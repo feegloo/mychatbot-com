@@ -16,17 +16,21 @@ import { fileURLToPath } from 'url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const HOME_PAGE = resolve(ROOT, 'frontend/src/pages/HomePage.vue')
+const HOME_HERO = resolve(ROOT, 'frontend/src/components/HomeHero.vue')
 const INDEX_HTML = resolve(ROOT, 'frontend/index.html')
 const DRY_RUN = process.argv.includes('--dry-run')
 
-// --- Extract subtitle from HomePage.vue ---
+// --- Extract subtitle from HomePage.vue or HomeHero.vue ---
 
-const vueSource = readFileSync(HOME_PAGE, 'utf8')
-
-// Capture everything inside <p class="home-subtitle">...</p>
-const subtitleMatch = vueSource.match(/<p class="home-subtitle">([\s\S]*?)<\/p>/)
+// Try HomePage.vue first, then HomeHero.vue as fallback
+let vueSource = readFileSync(HOME_PAGE, 'utf8')
+let subtitleMatch = vueSource.match(/<p class="home-subtitle">([\s\S]*?)<\/p>/)
 if (!subtitleMatch) {
-  console.error('Could not find <p class="home-subtitle"> in HomePage.vue')
+  vueSource = readFileSync(HOME_HERO, 'utf8')
+  subtitleMatch = vueSource.match(/<p class="home-subtitle">([\s\S]*?)<\/p>/)
+}
+if (!subtitleMatch) {
+  console.error('Could not find <p class="home-subtitle"> in HomePage.vue or HomeHero.vue')
   process.exit(1)
 }
 

@@ -71,6 +71,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Maximum seconds a single indexing job may run before it is abandoned.
+# Per-API-call timeouts (180 s LLM, 120 s embedding) are the first line of
+# defence; this ceiling prevents a job from blocking the worker forever if
+# some unexpected combination of calls doesn't respect those limits.
+_JOB_TIMEOUT_SEC = int(os.environ.get("JOB_TIMEOUT_SEC", "900"))
+
 
 def _emit_event_to_db(
     conversation_id: str,
@@ -216,26 +222,44 @@ def _process_message(message) -> None:
         message.ack()  # don't retry — input is bad
         return
 
+    executor = futures.ThreadPoolExecutor(max_workers=1)
+    job_future = executor.submit(
+        index_documents,
+        conversation_id=payload.conversation_id,
+        collection_name=payload.collection_name,
+        file_paths=local_paths,
+        on_progress=on_progress,
+        job_metadata=payload.metadata,
+        allow_delegation=False,
+    )
     try:
         # allow_delegation=False: worker never re-delegates to itself.
-        index_documents(
-            conversation_id=payload.conversation_id,
-            collection_name=payload.collection_name,
-            file_paths=local_paths,
-            on_progress=on_progress,
-            job_metadata=payload.metadata,
-            allow_delegation=False,
-        )
+        job_future.result(timeout=_JOB_TIMEOUT_SEC)
         logger.info(
             f"✅ Job {payload.job_id} done in {int(time.time() - start_ts)}s"
         )
         message.ack()
+    except futures.TimeoutError:
+        elapsed = int(time.time() - start_ts)
+        logger.error(
+            f"⏱️ Job {payload.job_id} timed out after {elapsed}s "
+            f"(limit={_JOB_TIMEOUT_SEC}s)"
+        )
+        sentry_sdk.capture_message(
+            f"Indexing job timed out: {payload.conversation_id}",
+            level="error",
+        )
+        on_progress("error", {"error": f"Processing timed out after {elapsed}s"})
+        message.ack()  # ack to avoid infinite redelivery of a broken job
     except Exception as e:
         logger.exception(f"❌ Job {payload.job_id} failed: {e}")
         sentry_sdk.capture_exception(e)
         on_progress("error", {"error": str(e)[:500]})
         # NACK — let Pub/Sub retry (it'll DLQ after max attempts).
         message.nack()
+    finally:
+        # Don't block waiting for a potentially hung indexing thread.
+        executor.shutdown(wait=False)
 
 
 def main() -> int:

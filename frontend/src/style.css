@@ -104,9 +104,7 @@ a {
   padding: 12px;
   gap: 8px;
   overflow: hidden;
-  transition:
-    width 0.12s ease,
-    padding 0.12s ease;
+  transition: width .05s ease-out;
 }
 
 .conv-nav-new {
@@ -908,7 +906,7 @@ a {
 
 /* Markdown content styles for assistant messages */
 .markdown-content {
-  margin: 9px 0 0;
+  /* margin: 9px 0 0; */
   font-size: 15px;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -1144,25 +1142,27 @@ li:has(.checklist-box) {
 
 .markdown-content .markdown-image-scroll {
   display: block;
-  margin: 8px auto;
+  margin: 8px 0;
+  width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
   box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.15);
 }
 
 .markdown-content .markdown-image-scroll img {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
-  max-width: min(70vh, 420px);
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  object-fit: contain;
   transition: box-shadow 300ms ease, transform 300ms ease;
 }
 
-.image-generating-label {
-  width: min(70vh, 420px);
+.generating-image-place-wait {
+  width: 100%;
+  max-width: 100%;
 }
 
 .markdown-content .markdown-image-scroll img:hover {
@@ -1793,7 +1793,7 @@ h3 {
   transform-origin: center;
   will-change: transform, filter, opacity;
 
-  animation: morphCinematic 4.5s ease-in-out infinite alternate;
+  animation: morphCinematic 2s ease infinite alternate;
 }
 
 /* soft cinematic glow overlay */
@@ -1810,7 +1810,7 @@ h3 {
   );
 
   mix-blend-mode: screen;
-  animation: glowPulse 4.5s ease-in-out infinite alternate;
+  animation: glowPulse 2s ease-in-out infinite alternate;
 }
 
 /* main morph loop (forward ↔ backward) */
@@ -1824,13 +1824,13 @@ h3 {
   50% {
     transform: scale(1.02) translateY(-2px);
     opacity: 0.93;
-    filter: brightness(1.08) contrast(1.05) saturate(1.1) blur(0.6px);
+    filter: brightness(1.08) contrast(1.05) saturate(1.1) blur(2px);
   }
 
   100% {
     transform: scale(1.025) translateY(-3px);
     opacity: 0.9;
-    filter: brightness(1.12) contrast(1.08) saturate(1.12) blur(0.3px);
+    filter: brightness(1.12) contrast(1.08) saturate(1.12) blur(4px);
   }
 }
 

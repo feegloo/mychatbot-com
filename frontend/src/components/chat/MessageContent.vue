@@ -98,10 +98,14 @@ function onContentClick(e: MouseEvent) {
     // Prefer the visible caption text (may be translated) over the img.alt
     // which reflects the original markdown alt attribute.
     const captionEl = img.closest('p')?.nextElementSibling
-    const captionTitle =
-      captionEl?.classList.contains('image-caption')
-        ? captionEl.textContent?.replace(/^"|"$/g, '').trim()
-        : undefined
+    const captionTitle = (() => {
+      if (!captionEl?.classList.contains('image-caption')) return undefined
+      // Clone the element and remove source citation buttons before reading
+      // textContent, so the title doesn't include "↑1↑2" etc.
+      const clone = captionEl.cloneNode(true) as HTMLElement
+      clone.querySelectorAll('.inline-source-btn').forEach((btn) => btn.remove())
+      return clone.textContent?.replace(/^"|"$/g, '').trim() || undefined
+    })()
     emit('image-click', img.src, captionTitle || img.alt || 'Image')
     return
   }
