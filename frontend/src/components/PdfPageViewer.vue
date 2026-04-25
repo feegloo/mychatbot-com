@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
-import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist'
+import { getDocument, GlobalWorkerOptions, renderTextLayer } from 'pdfjs-dist'
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from 'pdfjs-dist'
 import {
   isMobileUserAgent,
@@ -96,8 +96,9 @@ import {
   computePinchScale,
   LruSet,
 } from './PdfPageViewer.utils'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
-GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 // pdfjs-dist runtime assets are copied under the app's Vite base path at build
 // time (see vite.config.ts). Providing these URLs enables full image decoding
@@ -106,8 +107,6 @@ GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', i
 const PDFJS_BASE_URL = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`
-const PDFJS_WASM_URL = `${PDFJS_BASE_URL}pdfjs/wasm/`
-const PDFJS_ICC_URL = `${PDFJS_BASE_URL}pdfjs/iccs/`
 const PDFJS_CMAP_URL = `${PDFJS_BASE_URL}pdfjs/cmaps/`
 const PDFJS_STANDARD_FONT_URL = `${PDFJS_BASE_URL}pdfjs/standard_fonts/`
 
@@ -236,8 +235,6 @@ async function loadPdf() {
   try {
     const task = getDocument({
       url: props.url,
-      wasmUrl: PDFJS_WASM_URL,
-      iccUrl: PDFJS_ICC_URL,
       cMapUrl: PDFJS_CMAP_URL,
       cMapPacked: true,
       standardFontDataUrl: PDFJS_STANDARD_FONT_URL,
@@ -442,7 +439,7 @@ async function renderPage(pageNum: number) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const task = page.render({ canvas, canvasContext: ctx, viewport })
+  const task = page.render({ canvasContext: ctx, viewport })
   activeRenderTasks.set(pageNum, task)
   try {
     await task.promise
@@ -480,12 +477,12 @@ async function renderPage(pageNum: number) {
     const textContent = await page.getTextContent()
     // getTextContent can race with unload/scale changes too.
     if (!textRefs.has(pageNum) || currentScaleKey() !== scaleKey) return
-    const textLayer = new TextLayer({
+    const textLayer = renderTextLayer({
       textContentSource: textContent,
       container: textDiv,
       viewport: displayViewport,
     })
-    await textLayer.render()
+    await textLayer.promise
   } catch (e) {
     console.warn(`PDF page ${pageNum} text layer failed:`, e)
   }

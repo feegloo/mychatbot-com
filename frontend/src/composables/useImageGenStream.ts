@@ -1,6 +1,5 @@
 import type { ChatMessage } from '../api'
 import { announceImage, generateImageStream } from '../api'
-import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 
 export type ImageGenStreamResponse = {
@@ -99,15 +98,6 @@ export async function runImageGenStream(options: {
       },
       onComplete: (data) => {
         clearTimeout(timeoutHandle)
-
-        // Some providers/routes emit only a final image and no partials.
-        // Show that final image briefly as a synthetic frame so users still
-        // see a morph stage before the final markdown answer appears.
-        if (firstPartialAt === null && data.generatedImage?.fileName) {
-          reactiveMsg.imagePartialDataUrl = getStorageUrl(conversationId, data.generatedImage.fileName)
-          reactiveMsg.imagePartialIndex = 0
-          firstPartialAt = Date.now()
-        }
 
         settleAfterMinMorph(resolve, data)
       },

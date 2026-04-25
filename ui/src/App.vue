@@ -5,6 +5,12 @@
       class="content-column"
       data-testid="content-column"
       aria-label="Main content"
-    ></main>
+    >
+      <HomeHero />
+    </main>
   </div>
 </template>
+
+<script setup lang="ts">
+import HomeHero from '@frontend-home-hero'
+</script>

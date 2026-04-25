@@ -68,3 +68,6 @@ spec:
               value: /app/python
             - name: PYTHON_SERVER_URL
               value: "http://localhost:8321"
+            # Local PDF OCR disabled in production — uses OpenAI vision OCR as fallback
+            - name: LOCAL_PDF_OCR_ENABLED
+              value: "false"

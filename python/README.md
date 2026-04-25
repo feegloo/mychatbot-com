@@ -53,6 +53,26 @@ cp .env.example .env  # fill in OPENAI_API_KEY etc.
 uvicorn server:app --app-dir src --host 0.0.0.0 --port 8321 --reload
 ```
 
+## Optional: local-llm-pdf-ocr for scanned PDFs
+
+The extractor can use local-llm-pdf-ocr before OpenAI Vision fallback.
+
+1. Clone https://github.com/ahnafnafee/local-llm-pdf-ocr
+2. Set environment variables in `python/.env`:
+
+```env
+LOCAL_PDF_OCR_ENABLED=true
+LOCAL_PDF_OCR_REPO_PATH=/absolute/path/to/local-llm-pdf-ocr
+# Optional overrides
+# LOCAL_PDF_OCR_TIMEOUT_SEC=180
+# LOCAL_PDF_OCR_API_BASE=http://localhost:1234/v1
+# LOCAL_PDF_OCR_MODEL=allenai/olmocr-2-7b
+# LOCAL_PDF_OCR_GROUNDED=false
+```
+
+If local OCR is unavailable, times out, or returns no page text, the pipeline
+automatically falls back to the existing OpenAI Vision OCR/description flow.
+
 ## Tests & lint
 
 ```bash

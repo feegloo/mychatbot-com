@@ -5,6 +5,10 @@ import json
 import logging
 import os
 import re
+import shlex
+import shutil
+import subprocess
+import tempfile
 import threading
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,6 +25,11 @@ from .llm_instrument import traced_openai_call
 
 logger = logging.getLogger(__name__)
 
+# Per-call timeout for GPT Vision OCR requests. The OpenAI SDK default is
+# 10 minutes, which lets a single stalled page block all OCR workers for
+# that long. 90 s is generous for even a dense Arabic or CJK page while
+# still preventing runaway hangs on large scanned documents.
+_VISION_OCR_TIMEOUT_SEC = 90.0
 
 TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".html", ".htm", ".xml", ".yaml", ".yml", ".rtf"}
 
@@ -92,6 +101,12 @@ def extract_pdf(path: Path) -> str:
 _MIN_PAGE_TEXT_CHARS = 20
 
 
+# Cache local OCR output per PDF so page-level OCR fallback does not re-run
+# full-document OCR repeatedly when many pages need OCR.
+_LOCAL_OCR_CACHE: dict[str, list[str]] = {}
+_LOCAL_OCR_CACHE_LOCK = threading.Lock()
+
+
 def _render_pdf_page_to_png(pdf_path: str, page_idx: int, *, dpi: int = 200) -> bytes:
     """Render a single PDF page to PNG bytes using PyMuPDF."""
     doc = fitz.open(pdf_path)
@@ -102,6 +117,155 @@ def _render_pdf_page_to_png(pdf_path: str, page_idx: int, *, dpi: int = 200) -> 
     png_bytes = pix.tobytes("png")
     doc.close()
     return png_bytes
+
+
+def _extract_pdf_text_by_page(pdf_path: Path) -> list[str]:
+    """Extract sanitized text for each page from a PDF file."""
+    reader = PdfReader(str(pdf_path))
+    page_texts: list[str] = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        page_texts.append(_sanitize_text(_reflow_pdf_text(text.strip())))
+    return page_texts
+
+
+def _build_local_pdf_ocr_command(
+    *,
+    input_pdf: str,
+    output_pdf: str,
+    page_range: str | None,
+) -> tuple[list[str], str | None] | None:
+    """Build command for local-llm-pdf-ocr.
+
+    Returns (command, cwd) or None when local OCR is not configured.
+    """
+    settings = get_settings()
+
+    if settings.local_pdf_ocr_command:
+        template_tokens = shlex.split(settings.local_pdf_ocr_command)
+        command = [
+            token.format(
+                input=input_pdf,
+                output=output_pdf,
+                pages=page_range or "",
+            )
+            for token in template_tokens
+        ]
+        return command, None
+
+    repo_path = settings.local_pdf_ocr_repo_path
+    if not repo_path:
+        return None
+
+    uv_bin = shutil.which("uv")
+    if not uv_bin:
+        logger.warning(
+            "LOCAL_PDF_OCR_ENABLED is true but `uv` is not installed; falling back to OpenAI OCR"
+        )
+        return None
+
+    command = [uv_bin, "run", "main.py", input_pdf, output_pdf, "--quiet"]
+    if page_range:
+        command.extend(["--pages", page_range])
+    if settings.local_pdf_ocr_api_base:
+        command.extend(["--api-base", settings.local_pdf_ocr_api_base])
+    if settings.local_pdf_ocr_model:
+        command.extend(["--model", settings.local_pdf_ocr_model])
+    if settings.local_pdf_ocr_grounded:
+        command.append("--grounded")
+    return command, repo_path
+
+
+def _run_local_pdf_ocr(
+    pdf_path: str,
+    *,
+    page_range: str | None = None,
+) -> list[str] | None:
+    """Run local-llm-pdf-ocr and return extracted text per page.
+
+    Returns None when local OCR is unavailable or fails.
+    """
+    settings = get_settings()
+    if not settings.local_pdf_ocr_enabled:
+        return None
+
+    with tempfile.TemporaryDirectory(prefix="local-pdf-ocr-") as tmpdir:
+        output_pdf = str(Path(tmpdir) / f"{Path(pdf_path).stem}_ocr.pdf")
+        built = _build_local_pdf_ocr_command(
+            input_pdf=pdf_path,
+            output_pdf=output_pdf,
+            page_range=page_range,
+        )
+        if built is None:
+            return None
+        command, cwd = built
+
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=cwd,
+                check=True,
+                text=True,
+                capture_output=True,
+                timeout=settings.local_pdf_ocr_timeout_sec,
+            )
+            logger.info(
+                "🔍 Local OCR command succeeded for %s (stdout=%d, stderr=%d)",
+                Path(pdf_path).name,
+                len(completed.stdout or ""),
+                len(completed.stderr or ""),
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning(
+                "⚠️ Local OCR timed out for %s after %ss; falling back to OpenAI OCR",
+                Path(pdf_path).name,
+                settings.local_pdf_ocr_timeout_sec,
+            )
+            return None
+        except Exception as exc:
+            logger.warning(
+                "⚠️ Local OCR failed for %s: %s; falling back to OpenAI OCR",
+                Path(pdf_path).name,
+                exc,
+            )
+            return None
+
+        output_path = Path(output_pdf)
+        if not output_path.exists():
+            logger.warning(
+                "⚠️ Local OCR produced no output PDF for %s; falling back to OpenAI OCR",
+                Path(pdf_path).name,
+            )
+            return None
+
+        try:
+            return _extract_pdf_text_by_page(output_path)
+        except Exception as exc:
+            logger.warning(
+                "⚠️ Failed reading local OCR output for %s: %s; falling back to OpenAI OCR",
+                Path(pdf_path).name,
+                exc,
+            )
+            return None
+
+
+def _get_local_ocr_pages(pdf_path: str) -> list[str] | None:
+    """Get cached local OCR output pages for a PDF."""
+    abs_pdf_path = str(Path(pdf_path).resolve())
+    settings = get_settings()
+    if not settings.local_pdf_ocr_enabled:
+        return None
+
+    with _LOCAL_OCR_CACHE_LOCK:
+        cached = _LOCAL_OCR_CACHE.get(abs_pdf_path)
+        if cached is not None:
+            return cached
+
+        pages = _run_local_pdf_ocr(abs_pdf_path)
+        if pages:
+            _LOCAL_OCR_CACHE[abs_pdf_path] = pages
+            return pages
+    return None
 
 
 def ocr_pdf_page(
@@ -115,6 +279,23 @@ def ocr_pdf_page(
     Used as fallback when native text extraction yields no/minimal text
     (scanned PDFs, image-based PDFs, non-Latin scripts without text layer).
     """
+    local_pages = _get_local_ocr_pages(pdf_path)
+    if local_pages is not None and 0 <= page_idx < len(local_pages):
+        local_text = (local_pages[page_idx] or "").strip()
+        if local_text:
+            logger.info(
+                "🔍 Local OCR page %d extracted %d chars for %s",
+                page_idx + 1,
+                len(local_text),
+                Path(pdf_path).name,
+            )
+            return local_text
+        logger.info(
+            "🔍 Local OCR page %d was empty for %s; using OpenAI OCR fallback",
+            page_idx + 1,
+            Path(pdf_path).name,
+        )
+
     png_bytes = _render_pdf_page_to_png(pdf_path, page_idx)
     return _vision_extract_or_describe(
         png_bytes,
@@ -172,7 +353,9 @@ def _vision_extract_or_describe(
 ) -> str:
     """Extract OCR text first, otherwise describe visual content."""
     settings = get_settings()
-    client = OpenAI(api_key=settings.openai_api_key)
+    # Explicit per-call timeout prevents a single stalled Vision request from
+    # blocking the entire OCR thread pool for the SDK-default 10 minutes.
+    client = OpenAI(api_key=settings.openai_api_key, timeout=_VISION_OCR_TIMEOUT_SEC)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     messages = [

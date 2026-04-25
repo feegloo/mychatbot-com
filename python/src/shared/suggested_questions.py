@@ -127,6 +127,7 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
    → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
+    → DODATKOWO: dodaj akcję "Napisz inspirowany cytat w stylu [Imię Nazwisko autora] 💬" (najlepiej w pozycjach 6-10, czyli pod "More ...")
    Przykład: "Napisz inspirowany wiersz w stylu Paulo Coelho 📜"
    Pozostałe akcje dobierz losowo z poniższej listy.
 
@@ -1089,6 +1090,7 @@ def _append_contextual_prompts(
     )
 
     pinned_creative_prompt: str | None = None
+    pinned_quote_prompt: str | None = None
     is_fiction = bool(_FICTION_PATTERN.search(combined_text))
     is_poetry_quotes = bool(_POETRY_QUOTES_PATTERN.search(combined_text))
     is_selfhelp = bool(_SELFHELP_PATTERN.search(combined_text))
@@ -1117,6 +1119,11 @@ def _append_contextual_prompts(
             f"Napisz inspirowany wiersz w stylu {author_name} 📜"
             if language == "pl"
             else f"Write inspired poem like {author_name} 📜"
+        )
+        pinned_quote_prompt = (
+            f"Napisz inspirowany cytat w stylu {author_name} 💬"
+            if language == "pl"
+            else f"Write inspired quote like {author_name} 💬"
         )
     elif is_selfhelp and author_name:
         _selfhelp_options_pl = [
@@ -1196,6 +1203,8 @@ def _append_contextual_prompts(
         pinned = [pinned_image_prompt]
         if pinned_creative_prompt:
             pinned.append(pinned_creative_prompt)
+        if pinned_quote_prompt:
+            pinned.append(pinned_quote_prompt)
         if should_pin_quiz:
             pinned.append(quiz_prompt)
 

@@ -179,11 +179,9 @@ function fitToWidth() {
   if (svgNaturalWidth <= 0) return
 
   scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
-  const vb = svg.viewBox?.baseVal
   const svgNaturalHeight = vb && vb.height > 0 ? vb.height : parseFloat(svg.getAttribute('height') ?? '0')
   const scaledWidth = svgNaturalWidth * scale.value
   const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
-  const block = diagramEl.value.closest('.mermaid-block') as HTMLElement | null
   const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
 
   panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)

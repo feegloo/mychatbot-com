@@ -67,20 +67,20 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
       <!-- Generating: image-gen announcement + progressive partial image -->
       <div v-if="msg.role === 'assistant' && msg.generatingImage && !isWelcome">
-        <Transition name="image-morph-fade">
-          <div v-if="msg.generatingImage && msg.imagePartialDataUrl" class="image-morph-wrap">
-            <img
-              :src="msg.imagePartialDataUrl"
-              :style="{ filter: `blur(${partialBlurPx}px)` }"
-              class="image-morph"
-              alt="Generating..."
-              @load="onMorphFrameLoad"
-            />
-          </div>
+        <Transition name="generated-image-fade" mode="out-in">
+          <GeneratedImageFrame
+            v-if="msg.generatingImage && msg.imagePartialDataUrl"
+            :key="msg.imagePartialDataUrl"
+            :src="msg.imagePartialDataUrl"
+            :image-style="{ filter: `blur(${partialBlurPx}px)` }"
+            class="image-morph-wrap image-morph"
+            alt="Generating..."
+            @load="onMorphFrameLoad"
+          />
         </Transition>
         <div v-if="msg.generatingImage" class="image-generating-label">
           <TextFade :trigger="msg.imageAnnouncement || 'generic'" :disabled="noAnimation">
-            <span v-if="msg.imageAnnouncement">🎨 {{ msg.imageAnnouncement }}</span>
+            <span v-if="msg.imageAnnouncement" style="display: block;text-align: center;">🎨 {{ msg.imageAnnouncement }}</span>
             <span v-else>🎨 Generating image, please wait...</span>
           </TextFade>
         </div>
@@ -91,23 +91,25 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       </div>
 
       <div v-else-if="msg.role === 'assistant' && imageSwapActive && !isWelcome" class="image-swap-wrap">
-        <div
-          class="image-swap-shell"
-          :class="{ 'is-loaded': imageSwapFinalLoaded }"
-          :style="imageSwapStyle"
-        >
-          <img
-            :src="imageSwapFromSrc"
-            class="image-swap-image image-swap-old"
-            alt="Generated preview"
-          />
-          <img
-            :src="imageSwapToSrc"
-            class="image-swap-image image-swap-new"
-            alt="Generated image"
-            @load="onSwapFinalLoad"
-            @error="finishImageSwap"
-          />
+        <div class="image-swap-shell" :style="imageSwapStyle">
+          <Transition name="generated-image-fade">
+            <GeneratedImageFrame
+              v-if="imageSwapShowOld"
+              :key="`swap-old-${imageSwapFromSrc}`"
+              :src="imageSwapFromSrc"
+              class="image-swap-image image-swap-old"
+              alt="Generated preview"
+            />
+          </Transition>
+          <Transition name="generated-image-fade">
+            <GeneratedImageFrame
+              v-if="imageSwapShowNew"
+              :key="`swap-new-${imageSwapToSrc}`"
+              :src="imageSwapToSrc"
+              class="image-swap-image image-swap-new"
+              alt="Generated image"
+            />
+          </Transition>
         </div>
       </div>
 
@@ -289,6 +291,7 @@ import SourcePreviewModal from './SourcePreviewModal.vue'
 import UploadingDots from './UploadingDots.vue'
 import MessageContent from './chat/MessageContent.vue'
 import PreviewFiles from './chat/PreviewFiles.vue'
+import GeneratedImageFrame from './chat/GeneratedImageFrame.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -350,11 +353,13 @@ const lastMorphSrc = ref('')
 const lastMorphSize = ref<{ width: number; height: number } | null>(null)
 const pendingMorphSwap = ref(false)
 const imageSwapActive = ref(false)
-const imageSwapFinalLoaded = ref(false)
+const imageSwapShowOld = ref(false)
+const imageSwapShowNew = ref(false)
 const imageSwapFromSrc = ref('')
 const imageSwapToSrc = ref('')
 let morphSwapHoldTimer: ReturnType<typeof setTimeout> | null = null
 let morphSwapFailsafeTimer: ReturnType<typeof setTimeout> | null = null
+let imageSwapRunId = 0
 
 const finalGeneratedImageUrl = computed(() => {
   const content = props.msg.content || ''
@@ -396,18 +401,43 @@ function resetMorphSnapshot() {
 function finishImageSwap() {
   clearMorphSwapTimers()
   imageSwapActive.value = false
-  imageSwapFinalLoaded.value = false
+  imageSwapShowOld.value = false
+  imageSwapShowNew.value = false
   imageSwapFromSrc.value = ''
   imageSwapToSrc.value = ''
+  imageSwapRunId += 1
 }
 
-function startImageSwap(fromSrc: string, toSrc: string) {
+function preloadImage(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('failed to preload swap target'))
+    img.src = src
+  })
+}
+
+async function startImageSwap(fromSrc: string, toSrc: string) {
+  imageSwapRunId += 1
+  const runId = imageSwapRunId
   clearMorphSwapTimers()
   imageSwapFromSrc.value = fromSrc
   imageSwapToSrc.value = toSrc
-  imageSwapFinalLoaded.value = false
+  imageSwapShowOld.value = true
+  imageSwapShowNew.value = false
   imageSwapActive.value = true
   morphSwapFailsafeTimer = setTimeout(finishImageSwap, MORPH_SWAP_FAILSAFE_MS)
+
+  try {
+    await preloadImage(toSrc)
+    if (!imageSwapActive.value || imageSwapRunId !== runId) return
+    imageSwapShowNew.value = true
+    imageSwapShowOld.value = false
+    morphSwapHoldTimer = setTimeout(finishImageSwap, MORPH_SWAP_HOLD_MS)
+  } catch {
+    if (!imageSwapActive.value || imageSwapRunId !== runId) return
+    finishImageSwap()
+  }
 }
 
 function onMorphFrameLoad(event: Event) {
@@ -422,14 +452,6 @@ function onMorphFrameLoad(event: Event) {
       height: Math.round(rect.height),
     }
   }
-}
-
-function onSwapFinalLoad() {
-  imageSwapFinalLoaded.value = true
-  if (morphSwapHoldTimer) {
-    clearTimeout(morphSwapHoldTimer)
-  }
-  morphSwapHoldTimer = setTimeout(finishImageSwap, MORPH_SWAP_HOLD_MS)
 }
 
 function maybeStartMorphSwap() {
@@ -914,9 +936,6 @@ function openFilePreview(file: FileInfo) {
   animation: image-morph-pulse 2s ease-in-out infinite;
 }
 .image-morph {
-  display: block;
-  width: 100%;
-  height: auto;
   transform: scale(1.02);
   transition: filter 600ms ease-out;
   will-change: filter;
@@ -933,13 +952,18 @@ function openFilePreview(file: FileInfo) {
 /* Fade-in for the first partial frame. Paired with the v-if above so the
    wrap mounts at opacity 0 and eases to 1, giving the morph a smooth
    "reveal" instead of popping in at full brightness. */
-.image-morph-fade-enter-active {
-  transition: opacity 700ms ease-out;
+.generated-image-fade-enter-active,
+.generated-image-fade-leave-active {
+  transition: opacity 320ms ease-in-out;
 }
-.image-morph-fade-enter-from {
+
+.generated-image-fade-enter-from,
+.generated-image-fade-leave-to {
   opacity: 0;
 }
-.image-morph-fade-enter-to {
+
+.generated-image-fade-enter-to,
+.generated-image-fade-leave-from {
   opacity: 1;
 }
 
@@ -963,23 +987,6 @@ function openFilePreview(file: FileInfo) {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: opacity 260ms ease;
-}
-
-.image-swap-old {
-  opacity: 1;
-}
-
-.image-swap-new {
-  opacity: 0;
-}
-
-.image-swap-shell.is-loaded .image-swap-old {
-  opacity: 0;
-}
-
-.image-swap-shell.is-loaded .image-swap-new {
-  opacity: 1;
 }
 
 /* Highlight.js code block sizing. */

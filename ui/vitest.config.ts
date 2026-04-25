@@ -1,8 +1,22 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
+  resolve: {
+    dedupe: ['vue'],
+    alias: {
+      '@frontend-home-hero': fileURLToPath(
+        new URL('../frontend/src/components/HomeHero.vue', import.meta.url),
+      ),
+    },
+  },
+  server: {
+    fs: {
+      allow: [fileURLToPath(new URL('..', import.meta.url))],
+    },
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts'],

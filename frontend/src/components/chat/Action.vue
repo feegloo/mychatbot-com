@@ -3,12 +3,17 @@
  * Plain suggested-question pill. Emits the label on click so the parent
  * can submit it as a new question. Visual style: neutral pill, no icon.
  */
-defineProps<{ label: string }>()
+import { computed } from 'vue'
+import { marked } from 'marked'
+
+const props = defineProps<{ label: string }>()
 const emit = defineEmits<{ select: [label: string] }>()
+
+const renderedLabel = computed(() => marked.parseInline(props.label) as string)
 </script>
 
 <template>
-  <button class="action" type="button" @click="emit('select', label)">{{ label }}</button>
+  <button class="action" type="button" @click="emit('select', label)" v-html="renderedLabel" />
 </template>
 
 <style scoped>

@@ -211,7 +211,7 @@ import { IMAGE_GEN_REGEX } from '../utils/markdown'
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
   generating_welcome: 'Processing',
-  indexing_pages: 'Indexing pages for Q&A…',
+  indexing_pages: 'Indexing pages for Q&A',
   '': '',
 }
 function stepLabel(step: ProcessingStep): string {
@@ -505,6 +505,20 @@ async function loadConversation() {
 async function doLoadConversation() {
   const response = await getConversation(conversationId)
   status.value = response
+
+  // Keep processingStep in sync with the DB state so the UI recovers when
+  // SSE events were missed (e.g. worker finished while the tab was closed).
+  if (response.status === 'ready' || response.status === 'failed') {
+    processingStep.value = ''
+  } else if (response.status === 'processing' && processingStep.value === 'generating_welcome') {
+    // Advance to 'indexing_pages' if a welcome message already exists in the
+    // DB — this means the worker sent the welcome event before this page load.
+    const serverMessages = (response.messages || []) as ChatMessage[]
+    if (serverMessages.some((m) => m.role === 'assistant')) {
+      processingStep.value = 'indexing_pages'
+    }
+  }
+
   const existingRenderKeysById = buildRenderKeyIndex(messages.value)
 
   // Viewer mode: show the original welcome message + a virtual hello message
@@ -845,6 +859,7 @@ function restoreScrollPosition(): boolean {
 }
 
 let scrollSaveTimer: ReturnType<typeof setTimeout> | undefined
+let statusPollingInterval: ReturnType<typeof setInterval> | undefined
 function onChatScroll() {
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
   scrollSaveTimer = setTimeout(saveScrollPosition, 300)
@@ -892,6 +907,14 @@ onMounted(async () => {
   // Listen for scroll events to persist position
   chatContainer.value?.addEventListener('scroll', onChatScroll, { passive: true })
 
+  // Poll every 30 s while processing so we recover from missed SSE events
+  // (e.g. worker finished while the browser tab was hidden or disconnected).
+  statusPollingInterval = setInterval(async () => {
+    if (status.value.status === 'processing') {
+      await loadConversation()
+    }
+  }, 30_000)
+
   // Auto-submit pending question from thread creation
   const pending = window.history.state?.pendingQuestion as string | undefined
   if (pending) {
@@ -909,6 +932,7 @@ onMounted(async () => {
 onUnmounted(() => {
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
+  if (statusPollingInterval) clearInterval(statusPollingInterval)
   cleanupAutoRead()
 })
 
@@ -934,6 +958,14 @@ onActivated(async () => {
   } catch {
     // Network error – keep the cached state visible rather than crashing
   }
+  // Restart polling if the conversation is still processing.
+  if (status.value.status === 'processing' && !statusPollingInterval) {
+    statusPollingInterval = setInterval(async () => {
+      if (status.value.status === 'processing') {
+        await loadConversation()
+      }
+    }, 30_000)
+  }
 })
 
 onDeactivated(() => {
@@ -941,6 +973,10 @@ onDeactivated(() => {
   if (scrollSaveTimer) {
     clearTimeout(scrollSaveTimer)
     scrollSaveTimer = undefined
+  }
+  if (statusPollingInterval) {
+    clearInterval(statusPollingInterval)
+    statusPollingInterval = undefined
   }
 })
 </script>

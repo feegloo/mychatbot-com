@@ -115,6 +115,53 @@ class TestPageNeedsOcr:
 
 
 class TestOcrPdfPage:
+    @patch("shared.extractors._get_local_ocr_pages", return_value=["local arabic text"])
+    @patch("shared.extractors.OpenAI")
+    def test_ocr_uses_local_pdf_ocr_when_available(
+        self, mock_openai_cls, _mock_local_pages, tmp_path
+    ):
+        import fitz
+
+        doc = fitz.open()
+        doc.new_page(width=200, height=200)
+        pdf_path = str(tmp_path / "scan.pdf")
+        doc.save(pdf_path)
+        doc.close()
+
+        from shared.extractors import ocr_pdf_page
+
+        result = ocr_pdf_page(pdf_path, 0)
+        assert result == "local arabic text"
+        mock_openai_cls.assert_not_called()
+
+    @patch("shared.extractors._get_local_ocr_pages", return_value=[""])
+    @patch("shared.extractors.OpenAI")
+    def test_ocr_falls_back_to_openai_when_local_page_empty(
+        self, mock_openai_cls, _mock_local_pages, tmp_path
+    ):
+        import fitz
+
+        doc = fitz.open()
+        doc.new_page(width=200, height=200)
+        pdf_path = str(tmp_path / "scan.pdf")
+        doc.save(pdf_path)
+        doc.close()
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "ok"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_cls.return_value = mock_client
+
+        from shared.extractors import ocr_pdf_page
+
+        result = ocr_pdf_page(pdf_path, 0)
+        assert result == "ok"
+        mock_client.chat.completions.create.assert_called_once()
+
     @patch("shared.extractors.OpenAI")
     def test_ocr_returns_extracted_text(self, mock_openai_cls, tmp_path):
         import fitz

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('hello world: renders two columns with expected backgrounds', async ({ page }) => {
+test('renders the imported HomeHero inside the right column', async ({ page }) => {
   await page.goto('/')
 
   const menuColumn = page.getByTestId('menu-column')
@@ -8,6 +8,8 @@ test('hello world: renders two columns with expected backgrounds', async ({ page
 
   await expect(menuColumn).toBeVisible()
   await expect(contentColumn).toBeVisible()
+  await expect(page.getByAltText('chatrag.app')).toBeVisible()
+  await expect(page.getByText('Upload securely 🔒 and chat with your Big PDF\'s and files')).toBeVisible()
 
   const menuBackground = await menuColumn.evaluate(
     (element) => window.getComputedStyle(element).backgroundColor,

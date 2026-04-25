@@ -30,6 +30,11 @@ body {
 
 .content-column {
   background: var(--content-column-bg);
+  overflow: auto;
+}
+
+.content-column > * {
+  min-height: 100%;
 }
 
 @media (max-width: 768px) {

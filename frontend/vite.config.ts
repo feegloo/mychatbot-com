@@ -13,6 +13,7 @@ function getCommitHash(): string {
   }
 }
 import { cp, stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -30,7 +31,9 @@ const pdfjsDistDir = dirname(require.resolve("pdfjs-dist/package.json"));
 // decoders) and `iccs/` (ICC color profiles); without them embedded images in
 // PDFs fail to render. `cmaps/` (CJK) and `standard_fonts/` are included for
 // correct font fallbacks.
-const PDFJS_ASSET_DIRS = ["wasm", "iccs", "cmaps", "standard_fonts"] as const;
+const PDFJS_ASSET_DIRS = (["wasm", "iccs", "cmaps", "standard_fonts"] as const).filter((name) =>
+  existsSync(resolve(pdfjsDistDir, name)),
+);
 
 /**
  * Copies pdfjs-dist runtime assets into the dev server (served from root under

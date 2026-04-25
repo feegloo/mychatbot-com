@@ -5,6 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass
 class Settings:
     openai_api_key: str
@@ -20,6 +27,14 @@ class Settings:
     chroma_database: str
     # Database for telemetry
     database_url: str
+    # Optional local OCR integration (https://github.com/ahnafnafee/local-llm-pdf-ocr)
+    local_pdf_ocr_enabled: bool
+    local_pdf_ocr_command: str
+    local_pdf_ocr_repo_path: str
+    local_pdf_ocr_timeout_sec: int
+    local_pdf_ocr_api_base: str
+    local_pdf_ocr_model: str
+    local_pdf_ocr_grounded: bool
 
 
 def get_settings() -> Settings:
@@ -38,5 +53,12 @@ def get_settings() -> Settings:
         chroma_tenant=os.getenv("CHROMA_TENANT", ""),
         chroma_database=os.getenv("CHROMA_DATABASE", ""),
         database_url=os.getenv("DATABASE_URL", "postgres://chatrag:chatrag@localhost:5432/chatrag"),
+        local_pdf_ocr_enabled=_env_bool("LOCAL_PDF_OCR_ENABLED", False),
+        local_pdf_ocr_command=os.getenv("LOCAL_PDF_OCR_COMMAND", "").strip(),
+        local_pdf_ocr_repo_path=os.getenv("LOCAL_PDF_OCR_REPO_PATH", "").strip(),
+        local_pdf_ocr_timeout_sec=int(os.getenv("LOCAL_PDF_OCR_TIMEOUT_SEC", "180")),
+        local_pdf_ocr_api_base=os.getenv("LOCAL_PDF_OCR_API_BASE", "").strip(),
+        local_pdf_ocr_model=os.getenv("LOCAL_PDF_OCR_MODEL", "").strip(),
+        local_pdf_ocr_grounded=_env_bool("LOCAL_PDF_OCR_GROUNDED", False),
     )
 
