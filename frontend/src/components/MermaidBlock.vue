@@ -58,31 +58,9 @@
         </svg>
         Download
       </button>
-      <button
-        v-if="mode === 'diagram' && ready && !renderError"
-        class="mermaid-tool-btn"
-        title="Fullscreen"
-        @click="fullscreen = true"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="15 3 21 3 21 9" />
-          <polyline points="9 21 3 21 3 15" />
-          <line x1="21" y1="3" x2="14" y2="10" />
-          <line x1="3" y1="21" x2="10" y2="14" />
-        </svg>
-        Fullscreen
-      </button>
     </div>
     <div
+      ref="diagramViewportEl"
       v-show="mode === 'diagram' && ready && !renderError"
       class="mermaid-diagram"
       :class="{ 'is-dragging': isDragging }"
@@ -98,50 +76,33 @@
         :style="{ transform: svgTransform }"
       ></div>
       <div class="mermaid-controls">
-        <button class="mermaid-ctrl-btn" aria-label="Zoom in" title="Zoom in" @click="zoomIn">
+        <button class="mermaid-ctrl-btn" aria-label="Fullscreen" title="Fullscreen" @click="toggleFullscreen">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path
-              d="M3.75 7.5a.75.75 0 0 1 .75-.75h2.25V4.5a.75.75 0 0 1 1.5 0v2.25h2.25a.75.75 0 0 1 0 1.5H8.25v2.25a.75.75 0 0 1-1.5 0V8.25H4.5a.75.75 0 0 1-.75-.75Z"
-            />
-            <path
-              d="M7.5 0a7.5 7.5 0 0 1 5.807 12.247l2.473 2.473a.749.749 0 1 1-1.06 1.06l-2.473-2.473A7.5 7.5 0 1 1 7.5 0Zm-6 7.5a6 6 0 1 0 12 0 6 6 0 0 0-12 0Z"
+              d="M1.75 10a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 1 13.25v-2.5a.75.75 0 0 1 .75-.75Zm12.5 0a.75.75 0 0 1 .75.75v2.5A1.75 1.75 0 0 1 13.25 15h-2.5a.75.75 0 0 1 0-1.5h2.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 .75-.75ZM2.75 2.5a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0v-2.5C1 1.784 1.784 1 2.75 1h2.5a.75.75 0 0 1 0 1.5ZM10 1.75a.75.75 0 0 1 .75-.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.25.25 0 0 0-.25-.25h-2.5a.75.75 0 0 1-.75-.75Z"
             />
           </svg>
         </button>
-        <button class="mermaid-ctrl-btn" aria-label="Zoom out" title="Zoom out" @click="zoomOut">
+        <button
+          class="mermaid-ctrl-btn"
+          aria-label="Zoom out"
+          title="Zoom out"
+          :disabled="!canZoomOut"
+          @click="zoomOut"
+        >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M4.5 6.75h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1 0-1.5Z" />
-            <path
-              d="M0 7.5a7.5 7.5 0 1 1 13.307 4.747l2.473 2.473a.749.749 0 1 1-1.06 1.06l-2.473-2.473A7.5 7.5 0 0 1 0 7.5Zm7.5-6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"
-            />
+            <path d="M2 7.75A.75.75 0 0 1 2.75 7h10a.75.75 0 0 1 0 1.5h-10A.75.75 0 0 1 2 7.75Z" />
           </svg>
         </button>
-        <button class="mermaid-ctrl-btn" aria-label="Pan up" title="Pan up" @click="panUp">
+        <button
+          class="mermaid-ctrl-btn"
+          aria-label="Zoom in"
+          title="Zoom in"
+          :disabled="!canZoomIn"
+          @click="zoomIn"
+        >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M3.22 10.53a.749.749 0 0 1 0-1.06l4.25-4.25a.749.749 0 0 1 1.06 0l4.25 4.25a.749.749 0 1 1-1.06 1.06L8 6.811 4.28 10.53a.749.749 0 0 1-1.06 0Z"
-            />
-          </svg>
-        </button>
-        <button class="mermaid-ctrl-btn" aria-label="Pan down" title="Pan down" @click="panDown">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"
-            />
-          </svg>
-        </button>
-        <button class="mermaid-ctrl-btn" aria-label="Pan left" title="Pan left" @click="panLeft">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"
-            />
-          </svg>
-        </button>
-        <button class="mermaid-ctrl-btn" aria-label="Pan right" title="Pan right" @click="panRight">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"
-            />
+            <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" />
           </svg>
         </button>
       </div>
@@ -159,39 +120,10 @@
     <pre v-show="mode === 'text'" class="mermaid-source"><code>{{ code }}</code></pre>
   </div>
 
-  <!-- Fullscreen overlay -->
-  <Teleport to="body">
-    <div
-      v-if="fullscreen"
-      class="mermaid-fullscreen-overlay"
-      @click.self="fullscreen = false"
-      @keydown.esc="fullscreen = false"
-    >
-      <div class="mermaid-fullscreen-inner">
-        <button class="mermaid-fullscreen-close" title="Close" @click="fullscreen = false">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <div class="mermaid-fullscreen-diagram" v-html="renderedSvg"></div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import type mermaidType from 'mermaid'
 
 const props = defineProps<{ code: string }>()
@@ -199,10 +131,10 @@ const props = defineProps<{ code: string }>()
 const mode = ref<'diagram' | 'text'>('diagram')
 const hovered = ref(false)
 const ready = ref(false)
-const fullscreen = ref(false)
 const renderedSvg = ref('')
 const renderError = ref<string | null>(null)
 const diagramEl = ref<HTMLElement | null>(null)
+const diagramViewportEl = ref<HTMLElement | null>(null)
 let renderCounter = 0
 
 const scale = ref(1)
@@ -220,8 +152,10 @@ const svgTransform = computed(
   () => `translate(${panX.value}px, ${panY.value}px) scale(${scale.value})`,
 )
 
+const canZoomIn = computed(() => scale.value < MAX_SCALE)
+const canZoomOut = computed(() => scale.value > MIN_SCALE)
+
 const ZOOM_STEP = 0.2
-const PAN_STEP = 40
 const MIN_SCALE = 0.2
 const MAX_SCALE = 5
 
@@ -245,8 +179,15 @@ function fitToWidth() {
   if (svgNaturalWidth <= 0) return
 
   scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
-  panX.value = 0
-  panY.value = 0
+  const vb = svg.viewBox?.baseVal
+  const svgNaturalHeight = vb && vb.height > 0 ? vb.height : parseFloat(svg.getAttribute('height') ?? '0')
+  const scaledWidth = svgNaturalWidth * scale.value
+  const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
+  const block = diagramEl.value.closest('.mermaid-block') as HTMLElement | null
+  const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
+
+  panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
+  panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
 }
 
 function zoomIn() {
@@ -255,17 +196,25 @@ function zoomIn() {
 function zoomOut() {
   scale.value = Math.max(MIN_SCALE, +(scale.value - ZOOM_STEP).toFixed(2))
 }
-function panUp() {
-  panY.value -= PAN_STEP
+function syncFullscreenState() {
+  const active = document.fullscreenElement
+  const host = diagramViewportEl.value
+  if (!host || active !== host) {
+    isDragging.value = false
+    activePointerId = null
+  }
 }
-function panDown() {
-  panY.value += PAN_STEP
-}
-function panLeft() {
-  panX.value -= PAN_STEP
-}
-function panRight() {
-  panX.value += PAN_STEP
+
+async function toggleFullscreen() {
+  const host = diagramViewportEl.value
+  if (!host) return
+
+  if (document.fullscreenElement === host) {
+    await document.exitFullscreen()
+    return
+  }
+
+  await host.requestFullscreen()
 }
 
 type DragPointerEvent = {
@@ -417,6 +366,11 @@ function downloadSvg() {
 
 onMounted(() => {
   renderDiagram()
+  document.addEventListener('fullscreenchange', syncFullscreenState)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenState)
 })
 
 watch(
@@ -529,11 +483,11 @@ watch(
   bottom: 10px;
   right: 10px;
   display: flex;
-  gap: 2px;
+  gap: 6px;
   background: rgba(15, 20, 35, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  padding: 3px;
+  padding: 4px;
   backdrop-filter: blur(4px);
 }
 
@@ -554,6 +508,11 @@ watch(
   padding: 0;
 }
 
+.mermaid-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (hover: hover) {
   .mermaid-ctrl-btn:hover {
     background: rgba(255, 255, 255, 0.07);
@@ -564,7 +523,6 @@ watch(
   background: rgba(167, 139, 250, 0.15);
   color: #c4b5fd;
 }
-
 .mermaid-source {
   background: none;
   border: none;
@@ -635,76 +593,8 @@ watch(
   }
 }
 
-.mermaid-fullscreen-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-}
-
-.mermaid-fullscreen-inner {
-  position: relative;
-  background: #1e1e2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  width: 90vw;
-  height: 90vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  padding: 48px 24px 24px;
-  box-sizing: border-box;
-}
-
-.mermaid-fullscreen-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.mermaid-fullscreen-close:hover {
-  background: rgba(167, 139, 250, 0.12);
-  color: #c4b5fd;
-}
-
-.mermaid-fullscreen-diagram {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mermaid-fullscreen-diagram :deep(svg) {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-}
-
-.mermaid-fullscreen-diagram :deep(svg foreignObject),
-.mermaid-fullscreen-diagram :deep(svg foreignObject *),
-.mermaid-fullscreen-diagram :deep(svg .nodeLabel),
-.mermaid-fullscreen-diagram :deep(svg .edgeLabel),
-.mermaid-fullscreen-diagram :deep(svg text) {
-  color: #000 !important;
-  fill: #000 !important;
+.mermaid-diagram:fullscreen {
+  background: #0f172a;
+  padding: 24px;
 }
 </style>

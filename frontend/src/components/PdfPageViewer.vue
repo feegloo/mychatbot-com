@@ -23,60 +23,62 @@
         <div :ref="(el) => setTextRef(pg, el as HTMLElement)" class="textLayer" />
       </div>
     </div>
-    <!-- Toolbar -->
-    <div class="pdf-toolbar">
-      <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
-      <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
-      <span class="pdf-toolbar-sep"></span>
-      <button class="pdf-tool-btn" :disabled="scale <= 0.5" @click="zoomOut">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
-      <span class="pdf-zoom-info">{{ Math.round(scale * 100) }}%</span>
-      <button class="pdf-tool-btn" :disabled="scale >= 3" @click="zoomIn">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
+    <div class="pdf-toolbar" aria-label="PDF controls">
+      <div class="pdf-toolbar-group" aria-label="Page navigation">
+        <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
+        <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+      <div class="pdf-toolbar-group" aria-label="Zoom controls">
+        <button class="pdf-tool-btn" :disabled="scale <= 0.5" @click="zoomOut">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <span class="pdf-zoom-info">{{ Math.round(scale * 100) }}%</span>
+        <button class="pdf-tool-btn" :disabled="scale >= 3" @click="zoomIn">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -915,34 +917,55 @@ watch(
 
 /* Toolbar */
 .pdf-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.45);
+  z-index: 5;
+}
+
+.pdf-toolbar-group {
+  display: flex;
+  align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  background: #2d2d2d;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 2px;
 }
 
 .pdf-tool-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: #cbd5e1;
+  color: #e2e8f0;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 @media (hover: hover) {
   .pdf-tool-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(148, 163, 184, 0.22);
   }
+}
+
+.pdf-tool-btn:active:not(:disabled) {
+  background: rgba(148, 163, 184, 0.28);
 }
 
 .pdf-tool-btn:disabled {
@@ -953,16 +976,23 @@ watch(
 .pdf-page-info,
 .pdf-zoom-info {
   font-size: 12px;
-  color: #94a3b8;
-  min-width: 50px;
+  color: #cbd5e1;
+  min-width: 56px;
   text-align: center;
   user-select: none;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.pdf-toolbar-sep {
-  width: 1px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.12);
-  margin: 0 4px;
+@media (max-width: 768px) {
+  .pdf-toolbar {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+  }
+
+  .pdf-page-info,
+  .pdf-zoom-info {
+    min-width: 52px;
+  }
 }
 </style>

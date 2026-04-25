@@ -168,8 +168,8 @@ class GenerateImageRequest(BaseModel):
     collection_name: str = ""
     conversation_id: str = ""
     chat_history: list[dict] | None = None
-    size: str = "816x816"
-    # size: str = "816x816"
+    size: str = "880x880"
+    # size: str = "880x880"
     quality: Literal["auto", "high", "low"] = "low"
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
@@ -598,7 +598,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
             source_indices = prompt_result.get("source_indices", [])
             # Keep generation stable on square output while debugging regressions.
             # image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
-            image_size = "816x816"
+            image_size = "880x880"
             logger.info(f"🎨 Image prompt: {image_prompt[:150]}... (sources: {source_indices}, size: {image_size})")
 
             # Generate and save the image
@@ -678,7 +678,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         source_indices = prompt_result.get("source_indices", [])
         # Keep generation stable on square output while debugging regressions.
         # image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
-        image_size = "816x816"
+        image_size = "880x880"
 
         _emit("prompt_ready", {"image_prompt": image_prompt, "image_title": image_title})
 
