@@ -1144,7 +1144,7 @@ li:has(.checklist-box) {
   display: block;
   margin: 8px 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 420px;
   overflow: hidden;
   -webkit-overflow-scrolling: touch;
   box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.15);
@@ -1250,6 +1250,7 @@ li:has(.checklist-box) {
 .image-generating-label {
   font-size: 14px;
   margin-bottom: 4px;
+  max-width: 420px;
 }
 
 .typing-dots span {
@@ -1795,7 +1796,7 @@ h3 {
   transform-origin: center;
   will-change: transform, filter, opacity;
 
-  animation: morphCinematic 1s ease infinite alternate;
+  animation: morphCinematic 2s ease infinite alternate;
 }
 
 /* Progressive (morphing) partial image while OpenAI streams the diffusion
@@ -1808,7 +1809,7 @@ h3 {
   border-radius: 12px;
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 1s ease-in-out infinite;
+  animation: image-morph-pulse 2s ease-in-out infinite;
 }
 .image-morph {
   display: block;
@@ -1838,7 +1839,7 @@ h3 {
   background: radial-gradient(circle at 30% 25%, rgba(255, 170, 100, 0.14), transparent 65%);
 
   mix-blend-mode: screen;
-  animation: glowPulse 2s ease-in-out infinite alternate;
+  animation: glowPulse 3s ease-in-out infinite alternate;
 }
 
 /* main morph loop (forward ↔ backward) */

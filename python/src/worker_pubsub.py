@@ -172,12 +172,10 @@ def _process_message(message) -> None:
         with sentry_sdk.start_span(
             name="worker.process_indexing_job",
             op="queue.process",
-            attributes={
-                "conversation_id": payload.conversation_id,
-                "job_id": payload.job_id,
-                "chatrag.trace_id": trace_id,
-            },
-        ):
+        ) as span:
+            span.set_data("conversation_id", payload.conversation_id)
+            span.set_data("job_id", payload.job_id)
+            span.set_data("chatrag.trace_id", trace_id)
             logger.info(
                 f"📨 Received job {payload.job_id} "
                 f"(conv={payload.conversation_id}, files={len(payload.file_names)})"

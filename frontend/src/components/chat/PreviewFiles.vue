@@ -101,13 +101,13 @@ function prev(event: Event) {
 
 <style scoped>
 .preview-files {
+  height: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: auto;
 }
 
 .preview-stage {

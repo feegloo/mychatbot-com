@@ -295,11 +295,9 @@ async def index(req: IndexRequest):
         with sentry_sdk.start_span(
             name="python.index_documents",
             op="task.index",
-            attributes={
-                "conversation_id": req.conversation_id,
-                "chatrag.trace_id": req.trace_id or "",
-            },
-        ):
+        ) as span:
+            span.set_data("conversation_id", req.conversation_id)
+            span.set_data("chatrag.trace_id", req.trace_id or "")
             result = await asyncio.to_thread(
                 index_documents,
                 conversation_id=req.conversation_id,

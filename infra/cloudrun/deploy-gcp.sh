@@ -45,7 +45,7 @@ VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
 VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
 GIT_COMMIT_HASH="${GIT_COMMIT_HASH:-$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
-DEPLOY_CLOUD_FUNCTION="${DEPLOY_CLOUD_FUNCTION:-true}"
+DEPLOY_CLOUD_FUNCTION="${DEPLOY_CLOUD_FUNCTION:-false}"
 CLOUD_FUNCTION_NAME="${CLOUD_FUNCTION_NAME:-chatrag-upload}"
 CLOUD_FUNCTION_REGION="${CLOUD_FUNCTION_REGION:-$REGION}"
 CLOUD_FUNCTION_RUNTIME="${CLOUD_FUNCTION_RUNTIME:-nodejs22}"
@@ -244,12 +244,10 @@ DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NA
 
 warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
-# ── Step 8a: Pub/Sub topic + subscription ────────────────────────────────────
-# Used by the new chatrag → chatrag-worker delegation path. Idempotent.
-info "Step 8a/9: Setting up Pub/Sub topic and subscription..."
-PUBSUB_TOPIC="${PUBSUB_TOPIC:-chatrag-indexing}"
-PUBSUB_SUBSCRIPTION="${PUBSUB_SUBSCRIPTION:-chatrag-indexing-sub}"
-"${SCRIPT_DIR}/../pubsub/setup.sh" "$PROJECT_ID"
+# ── Step 8a: Pub/Sub skipped — inline worker mode ────────────────────────────
+# Indexing runs in-process on the single Cloud Run instance (WORKER_MODE=inline).
+# No Pub/Sub topic or chatrag-worker needed.
+info "Step 8a/9: Skipped Pub/Sub setup (WORKER_MODE=inline)"
 
 gcloud run deploy "$SERVICE_NAME" \
   --image "${IMAGE}:latest" \
@@ -285,10 +283,7 @@ PYTHON_SERVER_URL=http://localhost:8321,\
 DEBUG_USER=${DEBUG_USER:-chatrag},\
 DEBUG_PASS=${DEBUG_PASS:-chatragadmin},\
 STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY},\
-WORKER_MODE=${WORKER_MODE:-cloud_run},\
-GCP_PROJECT_ID=${GCP_PROJECT_ID},\
-PUBSUB_TOPIC=${PUBSUB_TOPIC},\
-PUBSUB_SUBSCRIPTION=${PUBSUB_SUBSCRIPTION}"
+WORKER_MODE=inline"
 
 # ── Step 8b: Deploy chatrag-worker (Cloud Run Worker Pool, Pub/Sub-driven) ──
 # Lightweight Python-only container (no Node, no frontend) that pulls from
@@ -299,7 +294,7 @@ PUBSUB_SUBSCRIPTION=${PUBSUB_SUBSCRIPTION}"
 WORKER_SERVICE_NAME="chatrag-worker"
 WORKER_IMAGE="gcr.io/${PROJECT_ID}/${WORKER_SERVICE_NAME}"
 
-if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
+if [[ "${DEPLOY_WORKER:-false}" == "true" ]]; then
   info "Step 8b/9: Building + deploying ${WORKER_SERVICE_NAME} (Worker Pool)..."
 
   # Lightweight image — Python only, no frontend.
@@ -316,7 +311,7 @@ if [[ "${DEPLOY_WORKER:-true}" == "true" ]]; then
     EFFECTIVE_WORKER_INSTANCES="$CURRENT_WORKER_INSTANCES"
     info "  Preserving current instance count: ${EFFECTIVE_WORKER_INSTANCES} (worker stays $([ "$EFFECTIVE_WORKER_INSTANCES" = "0" ] && echo "PAUSED" || echo "RUNNING"))"
   else
-    EFFECTIVE_WORKER_INSTANCES="${WORKER_INSTANCES:-1}"
+    EFFECTIVE_WORKER_INSTANCES="${WORKER_INSTANCES:-0}"
     info "  Worker pool not found — creating with ${EFFECTIVE_WORKER_INSTANCES} instance(s)"
   fi
 
@@ -391,8 +386,8 @@ echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
-echo "  Pub/Sub topic:  $PUBSUB_TOPIC  (subscription: $PUBSUB_SUBSCRIPTION)"
-echo "  Worker pool:    ${DEPLOY_WORKER:-true}  (chatrag-worker, instances=${EFFECTIVE_WORKER_INSTANCES:-skipped})"
+echo "  Worker mode:    inline (indexing runs in-process on this instance)"
+echo "  Worker pool:    disabled"
 if [[ -n "$FUNCTION_URL" ]]; then
   echo "  Function URL:   ${FUNCTION_URL}"
   echo "  UI env var:     VITE_CLOUD_FUNCTION_UPLOAD_URL=${FUNCTION_URL}/upload"
