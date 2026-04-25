@@ -1,9 +1,18 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import App from './App.vue'
 
 describe('App shell', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: vi.fn().mockResolvedValue({ message: 'Hello World' }),
+      }),
+    )
+  })
+
   it('renders left and right columns with HomeHero', () => {
     const wrapper = mount(App)
 
