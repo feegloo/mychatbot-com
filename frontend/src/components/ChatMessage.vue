@@ -72,7 +72,6 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             v-if="msg.generatingImage && msg.imagePartialDataUrl"
             :key="msg.imagePartialDataUrl"
             :src="msg.imagePartialDataUrl"
-            :image-style="{ filter: `blur(${partialBlurPx}px)` }"
             class="image-morph-wrap image-morph image-morph-clickable"
             alt="Generating..."
             @load="onMorphFrameLoad"
@@ -332,12 +331,12 @@ const effectiveStorageId = computed(() => props.storageConversationId || props.c
 // Blur intensity for the progressive "morphing" image. Decreases as later
 // partial frames arrive so the image visually sharpens into the final
 // render. Values picked to roughly match ChatGPT's visible diffusion effect.
-const partialBlurPx = computed(() => {
-  const idx = props.msg.imagePartialIndex ?? 0
-  if (idx <= 0) return 14
-  if (idx === 1) return 6
-  return 2
-})
+// const partialBlurPx = computed(() => {
+//   const idx = props.msg.imagePartialIndex ?? 0
+//   if (idx <= 0) return 14
+//   if (idx === 1) return 6
+//   return 2
+// })
 
 const MORPH_SWAP_HOLD_MS = 260
 const MORPH_SWAP_FAILSAFE_MS = 1800
@@ -962,16 +961,16 @@ function openFilePreview(file: FileInfo) {
 .image-morph-wrap {
   margin: 6px 0 8px;
   max-width: min(70vh, 420px);
-  border-radius: 12px;
+  /* border-radius: 12px; */
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2s ease-in-out infinite;
+  /* animation: image-morph-pulse 2s ease-in-out infinite; */
 }
-.image-morph {
+/* .image-morph {
   transform: scale(1.02);
   transition: filter 600ms ease-out;
   will-change: filter;
-}
+} */
 .image-morph-clickable {
   cursor: pointer;
 }
