@@ -470,11 +470,13 @@ export function useTextSelectionSpeech(
     const colors = getLanguageColors(currentLanguage?.value || '')
     if (!captionHighlightEl) captionHighlightEl = ensureHighlightEl(null)
     if (!captionGhostEl) captionGhostEl = ensureGhostEl(null)
-    const singleWordMatched: MatchedCaption[] = [{
-      caption: { word: translatedText.trim(), start: 0, end: 9999 },
-      range,
-      ghostWord: translatedText.trim(),
-    }]
+    const singleWordMatched: MatchedCaption[] = [
+      {
+        caption: { word: translatedText.trim(), start: 0, end: 9999 },
+        range,
+        ghostWord: translatedText.trim(),
+      },
+    ]
     renderCaptionVisuals(0, singleWordMatched, captionHighlightEl, captionGhostEl, colors)
   }
 

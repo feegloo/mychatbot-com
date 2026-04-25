@@ -120,21 +120,21 @@ npx tauri icon ../frontend/public/apple-touch-icon.png
 
 ## Available Scripts
 
-| Script | What it does |
-|---|---|
-| `npm run frontend:build` | Build the Vue app into `../frontend/dist` |
-| `npm run frontend:dev` | Start the Vue dev server on port 5173 |
-| `npm run check` | TypeScript type-check (delegates to frontend) |
-| `npm run lint` | ESLint (delegates to frontend) |
-| `npm run tauri:dev` | Desktop dev mode |
-| `npm run tauri:build` | Desktop release build |
-| `npm run ios:init` | Generate Xcode project (run once) |
-| `npm run ios:dev` | Run on iOS simulator / device |
-| `npm run ios:build` | iOS release build |
-| `npm run android:init` | Generate Android project (run once) |
-| `npm run android:dev` | Run on Android emulator / device |
-| `npm run android:build` | Android release build |
-| `npm run publish:appstore` | Build + upload to App Store Connect |
+| Script                     | What it does                                  |
+| -------------------------- | --------------------------------------------- |
+| `npm run frontend:build`   | Build the Vue app into `../frontend/dist`     |
+| `npm run frontend:dev`     | Start the Vue dev server on port 5173         |
+| `npm run check`            | TypeScript type-check (delegates to frontend) |
+| `npm run lint`             | ESLint (delegates to frontend)                |
+| `npm run tauri:dev`        | Desktop dev mode                              |
+| `npm run tauri:build`      | Desktop release build                         |
+| `npm run ios:init`         | Generate Xcode project (run once)             |
+| `npm run ios:dev`          | Run on iOS simulator / device                 |
+| `npm run ios:build`        | iOS release build                             |
+| `npm run android:init`     | Generate Android project (run once)           |
+| `npm run android:dev`      | Run on Android emulator / device              |
+| `npm run android:build`    | Android release build                         |
+| `npm run publish:appstore` | Build + upload to App Store Connect           |
 
 ---
 
@@ -183,6 +183,7 @@ npm run publish:appstore
 ```
 
 The script will:
+
 1. Run `tauri ios build --release`
 2. Locate the generated `.ipa`
 3. Upload it via `xcrun altool` (or Transporter as fallback)
@@ -224,6 +225,7 @@ npm run android:build    # produces .aab in src-tauri/gen/android/
 ```
 
 Upload the `.aab` to **Internal testing** first, then promote through:
+
 1. Internal testing → validate login, uploads, subscriptions
 2. Closed testing (beta)
 3. Production rollout
@@ -232,11 +234,11 @@ Upload the `.aab` to **Internal testing** first, then promote through:
 
 ## Payments: Stripe vs Apple IAP
 
-| Scenario | iOS App Store | Android / Web |
-|---|---|---|
-| Physical goods or off-app services | Stripe ✅ | Stripe ✅ |
-| Digital subscriptions / AI credits | **Apple IAP required** (guideline 3.1.1) | Stripe ✅ |
-| External payment link (US only) | Apple StoreKit External Purchase entitlement needed | N/A |
+| Scenario                           | iOS App Store                                       | Android / Web |
+| ---------------------------------- | --------------------------------------------------- | ------------- |
+| Physical goods or off-app services | Stripe ✅                                           | Stripe ✅     |
+| Digital subscriptions / AI credits | **Apple IAP required** (guideline 3.1.1)            | Stripe ✅     |
+| External payment link (US only)    | Apple StoreKit External Purchase entitlement needed | N/A           |
 
 **Recommendation for ChatRAG:** use Apple In-App Purchase for iOS digital subscriptions/credits; keep Stripe for the web app and Android.
 

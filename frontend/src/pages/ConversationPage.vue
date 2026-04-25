@@ -121,8 +121,8 @@
             :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
             @select-question="
-              question = $event;
-              submitQuestion();
+              question = $event
+              submitQuestion()
             "
             @select-image-variant="handleSelectImageVariant"
             @upload-files="handleUploadFiles"
@@ -180,7 +180,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, onActivated, onDeactivated, ref, watch, nextTick } from 'vue'
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  onActivated,
+  onDeactivated,
+  ref,
+  watch,
+  nextTick,
+} from 'vue'
 import { AxiosError } from 'axios'
 import {
   askQuestion,
@@ -217,7 +226,7 @@ const STEP_LABELS: Record<ProcessingStep, string> = {
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] || ''
 }
-import {newContent} from '../composables/newContent'
+import { newContent } from '../composables/newContent'
 import {
   attachRenderKey,
   buildRenderKeyIndex,
@@ -752,22 +761,14 @@ async function ask() {
     role: 'user',
     content: currentQuestion,
   }
-  messages.value.push(
-    attachRenderKey(
-      optimisticUserMessage,
-      nextMessageRenderKey('local-user'),
-    ),
-  )
+  messages.value.push(attachRenderKey(optimisticUserMessage, nextMessageRenderKey('local-user')))
 
   const optimisticAssistantMessage: MessageWithRenderKey<ChatMessage> = {
     role: 'assistant',
     content: '',
   }
   messages.value.push(
-    attachRenderKey(
-      optimisticAssistantMessage,
-      nextMessageRenderKey('local-assistant'),
-    ),
+    attachRenderKey(optimisticAssistantMessage, nextMessageRenderKey('local-assistant')),
   )
   // Use the reactive proxy so Vue detects content updates immediately
   const reactiveMsg = messages.value[messages.value.length - 1]
@@ -885,7 +886,12 @@ watch(
   () => status.value.status,
   (newStatus) => {
     const hasUserMessages = messages.value.some((m) => m.role === 'user')
-    if (newStatus === 'ready' && !welcomeReadTriggered && messages.value.length > 0 && !hasUserMessages) {
+    if (
+      newStatus === 'ready' &&
+      !welcomeReadTriggered &&
+      messages.value.length > 0 &&
+      !hasUserMessages
+    ) {
       welcomeReadTriggered = true
       readWelcomeIfEnabled()
     }
@@ -938,7 +944,6 @@ onMounted(async () => {
     await nextTick()
     submitQuestion()
   }
-
 })
 
 onUnmounted(() => {

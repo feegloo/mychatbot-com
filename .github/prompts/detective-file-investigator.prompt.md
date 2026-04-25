@@ -19,7 +19,7 @@ Activate 🕵️ Detective mode when **any** of the following are true:
 - The uploaded file name is generic (e.g. `scan.pdf`, `image001.jpg`, `document.png`)
 - The user gives no clear instruction alongside the upload
 - The file content is mixed, multi-topic, or visually complex
-- You cannot confidently determine what the user wants to *do* with the file
+- You cannot confidently determine what the user wants to _do_ with the file
 
 ---
 
@@ -27,7 +27,8 @@ Activate 🕵️ Detective mode when **any** of the following are true:
 
 ### Step 1 — Orient yourself
 
-Silently examine what you *can* detect:
+Silently examine what you _can_ detect:
+
 - File type (PDF / image / scanned page)
 - Approximate content category (invoice, article, chart, form, handwritten notes, screenshot, …)
 - Number of pages / visual regions

@@ -94,12 +94,7 @@ function prev(event: Event) {
     <span class="name">{{ current.originalName }}</span>
 
     <div v-if="hasMultiple" class="dots">
-      <span
-        v-for="(_, i) in files"
-        :key="i"
-        class="dot"
-        :class="{ active: i === index }"
-      ></span>
+      <span v-for="(_, i) in files" :key="i" class="dot" :class="{ active: i === index }"></span>
     </div>
   </div>
 </template>

@@ -12,8 +12,15 @@
           @click="triggerUpload"
         >
           <svg
-width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
@@ -26,8 +33,16 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           @click="shareMessage"
         >
           <svg
-v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            v-if="!shareCopied"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <circle cx="18" cy="5" r="3" />
             <circle cx="6" cy="12" r="3" />
             <circle cx="18" cy="19" r="3" />
@@ -35,8 +50,16 @@ v-if="!shareCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
           <svg
-v-else width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            v-else
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <polyline points="20 6 9 17 4 12" />
           </svg>
           {{ shareCopied ? 'Link copied!' : 'Share' }}
@@ -48,8 +71,15 @@ v-else width="14" height="14" viewBox="0 0 24 24" fill="none"
           @click="downloadMessagePdf"
         >
           <svg
-width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
@@ -80,17 +110,24 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         </Transition>
         <div v-if="msg.generatingImage" class="image-generating-label">
           <TextFade :trigger="msg.imageAnnouncement || 'generic'" :disabled="noAnimation">
-            <span v-if="msg.imageAnnouncement" style="display: block;text-align: center;">🎨 {{ msg.imageAnnouncement }}</span>
-            <span v-else class="generating-image-please-wait">🎨 Generating image, please wait...</span>
+            <span v-if="msg.imageAnnouncement" style="display: block; text-align: center"
+              >🎨 {{ msg.imageAnnouncement }}</span
+            >
+            <span v-else class="generating-image-please-wait"
+              >🎨 Generating image, please wait...</span
+            >
           </TextFade>
         </div>
-          <div v-if="msg.generatingImage && msg.imageDetailedPrompt" class="image-prompt-detail">
-            {{ msg.imageDetailedPrompt }}
-          </div>
+        <div v-if="msg.generatingImage && msg.imageDetailedPrompt" class="image-prompt-detail">
+          {{ msg.imageDetailedPrompt }}
+        </div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
 
-      <div v-else-if="msg.role === 'assistant' && imageSwapActive && !isWelcome" class="image-swap-wrap">
+      <div
+        v-else-if="msg.role === 'assistant' && imageSwapActive && !isWelcome"
+        class="image-swap-wrap"
+      >
         <div class="image-swap-shell" :style="imageSwapStyle">
           <Transition name="generated-image-fade">
             <GeneratedImageFrame
@@ -107,10 +144,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       <!-- Welcome message with files: 2-col on desktop, stacked on mobile -->
       <div v-else-if="welcomeHasFiles && msg.role === 'assistant'" class="welcome-two-col">
         <div class="welcome-left-col">
-          <div
-            class="message-content-wrap"
-            :class="{ 'is-translating': isTranslating }"
-          >
+          <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
             <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
               <MessageContent
                 :content="msg.content"
@@ -155,10 +189,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
       <!-- Regular assistant content -->
       <template v-else-if="msg.role === 'assistant'">
-        <div
-          class="message-content-wrap"
-          :class="{ 'is-translating': isTranslating }"
-        >
+        <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
           <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
             <MessageContent
               :content="msg.content"
@@ -178,9 +209,7 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             />
           </TextFade>
         </div>
-        <div v-if="showTypingDots" class="typing-dots">
-          <span></span><span></span><span></span>
-        </div>
+        <div v-if="showTypingDots" class="typing-dots"><span></span><span></span><span></span></div>
       </template>
 
       <!-- User message -->
@@ -192,7 +221,8 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 v-if="tok.word"
                 class="word-reveal"
                 :style="{ animationDelay: tok.delay + 'ms' }"
-              >{{ tok.word }}</span>
+                >{{ tok.word }}</span
+              >
               <template v-else>{{ tok.ws }}</template>
             </template>
           </template>
@@ -203,7 +233,9 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       <!-- Upload row fallback (no welcome files) -->
       <div
         v-if="
-          isFirstMessage && canUpload && !welcomeHasFiles &&
+          isFirstMessage &&
+          canUpload &&
+          !welcomeHasFiles &&
           (selectedUploadFiles.length || uploadError)
         "
         class="welcome-upload-row"
@@ -237,8 +269,15 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         @click="$emit('view-threads', msg.id!)"
       >
         <svg
-width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
         <span class="thread-count">
@@ -246,7 +285,13 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         </span>
       </div>
 
-      <ImageModal :visible="modalOpen" :src="modalSrc" :alt="modalAlt" :title="modalTitle" @close="modalOpen = false" />
+      <ImageModal
+        :visible="modalOpen"
+        :src="modalSrc"
+        :alt="modalAlt"
+        :title="modalTitle"
+        @close="modalOpen = false"
+      />
       <SourcePreviewModal
         v-if="previewCitation"
         :visible="previewOpen"
@@ -523,9 +568,7 @@ const senderLabel = computed(() => {
 // to the full content, triggering exactly one remount + transition.
 // Subsequent content changes (translations) are then keyed on content so
 // the fade transition plays correctly.
-const assistantFadeTrigger = computed(() =>
-  props.msg.id ? props.msg.content : 'streaming',
-)
+const assistantFadeTrigger = computed(() => (props.msg.id ? props.msg.content : 'streaming'))
 
 const showTypingDots = computed(() => {
   if (props.msg.role !== 'assistant' || props.isWelcome) return false
@@ -539,7 +582,9 @@ const showTypingDots = computed(() => {
 // instead of walking the DOM like we do for assistant content. Delay is
 // clamped so pasting a wall of text still finishes inside ~2 s.
 const USER_REVEAL_MAX_MS = 500
-type UserWordToken = { word: string; ws?: undefined; delay: number } | { ws: string; word?: undefined; delay?: undefined }
+type UserWordToken =
+  | { word: string; ws?: undefined; delay: number }
+  | { ws: string; word?: undefined; delay?: undefined }
 const userWordTokens = computed<UserWordToken[]>(() => {
   if (props.msg.role !== 'user') return []
   const parts = (props.msg.content ?? '').split(/(\s+)/).filter(Boolean)
@@ -549,11 +594,7 @@ const userWordTokens = computed<UserWordToken[]>(() => {
   const easedDelay = (i: number) =>
     words <= 1 ? 0 : Math.round(USER_REVEAL_MAX_MS * Math.sqrt(i / (words - 1)))
   let i = 0
-  return parts.map((p) =>
-    /^\s+$/.test(p)
-      ? { ws: p }
-      : { word: p, delay: easedDelay(i++) },
-  )
+  return parts.map((p) => (/^\s+$/.test(p) ? { ws: p } : { word: p, delay: easedDelay(i++) }))
 })
 
 // --- Upload-more-files state ----------------------------------------------
@@ -606,9 +647,7 @@ function shareMessage() {
 
 const canDownloadPdf = computed(
   () =>
-    props.msg.role === 'assistant' &&
-    !!props.msg.content &&
-    !props.msg.content.includes('[quiz:'),
+    props.msg.role === 'assistant' && !!props.msg.content && !props.msg.content.includes('[quiz:'),
 )
 
 async function downloadMessagePdf() {
@@ -962,7 +1001,7 @@ function openFilePreview(file: FileInfo) {
 }
 
 .image-prompt-detail {
-  display:none;
+  display: none;
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.4;
@@ -991,15 +1030,14 @@ function openFilePreview(file: FileInfo) {
   cursor: pointer;
 }
 @keyframes image-morph-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.35);
   }
   50% {
     box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.35);
   }
 }
-
-
 
 /* Fade-in for the first partial frame. Paired with the v-if above so the
    wrap mounts at opacity 0 and eases to 1, giving the morph a smooth
@@ -1080,13 +1118,31 @@ function openFilePreview(file: FileInfo) {
 }
 
 /* Colored text markers. */
-:deep(.text-color-green) { color: #86efac; }
-:deep(.text-color-red) { color: #fca5a5; }
-:deep(.text-color-yellow) { color: #fde047; }
-:deep(.text-color-blue) { color: #93c5fd; }
-:deep(.text-color-purple) { color: #c4b5fd; }
-:deep(.text-color-orange) { color: #fdba74; }
-:deep(.text-color-gold) { color: #e8b84b; }
-:deep(.text-color-pink) { color: #f9a8d4; }
-:deep(.text-color-gray) { color: #94a3b8; }
+:deep(.text-color-green) {
+  color: #86efac;
+}
+:deep(.text-color-red) {
+  color: #fca5a5;
+}
+:deep(.text-color-yellow) {
+  color: #fde047;
+}
+:deep(.text-color-blue) {
+  color: #93c5fd;
+}
+:deep(.text-color-purple) {
+  color: #c4b5fd;
+}
+:deep(.text-color-orange) {
+  color: #fdba74;
+}
+:deep(.text-color-gold) {
+  color: #e8b84b;
+}
+:deep(.text-color-pink) {
+  color: #f9a8d4;
+}
+:deep(.text-color-gray) {
+  color: #94a3b8;
+}
 </style>

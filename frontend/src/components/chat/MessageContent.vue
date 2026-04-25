@@ -7,7 +7,15 @@
  * plus delegated clicks for [source:N] citations, inline images, the
  * [upload] button, and checklist boxes.
  */
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
 import { applyWordReveal } from '../../composables/wordReveal'
@@ -68,8 +76,7 @@ const parts = computed(() => {
 const hasPrompts = computed(() => parsedTokens.value.visiblePrompts.length > 0)
 const hasActions = computed(
   () =>
-    parsedTokens.value.visibleActions.length > 0 ||
-    parsedTokens.value.overflowActions.length > 0,
+    parsedTokens.value.visibleActions.length > 0 || parsedTokens.value.overflowActions.length > 0,
 )
 
 // Fast label → ActionToken lookup to find refFileName on click.

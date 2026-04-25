@@ -104,7 +104,7 @@ a {
   padding: 12px;
   gap: 8px;
   overflow: hidden;
-  transition: width .05s ease-out;
+  transition: width 0.05s ease-out;
 }
 
 .conv-nav-new {
@@ -1157,7 +1157,9 @@ li:has(.checklist-box) {
   max-width: 100%;
   margin: 0;
   object-fit: contain;
-  transition: box-shadow 300ms ease, transform 300ms ease;
+  transition:
+    box-shadow 300ms ease,
+    transform 300ms ease;
 }
 
 .generating-image-place-wait {
@@ -1803,11 +1805,7 @@ h3 {
   inset: 0;
   pointer-events: none;
 
-  background: radial-gradient(
-    circle at 30% 25%,
-    rgba(255, 170, 100, 0.14),
-    transparent 65%
-  );
+  background: radial-gradient(circle at 30% 25%, rgba(255, 170, 100, 0.14), transparent 65%);
 
   mix-blend-mode: screen;
   animation: glowPulse 2s ease-in-out infinite alternate;
@@ -1836,8 +1834,12 @@ h3 {
 
 /* glow breathing */
 @keyframes glowPulse {
-  from { opacity: 0.3; }
-  to   { opacity: 0.75; }
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.75;
+  }
 }
 
 .welcome-more-popper {
