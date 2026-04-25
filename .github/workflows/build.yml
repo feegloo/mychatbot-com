@@ -43,24 +43,14 @@ jobs:
               - 'backend/**'
               - '.github/workflows/build.yml'
 
-  app:
-    name: ${{ matrix.app }} Build, Test, Lint
+  ui:
+    name: UI Build, Test, Lint
     runs-on: ubuntu-latest
     needs: changes
-    if: |
-      (matrix.app == 'ui' && needs.changes.outputs.ui == 'true') ||
-      (matrix.app == 'frontend' && needs.changes.outputs.frontend == 'true') ||
-      (matrix.app == 'backend' && needs.changes.outputs.backend == 'true')
-
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [ui, frontend, backend]
-
+    if: needs.changes.outputs.ui == 'true'
     defaults:
       run:
-        working-directory: ${{ matrix.app }}
-
+        working-directory: ui
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +60,69 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend Build, Test, Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend Build, Test, Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
