@@ -1779,6 +1779,67 @@ h3 {
   display: none;
 }
 
+.image-morph-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+/* direct child img */
+.image-morph-wrap > img {
+  display: block;
+  width: 100%;
+  height: auto;
+
+  transform-origin: center;
+  will-change: transform, filter, opacity;
+
+  animation: morphCinematic 4.5s ease-in-out infinite alternate;
+}
+
+/* soft cinematic glow overlay */
+.image-morph-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background: radial-gradient(
+    circle at 30% 25%,
+    rgba(255, 170, 100, 0.14),
+    transparent 65%
+  );
+
+  mix-blend-mode: screen;
+  animation: glowPulse 4.5s ease-in-out infinite alternate;
+}
+
+/* main morph loop (forward ↔ backward) */
+@keyframes morphCinematic {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    filter: brightness(1) contrast(1) saturate(1) blur(0px);
+  }
+
+  50% {
+    transform: scale(1.02) translateY(-2px);
+    opacity: 0.93;
+    filter: brightness(1.08) contrast(1.05) saturate(1.1) blur(0.6px);
+  }
+
+  100% {
+    transform: scale(1.025) translateY(-3px);
+    opacity: 0.9;
+    filter: brightness(1.12) contrast(1.08) saturate(1.12) blur(0.3px);
+  }
+}
+
+/* glow breathing */
+@keyframes glowPulse {
+  from { opacity: 0.3; }
+  to   { opacity: 0.75; }
+}
+
 .welcome-more-popper {
   display: flex;
   flex-direction: row;

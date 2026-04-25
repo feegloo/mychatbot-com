@@ -95,15 +95,6 @@ width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         <div class="image-swap-shell" :style="imageSwapStyle">
           <Transition name="generated-image-fade">
             <GeneratedImageFrame
-              v-if="imageSwapShowOld"
-              :key="`swap-old-${imageSwapFromSrc}`"
-              :src="imageSwapFromSrc"
-              class="image-swap-image image-swap-old"
-              alt="Generated preview"
-            />
-          </Transition>
-          <Transition name="generated-image-fade">
-            <GeneratedImageFrame
               v-if="imageSwapShowNew"
               :key="`swap-new-${imageSwapToSrc}`"
               :src="imageSwapToSrc"
@@ -992,6 +983,8 @@ function openFilePreview(file: FileInfo) {
     box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.35);
   }
 }
+
+
 
 /* Fade-in for the first partial frame. Paired with the v-if above so the
    wrap mounts at opacity 0 and eases to 1, giving the morph a smooth
