@@ -20,6 +20,7 @@ These instructions guide AI agents (like GitHub Copilot) to be productive and co
 - always modify .env for dev and .env for production by yourself, but you can comment previous env if it's valueable and shouldn't be lost, but generally add required .env to deploy to production, when you obtain some tocken
 - try to execute as many cli commands as possible by yourself (main system: macOS), to understand the system better, and to be more independent in your work, but if you encounter any issues or errors while running commands, try to understand the error message and reason about what might be causing it, and ask for clarification or suggest potential solutions based on the error message and your understanding of the codebase and architecture
 - use as many MCP integrations or install them along the way, to help with debugging, understanding the system, and improving your productivity and independence in the workspace
+- if user uploads screenshot with visible url of browser or sends URL link, visit URL to get HTML and CSS content, and use it to understand the issue better, and to provide more accurate suggestions or code snippets to help with the issue, but also be mindful of privacy and security concerns when accessing user-provided URLs, and ensure that you are not accessing any sensitive or private information without proper authorization or consentss
 
 
 ---

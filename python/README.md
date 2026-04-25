@@ -81,3 +81,25 @@ python -m pytest
 ruff check .
 ruff format --check .
 ```
+
+## Live e2e image generation test
+
+Calls the real OpenAI API and saves every streamed partial frame plus the final
+image to `e2e/output/` (gitignored) so you can visually inspect generation quality.
+
+```bash
+cd python
+RUN_REAL_OPENAI_TEST=1 \
+  OPENAI_API_KEY=sk-... \
+  make e2e
+```
+
+Optional env overrides:
+
+| Variable | Default |
+|---|---|
+| `REAL_OPENAI_IMAGE_TEST_SIZE` | `1024x1536` |
+| `REAL_OPENAI_IMAGE_TEST_PROMPT` | quiet dermatology clinic portrait prompt |
+
+After a run, `e2e/output/` contains `partial_0.jpg`, `partial_1.jpg`, `partial_2.jpg`
+(progressive quality frames) and `final.jpg` (full-resolution result).

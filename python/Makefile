@@ -1,3 +1,5 @@
+.PHONY: dev dev-watch lint format e2e
+
 dev:
 	.venv/bin/python src/server.py
 
@@ -9,3 +11,6 @@ lint:
 
 format:
 	ruff format .
+
+e2e:
+	OTEL_ENABLED=false .venv/bin/python -m pytest e2e -v -s

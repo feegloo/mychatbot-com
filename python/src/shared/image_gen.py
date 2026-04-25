@@ -12,6 +12,7 @@ import logging
 import mimetypes
 import os
 import random
+import re
 import uuid
 from pathlib import Path
 
@@ -27,7 +28,7 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 # Keep a single fixed image size while image generation is being stabilized.
 # The previous aspect-ratio map is intentionally disabled for now.
 # ASPECT_SIZE_MAP: dict[str, str] = {
-#     "1:1":  "848x848",
+#     "1:1":  "880x880",
 #     "3:4":  "768x1024",
 #     "4:3":  "1024x768",
 #     "2:3":  "688x1024",
@@ -36,7 +37,11 @@ _ALLOWED_REFERENCE_MIME = {"image/png", "image/jpeg", "image/webp"}
 #     "9:16": "576x1024",
 # }
 _DEFAULT_ASPECT = "1:1"
-_FIXED_IMAGE_SIZE = "848x848"
+_FIXED_IMAGE_SIZE = "880x880"
+_PROMPT_ASPECT_MAP: dict[str, str] = {
+    "3:2": "landscape",
+    "3:4": "portrait",
+}
 
 
 def aspect_to_image_size(aspect: str) -> str:
@@ -47,6 +52,55 @@ def aspect_to_image_size(aspect: str) -> str:
     # Aspect-based size selection is disabled intentionally.
     _ = aspect
     return _FIXED_IMAGE_SIZE
+
+
+def infer_prompt_aspect(question: str) -> str:
+    """Infer a supported framed aspect ratio from the user's request.
+
+    The transport layer currently forces square output, so non-square requests
+    are represented as letterboxed or pillarboxed compositions inside a 1:1
+    canvas. Only the supported product ratios are recognized.
+    """
+    normalized = (question or "").lower()
+    collapsed = re.sub(r"\s+", " ", normalized)
+
+    if ("3:2" in collapsed or "2:3" in collapsed) and "landscape" in collapsed:
+        return "3:2"
+    if "3:4" in collapsed and "portrait" in collapsed:
+        return "3:4"
+    return _DEFAULT_ASPECT
+
+
+def build_aspect_framing_instruction(aspect: str) -> str:
+    """Return prompt instructions for fitting a non-square frame in 1:1.
+
+    The generated bitmap stays square, but the visible scene should occupy a
+    real 3:2 landscape or 3:4 portrait window with black matte bars filling the
+    remaining space.
+    """
+    orientation = _PROMPT_ASPECT_MAP.get(aspect)
+    if not orientation:
+        return (
+            "Default to a true 1:1 square composition. Fill the full canvas with "
+            "the scene; do not add decorative black bars or empty framing."
+        )
+
+    if orientation == "landscape":
+        return (
+            "Output remains a 1:1 square canvas, but the visible image area must be "
+            "a true 3:2 landscape rectangle centered within it. Add solid black "
+            "matte bars above and below the scene so the inner picture area is a real "
+            "3:2 landscape ratio. Keep the subject fully inside that inner frame; do "
+            "not stretch, crop, or fake the ratio."
+        )
+
+    return (
+        "Output remains a 1:1 square canvas, but the visible image area must be a "
+        "true 3:4 portrait rectangle centered within it. Add solid black matte bars "
+        "on the left and right sides so the inner picture area is a real 3:4 portrait "
+        "ratio. Keep the subject fully inside that inner frame; do not stretch, crop, "
+        "or fake the ratio."
+    )
 
 
 from shared.config import get_settings
@@ -153,7 +207,7 @@ def _call_images_edit(
 def generate_image(
     prompt: str,
     storage_dir: str,
-    size: str = "848x848",
+    size: str = "880x880",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
@@ -278,7 +332,7 @@ def generate_image(
 def generate_image_streaming(
     prompt: str,
     storage_dir: str,
-    size: str = "848x848",
+    size: str = "880x880",
     quality: str = "low",
     model: str | None = None,
     reference_image_paths: list[str] | None = None,
@@ -554,6 +608,8 @@ def build_image_prompt(
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
+    aspect = infer_prompt_aspect(question)
+    aspect_framing_instruction = build_aspect_framing_instruction(aspect)
 
     system = (
         "You are an expert prompt engineer for gpt-image-2, an AI image generation model. "
@@ -608,6 +664,10 @@ def build_image_prompt(
         "  Lighting/mood: name the light source and quality (soft diffuse, harsh rim, golden hour).\n"
         "  Layout (if relevant): placement of key element ('subject centered with negative space\n"
         "  on left', 'horizon line at lower third', 'logo top-right').\n\n"
+        "STEP 2A — RESPECT THE REQUESTED FRAME SHAPE:\n"
+        "  The transport output is currently square, so when the user requests a non-square frame,\n"
+        "  describe the composition as a centered inner frame with solid black matte bars filling\n"
+        "  the remaining square canvas. The inner frame ratio must be real, not approximated.\n\n"
         "STEP 3 — ADD EXPLICIT CONSTRAINTS at the end of the prompt (always include):\n"
         "  'No watermark. No readable text. No logos or trademarks. No extra limbs.\n"
         "  Preserve natural proportions. No signature overlay.'\n\n"
@@ -630,7 +690,11 @@ def build_image_prompt(
     )
 
     creative_seed = _random_creative_seed()
-    user_content = f"User request: {question}\n\n{creative_seed}\n"
+    user_content = (
+        f"User request: {question}\n"
+        f"Requested frame handling: {aspect_framing_instruction}\n\n"
+        f"{creative_seed}\n"
+    )
 
     if welcome_messages:
         user_content += f"\nDocument summary:\n{chr(10).join(welcome_messages[:3])}\n"
@@ -677,7 +741,7 @@ def build_image_prompt(
             "prompt": parsed["prompt"],
             "title": parsed.get("title", "Generated Image"),
             "source_indices": parsed.get("source_indices", []),
-            "aspect": _DEFAULT_ASPECT,
+            "aspect": aspect,
         }
     except (json.JSONDecodeError, KeyError):
-        return {"prompt": raw, "title": "Generated Image", "source_indices": [], "aspect": _DEFAULT_ASPECT}
+        return {"prompt": raw, "title": "Generated Image", "source_indices": [], "aspect": aspect}

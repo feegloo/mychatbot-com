@@ -247,7 +247,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     collectionName: data.conversation.vector_collection_name,
     conversationId,
     chatHistory: chatHistory.slice(-6),
-    quality: 'auto',
+    quality: 'low',
     referenceImagePaths,
   })
 

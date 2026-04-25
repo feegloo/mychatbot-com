@@ -261,7 +261,7 @@ askRouter.post('/ask', async (ctx) => {
           collectionName: data.conversation!.vector_collection_name,
           conversationId,
           chatHistory: chatHistory.slice(-6),
-          quality: 'auto',
+          quality: 'low',
         })
         // Persist to GCS so it survives Cloud Run instance turnover.
         if (config.storageProvider === 'gcs' && config.gcsBucket) {

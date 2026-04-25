@@ -7,7 +7,7 @@
           <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
         </Transition>
         <Transition name="modal-title-fade">
-          <div v-if="title" :key="title" class="image-modal-title">{{ title }}</div>
+          <div v-if="title" :key="title" class="image-modal-title">"{{ title }}"</div>
         </Transition>
       </div>
     </div>

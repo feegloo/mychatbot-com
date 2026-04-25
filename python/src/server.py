@@ -66,6 +66,8 @@ from shared.otel import init_otel  # noqa: E402
 
 init_otel()
 
+from contextlib import asynccontextmanager  # noqa: E402
+
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from sentry_sdk import logger as sentry_logger  # noqa: E402
@@ -90,7 +92,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ChatRAG Server")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Startup and shutdown lifecycle handlers."""
+    from shared.config import get_settings
+
+    settings = get_settings()
+    logger.info(f"🔵 Using OpenAI model: {settings.openai_chat_model}")
+    yield
+    close_db_pool()
+
+
+app = FastAPI(title="ChatRAG Server", lifespan=_lifespan)
 
 
 @app.middleware("http")
@@ -108,25 +121,6 @@ async def _request_id_middleware(request, call_next):
         response.headers["X-Request-Id"] = request_id
         return response
     return await call_next(request)
-
-
-@app.on_event("shutdown")
-async def _shutdown():
-    """Clean up DB connection pool on shutdown."""
-    close_db_pool()
-
-
-@app.on_event("startup")
-async def _startup_checks():
-    """Log LLM configuration."""
-    from shared.config import get_settings
-
-    settings = get_settings()
-    logger.info(f"🔵 Using OpenAI model: {settings.openai_chat_model}")
-
-    # Background workers no longer run inside the main server process.
-    # ``chatrag-worker`` (worker_pubsub.py) is a separate Cloud Run service
-    # that subscribes to the ``chatrag-indexing`` Pub/Sub topic.
 
 
 class AnswerRequest(BaseModel):
@@ -168,8 +162,8 @@ class GenerateImageRequest(BaseModel):
     collection_name: str = ""
     conversation_id: str = ""
     chat_history: list[dict] | None = None
-    size: str = "848x848"
-    # size: str = "848x848"
+    size: str = "880x880"
+    # size: str = "880x880"
     quality: Literal["auto", "high", "low"] = "low"
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
@@ -596,9 +590,7 @@ async def generate_image_endpoint(req: GenerateImageRequest):
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
             source_indices = prompt_result.get("source_indices", [])
-            # Keep generation stable on square output while debugging regressions.
-            # image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
-            image_size = "848x848"
+            image_size = req.size or "880x880"
             logger.info(f"🎨 Image prompt: {image_prompt[:150]}... (sources: {source_indices}, size: {image_size})")
 
             # Generate and save the image
@@ -676,9 +668,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         image_prompt = prompt_result["prompt"]
         image_title = prompt_result["title"]
         source_indices = prompt_result.get("source_indices", [])
-        # Keep generation stable on square output while debugging regressions.
-        # image_size = aspect_to_image_size(prompt_result.get("aspect", "1:1"))
-        image_size = "848x848"
+        image_size = req.size or "880x880"
 
         _emit("prompt_ready", {"image_prompt": image_prompt, "image_title": image_title})
 

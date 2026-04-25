@@ -7,16 +7,24 @@ images.edit endpoints, and validation of reference paths.
 from __future__ import annotations
 
 import base64
+import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PIL import Image
 
 from shared import image_gen
 
 PNG_1x1 = base64.b64decode(
     b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 )
+
+
+def _make_jpeg_bytes(width: int, height: int, color: tuple[int, int, int] = (32, 64, 96)) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (width, height), color=color).save(buffer, format="JPEG")
+    return buffer.getvalue()
 
 
 @pytest.fixture
@@ -187,6 +195,40 @@ class TestOutput:
         assert result["revised_prompt"] == "revised"
         assert (tmp_path / result["file_name"]).is_file()
 
+    def test_saved_image_dimensions_match_requested_size(self, tmp_path):
+        requested_size = "320x640"
+        expected_width, expected_height = (320, 640)
+        jpeg_bytes = _make_jpeg_bytes(expected_width, expected_height)
+
+        with patch("shared.image_gen.OpenAI") as mock_cls, patch(
+            "shared.image_gen.get_settings"
+        ) as mock_settings:
+            mock_settings.return_value = MagicMock(
+                openai_api_key="sk-test", openai_image_model="gpt-image-2"
+            )
+            client = MagicMock()
+            mock_cls.return_value = client
+            response = MagicMock(
+                data=[MagicMock(b64_json=base64.b64encode(jpeg_bytes).decode(), url=None)]
+            )
+            response.data[0].revised_prompt = "revised"
+            client.images.generate.return_value = response
+
+            result = image_gen.generate_image(
+                prompt="wide clinical portrait",
+                storage_dir=str(tmp_path),
+                size=requested_size,
+            )
+
+        call_kwargs = client.images.generate.call_args.kwargs
+        assert call_kwargs["size"] == requested_size
+
+        saved_path = tmp_path / result["file_name"]
+        assert saved_path.is_file()
+
+        with Image.open(saved_path) as saved_image:
+            assert saved_image.size == (expected_width, expected_height)
+
 
 class TestStreamingModelFallback:
     def test_streaming_switches_from_gpt_image_1_to_gpt_image_2(self, tmp_path):
@@ -246,3 +288,65 @@ class TestInspiredRetry:
 
         # Exactly two attempts: original + one inspired-retry.
         assert mock_openai.images.generate.call_count == 2
+
+
+class TestAspectFraming:
+    def test_infer_prompt_aspect_normalizes_landscape_request_to_3_2(self):
+        assert (
+            image_gen.infer_prompt_aspect("Generate image inspired by clinic interior, 2:3 landscape")
+            == "3:2"
+        )
+
+    def test_infer_prompt_aspect_accepts_explicit_3_2_landscape(self):
+        assert (
+            image_gen.infer_prompt_aspect("Generate image inspired by clinic interior, 3:2 landscape")
+            == "3:2"
+        )
+
+    def test_infer_prompt_aspect_detects_supported_portrait_request(self):
+        assert (
+            image_gen.infer_prompt_aspect("Generate image inspired by doctor portrait, 3:4 portrait")
+            == "3:4"
+        )
+
+    def test_build_aspect_framing_instruction_for_landscape_uses_black_bars(self):
+        instruction = image_gen.build_aspect_framing_instruction("3:2")
+
+        assert "1:1 square canvas" in instruction
+        assert "3:2 landscape" in instruction
+        assert "solid black matte bars above and below" in instruction
+
+    def test_build_aspect_framing_instruction_for_portrait_uses_black_bars(self):
+        instruction = image_gen.build_aspect_framing_instruction("3:4")
+
+        assert "1:1 square canvas" in instruction
+        assert "3:4 portrait" in instruction
+        assert "solid black matte bars on the left and right sides" in instruction
+
+    def test_build_image_prompt_returns_inferred_aspect_and_passes_framing_to_llm(self):
+        captured_messages: list[dict] = []
+
+        def fake_traced_openai_call(**kwargs):
+            nonlocal captured_messages
+            captured_messages = kwargs["messages"]
+            return ('{"prompt":"built prompt","title":"Built Title","source_indices":[0]}', {})
+
+        with patch("shared.image_gen.OpenAI") as mock_cls, patch(
+            "shared.image_gen.get_settings"
+        ) as mock_settings, patch(
+            "shared.image_gen.traced_openai_call", side_effect=fake_traced_openai_call
+        ):
+            mock_settings.return_value = MagicMock(
+                openai_api_key="sk-test", openai_chat_model="gpt-4.1-mini"
+            )
+            mock_cls.return_value = MagicMock()
+
+            result = image_gen.build_image_prompt(
+                question="Generate image inspired by hair treatment clinic, 2:3 landscape",
+                rag_chunks=[{"text": "clinic interior", "file_name": "notes.txt"}],
+            )
+
+        assert result["aspect"] == "3:2"
+        assert captured_messages[1]["content"]
+        assert "true 3:2 landscape rectangle" in captured_messages[1]["content"]
+        assert "solid black matte bars above and below" in captured_messages[1]["content"]

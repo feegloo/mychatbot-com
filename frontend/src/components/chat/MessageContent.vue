@@ -95,7 +95,14 @@ function onContentClick(e: MouseEvent) {
   // Inline images: open lightbox via parent.
   const img = target.closest('img') as HTMLImageElement | null
   if (img && img.src) {
-    emit('image-click', img.src, img.alt || 'Image')
+    // Prefer the visible caption text (may be translated) over the img.alt
+    // which reflects the original markdown alt attribute.
+    const captionEl = img.closest('p')?.nextElementSibling
+    const captionTitle =
+      captionEl?.classList.contains('image-caption')
+        ? captionEl.textContent?.replace(/^"|"$/g, '').trim()
+        : undefined
+    emit('image-click', img.src, captionTitle || img.alt || 'Image')
     return
   }
   // Source citation buttons: rendered by renderMarkdown as `.inline-source-btn`.

@@ -1,5 +1,7 @@
 import { config } from '../config.js'
 
+const DEFAULT_IMAGE_SIZE = '880x880'
+
 type ImageQuality = 'auto' | 'high' | 'low'
 
 export async function generateImage(options: {
@@ -26,8 +28,8 @@ export async function generateImage(options: {
       conversation_id: options.conversationId || '',
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
-      // size: options.size || '848x848',
-      size: '848x848',
+      // size: options.size || DEFAULT_IMAGE_SIZE,
+      size: DEFAULT_IMAGE_SIZE,
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
@@ -126,8 +128,8 @@ export async function* generateImageStream(options: {
       conversation_id: options.conversationId || '',
       chat_history: options.chatHistory || [],
       // Keep image generation on a single stable size for now.
-      // size: options.size || '848x848',
-      size: '848x848',
+      // size: options.size || DEFAULT_IMAGE_SIZE,
+      size: DEFAULT_IMAGE_SIZE,
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
     }),
