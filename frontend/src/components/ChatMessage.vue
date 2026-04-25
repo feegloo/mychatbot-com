@@ -1009,34 +1009,8 @@ function openFilePreview(file: FileInfo) {
   white-space: pre-wrap;
 }
 
-/* Progressive (morphing) partial image while OpenAI streams the diffusion
-   intermediates. Grows to match the final image width (capped at 512px to
-   keep the bubble from dominating the viewport); the blur value is driven
-   inline by the partial frame index so each new frame sharpens. */
-.image-morph-wrap {
-  margin: 6px 0 8px;
-  max-width: min(70vh, 420px);
-  /* border-radius: 12px; */
-  overflow: hidden;
-  background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2s ease-in-out infinite;
-}
-/* .image-morph {
-  transform: scale(1.02);
-  transition: filter 600ms ease-out;
-  will-change: filter;
-} */
 .image-morph-clickable {
   cursor: pointer;
-}
-@keyframes image-morph-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 14px 3px rgba(167, 139, 250, 0.35);
-  }
 }
 
 /* Fade-in for the first partial frame. Paired with the v-if above so the
