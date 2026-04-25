@@ -80,6 +80,9 @@ export async function runImageGenStream(options: {
         if (data.image_prompt) {
           reactiveMsg.imageDetailedPrompt = data.image_prompt
         }
+        if (data.image_title) {
+          reactiveMsg.imageTitle = data.image_title
+        }
         if (data.image_title && !reactiveMsg.imageAnnouncement) {
           reactiveMsg.imageAnnouncement = `Generating: ${data.image_title}`
         }
@@ -97,6 +100,9 @@ export async function runImageGenStream(options: {
         reactiveMsg.imagePartialIndex = index
       },
       onComplete: (data) => {
+        if (data.generatedImage?.imageTitle) {
+          reactiveMsg.imageTitle = data.generatedImage.imageTitle
+        }
         clearTimeout(timeoutHandle)
 
         settleAfterMinMorph(resolve, data)

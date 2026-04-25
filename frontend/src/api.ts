@@ -114,6 +114,8 @@ export type ChatMessage = {
   imageAnnouncement?: string
   /** Detailed image prompt prepared by LLM and emitted by `prompt_ready`. */
   imageDetailedPrompt?: string
+  /** Human-friendly title received from image generation events/final payload. */
+  imageTitle?: string
   /** Latest partial (progressive) image frame as a data URL, shown blurred
    *  while generation is in progress and cross-fades into the final image. */
   imagePartialDataUrl?: string

@@ -364,6 +364,18 @@ const finalGeneratedImageUrl = computed(() => {
   return target.split(/\s+/)[0] || ''
 })
 
+const finalGeneratedImageTitle = computed(() => {
+  const content = props.msg.content || ''
+  const altMatch = content.match(/!\[([^\]]*)\]\(([^)]+)\)/)
+  const markdownAlt = altMatch?.[1]?.trim() || ''
+  if (markdownAlt) return markdownAlt
+  if (props.msg.imageTitle?.trim()) return props.msg.imageTitle.trim()
+  const announcementTitle = (props.msg.imageAnnouncement || '')
+    .replace(/^Generating:\s*/i, '')
+    .trim()
+  return announcementTitle
+})
+
 const imageSwapStyle = computed(() => {
   const size = lastMorphSize.value
   if (!size) return undefined
@@ -631,8 +643,8 @@ function openMorphModal() {
   const src = props.msg.imagePartialDataUrl || lastMorphSrc.value
   if (!src) return
   modalSrc.value = src
-  modalAlt.value = props.msg.imageAnnouncement || 'Generating...'
-  modalTitle.value = props.msg.imageAnnouncement || ''
+  modalAlt.value = finalGeneratedImageTitle.value || props.msg.imageAnnouncement || 'Generating...'
+  modalTitle.value = finalGeneratedImageTitle.value || props.msg.imageAnnouncement || ''
   morphModalActive.value = true
   modalOpen.value = true
 }
@@ -651,7 +663,8 @@ watch(
 watch(finalGeneratedImageUrl, (newUrl) => {
   if (newUrl && morphModalActive.value && modalOpen.value) {
     modalSrc.value = newUrl
-    modalTitle.value = props.msg.imageAnnouncement || ''
+    modalAlt.value = finalGeneratedImageTitle.value || 'Generated image'
+    modalTitle.value = finalGeneratedImageTitle.value
     morphModalActive.value = false
   }
 })
