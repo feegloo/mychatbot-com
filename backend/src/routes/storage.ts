@@ -122,7 +122,9 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
   let resolvedOnDisk: { filePath: string; size: number } | null
   let resolvedStoredName: string | null = null
 
-  async function resolveOnDisk(candidatePath: string): Promise<{ filePath: string; size: number } | null> {
+  async function resolveOnDisk(
+    candidatePath: string,
+  ): Promise<{ filePath: string; size: number } | null> {
     const resolved = path.resolve(candidatePath)
     if (!resolved.startsWith(path.resolve(config.storageRoot))) {
       return null

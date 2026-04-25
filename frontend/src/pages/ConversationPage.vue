@@ -120,7 +120,12 @@
             :no-animation="index < initialMessageCount"
             :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
-            @select-question="question = $event; submitQuestion()"
+            @select-question="
+              (q: string) => {
+                question = q
+                submitQuestion()
+              }
+            "
             @select-image-variant="handleSelectImageVariant"
             @upload-files="handleUploadFiles"
             @trigger-upload="triggerUploadOnFirstMessage"
