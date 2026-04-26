@@ -209,8 +209,8 @@ info "  Cloud SQL private IP: $DB_PRIVATE_IP"
 # ── Step 5: Create GCS bucket for file storage ──────────────────────────────
 info "Step 5/9: Creating GCS bucket for file storage..."
 gcloud services enable storage.googleapis.com
-if ! gsutil ls -b "gs://${GCS_BUCKET}" &>/dev/null; then
-  gsutil mb -l "$REGION" "gs://${GCS_BUCKET}"
+if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" &>/dev/null; then
+  gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION"
   info "  Created bucket: ${GCS_BUCKET}"
 else
   warn "  Bucket ${GCS_BUCKET} already exists, skipping."
@@ -220,7 +220,7 @@ fi
 # (needed for PDF embeds and range requests served via redirect from /api/storage).
 CORS_FILE="${SCRIPT_DIR}/gcs-cors.json"
 if [[ -f "$CORS_FILE" ]]; then
-  gsutil cors set "$CORS_FILE" "gs://${GCS_BUCKET}"
+  gcloud storage buckets update "gs://${GCS_BUCKET}" --cors-file="$CORS_FILE"
   info "  Applied CORS config to bucket ${GCS_BUCKET}"
 else
   warn "  CORS config file not found at ${CORS_FILE}, skipping."
@@ -369,25 +369,36 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
 
   gcloud services enable storage.googleapis.com
 
-  if ! gsutil ls -b "gs://${STATIC_BUCKET}" &>/dev/null; then
-    gsutil mb -l "$REGION" "gs://${STATIC_BUCKET}"
+  if ! gcloud storage buckets describe "gs://${STATIC_BUCKET}" &>/dev/null; then
+    gcloud storage buckets create "gs://${STATIC_BUCKET}" --location="$REGION"
     info "  Created static bucket: ${STATIC_BUCKET}"
   else
     warn "  Static bucket ${STATIC_BUCKET} already exists, reusing."
   fi
 
   # Public read access for CDN backend bucket origin.
-  gsutil pap set inherited "gs://${STATIC_BUCKET}" || true
-  gsutil iam ch allUsers:objectViewer "gs://${STATIC_BUCKET}" || true
+  gcloud storage buckets update "gs://${STATIC_BUCKET}" --pap=inherited || true
+  gcloud storage buckets add-iam-policy-binding "gs://${STATIC_BUCKET}" \
+    --member="allUsers" \
+    --role="roles/storage.objectViewer" || true
 
-  gsutil web set -m index.html -e index.html "gs://${STATIC_BUCKET}" || true
+  gcloud storage buckets update "gs://${STATIC_BUCKET}" \
+    --web-main-page-suffix=index.html \
+    --web-error-page=index.html || true
 
-  gsutil -m rsync -r -d frontend/dist "gs://${STATIC_BUCKET}"
+  gcloud storage rsync \
+    --recursive \
+    --delete-unmatched-destination-objects \
+    frontend/dist "gs://${STATIC_BUCKET}"
 
   # HTML should revalidate, hashed assets can be cached aggressively.
-  gsutil -m setmeta -h "Cache-Control:no-cache, max-age=0, must-revalidate" "gs://${STATIC_BUCKET}/index.html" || true
-  gsutil -m setmeta -h "Cache-Control:public, max-age=31536000, immutable" "gs://${STATIC_BUCKET}/assets/**" || true
-  gsutil -m setmeta -h "Cache-Control:public, max-age=86400" "gs://${STATIC_BUCKET}/*.js" "gs://${STATIC_BUCKET}/*.css" "gs://${STATIC_BUCKET}/*.png" "gs://${STATIC_BUCKET}/*.svg" "gs://${STATIC_BUCKET}/*.ico" "gs://${STATIC_BUCKET}/*.webp" || true
+  gcloud storage objects update "gs://${STATIC_BUCKET}/index.html" \
+    --cache-control="no-cache, max-age=0, must-revalidate" || true
+  gcloud storage objects update "gs://${STATIC_BUCKET}/assets/**" \
+    --recursive \
+    --cache-control="public, max-age=31536000, immutable" || true
+  gcloud storage objects update "gs://${STATIC_BUCKET}/*.png" "gs://${STATIC_BUCKET}/*.svg" \
+    --cache-control="public, max-age=86400" || true
 fi
 
 # ── Step 8d: Configure HTTPS LB: static by default, /api/* to Cloud Run ─────
@@ -407,9 +418,19 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
   if ! gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global &>/dev/null; then
     gcloud compute backend-services create "$LB_API_BACKEND_SERVICE" \
       --global \
-      --load-balancing-scheme=EXTERNAL_MANAGED \
-      --protocol=HTTPS
+      --load-balancing-scheme=EXTERNAL_MANAGED
     info "  Created API backend service: ${LB_API_BACKEND_SERVICE}"
+  else
+    # Serverless NEGs cannot be attached when backend service has portName set.
+    EXISTING_PORT_NAME=$(gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global --format='value(portName)' || true)
+    if [[ -n "$EXISTING_PORT_NAME" ]]; then
+      warn "  Recreating API backend service without portName for serverless NEG compatibility..."
+      gcloud compute backend-services delete "$LB_API_BACKEND_SERVICE" --global --quiet
+      gcloud compute backend-services create "$LB_API_BACKEND_SERVICE" \
+        --global \
+        --load-balancing-scheme=EXTERNAL_MANAGED
+      info "  Recreated API backend service: ${LB_API_BACKEND_SERVICE}"
+    fi
   fi
 
   if ! gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global --format='value(backends.group)' | grep -q "/networkEndpointGroups/${LB_NEG_NAME}$"; then
@@ -431,6 +452,7 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
 
   TMP_URL_MAP_FILE="$(mktemp)"
   cat > "$TMP_URL_MAP_FILE" <<EOF
+name: ${LB_URL_MAP}
 defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
 hostRules:
   - hosts:
