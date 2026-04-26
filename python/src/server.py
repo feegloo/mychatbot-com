@@ -82,14 +82,13 @@ from shared.indexing import index_documents  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
+from shared.logging_utils import configure_safe_logging  # noqa: E402
 from shared.telemetry import close_db_pool  # noqa: E402
 from shared.url_fetch import _extract_visible_text, describe_url, fetch_url  # noqa: E402
 from shared.vector_store import collection_count, query_chunks  # noqa: E402
 from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+configure_safe_logging(logging.INFO)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager

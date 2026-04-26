@@ -143,6 +143,28 @@ def _render_pdf_cover_png(pdf_path: Path) -> Path | None:
         return None
 
 
+def _normalize_reference_image_for_edit(path: Path) -> Path | None:
+    """Re-encode reference images to a stable PNG accepted by edit endpoint.
+
+    Some camera/library outputs (mode/profile/container quirks) are valid files
+    but still rejected by OpenAI edits. Normalizing to RGB/RGBA PNG avoids most
+    of those mode/container mismatches.
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(path) as img:
+            has_alpha = "A" in img.getbands()
+            target_mode = "RGBA" if has_alpha else "RGB"
+            normalized = img.convert(target_mode)
+            out_path = path.with_suffix(path.suffix + ".edit-ready.png")
+            normalized.save(out_path, format="PNG", optimize=True)
+            return out_path
+    except Exception as exc:
+        logger.warning(f"⚠️ Failed to normalize reference image {path.name}: {exc}")
+        return None
+
+
 def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
     """Normalize and validate reference image paths for the edit endpoint.
 
@@ -171,7 +193,10 @@ def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
                 f"⚠️ Unsupported reference image mime '{mime}' for {p.name}, skipping"
             )
             continue
-        resolved.append(p)
+        normalized = _normalize_reference_image_for_edit(p)
+        if normalized is None:
+            continue
+        resolved.append(normalized)
     return resolved
 
 

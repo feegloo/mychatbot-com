@@ -226,11 +226,15 @@ export async function updateFileMetadata(
   originalName: string,
   metadata: unknown,
 ) {
+  // PostgreSQL jsonb rejects NUL bytes (\u0000) in JSON strings. EXIF tags
+  // like UserComment/componentsConfiguration may contain embedded NULs.
+  const serializedMetadata = JSON.stringify(metadata).replace(/\\u0000/g, '')
+
   await query(
     `UPDATE uploaded_files
      SET metadata_json = $3::jsonb
      WHERE conversation_id = $1 AND original_name = $2`,
-    [conversationId, originalName, JSON.stringify(metadata)],
+    [conversationId, originalName, serializedMetadata],
   )
 }
 

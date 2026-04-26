@@ -83,6 +83,8 @@ watch(
   width: 100%;
   height: 100%;
   pointer-events: none;
+  padding-bottom: 10px;
+  height: 395px;
 }
 .preview-pdf-overlay {
   position: absolute;

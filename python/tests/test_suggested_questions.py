@@ -148,6 +148,51 @@ def test_recognize_person_prompt_detected_from_description_body():
     assert any(q.startswith("Who is the woman in") and "🔍" in q for q in result)
 
 
+def test_recipe_action_added_for_food_like_image_description_polish():
+    """Food/buffet descriptions in image analysis should inject a fixed
+    recipe action label so the UI receives a predictable [action:...] value."""
+    result = _append_contextual_prompts(
+        questions=[
+            "Co przedstawia zdjęcie?",
+            "Jakie dania są widoczne?",
+            "Skąd pochodzi lokalizacja GPS?",
+            "Opisz kompozycję zdjęcia 📷",
+            "Porównaj styl serwowania 🍽️",
+        ],
+        file_names=["IMG_3023.jpeg"],
+        file_types={"IMG_3023.jpeg": "image"},
+        language="pl",
+        welcome_message="## IMG_3023.jpeg\n\nAnaliza fotografii bufetu.",
+        description=(
+            "Pokazuje bufet z kilkoma tacami smażonych potraw, widoczne napisy "
+            "to Bielasz, Placki ziemniaczane i Racuchy z jabłkiem."
+        ),
+    )
+
+    assert "Stwórz przepis 🍝" in result
+
+
+def test_recipe_action_added_for_food_like_image_description_english():
+    """English food-photo descriptions should map to the fixed recipe action
+    label used by downstream action parsing."""
+    result = _append_contextual_prompts(
+        questions=[
+            "What does the photo show?",
+            "Which dishes are visible?",
+            "Where was this photo taken?",
+            "Write a short visual summary 📷",
+            "Suggest plating improvements 🍽️",
+        ],
+        file_names=["buffet.jpg"],
+        file_types={"buffet.jpg": "image"},
+        language="en",
+        welcome_message="## buffet.jpg\n\nImage analysis.",
+        description="The image shows a buffet with several trays of fried dishes.",
+    )
+
+    assert "Create recipe 🍝" in result
+
+
 def test_generic_fallback_when_no_context():
     result = _append_contextual_prompts(
         questions=["Q1", "Q2", "Q3", "Action A 🧠", "Action B 📓"],

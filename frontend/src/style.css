@@ -369,6 +369,14 @@ a {
   .conv-nav.collapsed .conv-nav-bottom {
     display: block;
   }
+
+  .welcome-right-col {
+    flex-shrink: 0;
+    width: 240px;
+    height: 430px;
+    display: flex;
+    align-items: flex-start;
+  }
 }
 
 .conv-nav-mini-item {

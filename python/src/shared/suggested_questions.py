@@ -772,7 +772,10 @@ _MAN_PATTERN = re.compile(
 
 _INGREDIENT_PATTERN = re.compile(
     r"\b(ingredient|ingredients|składnik|składniki|skład|composition|"
-    r"contains|zawiera|nutrition|wartości odżywcze|product label|etykiet)\b",
+    r"contains|zawiera|nutrition|wartości odżywcze|product label|etykiet|"
+    r"food|dish|dishes|meal|cuisine|buffet|restaurant|catering|cooked|fried|"
+    r"potraw|potrawa|jedzenie|posiłek|bufet|kuchni|kuchnia|danie|dania|smażon|"
+    r"placki|racuch|bielasz|jogurt|sos)\b",
     re.IGNORECASE,
 )
 
@@ -1009,7 +1012,8 @@ def _append_contextual_prompts(
     Contextual action prompts (EXIF, recognize, file metadata) take priority
     over LLM-generated action prompts. 'recognize person name' is only added when
     the welcome message indicates a person is visible in the image.
-    'create recipe' is added when the welcome message mentions ingredients.
+    'create recipe' is added when the image description indicates ingredients,
+    dishes, or other food-related context.
     
     For fiction books with 300+ pages, occasionally suggest 'write inspired large chapter'
     instead of or alongside 'write inspired chapter'.
@@ -1049,9 +1053,9 @@ def _append_contextual_prompts(
             if ftype == "image":
                 if has_ingredients and len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
-                        contextual.append(f"Stwórz przepis na podstawie {short_name} 🍝")
+                        contextual.append("Stwórz przepis 🍝")
                     else:
-                        contextual.append(f"Create a recipe from {short_name} 🍝")
+                        contextual.append("Create recipe 🍝")
                 if len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")

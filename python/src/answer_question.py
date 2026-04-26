@@ -4,11 +4,10 @@ import argparse
 import json
 import logging
 
+from shared.logging_utils import configure_safe_logging
 from shared.rag import answer_with_citations
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+configure_safe_logging(logging.INFO)
 
 
 def main():

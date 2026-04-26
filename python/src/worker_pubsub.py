@@ -27,11 +27,9 @@ sentry_sdk.init(
 )
 
 from sentry_sdk import logger as sentry_logger  # noqa: E402
+from shared.logging_utils import configure_safe_logging  # noqa: E402
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_safe_logging(logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Maximum seconds a single indexing job may run before it is abandoned.
