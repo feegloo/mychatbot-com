@@ -332,6 +332,7 @@ import GeneratedImageFrame from './chat/GeneratedImageFrame.vue'
 const props = withDefaults(
   defineProps<{
     msg: ChatMessage
+    allMessages?: ChatMessage[]
     asking: boolean
     conversationId: string
     storageConversationId?: string
@@ -653,8 +654,23 @@ const canDownloadPdf = computed(
 async function downloadMessagePdf() {
   const title = props.conversationName || 'chatrag'
   try {
-    const { printContentAsPdf } = await import('../utils/printPdf')
-    await printContentAsPdf(props.msg.content, title)
+    const { printContentAsPdf, printAssistantMessagesAsPdf } = await import('../utils/printPdf')
+
+    // Welcome-message PDF should export all assistant answers in the conversation.
+    if (props.isWelcome) {
+      const assistantMessages = (props.allMessages || [])
+        .filter((m) => m.role === 'assistant' && !!m.content?.trim() && !m.content.includes('[quiz:'))
+        .map((m) => ({ content: m.content }))
+
+      if (assistantMessages.length > 0) {
+        await printAssistantMessagesAsPdf(assistantMessages, `${title} - assistant messages`, {
+          conversationId: effectiveStorageId.value,
+        })
+        return
+      }
+    }
+
+    await printContentAsPdf(props.msg.content, title, { conversationId: effectiveStorageId.value })
   } catch (err) {
     console.error('PDF generation failed:', err)
     alert('PDF generation failed. Please reload the page and try again.')

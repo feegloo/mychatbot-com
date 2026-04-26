@@ -1,7 +1,7 @@
 <template>
   <div class="page home-page">
     <!-- Logo + tagline -->
-    <HomeHero />
+    <HomeHero v-if="showUpload" />
 
     <!-- Upload section (fades out after upload starts processing) -->
     <Transition :name="skipUploadTransition ? '' : 'fade-upload'">
@@ -66,6 +66,7 @@
         v-for="(msg, index) in messages"
         :key="index"
         :msg="msg"
+        :all-messages="messages"
         :asking="asking"
         :conversation-id="conversationId || ''"
         :is-welcome="false"
@@ -260,6 +261,30 @@ async function submitQuestion() {
   const currentQuestion = question.value
   question.value = ''
   if (questionInput.value) questionInput.value.style.height = 'auto'
+
+  // First question from home should immediately transition to full
+  // conversation view instead of rendering chat inside the home hero layout.
+  if (!conversationId.value) {
+    asking.value = true
+    try {
+      const data = await createConversation()
+      conversationId.value = data.conversationId
+      if (data.ownerPassword) {
+        saveConversationToken(data.conversationId, data.ownerPassword)
+        ownerPassword.value = data.ownerPassword
+      }
+      showUpload.value = false
+      await router.push({ path: data.url, state: { pendingQuestion: currentQuestion } })
+    } catch (err: unknown) {
+      const { message, raw } = extractError(err)
+      uploadError.value = { message, raw }
+      question.value = currentQuestion
+      if (questionInput.value) questionInput.value.style.height = 'auto'
+    } finally {
+      asking.value = false
+    }
+    return
+  }
 
   asking.value = true
   messages.value.push({ role: 'user', content: currentQuestion })

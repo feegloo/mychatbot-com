@@ -106,6 +106,7 @@
               }
             "
             :msg="msg"
+            :all-messages="displayedMessages"
             :asking="assistantPending"
             :conversation-id="conversationId"
             :storage-conversation-id="storageConversationId"
