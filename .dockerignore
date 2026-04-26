@@ -1,16 +1,13 @@
-node_modules
-data
-logs
-storage
 .git
-.env
-.env.*
-# Allow .env.production — only public client-side keys (Stripe publishable, Sentry DSN)
-!.env.production
-!frontend/.env.production
-**/.venv
+.github
+**/node_modules
 **/dist
-**/coverage
+**/.vite
+**/.venv
 **/__pycache__
-*.pyc
+**/*.pyc
+**/.pytest_cache
 .DS_Store
+*.log
+*.zip
+infra/.env.*.local

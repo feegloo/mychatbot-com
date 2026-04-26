@@ -6,6 +6,9 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENVIRONMENT_NAME="${ENV:-prod}"
 ENV_FILE="${SCRIPT_DIR}/.env.${ENVIRONMENT_NAME}"
 PROXY_PID=""
+GENERATED_DB_PASSWORD="false"
+export DOCKER_BUILDKIT=1
+CI_MODE="${CI:-false}"
 
 # Print one readable deploy log line.
 log() {
@@ -19,8 +22,17 @@ stop_cloud_sql_proxy() {
     fi
 }
 
-# Load env vars for selected environment: infra/.env.dev or infra/.env.prod.
+# Load env vars for selected environment and optional local secret overrides.
+#
+# Committed template: infra/.env.dev or infra/.env.prod
+# Local secrets:      infra/.env.dev.local or infra/.env.prod.local
+#
+# GitHub Actions can either:
+# - provide GOOGLE_APPLICATION_CREDENTIALS through the workflow, and
+# - append a tiny infra/.env.prod.local file from a few secrets.
 load_env() {
+    local local_env_file="${ENV_FILE}.local"
+
     if [[ ! -f "${ENV_FILE}" ]]; then
         echo "Missing env file: ${ENV_FILE}" >&2
         echo "Use ENV=dev or ENV=prod." >&2
@@ -29,6 +41,11 @@ load_env() {
 
     set -a
     source "${ENV_FILE}"
+
+    if [[ -f "${local_env_file}" ]]; then
+        source "${local_env_file}"
+    fi
+
     set +a
 }
 
@@ -70,7 +87,6 @@ require_all_envs() {
         ENVIRONMENT
         GCP_PROJECT_ID
         GCP_REGION
-        GOOGLE_APPLICATION_CREDENTIALS
         PUBLIC_APP_DOMAIN
         ALLOWED_ORIGINS
         SERVER_SERVICE_NAME
@@ -84,11 +100,6 @@ require_all_envs() {
         DB_INSTANCE_NAME
         DB_NAME
         DB_USER
-        DB_PASSWORD
-        VITE_SENTRY_DSN
-        SENTRY_SERVER_DSN
-        SENTRY_WORKER_DSN
-        SENTRY_CLOUD_FUNCTION_DSN
         ARTIFACT_REPOSITORY
         ASK_TIMEOUT_MS
     )
@@ -97,14 +108,37 @@ require_all_envs() {
         require_env "${name}"
     done
 
-    if [[ ! -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
-        echo "GOOGLE_APPLICATION_CREDENTIALS file not found: ${GOOGLE_APPLICATION_CREDENTIALS}" >&2
-        exit 1
+    warn_optional_env VITE_SENTRY_DSN
+    warn_optional_env SENTRY_SERVER_DSN
+    warn_optional_env SENTRY_WORKER_DSN
+    warn_optional_env SENTRY_CLOUD_FUNCTION_DSN
+}
+
+# Print a warning for optional env vars that improve production observability.
+warn_optional_env() {
+    local name="$1"
+    local value="${!name:-}"
+
+    if [[ -z "${value}" ]]; then
+        log "Optional env ${name} is empty; deploy will continue without this integration."
     fi
 }
 
-# Install macOS tools needed by this minimal deploy script.
+# Install tools needed by this deploy script.
+#
+# Local macOS mode installs missing tools with Homebrew.
+# GitHub Actions / CI mode only verifies commands because the workflow installs them.
 install_prerequisites() {
+    if [[ "${CI_MODE}" == "true" ]]; then
+        require_command gcloud
+        require_command gsutil
+        require_command docker
+        require_command npm
+        require_command cloud-sql-proxy
+        require_command psql
+        return
+    fi
+
     if ! command -v brew >/dev/null 2>&1; then
         echo "Homebrew is required. Install it first: https://brew.sh" >&2
         exit 1
@@ -134,10 +168,56 @@ install_prerequisites() {
     fi
 }
 
-# Authenticate gcloud using service account JSON path from env.
+# Fail fast when a command expected by CI is missing.
+require_command() {
+    local name="$1"
+
+    if ! command -v "${name}" >/dev/null 2>&1; then
+        echo "Missing required command: ${name}" >&2
+        exit 1
+    fi
+}
+
+# Authenticate Google Cloud SDK.
+#
+# Local mode uses browser login (`gcloud auth login`) like the old deploy script.
+# CI mode uses GOOGLE_APPLICATION_CREDENTIALS generated from a GitHub secret.
 authenticate_gcp() {
-    gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+    if [[ "${CI_MODE}" == "true" ]]; then
+        require_env GOOGLE_APPLICATION_CREDENTIALS
+
+        if [[ ! -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+            echo "GOOGLE_APPLICATION_CREDENTIALS file not found: ${GOOGLE_APPLICATION_CREDENTIALS}" >&2
+            exit 1
+        fi
+
+        gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+        gcloud config set project "${GCP_PROJECT_ID}"
+        return
+    fi
+
+    local active_account
+
+    active_account="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -1 || true)"
+
+    if [[ -z "${active_account}" ]]; then
+        log "No active Cloud SDK account found. Opening browser login..."
+        gcloud auth login
+    else
+        log "Using active Cloud SDK account: ${active_account}"
+    fi
+
     gcloud config set project "${GCP_PROJECT_ID}"
+
+    if ! gcloud auth print-access-token >/dev/null 2>&1; then
+        log "Cloud SDK token unavailable. Opening browser login..."
+        gcloud auth login
+    fi
+
+    if ! gcloud auth application-default print-access-token >/dev/null 2>&1; then
+        log "Application Default Credentials missing. Opening ADC browser login..."
+        gcloud auth application-default login
+    fi
 }
 
 # Enable every API needed by this new project deployment.
@@ -203,9 +283,63 @@ ensure_subscription() {
     fi
 }
 
+# Return 0 when the configured Cloud SQL instance already exists.
+cloud_sql_instance_exists() {
+    gcloud sql instances describe "${DB_INSTANCE_NAME}" >/dev/null 2>&1
+}
+
+# Generate a strong random database password for first-time deployments.
+generate_db_password() {
+    openssl rand -base64 32 | tr -d '\n'
+}
+
+# Print a visible warning with the generated DB password. Save it into the env file
+# after the first deploy, because future deploys will require DB_PASSWORD from env.
+print_generated_db_password() {
+    echo ""
+    echo "============================================================"
+    echo "  Cloud SQL was created during this deploy."
+    echo "  Save this password into ${ENV_FILE}:"
+    echo ""
+    echo "  DB_PASSWORD=${DB_PASSWORD}"
+    echo ""
+    echo "  Keep it private. The next deploy will read DB_PASSWORD from env."
+    echo "============================================================"
+    echo ""
+}
+
+# Resolve DB_PASSWORD according to deployment mode.
+#
+# First deploy: when the Cloud SQL instance does not exist, generate a password.
+# Later deploys: when the instance already exists, require DB_PASSWORD from env so
+# the script does not accidentally rotate or guess the existing database password.
+resolve_database_password() {
+    if cloud_sql_instance_exists; then
+        if [[ -z "${DB_PASSWORD:-}" ]]; then
+            echo "Cloud SQL instance '${DB_INSTANCE_NAME}' already exists." >&2
+            echo "Set DB_PASSWORD in ${ENV_FILE} before deploying again." >&2
+            exit 1
+        fi
+
+        log "Cloud SQL instance exists. Using DB_PASSWORD from env."
+        return
+    fi
+
+    if [[ -z "${DB_PASSWORD:-}" ]]; then
+        DB_PASSWORD="$(generate_db_password)"
+        export DB_PASSWORD
+        GENERATED_DB_PASSWORD="true"
+    else
+        GENERATED_DB_PASSWORD="false"
+    fi
+}
+
 # Create Cloud SQL PostgreSQL, database, and app user if missing.
 ensure_database() {
-    if ! gcloud sql instances describe "${DB_INSTANCE_NAME}" >/dev/null 2>&1; then
+    resolve_database_password
+
+    if ! cloud_sql_instance_exists; then
+        log "Creating Cloud SQL PostgreSQL instance: ${DB_INSTANCE_NAME}"
         gcloud sql instances create "${DB_INSTANCE_NAME}" \
             --database-version=POSTGRES_16 \
             --edition=ENTERPRISE \
@@ -216,11 +350,17 @@ ensure_database() {
     fi
 
     if ! gcloud sql databases describe "${DB_NAME}" --instance="${DB_INSTANCE_NAME}" >/dev/null 2>&1; then
+        log "Creating database: ${DB_NAME}"
         gcloud sql databases create "${DB_NAME}" --instance="${DB_INSTANCE_NAME}"
     fi
 
     if ! gcloud sql users list --instance="${DB_INSTANCE_NAME}" --format='value(name)' | grep -qx "${DB_USER}"; then
+        log "Creating database user: ${DB_USER}"
         gcloud sql users create "${DB_USER}" --instance="${DB_INSTANCE_NAME}" --password="${DB_PASSWORD}"
+    fi
+
+    if [[ "${GENERATED_DB_PASSWORD:-false}" == "true" ]]; then
+        print_generated_db_password
     fi
 }
 
@@ -243,16 +383,24 @@ start_cloud_sql_proxy() {
     sleep 3
 }
 
-# Apply PostgreSQL schema for conversations, locks, messages, and worker events.
+# Apply PostgreSQL schema from infra/schema.sql.
 initialize_database_schema() {
     local connection_name="$1"
+    local schema_file="${SCRIPT_DIR}/schema.sql"
+
+    if [[ ! -f "${schema_file}" ]]; then
+        echo "Missing schema file: ${schema_file}" >&2
+        exit 1
+    fi
+
+    log "Initializing database schema from ${schema_file}"
     start_cloud_sql_proxy "${connection_name}"
     PGPASSWORD="${DB_PASSWORD}" psql \
         --host=127.0.0.1 \
         --port=5433 \
         --username="${DB_USER}" \
         --dbname="${DB_NAME}" \
-        --file="${SCRIPT_DIR}/schema.sql"
+        --file="${schema_file}"
     stop_cloud_sql_proxy
     PROXY_PID=""
 }
@@ -307,7 +455,33 @@ deploy_worker_pool() {
         --set-env-vars="GCP_PROJECT_ID=${GCP_PROJECT_ID},PUBSUB_SUBSCRIPTION=${PUBSUB_SUBSCRIPTION},PUBSUB_ANSWER_TOPIC=${PUBSUB_ANSWER_TOPIC},WORKER_STATUS=${WORKER_STATUS},DATABASE_URL=${database_url},SENTRY_DSN=${SENTRY_WORKER_DSN},SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT},SENTRY_RELEASE=${SENTRY_RELEASE}"
 }
 
+# Return the configured server min instances, defaulting to 0.
+#
+# Cloud Run HTTP services wake up automatically on the next incoming request when
+# min instances is 0. This is the cheapest mode for the SSE server because the
+# container is allowed to scale down to zero after a period without traffic.
+#
+# Note: Cloud Run does not expose an exact "stop after 1h idle" knob. The nearest
+# production setting is min-instances=0, which lets Cloud Run scale the service
+# down after inactivity and cold-start it again on the next request.
+server_min_instances() {
+    echo "${SERVER_MIN_INSTANCES:-0}"
+}
+
+# Return the configured Cloud Run request timeout, defaulting to 3600 seconds.
+#
+# This does not control idle scale-down. It only allows long-lived HTTP/SSE
+# requests to stay open for up to 1 hour.
+server_request_timeout_seconds() {
+    echo "${SERVER_REQUEST_TIMEOUT_SECONDS:-3600}"
+}
+
 # Deploy Node Cloud Run server that serves SPA, /api/*, SSE, and plain HTTP /ask.
+#
+# Cost behavior:
+# - --min-instances=0 allows the HTTP/SSE server to stop when there is no traffic.
+# - The first new request wakes the container automatically.
+# - --timeout=3600 allows a long SSE request to stay open for up to 1 hour.
 deploy_server() {
     local image="$1"
     local connection_name="$2"
@@ -320,16 +494,19 @@ deploy_server() {
         --port=8080 \
         --cpu="${SERVER_CPU}" \
         --memory="${SERVER_MEMORY}" \
-        --min-instances="${SERVER_MIN_INSTANCES}" \
+        --min-instances="$(server_min_instances)" \
         --max-instances="${SERVER_MAX_INSTANCES}" \
+        --timeout="$(server_request_timeout_seconds)" \
+        --cpu-boost \
         --add-cloudsql-instances="${connection_name}" \
         --set-env-vars="SENTRY_DSN=${SENTRY_SERVER_DSN},SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT},SENTRY_RELEASE=${SENTRY_RELEASE},DATABASE_URL=${database_url},PUBSUB_TOPIC=${PUBSUB_TOPIC},PUBSUB_ANSWER_SUBSCRIPTION=${PUBSUB_ANSWER_SUBSCRIPTION},ASK_TIMEOUT_MS=${ASK_TIMEOUT_MS},FRONTEND_DIST_PATH=/app/frontend/dist,ALLOWED_ORIGINS=${ALLOWED_ORIGINS},PUBLIC_APP_DOMAIN=${PUBLIC_APP_DOMAIN}"
 }
 
-# Deploy Gen2 upload Cloud Function that stores file and publishes processing job.
+# Deploy Gen2 upload Cloud Function that stores file, publishes processing job, and prewarms server.
 deploy_upload_function() {
     local connection_name="$1"
     local database_url="$2"
+    local server_health_url="$3"
 
     pushd "${ROOT_DIR}/cloud-function" >/dev/null
     npm install
@@ -343,7 +520,7 @@ deploy_upload_function() {
         --trigger-http \
         --allow-unauthenticated \
         --set-cloudsql-instances="${connection_name}" \
-        --set-env-vars="GCS_BUCKET=${GCS_BUCKET},PUBSUB_TOPIC=${PUBSUB_TOPIC},DATABASE_URL=${database_url},SENTRY_DSN=${SENTRY_CLOUD_FUNCTION_DSN},SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT},SENTRY_RELEASE=${SENTRY_RELEASE},ALLOWED_ORIGINS=${ALLOWED_ORIGINS},PUBLIC_APP_DOMAIN=${PUBLIC_APP_DOMAIN}"
+        --set-env-vars="GCS_BUCKET=${GCS_BUCKET},PUBSUB_TOPIC=${PUBSUB_TOPIC},DATABASE_URL=${database_url},SENTRY_DSN=${SENTRY_CLOUD_FUNCTION_DSN},SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT},SENTRY_RELEASE=${SENTRY_RELEASE},ALLOWED_ORIGINS=${ALLOWED_ORIGINS},PUBLIC_APP_DOMAIN=${PUBLIC_APP_DOMAIN},SERVER_HEALTH_URL=${server_health_url},PREWARM_SERVER_TIMEOUT_MS=${PREWARM_SERVER_TIMEOUT_MS:-8000}"
 
     popd >/dev/null
 }
@@ -367,6 +544,9 @@ print_summary() {
     echo "Worker bus:     ${PUBSUB_TOPIC} -> ${PUBSUB_SUBSCRIPTION}"
     echo "Answer bus:     ${PUBSUB_ANSWER_TOPIC} -> ${PUBSUB_ANSWER_SUBSCRIPTION}"
     echo "Cloud Run hint: https://${SERVER_SERVICE_NAME}-${project_number}.${GCP_REGION}.run.app"
+    echo "Server scaling: min-instances=$(server_min_instances), timeout=$(server_request_timeout_seconds)s"
+    echo "Server prewarm:  upload function calls ${SERVER_HEALTH_URL:-${server_url}/health}"
+    echo "Idle behavior:  Cloud Run may scale server to 0 when idle; next request wakes it."
 }
 
 # Run full deployment flow.
@@ -388,6 +568,7 @@ main() {
     local database_url
     local server_image
     local worker_image
+    local server_url
 
     connection_name="$(get_cloud_sql_connection_name)"
     database_url="$(build_cloud_database_url "${connection_name}")"
@@ -397,7 +578,8 @@ main() {
 
     deploy_worker_pool "${worker_image}" "${connection_name}" "${database_url}"
     deploy_server "${server_image}" "${connection_name}" "${database_url}"
-    deploy_upload_function "${connection_name}" "${database_url}"
+    server_url="$(gcloud run services describe "${SERVER_SERVICE_NAME}" --region="${GCP_REGION}" --format='value(status.url)')"
+    deploy_upload_function "${connection_name}" "${database_url}" "${SERVER_HEALTH_URL:-${server_url}/health}"
     print_summary
 }
 

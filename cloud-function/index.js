@@ -26,7 +26,9 @@ function createConfig() {
         sentryEnvironment: process.env.SENTRY_ENVIRONMENT || "production",
         sentryRelease: process.env.SENTRY_RELEASE || "chatrag@local",
         allowedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
-        publicAppDomain: process.env.PUBLIC_APP_DOMAIN || "https://chatrag.app"
+        publicAppDomain: process.env.PUBLIC_APP_DOMAIN || "https://chatrag.app",
+        serverHealthUrl: process.env.SERVER_HEALTH_URL || "",
+        prewarmServerTimeoutMs: Number(process.env.PREWARM_SERVER_TIMEOUT_MS || "8000")
     }
 }
 
@@ -132,6 +134,8 @@ export async function uploadHandler(req, res) {
             message: "cloud function published PDF processing message"
         })
 
+        await prewarmServerAfterUpload({ uid, traceId, fingerprint })
+
         Sentry.captureMessage("cloud function upload completed", {
             level: "debug",
             extra: { uid, traceId, fingerprint, fileName, storageUri }
@@ -141,6 +145,76 @@ export async function uploadHandler(req, res) {
     } catch (error) {
         Sentry.captureException(error)
         res.status(500).json({ ok: false, error: error instanceof Error ? error.message : "unknown-error" })
+    }
+}
+
+/**
+ * Wakes the Cloud Run SSE/HTTP server after frontend upload completes.
+ *
+ * The server is deployed with min-instances=0 to minimize idle cost. Calling
+ * GET /health here makes the first browser navigation/SSE connection after
+ * upload much less likely to pay the full cold-start cost. Prewarm failures are
+ * logged but do not fail the upload flow.
+ */
+async function prewarmServerAfterUpload({ uid, traceId, fingerprint }) {
+    if (!config.serverHealthUrl) {
+        await insertConversationMetadata({
+            uid,
+            traceId,
+            fingerprint,
+            source: "cloud-function",
+            eventType: "server_prewarm_skipped",
+            direction: "out",
+            payload: { reason: "SERVER_HEALTH_URL is empty" },
+            message: "cloud function skipped server prewarm because SERVER_HEALTH_URL is empty"
+        })
+        return
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), config.prewarmServerTimeoutMs)
+
+    try {
+        const response = await fetch(config.serverHealthUrl, {
+            method: "GET",
+            headers: {
+                "x-trace-id": traceId,
+                fingerprint,
+                "user-agent": "chatrag-cloud-function-prewarm"
+            },
+            signal: controller.signal
+        })
+
+        await insertConversationMetadata({
+            uid,
+            traceId,
+            fingerprint,
+            source: "cloud-function",
+            eventType: "server_prewarm_health_checked",
+            direction: "out",
+            payload: { serverHealthUrl: config.serverHealthUrl, status: response.status },
+            message: "cloud function called Cloud Run server GET /health after upload"
+        })
+
+        Sentry.captureMessage("cloud function prewarmed server", {
+            level: "debug",
+            extra: { uid, traceId, fingerprint, serverHealthUrl: config.serverHealthUrl, status: response.status }
+        })
+    } catch (error) {
+        await insertConversationMetadata({
+            uid,
+            traceId,
+            fingerprint,
+            source: "cloud-function",
+            eventType: "server_prewarm_failed",
+            direction: "out",
+            payload: { serverHealthUrl: config.serverHealthUrl, error: error instanceof Error ? error.message : String(error) },
+            message: "cloud function failed to prewarm Cloud Run server after upload"
+        })
+
+        Sentry.captureException(error)
+    } finally {
+        clearTimeout(timeout)
     }
 }
 

@@ -62,6 +62,7 @@ flowchart LR
     Frontend -->|"POST upload function URL"| UploadFunction
     UploadFunction -->|"write PDF"| Storage
     UploadFunction -->|"INSERT conversations and metadata"| Database
+    UploadFunction -->|"GET /health prewarm"| Server
     UploadFunction -->|"publish process_pdf"| WorkerTopic
     WorkerTopic -->|"pull message"| Worker
     Worker -->|"lock and write messages metadata"| Database
@@ -131,6 +132,7 @@ flowchart TD
     StoreFile["Store file in Cloud Storage"]
     CreateConversation["Insert conversations row"]
     UploadMetadata["Insert conversations_metadatas upload_received"]
+    PrewarmServer["Call server health endpoint"]
     PublishPdf["Publish process_pdf message"]
     WorkerPdf["Worker pulls process_pdf"]
     LockPdf["Insert processing_locks row"]
@@ -142,6 +144,8 @@ flowchart TD
     UploadPost --> StoreFile
     UploadPost --> CreateConversation
     CreateConversation --> UploadMetadata
+    UploadMetadata --> PrewarmServer
+    PrewarmServer -->|"GET /health"| DonePrewarm["Cloud Run server wakes if scaled to zero"]
     UploadMetadata --> PublishPdf
     PublishPdf -->|"topic: chatrag-worker-topic"| WorkerPdf
     WorkerPdf --> LockPdf
@@ -178,3 +182,29 @@ When you are ready to replace the old project:
 4. update DNS at registrar
 5. set `VITE_APP_BASE_URL=https://chatrag.app` in `infra/.env.prod`
 6. redeploy `./infra/deploy-gcp.sh`
+
+## GitHub Actions
+
+This repository includes two workflows:
+
+- `.github/workflows/build.yml` - builds and checks frontend, server, cloud-function, and worker.
+- `.github/workflows/deploy.yml` - deploys to GCP on push to branch `2.0` and can also be started manually.
+
+Required GitHub Secrets for deploy:
+
+```text
+GCP_SERVICE_ACCOUNT_KEY
+```
+
+Optional GitHub Secrets used to create `infra/.env.prod.local` or `infra/.env.dev.local` during CI deploy:
+
+```text
+DB_PASSWORD
+VITE_SENTRY_DSN
+SENTRY_SERVER_DSN
+SENTRY_WORKER_DSN
+SENTRY_CLOUD_FUNCTION_DSN
+SENTRY_AUTH_TOKEN
+```
+
+The committed `infra/.env.prod` and `infra/.env.dev` files contain non-secret defaults and empty secret placeholders. Locally, put real secrets into `infra/.env.prod.local` or `infra/.env.dev.local`; those files are ignored by git.

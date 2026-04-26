@@ -1,20 +1,18 @@
-.DS_Store
+# Dependencies and build output
 node_modules/
-**/node_modules/
 dist/
-coverage/
-logs/**
-.env
-.env.*
+.vite/
+.venv/
 __pycache__/
 *.pyc
-*.pyo
 .pytest_cache/
-.venv/
-.ipynb_checkpoints/
-/storage/
-/data/
-gcloud-credentials.json
-playwright-report/
-test-results/
-.vscode/mcp.json
+
+# Local-only secrets. Commit infra/.env.dev and infra/.env.prod as templates.
+infra/.env.*.local
+.env*.local
+
+# Local generated credentials and archives
+key.json
+*.log
+*.zip
+.DS_Store
