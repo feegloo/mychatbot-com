@@ -15,6 +15,8 @@ export async function generateImage(options: {
   size?: string
   quality?: ImageQuality
   referenceImagePaths?: string[]
+  conversationLanguageCode?: string
+  conversationLanguageName?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/generate-image`, {
     method: 'POST',
@@ -32,6 +34,8 @@ export async function generateImage(options: {
       size: DEFAULT_IMAGE_SIZE,
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
+      conversation_language_code: options.conversationLanguageCode || null,
+      conversation_language_name: options.conversationLanguageName || null,
     }),
   })
 
@@ -59,6 +63,8 @@ export async function announceImage(options: {
   question: string
   welcomeMessages?: string[]
   chatHistory?: Array<{ role: string; content: string }>
+  conversationLanguageCode?: string
+  conversationLanguageName?: string
 }): Promise<{ announcement: string }> {
   const response = await fetch(`${config.pythonServerUrl}/announce-image`, {
     method: 'POST',
@@ -67,6 +73,8 @@ export async function announceImage(options: {
       question: options.question,
       welcome_messages: options.welcomeMessages || [],
       chat_history: options.chatHistory || [],
+      conversation_language_code: options.conversationLanguageCode || null,
+      conversation_language_name: options.conversationLanguageName || null,
     }),
   })
 
@@ -114,6 +122,8 @@ export async function* generateImageStream(options: {
   size?: string
   quality?: ImageQuality
   referenceImagePaths?: string[]
+  conversationLanguageCode?: string
+  conversationLanguageName?: string
   signal?: AbortSignal
 }): AsyncGenerator<ImageStreamEvent, void, void> {
   const response = await fetch(`${config.pythonServerUrl}/generate-image-stream`, {
@@ -132,6 +142,8 @@ export async function* generateImageStream(options: {
       size: DEFAULT_IMAGE_SIZE,
       quality: options.quality || 'low',
       reference_image_paths: options.referenceImagePaths || [],
+      conversation_language_code: options.conversationLanguageCode || null,
+      conversation_language_name: options.conversationLanguageName || null,
     }),
   })
 

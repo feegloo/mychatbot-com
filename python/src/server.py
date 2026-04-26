@@ -149,6 +149,8 @@ class AnswerRequest(BaseModel):
     storage_dir: str | None = None
     previous_suggested_questions: list[str] | None = None
     conversation_name: str | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
 
 
 class IndexRequest(BaseModel):
@@ -185,12 +187,16 @@ class GenerateImageRequest(BaseModel):
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
     reference_image_paths: list[str] | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
 
 
 class AnnounceImageRequest(BaseModel):
     question: str
     welcome_messages: list[str] | None = None
     chat_history: list[dict] | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
 
 
 class RegisterImageRequest(BaseModel):
@@ -409,6 +415,8 @@ async def answer(req: AnswerRequest):
             storage_dir=req.storage_dir,
             previous_suggested_questions=req.previous_suggested_questions,
             conversation_name=req.conversation_name,
+            conversation_language_code=req.conversation_language_code,
+            conversation_language_name=req.conversation_language_name,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(
@@ -564,6 +572,8 @@ async def announce_image_endpoint(req: AnnounceImageRequest):
             req.question,
             req.welcome_messages,
             req.chat_history,
+            req.conversation_language_code,
+            req.conversation_language_name,
         )
         return {"announcement": announcement}
     except Exception as e:
@@ -615,6 +625,8 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 welcome_messages=req.welcome_messages,
                 rag_chunks=rag_chunks if rag_chunks else None,
                 chat_history=req.chat_history,
+                conversation_language_code=req.conversation_language_code,
+                conversation_language_name=req.conversation_language_name,
             )
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
@@ -693,6 +705,8 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
             welcome_messages=req.welcome_messages,
             rag_chunks=rag_chunks if rag_chunks else None,
             chat_history=req.chat_history,
+            conversation_language_code=req.conversation_language_code,
+            conversation_language_name=req.conversation_language_name,
         )
         image_prompt = prompt_result["prompt"]
         image_title = prompt_result["title"]

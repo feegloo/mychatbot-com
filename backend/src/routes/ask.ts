@@ -30,11 +30,13 @@ import { findReusableImage, registerReusableImage } from '../python/reusable-ima
 import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
 import { getRequestId, startHeartbeat } from '../middleware/requestId.js'
+import { resolveConversationLanguage } from '../utils/conversation-language.js'
 
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
   question: z.string().min(1),
   userId: z.number().int().min(0).optional(),
+  language: z.string().trim().min(2).max(16).optional(),
 })
 
 export const askRouter = new Router()
@@ -47,7 +49,8 @@ askRouter.post('/ask', async (ctx) => {
     return
   }
 
-  const { conversationId, question, userId } = parsed.data
+  const { conversationId, question, userId, language } = parsed.data
+  const conversationLanguage = resolveConversationLanguage(language)
 
   // Only owners/editors can post questions
   const token = getConversationToken(ctx)
@@ -170,6 +173,8 @@ askRouter.post('/ask', async (ctx) => {
             ? previousSuggestedQuestions
             : undefined,
           conversationName: data.conversation.display_name || undefined,
+          conversationLanguageCode: conversationLanguage.code || undefined,
+          conversationLanguageName: conversationLanguage.nativeName || undefined,
           requestId: requestId || undefined,
         }),
     )
@@ -262,6 +267,8 @@ askRouter.post('/ask', async (ctx) => {
           conversationId,
           chatHistory: chatHistory.slice(-6),
           quality: 'low',
+          conversationLanguageCode: conversationLanguage.code || undefined,
+          conversationLanguageName: conversationLanguage.nativeName || undefined,
         })
         // Persist to GCS so it survives Cloud Run instance turnover.
         if (config.storageProvider === 'gcs' && config.gcsBucket) {

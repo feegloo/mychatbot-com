@@ -565,6 +565,8 @@ def build_image_announcement(
     question: str,
     welcome_messages: list[str] | None = None,
     chat_history: list[dict] | None = None,
+    conversation_language_code: str | None = None,
+    conversation_language_name: str | None = None,
 ) -> str:
     """Produce a short one-sentence teaser shown to the user while the
     image is being generated.
@@ -579,6 +581,13 @@ def build_image_announcement(
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
+    language_line = (
+        f"Conversation language: {conversation_language_name}"
+        + (f" (code: {conversation_language_code})" if conversation_language_code else "")
+        if conversation_language_name
+        else "Conversation language: not specified"
+    )
+
     system = (
         "You announce, in a single sentence, the image you are about to "
         "generate for the user. Start with 'Generating an image inspired "
@@ -586,7 +595,10 @@ def build_image_announcement(
         "follow it with a vivid, specific description of the creative "
         "angle — style, mood, key visual elements. Do not ask questions, "
         "do not offer options, do not mention that you are an AI. Keep it "
-        "under 40 words. Output ONLY the sentence, no quotes, no prefix."
+        "under 40 words. Output ONLY the sentence, no quotes, no prefix.\n\n"
+        "LANGUAGE PRIORITY:\n"
+        f"{language_line}\n"
+        "Use the conversation language above for the output sentence."
     )
 
     user_content = f"User request: {question}\n"
@@ -622,6 +634,8 @@ def build_image_prompt(
     welcome_messages: list[str] | None = None,
     rag_chunks: list[dict] | None = None,
     chat_history: list[dict] | None = None,
+    conversation_language_code: str | None = None,
+    conversation_language_name: str | None = None,
 ) -> dict:
     """Build a DALL-E prompt, title, and source references from the user's question and context.
 
@@ -635,6 +649,12 @@ def build_image_prompt(
     client = OpenAI(api_key=settings.openai_api_key)
     aspect = infer_prompt_aspect(question)
     aspect_framing_instruction = build_aspect_framing_instruction(aspect)
+    language_line = (
+        f"Conversation language: {conversation_language_name}"
+        + (f" (code: {conversation_language_code})" if conversation_language_code else "")
+        if conversation_language_name
+        else "Conversation language: not specified"
+    )
 
     system = (
         "You are an expert prompt engineer for gpt-image-2, an AI image generation model. "
@@ -705,7 +725,9 @@ def build_image_prompt(
         "An evocative title reflecting the specific creative angle — NOT a generic description. "
         "Write in the SAME LANGUAGE AND SCRIPT as the user's request and document sources "
         "(Arabic → Arabic script, Polish → Polish, Chinese → Chinese). Use English only when "
-        "source material is in English.\n\n"
+        "source material is in English.\n"
+        "CRITICAL: the title MUST be generated in the conversation language provided below.\n"
+        f"{language_line}\n\n"
         "─────────────────────────────────────────────\n"
         "OUTPUT 3 — SOURCE INDICES\n"
         "─────────────────────────────────────────────\n"
@@ -717,6 +739,7 @@ def build_image_prompt(
     creative_seed = _random_creative_seed()
     user_content = (
         f"User request: {question}\n"
+        f"{language_line}\n"
         f"Requested frame handling: {aspect_framing_instruction}\n\n"
         f"{creative_seed}\n"
     )

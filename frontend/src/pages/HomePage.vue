@@ -271,6 +271,7 @@ async function submitQuestion() {
 
   try {
     const convId = await ensureConversation()
+    const promptLanguage = navigator.language.split('-')[0]
 
     const TIMEOUT_MS = 120_000
     const timeout = new Promise<never>((_, reject) =>
@@ -284,8 +285,9 @@ async function submitQuestion() {
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
           useUserId: false,
+          language: promptLanguage,
         })
-      : await Promise.race([askQuestion(convId, currentQuestion), timeout])
+      : await Promise.race([askQuestion(convId, currentQuestion, undefined, promptLanguage), timeout])
     reactiveMsg.generatingImage = false
     reactiveMsg.imagePartialDataUrl = undefined
     reactiveMsg.imageDetailedPrompt = undefined

@@ -41,6 +41,10 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
 import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
+import {
+  getStoredConversationLanguage,
+  storeConversationLanguage,
+} from '../utils/conversationLanguage'
 
 // Marker handling for translation:
 // - [source:N] markers are fully opaque (numeric id, must not change)
@@ -291,33 +295,12 @@ const translatedUpToIndex = ref(-1)
 const showDropdown = ref(false)
 const wrapRef = ref<HTMLElement | null>(null)
 
-const CONV_LANG_KEY = 'conversation-languages'
-
 function getStoredLanguage(): string | null {
-  if (!props.conversationId) return null
-  try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
-    return map[props.conversationId] || null
-  } catch {
-    return null
-  }
+  return getStoredConversationLanguage(props.conversationId)
 }
 
 function storeLanguage(lang: string) {
-  if (!props.conversationId) return
-  try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
-    if (lang === detectedLang.value) {
-      delete map[props.conversationId]
-    } else {
-      map[props.conversationId] = lang
-    }
-    localStorage.setItem(CONV_LANG_KEY, JSON.stringify(map))
-  } catch {
-    /* ignore */
-  }
+  storeConversationLanguage(props.conversationId, lang, detectedLang.value)
 }
 
 const LANG_FLAGS: Record<string, string> = {

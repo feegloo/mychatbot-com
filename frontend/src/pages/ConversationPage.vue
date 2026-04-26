@@ -218,6 +218,7 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
@@ -697,9 +698,12 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
     // })
 
     const users = document.querySelectorAll('.chat-log .message-row.user')
-    user = users[users.length - 1]
+    const user = users[users.length - 1] as HTMLElement | undefined
+    const chatLog = document.querySelector('.chat-log') as HTMLElement | null
 
-    scrollToElement(document.querySelector('.chat-log'), user)
+    if (chatLog && user) {
+      scrollToElement(chatLog, user)
+    }
   } else {
     container.scrollTo({
       top: container.scrollHeight,
@@ -777,6 +781,8 @@ async function ask() {
   asking.value = true
   hasLocalError.value = false
   const currentQuestion = question.value
+  const promptLanguage =
+    currentLanguage.value || getStoredConversationLanguage(conversationId) || undefined
   question.value = ''
   const optimisticUserMessage: MessageWithRenderKey<ChatMessage> = {
     role: 'user',
@@ -808,10 +814,16 @@ async function ask() {
           question: currentQuestion,
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
+          language: promptLanguage,
           referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
         })
       : await Promise.race([
-          askQuestion(conversationId, currentQuestion, getUserId() || undefined),
+          askQuestion(
+            conversationId,
+            currentQuestion,
+            getUserId() || undefined,
+            promptLanguage,
+          ),
           timeout,
         ])
     reactiveMsg.generatingImage = false

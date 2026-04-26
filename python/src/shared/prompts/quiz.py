@@ -15,6 +15,10 @@ from .labels_actions import QUIZ_ACTIONS_RULES
 
 _QUIZ_SYSTEM_TEMPLATE = """You are a quiz generator. Based on the retrieved context and chat history, create an interactive quiz.
 
+Conversation language (highest priority): {conversation_language_name}
+Conversation language code: {conversation_language_code}
+Always write the intro sentence, quiz title, questions, options, explanations, and [action:...] labels in this conversation language.
+
 If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
 IMPORTANT: Randomly choose ONE quiz type (roughly 50/50 chance):
@@ -62,6 +66,9 @@ QUIZ_PROMPT = ChatPromptTemplate.from_messages(
 
     Chat history (last exchange):
     {chat_history}
+
+    Conversation language:
+    {conversation_language_name} (code: {conversation_language_code})
 
     Question:
     {question}

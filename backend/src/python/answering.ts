@@ -11,6 +11,8 @@ export async function answerQuestion(options: {
   storageDir?: string
   previousSuggestedQuestions?: string[]
   conversationName?: string
+  conversationLanguageCode?: string
+  conversationLanguageName?: string
   requestId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
@@ -30,6 +32,8 @@ export async function answerQuestion(options: {
       storage_dir: options.storageDir || null,
       previous_suggested_questions: options.previousSuggestedQuestions || null,
       conversation_name: options.conversationName || null,
+      conversation_language_code: options.conversationLanguageCode || null,
+      conversation_language_name: options.conversationLanguageName || null,
     }),
   })
 

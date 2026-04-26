@@ -36,15 +36,23 @@ export async function runImageGenStream(options: {
   reactiveMsg: ChatMessage
   timeoutMs?: number
   useUserId?: boolean
+  language?: string
   referenceImageFileNames?: string[]
 }): Promise<ImageGenStreamResponse> {
-  const { conversationId, question, reactiveMsg, useUserId = true, referenceImageFileNames } = options
+  const {
+    conversationId,
+    question,
+    reactiveMsg,
+    useUserId = true,
+    language,
+    referenceImageFileNames,
+  } = options
   const timeoutMs = options.timeoutMs ?? 120_000
 
   reactiveMsg.generatingImage = true
   reactiveMsg.imageDetailedPrompt = undefined
 
-  announceImage(conversationId, question)
+  announceImage(conversationId, question, language)
     .then(({ announcement }) => {
       if (announcement && reactiveMsg.generatingImage) {
         reactiveMsg.imageAnnouncement = announcement
@@ -111,7 +119,7 @@ export async function runImageGenStream(options: {
         clearTimeout(timeoutHandle)
         reject(new Error(message))
       },
-    }, referenceImageFileNames).catch((err) => {
+    }, language, referenceImageFileNames).catch((err) => {
       clearTimeout(timeoutHandle)
       reject(err)
     })

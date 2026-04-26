@@ -53,6 +53,10 @@ _QUIZ_PATTERNS = re.compile(
 
 _ANSWER_SYSTEM_TEMPLATE = """You answer questions about the user's uploaded files (books in PDF, images, text, etc.). The context sections below are your PRIMARY source of truth.  You can "fill the information holes" with "common knownledge" and admit it, but don't hallucinate, keep close to source material
 
+CONVERSATION LANGUAGE (HIGHEST PRIORITY): {conversation_language_name}
+Conversation language code: {conversation_language_code}
+Always write the answer and all [action:...] labels in this conversation language.
+
 == QUESTION ==
 "{question}"
 
@@ -934,6 +938,8 @@ def answer_with_citations(
     storage_dir: str | None = None,
     previous_suggested_questions: list[str] | None = None,
     conversation_name: str | None = None,
+    conversation_language_code: str | None = None,
+    conversation_language_name: str | None = None,
 ) -> dict:
     import sentry_sdk
     from sentry_sdk import logger as sentry_logger
@@ -1007,6 +1013,8 @@ def answer_with_citations(
         if is_quiz:
             prompt_vars = {
                 "question": question,
+                "conversation_language_code": conversation_language_code or "unknown",
+                "conversation_language_name": conversation_language_name or "Unknown",
                 "context": context,
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,
@@ -1017,6 +1025,8 @@ def answer_with_citations(
             conv_name = conversation_name or "(unnamed conversation)"
             prompt_vars = {
                 "question": question,
+                "conversation_language_code": conversation_language_code or "unknown",
+                "conversation_language_name": conversation_language_name or "Unknown",
                 "context": context,
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,
