@@ -820,8 +820,6 @@ async function ask() {
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
-    // Scroll so user question is at top with the response visible below
-    scrollToBottom(true, false, true)
     await loadConversation()
     await nextTick()
     setTimeout(() => scrollToBottom(true, false, true), 0)
