@@ -1,21 +1,20 @@
 {
-  "name": "chatrag-cloud-function-upload-proxy",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "gcp-build": "npm run build",
-    "dev": "npm run build && functions-framework --target=uploadProxy --signature-type=http --source=dist",
-    "start": "functions-framework --target=uploadProxy --signature-type=http --source=dist"
-  },
-  "dependencies": {
-    "@google-cloud/functions-framework": "^4.0.0",
-    "@sentry/node": "^10.49.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.12.2",
-    "typescript": "^5.8.2"
-  }
+    "name": "chatrag-upload-function",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "start": "functions-framework --target=uploadHandler",
+        "check": "node -c index.js"
+    },
+    "dependencies": {
+        "@google-cloud/functions-framework": "^3.4.0",
+        "@google-cloud/pubsub": "^4.5.0",
+        "@google-cloud/storage": "^7.12.1",
+        "@sentry/node": "^10.22.0",
+        "@sentry/profiling-node": "^10.22.0",
+        "busboy": "^1.6.0",
+        "pg": "^8.13.1"
+    }
 }

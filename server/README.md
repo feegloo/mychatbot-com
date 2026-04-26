@@ -1,30 +1,58 @@
-# node migration boilerplate
+# Server
 
-Minimal Koa app used as a migration target that imports code from `backend` as a library.
+TypeScript Node/Express Cloud Run service.
 
-## Run
+## Diagram: Server modules
 
-```bash
-cd node
-npm install
-npm run dev
+```mermaid
+flowchart TD
+    Index["index.ts"]
+    App["app.ts"]
+    Ask["ask.ts"]
+    PubSub["pubsub.ts"]
+    Sse["sse.ts"]
+    Db["db.ts"]
+    Config["config.ts"]
+    Utils["utils.ts"]
+    Sentry["sentry.ts"]
+    Types["types.ts"]
+
+    Index --> Config
+    Index --> PubSub
+    Index --> Db
+    Index --> Sse
+    Index --> Ask
+    Index --> App
+    App --> Ask
+    App --> Sse
+    App --> Db
+    Ask --> PubSub
+    Ask --> Db
+    Ask --> Utils
+    PubSub --> Types
+    Sse --> Types
+    Db --> Types
+    App --> Sentry
 ```
 
-## Endpoint
+## Diagram: Server runtime flow
 
-- `GET /hello` -> returns message from `backend/src/library/hello-world.ts`
+```mermaid
+flowchart TD
+    Browser["Browser"]
+    AskEndpoint["POST ask handler"]
+    WorkerTopic["Pub/Sub worker topic"]
+    AnswerSub["Pub/Sub answer subscription"]
+    PendingMap["In-memory pending ask registry"]
+    Metadata["Cloud SQL conversations_metadatas"]
+    SseClients["SSE clients by fingerprint"]
 
-## Tests (Vitest)
-
-- Unit: `npm run test:unit`
-- Integration: `npm run test:integration`
-- E2E: `npm run test:e2e`
-- All: `npm test`
-
-Example response:
-
-```json
-{
-  "message": "Hello from backend library module"
-}
+    Browser -->|"POST /ask"| AskEndpoint
+    AskEndpoint --> Metadata
+    AskEndpoint --> PendingMap
+    AskEndpoint --> WorkerTopic
+    AnswerSub -->|"answer payload"| PendingMap
+    AnswerSub --> Metadata
+    AnswerSub --> SseClients
+    PendingMap -->|"HTTP response"| Browser
 ```
