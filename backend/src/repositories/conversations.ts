@@ -346,10 +346,7 @@ export async function updateConversationMessageContent(
   messageId: string,
   content: string,
 ): Promise<void> {
-  await query(
-    `UPDATE conversation_messages SET content = $2 WHERE id = $1`,
-    [messageId, content],
-  )
+  await query(`UPDATE conversation_messages SET content = $2 WHERE id = $1`, [messageId, content])
 }
 
 export async function getMessageById(messageId: string) {
