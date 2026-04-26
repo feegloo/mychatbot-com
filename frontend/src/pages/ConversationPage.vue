@@ -660,6 +660,7 @@ function scrollToElement(container: HTMLElement, element: HTMLElement) {
 }
 
 function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
+  console.log('scrollToBottom', smooth, toEnd, showUserQuestion)
   if (!chatContainer.value) return
   const container = chatContainer.value
   // When `toEnd` is true, scroll all the way to the bottom — used when the
@@ -685,6 +686,9 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
       }
     }
   }
+  console.log('container', container)
+  console.log('targetMsg', targetMsg)
+
   targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
   if (targetMsg) {
     // Scroll so the top of the target message aligns with the top of the container.
