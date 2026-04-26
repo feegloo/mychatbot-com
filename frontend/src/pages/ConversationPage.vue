@@ -838,7 +838,7 @@ async function ask() {
     await nextTick()
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true, false, true), 50)
+    setTimeout(() => scrollToBottom(true, false, true), 200)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
