@@ -123,7 +123,7 @@ export function renderMarkdown(content: string): string {
   // causing the post-DOMPurify regex replacements to miss).
   const actionPlaceholders: string[] = []
   const actionToken = (idx: number) => `\x01ACTION${idx}\x01`
-  normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label) => {
+  normalized = normalized.replace(/\[(?:action|akcja):\s*([^\]]+)\]/gi, (_, label) => {
     const i = actionPlaceholders.length
     actionPlaceholders.push(label.trim())
     return actionToken(i)
@@ -186,7 +186,9 @@ export function renderMarkdown(content: string): string {
     allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
   )
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  const withSources = withColors.replace(/\[source:\s*(\d+(?:,\s*\d+)*)\]/g, (_, nums) =>
+  const withSources = withColors.replace(
+    /\[(?:source|zrodlo|źródło):\s*(\d+(?:,\s*\d+)*)\]/gi,
+    (_, nums) =>
     nums
       .split(/,\s*/)
       .map(

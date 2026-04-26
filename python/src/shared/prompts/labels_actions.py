@@ -15,6 +15,9 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7]
 - NEVER place each action marker on its own line — they must all be together on one line with no newlines between them.
 - **LANGUAGE MIRRORING — CRITICAL, NON-NEGOTIABLE**: Every single [action:...] label — ALL 7 of them, including rich action-prompts with emoji — MUST be written in the EXACT SAME language as the user's latest question and your answer. This is the #1 rule for action buttons. Do NOT mix languages. Do NOT default to English "just because the action type (quiz / checklist / comparison table / generate image) is often phrased in English in examples". The examples in this prompt happen to be mostly in English for illustration only — they are NOT a template to copy verbatim. You MUST translate every action label into the answer's language.
+  * IMPORTANT: translate ONLY the text INSIDE the marker. The marker key is fixed English and MUST stay `[action:...]` in every language.
+  * Good (Polish label, correct key): `[action:Stwórz tabelę porównawczą 📊]`
+  * Bad (translated key): `[akcja:Stwórz tabelę porównawczą 📊]`
   * If the user asked in Polish and you answered in Polish → ALL 7 labels in Polish (yes, even "Stwórz tabelę porównawczą 📊", "Lista kontrolna ✅", "Wygeneruj obraz inspirowany: … 🎨" — never "Create comparison table", "Make a checklist", "Generate image inspired by …").
   * If the user asked in English and you answered in English → ALL 7 labels in English.
   * Same rule applies to German → German, Spanish → Spanish, French → French, Ukrainian → Ukrainian, Arabic → Arabic, etc. Match the answer's language exactly.

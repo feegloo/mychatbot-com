@@ -84,38 +84,41 @@ function tryParseQuiz(jsonStr: string): QuizData | null {
 
 export function splitContent(content: string): ContentPart[] {
   if (!content) return []
+  // Defensive normalization: keep parsing stable if the model localized marker keys.
+  // Canonical markers are always English and should be emitted as [quiz:...].
+  const normalizedContent = content.replace(/\[(?:kwiz|test):/gi, '[quiz:')
   const parts: ContentPart[] = []
   const marker = '[quiz:'
   let lastIndex = 0
   let searchFrom = 0
   let quizCounter = 0
 
-  while (searchFrom < content.length) {
-    const start = content.indexOf(marker, searchFrom)
+  while (searchFrom < normalizedContent.length) {
+    const start = normalizedContent.indexOf(marker, searchFrom)
     if (start === -1) break
-    const extracted = extractQuizJson(content, start, marker.length)
+    const extracted = extractQuizJson(normalizedContent, start, marker.length)
     if (!extracted) {
       searchFrom = start + marker.length
       continue
     }
-    const before = content.slice(lastIndex, start)
+    const before = normalizedContent.slice(lastIndex, start)
     if (before.trim()) parts.push(...splitMermaid(before))
     const quiz = tryParseQuiz(extracted.jsonStr)
     if (quiz) {
       parts.push({ type: 'quiz', quiz, quizIndex: quizCounter++ })
     } else {
       // Fallback: render the malformed quiz block as plain text/mermaid.
-      parts.push(...splitMermaid(content.slice(start, extracted.endIndex + 1)))
+      parts.push(...splitMermaid(normalizedContent.slice(start, extracted.endIndex + 1)))
     }
     lastIndex = extracted.endIndex + 1
     searchFrom = lastIndex
   }
 
-  const remaining = content.slice(lastIndex)
+  const remaining = normalizedContent.slice(lastIndex)
   if (remaining.trim()) parts.push(...splitMermaid(remaining))
 
   if (!parts.length) {
-    parts.push({ type: 'text', html: renderMarkdown(content) })
+    parts.push({ type: 'text', html: renderMarkdown(normalizedContent) })
   }
   return parts
 }

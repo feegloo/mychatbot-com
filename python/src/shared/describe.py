@@ -317,7 +317,7 @@ _LLM_RETRY_BASE_DELAY = 2.0
 # used by the normal RAG answer prompt in rag.py. The frontend parses
 # these markers into clickable action buttons (first 3 visible, rest
 
-_ACTION_MARKER_RE = re.compile(r"\[action:\s*([^\]]+)\]")
+_ACTION_MARKER_RE = re.compile(r"\[(?:action|akcja):\s*([^\]]+)\]", re.IGNORECASE)
 
 # Emoji / pictograph ranges used to detect a fragment's trailing emoji when
 # the model forgets to wrap action prompts in [action:...] markers. Covers

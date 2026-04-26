@@ -476,7 +476,7 @@ def _format_previous_suggested_questions(
 
     import re
 
-    action_re = re.compile(r"\[action:\s*([^\]]+)\]")
+    action_re = re.compile(r"\[(?:action|akcja):\s*([^\]]+)\]", re.IGNORECASE)
 
     # Extract [action:] labels per assistant message, paired with the preceding user question
     exchanges: list[dict] = []

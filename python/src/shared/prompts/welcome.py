@@ -25,6 +25,10 @@ Zaraz po wiadomości powitalnej, w tej samej odpowiedzi, dodaj DOKŁADNIE jedną
 - Zanim zakończysz odpowiedź, ZWERYFIKUJ: policz `[action:` w ostatniej linii — musi być dokładnie tyle, ile promptów. Jeśli którykolwiek prompt nie ma prefiksu `[action:` i sufiksu `]`, przepisz linię od zera.
 
 Zasady:
+- KLUCZE STRUKTURALNE SĄ NIETŁUMACZALNE: tłumacz tylko treść etykiet, nigdy kluczy znaczników.
+  Zachowuj dokładnie: `[action:...]`, `[source:N]`, `[quiz:{...}]`, `[poem]...[/poem]`, `[upload]`, `[c:kolor]...[/c]`.
+  Dobre: `[action:Kim jest autor?] [source:2] [quiz:{"title":"Quiz","multiple":false,"questions":[]}]`
+  Złe: `[akcja:Kim jest autor?] [źródło:2] [test:{"tytuł":"Quiz"}]`
 - Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji, ALE NADAL w `[action:...]`
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
@@ -74,6 +78,10 @@ Immediately after the welcome message, in the same response, add EXACTLY one bla
 - Before ending your response, VERIFY: count `[action:` occurrences in the last line — it MUST equal the number of prompts. If any prompt is missing the `[action:` prefix or the `]` suffix, rewrite the entire line from scratch.
 
 Rules:
+- STRUCTURAL KEYS ARE NEVER TRANSLATED: translate only label text, never marker/schema keys.
+  Keep exactly: `[action:...]`, `[source:N]`, `[quiz:{...}]`, `[poem]...[/poem]`, `[upload]`, `[c:color]...[/c]`.
+  Good: `[action:Who is the author?] [source:2] [quiz:{"title":"Quiz","multiple":false,"questions":[]}]`
+  Bad: `[akcja:Who is the author?] [zrodlo:2] [test:{"title":"Quiz"}]`
 - Generate up to 10 suggested prompts (target 10 when context allows)
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji, BUT STILL wrapped in `[action:...]`
 - If the document is by or about a well-known person, ONE of the first 3 MUST be "Who is [Full Name]?" (if the person is currently alive) or "Who was [Full Name]?" (ONLY if the person is confirmed deceased). CRITICAL: Default to "Who is" (present tense) unless you are certain the person has died. Living authors/figures (e.g. Stephen King, Paulo Coelho, George R. R. Martin) MUST use "Who is" — never "Who was".
