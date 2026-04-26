@@ -124,7 +124,7 @@ function openFullPdf() {
 
 .source-modal-close {
   position: absolute;
-  top: 10px;
+  top: 0px;
   right: 10px;
   width: 36px;
   height: 36px;
@@ -132,7 +132,7 @@ function openFullPdf() {
   border: none;
   background: rgba(0, 0, 0, 0.5);
   color: #e2e8f0;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
   display: flex;

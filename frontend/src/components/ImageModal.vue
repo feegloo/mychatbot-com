@@ -48,7 +48,7 @@ defineEmits<{
 
 .image-modal-close {
   position: absolute;
-  top: -18px;
+  top: 0;
   right: -18px;
   width: 36px;
   height: 36px;
@@ -56,7 +56,7 @@ defineEmits<{
   border: none;
   background: #1e293b;
   color: #e2e8f0;
-  font-size: 36px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
   display: flex;

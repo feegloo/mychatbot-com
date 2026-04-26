@@ -37,6 +37,19 @@ DB_USER="chatrag"
 DB_NAME="chatrag"
 
 GCS_BUCKET="${GCS_BUCKET:-chatrag-storage-${PROJECT_ID}}"
+STATIC_BUCKET="${STATIC_BUCKET:-chatrag-static-${PROJECT_ID}}"
+ENABLE_STATIC_CDN="${ENABLE_STATIC_CDN:-true}"
+APP_DOMAIN="${APP_DOMAIN:-chatrag.app}"
+WWW_APP_DOMAIN="${WWW_APP_DOMAIN:-www.chatrag.app}"
+
+LB_IP_NAME="${LB_IP_NAME:-chatrag-lb-ip}"
+LB_CERT_NAME="${LB_CERT_NAME:-chatrag-managed-cert}"
+LB_NEG_NAME="${LB_NEG_NAME:-chatrag-api-neg}"
+LB_API_BACKEND_SERVICE="${LB_API_BACKEND_SERVICE:-chatrag-api-backend}"
+LB_STATIC_BACKEND_BUCKET="${LB_STATIC_BACKEND_BUCKET:-chatrag-static-backend}"
+LB_URL_MAP="${LB_URL_MAP:-chatrag-url-map}"
+LB_HTTPS_PROXY="${LB_HTTPS_PROXY:-chatrag-https-proxy}"
+LB_HTTPS_FORWARDING_RULE="${LB_HTTPS_FORWARDING_RULE:-chatrag-https-fr}"
 
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 REPLICATE_API_TOKEN="${REPLICATE_API_TOKEN:-}"
@@ -215,6 +228,14 @@ fi
 
 # ── Step 6: Build Docker image ───────────────────────────────────────────────
 info "Step 6/9: Building Docker image..."
+
+# Build frontend dist locally so we can sync static files to Cloud CDN bucket.
+info "Step 6a/9: Building frontend dist for Cloud CDN..."
+pushd frontend >/dev/null
+npm ci
+npm run build
+popd >/dev/null
+
 gcloud auth configure-docker --quiet
 docker build \
   --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
@@ -229,13 +250,6 @@ docker build \
 # ── Step 7: Push to GCR ─────────────────────────────────────────────────────
 info "Step 7/9: Pushing image to Container Registry..."
 docker push "${IMAGE}:latest"
-
-# ── Step 8: Deploy to Cloud Run ──────────────────────────────────────────────
-info "Step 8/9: Deploying to Cloud Run..."
-
-DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NAME}"
-
-warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
 
 # ── Step 8: Deploy to Cloud Run ──────────────────────────────────────────────
 info "Step 8/9: Deploying to Cloud Run..."
@@ -260,6 +274,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --port 8080 \
   --memory 4Gi \
   --cpu 4 \
+  --cpu-boost \
+  --timeout=3600 \
   --min-instances 1 \
   --max-instances 1 \
   --timeout 300 \
@@ -347,6 +363,136 @@ else
   warn "Step 8b/9: Skipping chatrag-worker deployment (DEPLOY_WORKER=false)"
 fi
 
+# ── Step 8c: Sync frontend static dist to Cloud CDN bucket ───────────────────
+if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
+  info "Step 8c/9: Syncing frontend dist to Cloud CDN bucket..."
+
+  gcloud services enable storage.googleapis.com
+
+  if ! gsutil ls -b "gs://${STATIC_BUCKET}" &>/dev/null; then
+    gsutil mb -l "$REGION" "gs://${STATIC_BUCKET}"
+    info "  Created static bucket: ${STATIC_BUCKET}"
+  else
+    warn "  Static bucket ${STATIC_BUCKET} already exists, reusing."
+  fi
+
+  # Public read access for CDN backend bucket origin.
+  gsutil pap set inherited "gs://${STATIC_BUCKET}" || true
+  gsutil iam ch allUsers:objectViewer "gs://${STATIC_BUCKET}" || true
+
+  gsutil web set -m index.html -e index.html "gs://${STATIC_BUCKET}" || true
+
+  gsutil -m rsync -r -d frontend/dist "gs://${STATIC_BUCKET}"
+
+  # HTML should revalidate, hashed assets can be cached aggressively.
+  gsutil -m setmeta -h "Cache-Control:no-cache, max-age=0, must-revalidate" "gs://${STATIC_BUCKET}/index.html" || true
+  gsutil -m setmeta -h "Cache-Control:public, max-age=31536000, immutable" "gs://${STATIC_BUCKET}/assets/**" || true
+  gsutil -m setmeta -h "Cache-Control:public, max-age=86400" "gs://${STATIC_BUCKET}/*.js" "gs://${STATIC_BUCKET}/*.css" "gs://${STATIC_BUCKET}/*.png" "gs://${STATIC_BUCKET}/*.svg" "gs://${STATIC_BUCKET}/*.ico" "gs://${STATIC_BUCKET}/*.webp" || true
+fi
+
+# ── Step 8d: Configure HTTPS LB: static by default, /api/* to Cloud Run ─────
+if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
+  info "Step 8d/9: Configuring HTTPS Load Balancer + Cloud CDN routing..."
+
+  if ! gcloud compute network-endpoint-groups describe "$LB_NEG_NAME" --region "$REGION" &>/dev/null; then
+    gcloud compute network-endpoint-groups create "$LB_NEG_NAME" \
+      --region "$REGION" \
+      --network-endpoint-type=serverless \
+      --cloud-run-service "$SERVICE_NAME"
+    info "  Created serverless NEG: ${LB_NEG_NAME}"
+  else
+    warn "  Serverless NEG ${LB_NEG_NAME} already exists, reusing."
+  fi
+
+  if ! gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global &>/dev/null; then
+    gcloud compute backend-services create "$LB_API_BACKEND_SERVICE" \
+      --global \
+      --load-balancing-scheme=EXTERNAL_MANAGED \
+      --protocol=HTTPS
+    info "  Created API backend service: ${LB_API_BACKEND_SERVICE}"
+  fi
+
+  if ! gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global --format='value(backends.group)' | grep -q "/networkEndpointGroups/${LB_NEG_NAME}$"; then
+    gcloud compute backend-services add-backend "$LB_API_BACKEND_SERVICE" \
+      --global \
+      --network-endpoint-group "$LB_NEG_NAME" \
+      --network-endpoint-group-region "$REGION"
+    info "  Attached NEG to API backend service"
+  fi
+
+  if ! gcloud compute backend-buckets describe "$LB_STATIC_BACKEND_BUCKET" --global &>/dev/null; then
+    gcloud compute backend-buckets create "$LB_STATIC_BACKEND_BUCKET" \
+      --gcs-bucket-name "$STATIC_BUCKET" \
+      --enable-cdn
+    info "  Created static backend bucket: ${LB_STATIC_BACKEND_BUCKET}"
+  else
+    gcloud compute backend-buckets update "$LB_STATIC_BACKEND_BUCKET" --enable-cdn
+  fi
+
+  TMP_URL_MAP_FILE="$(mktemp)"
+  cat > "$TMP_URL_MAP_FILE" <<EOF
+defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+hostRules:
+  - hosts:
+      - ${APP_DOMAIN}
+      - ${WWW_APP_DOMAIN}
+    pathMatcher: chatrag-paths
+pathMatchers:
+  - name: chatrag-paths
+    defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+    pathRules:
+      - paths:
+          - /api/*
+        service: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendServices/${LB_API_BACKEND_SERVICE}
+EOF
+
+  gcloud compute url-maps import "$LB_URL_MAP" \
+    --global \
+    --source "$TMP_URL_MAP_FILE" \
+    --quiet
+  rm -f "$TMP_URL_MAP_FILE"
+
+  if ! gcloud compute ssl-certificates describe "$LB_CERT_NAME" --global &>/dev/null; then
+    gcloud compute ssl-certificates create "$LB_CERT_NAME" \
+      --domains "${APP_DOMAIN},${WWW_APP_DOMAIN}" \
+      --global
+    info "  Created managed SSL certificate: ${LB_CERT_NAME}"
+  else
+    warn "  Managed SSL certificate ${LB_CERT_NAME} already exists, reusing."
+  fi
+
+  if ! gcloud compute target-https-proxies describe "$LB_HTTPS_PROXY" --global &>/dev/null; then
+    gcloud compute target-https-proxies create "$LB_HTTPS_PROXY" \
+      --url-map "$LB_URL_MAP" \
+      --ssl-certificates "$LB_CERT_NAME"
+  else
+    gcloud compute target-https-proxies update "$LB_HTTPS_PROXY" \
+      --url-map "$LB_URL_MAP" \
+      --ssl-certificates "$LB_CERT_NAME"
+  fi
+
+  if ! gcloud compute addresses describe "$LB_IP_NAME" --global &>/dev/null; then
+    gcloud compute addresses create "$LB_IP_NAME" --global
+    info "  Created global IP address: ${LB_IP_NAME}"
+  fi
+  LB_IP_ADDRESS=$(gcloud compute addresses describe "$LB_IP_NAME" --global --format='value(address)')
+
+  if ! gcloud compute forwarding-rules describe "$LB_HTTPS_FORWARDING_RULE" --global &>/dev/null; then
+    gcloud compute forwarding-rules create "$LB_HTTPS_FORWARDING_RULE" \
+      --global \
+      --load-balancing-scheme=EXTERNAL_MANAGED \
+      --network-tier=PREMIUM \
+      --address "$LB_IP_NAME" \
+      --target-https-proxy "$LB_HTTPS_PROXY" \
+      --ports 443
+    info "  Created HTTPS forwarding rule: ${LB_HTTPS_FORWARDING_RULE}"
+  else
+    gcloud compute forwarding-rules set-target "$LB_HTTPS_FORWARDING_RULE" \
+      --global \
+      --target-https-proxy "$LB_HTTPS_PROXY"
+  fi
+fi
+
 # ── Step 9: Get URL ─────────────────────────────────────────────────────────
 info "Step 9/10: Getting service URL..."
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
@@ -388,6 +534,16 @@ echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
 echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Worker mode:    inline (indexing runs in-process on this instance)"
 echo "  Worker pool:    disabled"
+if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
+  echo "  Static CDN:     enabled (GCS + Cloud CDN + HTTPS LB)"
+  echo "  Static bucket:  gs://${STATIC_BUCKET}"
+  echo "  API routing:    /api/* -> Cloud Run ${SERVICE_NAME}"
+  if [[ -n "${LB_IP_ADDRESS:-}" ]]; then
+    echo "  LB IP:          ${LB_IP_ADDRESS}"
+    echo "  DNS apex A:     ${APP_DOMAIN} -> ${LB_IP_ADDRESS}"
+    echo "  DNS www CNAME:  ${WWW_APP_DOMAIN} -> ${APP_DOMAIN}"
+  fi
+fi
 if [[ -n "$FUNCTION_URL" ]]; then
   echo "  Function URL:   ${FUNCTION_URL}"
   echo "  UI env var:     VITE_CLOUD_FUNCTION_UPLOAD_URL=${FUNCTION_URL}/upload"

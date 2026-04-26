@@ -660,7 +660,6 @@ function scrollToElement(container: HTMLElement, element: HTMLElement) {
 }
 
 function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
-  console.log('scrollToBottom', smooth, toEnd, showUserQuestion)
   if (!chatContainer.value) return
   const container = chatContainer.value
   // When `toEnd` is true, scroll all the way to the bottom — used when the
@@ -686,8 +685,6 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
       }
     }
   }
-  console.log('container', container)
-  console.log('targetMsg', targetMsg)
 
   targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
   if (targetMsg) {
@@ -699,7 +696,10 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
     //   behavior: smooth ? 'smooth' : 'instant',
     // })
 
-    scrollToElement(container, targetMsg)
+    const users = document.querySelectorAll('.chat-log .message-row.user')
+    user = users[users.length - 1]
+
+    scrollToElement(document.querySelector('.chat-log'), user)
   } else {
     container.scrollTo({
       top: container.scrollHeight,
@@ -826,7 +826,7 @@ async function ask() {
     await nextTick()
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true, false, true), 150)
+    setTimeout(() => scrollToBottom(true, false, true), 50)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
