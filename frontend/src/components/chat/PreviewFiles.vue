@@ -112,7 +112,7 @@ function prev(event: Event) {
 
 .preview-stage {
   width: 100%;
-  min-height: 240px;
+  min-height: 90%;
 }
 
 @media (max-width: 768px) {

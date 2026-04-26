@@ -646,6 +646,19 @@ function viewHeaderThreads() {
   }
 }
 
+function scrollToElement(container: HTMLElement, element: HTMLElement) {
+  const containerTop = container.getBoundingClientRect().top
+  const elementTop = element.getBoundingClientRect().top
+
+  const currentScroll = container.scrollTop
+  const target = elementTop - containerTop + currentScroll
+
+  container.scrollTo({
+    top: target,
+    behavior: 'smooth',
+  })
+}
+
 function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
@@ -675,12 +688,14 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
   targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
   if (targetMsg) {
     // Scroll so the top of the target message aligns with the top of the container.
-    const msgTop = targetMsg.offsetTop - container.offsetTop
-    const maxScroll = container.scrollHeight - container.clientHeight
-    container.scrollTo({
-      top: Math.min(msgTop, maxScroll),
-      behavior: smooth ? 'smooth' : 'instant',
-    })
+    // const msgTop = targetMsg.offsetTop - container.offsetTop
+    // const maxScroll = container.scrollHeight - container.clientHeight
+    // container.scrollTo({
+    //   top: Math.min(msgTop, maxScroll),
+    //   behavior: smooth ? 'smooth' : 'instant',
+    // })
+
+    scrollToElement(container, targetMsg)
   } else {
     container.scrollTo({
       top: container.scrollHeight,
