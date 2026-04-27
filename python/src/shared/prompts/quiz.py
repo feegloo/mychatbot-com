@@ -46,7 +46,7 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).
-- CRITICAL: Distribute correct answers randomly and evenly across all option positions. Do NOT place the correct answer at position A (index 0) more than once or twice across the 5 questions. Across the 5 questions, spread "correct" indices across 0, 1, 2, and 3 so that no single position dominates. The correct answer can be at any position — A, B, C, or D — and should vary from question to question.
+- CRITICAL: Distribute correct answers randomly and evenly across the available option positions for each question. Use only valid indices from 0 to len(options)-1. If a question has 3 options, only use indices 0, 1, and 2. Use index 3 only when a question has 4 options. Do NOT place the correct answer at index 0 more than once or twice across the 5 questions. Across the 5 questions, vary correct-answer positions so no single valid position dominates.
 
 <<QUIZ_ACTIONS>>"""
 
