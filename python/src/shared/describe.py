@@ -454,12 +454,13 @@ def _estimate_word_count(text: str) -> int:
 
 
 # ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
-# gpt-5.4-mini has a 272K token context window. Hard-cap requests below that
-# limit to avoid context_length_exceeded errors (leave ~7K buffer for safety).
-_MAX_REQUEST_TOKENS = 265_000
-# Safe budget for the *content* portion of a single LLM call.  The system
-# prompts in this module are large (~5-15K tokens of rules), so we reserve
-# ~15K tokens of headroom for the system prompt when packing raw text.
+# gpt-5.4-mini has a 272K token context window. Hard-cap requests well below
+# that limit: the total request = content + system prompt (~15K) + response
+# headroom, so we cap the full request at 257K to stay safely under 272K.
+_MAX_REQUEST_TOKENS = 257_000
+# Safe budget for the *content* portion of a single LLM call.  System prompts
+# in this module are large (~5-15K tokens of rules), so we reserve ~15K of
+# headroom on top of the content budget.
 _MAX_CONTENT_TOKENS = 250_000
 
 _tiktoken_enc = None
