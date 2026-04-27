@@ -56,4 +56,9 @@ export const config = {
     ? resolvePath(process.env.UI_DIST_PATH)
     : '',
   serverUrl: process.env.SERVER_URL || 'http://localhost:4300',
+  // Feature flag: enable cross-conversation per-user master wiki (Section 3b).
+  // When true, a master wiki is lazily rebuilt after each answered question
+  // (30-minute cooldown) and injected into the answering prompt for that user.
+  // Default false — safe to enable per-environment via USER_WIKI_ENABLED=true.
+  userWikiEnabled: process.env.USER_WIKI_ENABLED === 'true',
 }

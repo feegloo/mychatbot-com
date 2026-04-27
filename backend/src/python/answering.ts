@@ -20,6 +20,12 @@ export async function answerQuestion(options: {
    * entities/relationships instead of re-deriving them from chunks every turn.
    */
   wikiMessage?: string
+  /**
+   * Cross-conversation master wiki for this user (Section 3b).  Synthesises
+   * wikis from all the user's conversations into a cross-topic knowledge map.
+   * Injected after Section 3a — only present when USER_WIKI_ENABLED=true.
+   */
+  userWikiMessage?: string
   requestId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
@@ -42,6 +48,7 @@ export async function answerQuestion(options: {
       conversation_language_code: options.conversationLanguageCode || null,
       conversation_language_name: options.conversationLanguageName || null,
       wiki_message: options.wikiMessage || null,
+      user_wiki_message: options.userWikiMessage || null,
     }),
   })
 

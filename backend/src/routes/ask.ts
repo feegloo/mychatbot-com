@@ -9,6 +9,13 @@ import {
   resolveConversationRole,
   appendToMessageContent,
 } from '../repositories/conversations.js'
+import {
+  getUserWiki,
+  isUserWikiStale,
+  upsertUserWiki,
+  getConversationWikisForUser,
+} from '../repositories/user-wikis.js'
+import { buildUserWikiViaApi } from '../python/user-wiki.js'
 import { answerQuestion } from '../python/answering.js'
 import { generateImage } from '../python/image-gen.js'
 import { ensureCollectionIndexed } from '../python/reindex.js'
@@ -139,6 +146,14 @@ askRouter.post('/ask', async (ctx) => {
   // their parent's wiki via storage_namespace fallback inside the repo helper.
   const wikiMessage = await getInternalWikiMessage(conversationId)
 
+  // Cross-conversation master wiki (Section 3b) — injected when the feature
+  // flag is enabled and the user has an existing master wiki stored in DB.
+  let userWikiMessage: string | undefined
+  if (config.userWikiEnabled && userId && userId > 0) {
+    const stored = await getUserWiki(userId)
+    if (stored) userWikiMessage = stored
+  }
+
   // Collect all previously shown suggested questions:
   // 1. Indexing-time suggested questions from DB
   const previousSuggestedQuestions: string[] = data.suggestedQuestions.map((q) => q.question)
@@ -181,6 +196,7 @@ askRouter.post('/ask', async (ctx) => {
           conversationLanguageCode: conversationLanguage.code || undefined,
           conversationLanguageName: conversationLanguage.nativeName || undefined,
           wikiMessage: wikiMessage || undefined,
+          userWikiMessage: userWikiMessage || undefined,
           requestId: requestId || undefined,
         }),
     )
@@ -207,6 +223,30 @@ askRouter.post('/ask', async (ctx) => {
   })
 
   ctx.body = { ...payload, userMessageId: userMsgId, assistantMessageId: assistantMsgId }
+
+  // Fire-and-forget: rebuild the per-user master wiki after each answer when
+  // the feature flag is enabled and the user's wiki is stale (> 30 min).
+  // We only rebuild if this conversation has an idea file (wikiMessage) so
+  // the user has at least one wiki to aggregate.
+  if (config.userWikiEnabled && userId && userId > 0 && wikiMessage) {
+    ;(async () => {
+      try {
+        const stale = await isUserWikiStale(userId)
+        if (!stale) return
+        const conversationWikis = await getConversationWikisForUser(userId)
+        if (!conversationWikis.length) return
+        const content = await buildUserWikiViaApi({ userId, conversationWikis })
+        await upsertUserWiki(userId, content, conversationWikis.length)
+        logger.info(
+          { userId, sourceCount: conversationWikis.length },
+          'user master wiki rebuilt',
+        )
+      } catch (err) {
+        logger.warn({ err, userId }, 'user master wiki rebuild failed')
+        Sentry.captureException(err, { tags: { feature: 'user-wiki' }, extra: { userId } })
+      }
+    })()
+  }
 
   // Fire-and-forget: for "inspired chapter/poem/story" style answers, either
   // (a) reuse an existing cross-conversation image whose description matches

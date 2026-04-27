@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS user_fingerprints (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Per-user synthesised knowledge wiki (cross-conversation master "idea file").
+-- Built lazily after each answered question when USER_WIKI_ENABLED=true.
+-- source_count tracks how many conversation wikis were merged in last build.
+CREATE TABLE IF NOT EXISTS user_wikis (
+  user_id       INT     PRIMARY KEY,
+  content       TEXT    NOT NULL,
+  source_count  INT     NOT NULL DEFAULT 0,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ============================================================================
 -- PDF page cache (per-conversation parsed/OCR'd page text)
 -- ============================================================================
