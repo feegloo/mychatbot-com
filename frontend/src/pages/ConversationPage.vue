@@ -965,28 +965,69 @@ function autoResize(e: Event) {
 }
 
 // --- Scroll position persistence ---
+// Exact pixel `scrollTop` per conversation id. Ratio-based restore was
+// unreliable because the container's scrollHeight grows after mount as
+// markdown, mermaid and images finish rendering, which placed the viewport
+// lower than where the user actually left it.
 const SCROLL_POS_KEY = 'scrollPositions'
 
 function saveScrollPosition() {
-  if (!chatContainer.value) return
+  if (!chatContainer.value || !conversationId) return
   const c = chatContainer.value
-  const maxScroll = c.scrollHeight - c.clientHeight
-  if (maxScroll <= 0) return
-  const ratio = c.scrollTop / maxScroll
   const all = getData<Record<string, number>>(SCROLL_POS_KEY) || {}
-  all[conversationId] = ratio
+  all[conversationId] = c.scrollTop
   setData(SCROLL_POS_KEY, all)
 }
 
+// Re-apply the saved scrollTop while content is still rendering; stop as
+// soon as the user interacts, the target is reachable, or the budget ends.
+const SCROLL_RESTORE_BUDGET_MS = 2000
+let scrollRestoreCleanup: (() => void) | undefined
+
 function restoreScrollPosition(): boolean {
-  if (!chatContainer.value) return false
+  if (!chatContainer.value || !conversationId) return false
   const all = getData<Record<string, number>>(SCROLL_POS_KEY)
-  const ratio = all?.[conversationId]
-  if (ratio == null) return false
+  const target = all?.[conversationId]
+  if (target == null || target <= 0) return false
   const c = chatContainer.value
-  const maxScroll = c.scrollHeight - c.clientHeight
-  if (maxScroll <= 0) return false
-  c.scrollTo({ top: ratio * maxScroll, behavior: 'instant' })
+
+  const apply = () => {
+    const maxScroll = c.scrollHeight - c.clientHeight
+    c.scrollTop = Math.min(target, maxScroll)
+  }
+  apply()
+
+  const deadline = Date.now() + SCROLL_RESTORE_BUDGET_MS
+  const observer =
+    typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (Date.now() > deadline) {
+            stop()
+            return
+          }
+          apply()
+        })
+      : undefined
+  observer?.observe(c)
+
+  const stopOnUserInput = () => stop()
+  c.addEventListener('wheel', stopOnUserInput, { passive: true })
+  c.addEventListener('touchstart', stopOnUserInput, { passive: true })
+  c.addEventListener('keydown', stopOnUserInput)
+  const timeoutId = window.setTimeout(() => stop(), SCROLL_RESTORE_BUDGET_MS)
+
+  let stopped = false
+  function stop() {
+    if (stopped) return
+    stopped = true
+    observer?.disconnect()
+    c.removeEventListener('wheel', stopOnUserInput)
+    c.removeEventListener('touchstart', stopOnUserInput)
+    c.removeEventListener('keydown', stopOnUserInput)
+    window.clearTimeout(timeoutId)
+    scrollRestoreCleanup = undefined
+  }
+  scrollRestoreCleanup = stop
   return true
 }
 
@@ -1102,6 +1143,7 @@ onUnmounted(() => {
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
   if (statusPollingInterval) clearInterval(statusPollingInterval)
+  scrollRestoreCleanup?.()
   cleanupAutoRead()
 })
 
