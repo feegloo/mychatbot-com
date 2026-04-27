@@ -1808,11 +1808,12 @@ h3 {
     max-width: calc(100vw / 3 - 20px);
   }
 
-  /* Allow the first column to wrap on mobile; its desktop nowrap is fine for
-     wide screens but causes the table to overflow on small viewports. */
+  /* Allow the first column to wrap on mobile; its desktop nowrap + overflow-wrap:normal
+     is fine for wide screens but causes the table to overflow on small viewports. */
   .markdown-content th:first-child,
   .markdown-content td:first-child {
     white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 
