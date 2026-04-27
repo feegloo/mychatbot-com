@@ -55,8 +55,12 @@ export interface HomeMessages {
   subtitleP1bHtml: string
   /** Third subtitle paragraph; contains <strong> for the AI Agent emphasis. */
   subtitleP2Html: string
-  /** Fourth subtitle line; translate + synthesize speech + share answers. */
+  /** Fourth subtitle line (desktop); translate + synthesize speech + share answers. */
   subtitleP2bHtml: string
+  /** Mobile-only: first line — search & RAG + translate files to your language. */
+  subtitleP2MobileLine1Html: string
+  /** Mobile-only: second line — synthesize speech + share answers. */
+  subtitleP2MobileLine2Html: string
   /** Comma-separated capabilities line under the subtitle. */
   subtitleP3: string
   dropzoneTitle: string
@@ -80,6 +84,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,',
     subtitleP2bHtml:
       'translate files to your language 🇵🇱🇬🇧 synthesize speech 🔊 share answers',
+    subtitleP2MobileLine1Html:
+      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search &amp; RAG, translate files to your language 🇵🇱🇬🇧',
+    subtitleP2MobileLine2Html: 'synthesize speech 🔊 share answers',
     subtitleP3:
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
@@ -101,6 +108,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG,',
     subtitleP2bHtml:
       'tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
+    subtitleP2MobileLine1Html:
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧',
+    subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
