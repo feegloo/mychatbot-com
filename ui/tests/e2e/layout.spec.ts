@@ -9,7 +9,7 @@ test('renders the imported HomeHero inside the right column', async ({ page }) =
   await expect(menuColumn).toBeVisible()
   await expect(contentColumn).toBeVisible()
   await expect(page.getByAltText('chatrag.app')).toBeVisible()
-  await expect(page.getByText('Upload securely 🔒 and chat with your Big PDF\'s and files')).toBeVisible()
+  await expect(page.getByText('Upload securely 🔒 and chat with your Big PDFs and files')).toBeVisible()
 
   const menuBackground = await menuColumn.evaluate(
     (element) => window.getComputedStyle(element).backgroundColor,
