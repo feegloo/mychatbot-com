@@ -59,6 +59,67 @@ describe('renderMarkdown table wrapping', () => {
   })
 })
 
+describe('renderMarkdown measurement unit badges', () => {
+  it('badges volume units with munit-vol', () => {
+    // Use * bullets so the dialogue-detection heuristic doesn't convert them to prose
+    const html = renderMarkdown('* 2 cups flour\n* 1 tbsp olive oil\n* 250 ml water')
+
+    expect(html).toContain('<span class="munit munit-vol">cups</span>')
+    expect(html).toContain('<span class="munit munit-vol">tbsp</span>')
+    expect(html).toContain('<span class="munit munit-vol">ml</span>')
+  })
+
+  it('badges weight units with munit-wt', () => {
+    const html = renderMarkdown('* 500 g beef\n* 1.5 kg potatoes\n* 100 mg salt')
+
+    expect(html).toContain('<span class="munit munit-wt">g</span>')
+    expect(html).toContain('<span class="munit munit-wt">kg</span>')
+    expect(html).toContain('<span class="munit munit-wt">mg</span>')
+  })
+
+  it('does not double-badge fl oz as an oz weight unit', () => {
+    const html = renderMarkdown('* 4 fl oz cream')
+
+    expect(html).toContain('<span class="munit munit-vol">fl oz</span>')
+    // Should NOT also produce a .munit-wt badge for the "oz" inside "fl oz"
+    expect(html).not.toContain('munit-wt')
+  })
+
+  it('does not add badges to units outside list items', () => {
+    const html = renderMarkdown('Add 200 g of sugar to the bowl.')
+
+    expect(html).not.toContain('munit')
+  })
+
+  it('does not badge units inside code spans within list items', () => {
+    const html = renderMarkdown('* Use `200 g` of butter')
+
+    // The unit is inside a <code> element and must not be badged
+    expect(html).not.toContain('munit')
+  })
+
+  it('handles nested lists without corrupting outer item badges', () => {
+    const md = ['* 1 cup broth', '  * 200 ml water', '  * 50 g noodles'].join('\n')
+    const html = renderMarkdown(md)
+
+    // Both levels must be badged and the HTML must remain structurally valid
+    expect(html).toContain('<span class="munit munit-vol">cup</span>')
+    expect(html).toContain('<span class="munit munit-vol">ml</span>')
+    expect(html).toContain('<span class="munit munit-wt">g</span>')
+    // Basic structural sanity: opening <li> appears before any closing </li>
+    const liOpen = html.indexOf('<li>')
+    const liClose = html.indexOf('</li>')
+    expect(liOpen).toBeGreaterThanOrEqual(0)
+    expect(liOpen).toBeLessThan(liClose)
+  })
+
+  it('badges fractional quantities', () => {
+    const html = renderMarkdown('* 1/2 cup milk')
+
+    expect(html).toContain('<span class="munit munit-vol">cup</span>')
+  })
+})
+
 describe('renderInlineMarkdown', () => {
   it('renders italic and bold markdown', () => {
     const html = renderInlineMarkdown('What made _The Alchemist_ **famous**?')

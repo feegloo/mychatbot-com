@@ -240,28 +240,60 @@ export function renderMarkdown(content: string): string {
       `<span class="markdown-image-scroll"><img${attrs ?? ''}></span>`,
   )
   // Badge ingredient measurement units inside list items.
-  // Volume units (cups, tbsp, tsp, ml) → .munit-vol (blue pill)
+  // Volume units (cups, tbsp, tsp, fl oz, ml) → .munit-vol (blue pill)
   // Weight units (g, kg, mg, oz, lbs) → .munit-wt (orange pill)
-  // Scoped to <li> content so prose and code blocks are not affected.
-  const withMeasureUnits = withScrollableImages.replace(
-    /(<li\b[^>]*>)([\s\S]*?)(<\/li>)/gi,
-    (_, open: string, inner: string, close: string) => {
-      // Valid number: integer, decimal, or simple fraction (e.g. 1, 2.5, 1/2)
-      const num = '\\d+(?:\\.\\d+)?(?:/\\d+)?'
-      // Volume first so "fl oz" is consumed before the bare "oz" weight pass.
-      // After replacement the "oz" inside the munit-vol span has no leading digit
-      // so the weight regex below cannot accidentally re-match it.
-      const withVol = inner.replace(
-        new RegExp(`\\b(${num})\\s*(cups?|tbsp|tsp|fl\\s?oz|ml)\\b`, 'gi'),
+  // Uses DOMParser so nested lists are walked correctly without regex <li> parsing.
+  const withMeasureUnits = (() => {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(`<div>${withScrollableImages}</div>`, 'text/html')
+    const root = doc.body.firstElementChild as HTMLDivElement | null
+    if (!root) return withScrollableImages
+
+    // Valid number: integer, decimal, or simple fraction (e.g. 1, 2.5, 1/2)
+    const num = '\\d+(?:\\.\\d+)?(?:/\\d+)?'
+    // Volume regex runs first so "fl oz" is consumed before the bare "oz" weight pass.
+    const volumePattern = new RegExp(`\\b(${num})\\s*(cups?|tbsp|tsp|fl\\s?oz|ml)\\b`, 'gi')
+    const weightPattern = new RegExp(`\\b(${num})\\s*(kg|mg|g|oz|lbs?)\\b`, 'gi')
+
+    function decorateText(text: string): string {
+      const withVol = text.replace(
+        volumePattern,
         '$1 <span class="munit munit-vol">$2</span>',
       )
-      const withWt = withVol.replace(
-        new RegExp(`\\b(${num})\\s*(kg|mg|g|oz|lbs?)\\b`, 'gi'),
-        '$1 <span class="munit munit-wt">$2</span>',
-      )
-      return `${open}${withWt}${close}`
-    },
-  )
+      return withVol.replace(weightPattern, '$1 <span class="munit munit-wt">$2</span>')
+    }
+
+    root.querySelectorAll('li').forEach((li) => {
+      // Walk only the direct text nodes of this <li>, skipping nested <li> subtrees
+      // and <code>/<pre> blocks so we don't corrupt code or recurse into child items.
+      const walker = doc.createTreeWalker(li, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement
+          if (!parent) return NodeFilter.FILTER_REJECT
+          // Only text that belongs to this exact <li>, not a nested one
+          if (parent.closest('li') !== li) return NodeFilter.FILTER_REJECT
+          if (parent.closest('code, pre')) return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      const textNodes: Text[] = []
+      let cur = walker.nextNode()
+      while (cur) {
+        textNodes.push(cur as Text)
+        cur = walker.nextNode()
+      }
+      textNodes.forEach((textNode) => {
+        const original = textNode.textContent ?? ''
+        const decorated = decorateText(original)
+        if (decorated === original) return
+        const tpl = doc.createElement('template')
+        tpl.innerHTML = decorated
+        textNode.replaceWith(tpl.content)
+      })
+    })
+
+    return root.innerHTML
+  })()
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
