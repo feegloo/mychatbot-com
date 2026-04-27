@@ -22,7 +22,7 @@
 
     <template v-else>
       <div class="controls">
-        <div class="table-tabs">
+        <div id="table-tabs-list" class="table-tabs">
           <button
             v-for="table in visibleTableNames"
             :key="table"
@@ -46,7 +46,10 @@
       </div>
       <button
         v-if="isMobile"
+        type="button"
         class="tabs-toggle"
+        :aria-expanded="tabsExpanded"
+        aria-controls="table-tabs-list"
         @click="tabsExpanded = !tabsExpanded"
       >
         {{ tabsExpanded ? '▲ Less' : `▼ More (${TABLE_NAMES.length - MOBILE_VISIBLE_TABS} tables)` }}
