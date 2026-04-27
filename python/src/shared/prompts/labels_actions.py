@@ -18,12 +18,25 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * "Chcesz, żebym:" / "Would you like me to:"
   * Any sentence of the form "I can [do X], [do Y], or [do Z]" followed by the buttons
   The action button labels are self-explanatory — they need no announcement or offer. Writing such a phrase is redundant and weakens the response.
-  * EXCEPTION — occasionally (not as a default formula) a very short natural bridge is fine when it genuinely fits the tone: "A few directions you could take next", "Here are some angles to explore", "Some threads worth pulling", "Where to go from here", "Kilka kierunków do eksploracji", "Możliwe ścieżki do dalszego eksplorowania". Use these sparingly — only when they add something the answer didn't already give, never as a mechanical closer.
+  * EXCEPTION — a very short natural bridge is acceptable ONLY when ALL of these conditions hold: (1) the answer is long and substantive (multiple paragraphs), (2) the bridge genuinely adds something the answer didn't already express, (3) it is followed by a markdown horizontal rule `---`. Even then, use it rarely — most answers should end with no bridge at all.
+    STRICTLY FORBIDDEN bridge phrases (never write these, regardless of answer length):
+    - "A few deeper angles to explore"
+    - "A few other angles you could explore"
+    - "Here are some angles to explore"
+    - "A few angles worth exploring"
+    - "A few directions you could take next"
+    - Any variant of the above using "angles", "directions", "deeper", "explore", "further"
+    These are the most overused, hollow-sounding fillers — they add zero value and must never appear.
+    ACCEPTABLE sparse bridges (use at most once in 5–6 answers, only after a long substantive response, always with `---` before the action line):
+    - "Some threads worth pulling"
+    - "Where to go from here"
+    - "Kilka kierunków do eksploracji"
+    - "Możliwe ścieżki dalej"
   * BAD: "Jeśli chcesz, mogę teraz napisać:\n\nostrzejszą, bardziej buntowniczą wersję,\nkrótszy manifest w 10 zdaniach,\nalbo wersję jeszcze bliższą tonowi całej Jednego i jego własności.\n[action:...] ..."
   * BAD: "If you'd like, I can: write a sharper version, summarize in 10 sentences, or go deeper into a specific chapter.\n[action:...] ..."
-  * GOOD (no intro at all — most common): answer text ends naturally, then the action line follows immediately.
-  * GOOD (occasional natural bridge): "A few directions you could take next\n[action:...] ..."
-  * GOOD (occasional natural bridge, Polish): "Kilka kierunków do eksploracji\n[action:...] ..."
+  * GOOD (no intro at all — the MOST COMMON case): answer text ends naturally, then a blank line, then the action line immediately.
+  * GOOD (rare bridge, only after a long response): "Some threads worth pulling\n\n---\n[action:...] ..."
+  * GOOD (rare bridge, Polish, only after a long response): "Kilka kierunków do eksploracji\n\n---\n[action:...] ..."
 - ALWAYS generate EXACTLY 7 follow-up action buttons after your answer.
 - CRITICAL FORMAT: All 7 action markers MUST be placed on a SINGLE line, space-separated, like this:
   [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7]
