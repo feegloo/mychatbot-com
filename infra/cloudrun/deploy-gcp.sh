@@ -67,6 +67,7 @@ CF_ALLOWED_ORIGINS="${CF_ALLOWED_ORIGINS:-https://chatrag.app,https://www.chatra
 CF_UPSTREAM_UPLOAD_URL="${CF_UPSTREAM_UPLOAD_URL:-}"
 CF_SENTRY_DSN="${CF_SENTRY_DSN:-${SENTRY_DSN:-}}"
 CF_SENTRY_ENVIRONMENT="${CF_SENTRY_ENVIRONMENT:-${SENTRY_ENVIRONMENT:-prod}}"
+USER_WIKI_ENABLED="${USER_WIKI_ENABLED:-false}"
 # Chroma Cloud — no longer used (switched to in-process local Chroma for lowest latency)
 # CHROMA_API_KEY="${CHROMA_API_KEY:-}"
 # CHROMA_TENANT="696cf798-1423-4a5f-bb61-c055be3b6318"
