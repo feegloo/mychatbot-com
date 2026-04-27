@@ -231,6 +231,26 @@ def get_llm() -> Any:
     return _llm_instance.bind(seed=seed)
 
 
+_MAX_IMAGE_CITATIONS = 3
+
+
+def _limit_image_rows(rows: list[dict]) -> list[dict]:
+    """Cap image-type rows to _MAX_IMAGE_CITATIONS (rows are already sorted by relevance).
+
+    Keeping only the most relevant images avoids flooding the UI with thumbnails
+    when a PDF contains many embedded images that all pass the distance threshold.
+    """
+    image_count = 0
+    result = []
+    for row in rows:
+        if row.get("image_name"):
+            if image_count >= _MAX_IMAGE_CITATIONS:
+                continue
+            image_count += 1
+        result.append(row)
+    return result
+
+
 def _build_citations(rows: list[dict]) -> list[dict]:
     citations = []
     for row in rows:
@@ -1001,7 +1021,8 @@ def answer_with_citations(
             max_distance = 1.3
         logger.info(f"🔎 Using max_distance={max_distance} for question word count={word_count}")
         rows = query_chunks(collection_name, conversation_id, question, top_k, max_distance)
-        logger.info(f"📚 Retrieved {len(rows)} context chunks")
+        rows = _limit_image_rows(rows)
+        logger.info(f"📚 Retrieved {len(rows)} context chunks (max {_MAX_IMAGE_CITATIONS} image chunks)")
         context = build_context(rows)
 
         # Extract full page text only for pages referenced by matching chunks

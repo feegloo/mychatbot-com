@@ -201,7 +201,6 @@ class AnnounceImageRequest(BaseModel):
 
 class RegisterImageRequest(BaseModel):
     image_id: str
-    description: str
     conversation_id: str
     storage_namespace: str
     file_name: str
@@ -669,7 +668,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
     before the final image is ready:
       {"event": "prompt_ready", "data": {"image_prompt": ..., "image_title": ...}}
       {"event": "partial",      "data": {"b64": "...", "index": 0}}
-      {"event": "complete",     "data": {file_name, revised_prompt, image_prompt, image_title, rag_sources}}
+      {"event": "complete",     "data": {file_name, image_prompt, image_title, rag_sources}}
       {"event": "error",        "data": {"error": "..."}}
     """
     from fastapi.responses import StreamingResponse  # noqa: E402
@@ -742,7 +741,6 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         ]
         return {
             "file_name": final["file_name"],
-            "revised_prompt": final["revised_prompt"],
             "image_prompt": image_prompt,
             "image_title": image_title,
             "rag_sources": cited_sources,
@@ -786,7 +784,6 @@ async def register_image_endpoint(req: RegisterImageRequest):
         await asyncio.to_thread(
             register_image,
             image_id=req.image_id,
-            description=req.description,
             conversation_id=req.conversation_id,
             storage_namespace=req.storage_namespace,
             file_name=req.file_name,

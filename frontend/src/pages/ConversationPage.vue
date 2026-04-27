@@ -121,6 +121,8 @@
             :no-animation="index < initialMessageCount"
             :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
+            :search-highlighted="isSearchHit(msg, index)"
+            :search-term="searchTermFromRoute"
             @select-question="
               (q: string) => {
                 question = q
@@ -209,7 +211,7 @@ import { runImageGenStream } from '../composables/useImageGenStream'
 import { cleanFileName } from '../utils/text'
 import { getUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
@@ -367,6 +369,30 @@ const processingLoaderLabel = computed(() => {
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
 const loaded = ref(false)
 const routerInstance = useRouter()
+const route = useRoute()
+
+const searchTermFromRoute = ref('')
+const searchMessageIdFromRoute = ref('')
+const searchMessageIndexFromRoute = ref<number | null>(null)
+
+function parseSearchMessageIndex(rawValue: unknown): number | null {
+  if (typeof rawValue !== 'string') return null
+  const parsed = Number.parseInt(rawValue, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+function syncSearchFromRoute() {
+  searchTermFromRoute.value = typeof route.query.searchTerm === 'string' ? route.query.searchTerm : ''
+  searchMessageIdFromRoute.value =
+    typeof route.query.searchMessageId === 'string' ? route.query.searchMessageId : ''
+  searchMessageIndexFromRoute.value = parseSearchMessageIndex(route.query.searchMessageIndex)
+}
+
+function isSearchHit(msg: MessageWithRenderKey<ChatMessage>, index: number): boolean {
+  if (!searchTermFromRoute.value) return false
+  if (searchMessageIdFromRoute.value) return msg.id === searchMessageIdFromRoute.value
+  return searchMessageIndexFromRoute.value === index
+}
 
 const isThread = computed(() => !!status.value.parentMessageId)
 
@@ -713,6 +739,26 @@ function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false)
   }
 }
 
+function scrollToSearchHit() {
+  if (!chatContainer.value || !searchTermFromRoute.value) return
+  const container = chatContainer.value
+  let target: HTMLElement | null = null
+
+  if (searchMessageIdFromRoute.value) {
+    target = container.querySelector(
+      `.message-row[data-message-id="${searchMessageIdFromRoute.value}"]`,
+    ) as HTMLElement | null
+  }
+
+  if (!target && searchMessageIndexFromRoute.value !== null) {
+    const rows = container.querySelectorAll('.message-row')
+    target = (rows[searchMessageIndexFromRoute.value] as HTMLElement | undefined) || null
+  }
+
+  if (!target) return
+  scrollToElement(container, target)
+}
+
 function onMessageImageRevealed(index: number, success: boolean) {
   if (!success) return
   // Only auto-follow images for newly-arrived messages.
@@ -817,6 +863,9 @@ async function ask() {
           timeoutMs: TIMEOUT_MS,
           language: promptLanguage,
           referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
+          onAnnouncement: () => {
+            nextTick(() => scrollToBottom(true, false, true))
+          },
         })
       : await Promise.race([
           askQuestion(
@@ -939,10 +988,27 @@ watch(
       setTimeout(() => scrollToBottom(false, false, true), 0)
     }
     prevMessageCount = newLen
+
+    if (searchTermFromRoute.value) {
+      await nextTick()
+      setTimeout(scrollToSearchHit, 30)
+    }
   },
 )
 
+watch(
+  () => route.query,
+  async () => {
+    syncSearchFromRoute()
+    if (!searchTermFromRoute.value) return
+    await nextTick()
+    setTimeout(scrollToSearchHit, 30)
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
+  syncSearchFromRoute()
   await loadConversation()
   loaded.value = true
   roleLoaded.value = true
@@ -950,6 +1016,9 @@ onMounted(async () => {
   // Restore saved scroll position, or fall back to scrolling to bottom
   if (!restoreScrollPosition()) {
     scrollToBottom()
+  }
+  if (searchTermFromRoute.value) {
+    setTimeout(scrollToSearchHit, 30)
   }
   prevMessageCount = messages.value.length
   conversationReady.value = true

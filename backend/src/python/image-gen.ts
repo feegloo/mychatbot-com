@@ -46,7 +46,6 @@ export async function generateImage(options: {
 
   return (await response.json()) as {
     file_name: string
-    revised_prompt: string
     image_prompt: string
     image_title: string
     rag_sources?: Array<{
@@ -93,7 +92,6 @@ export type ImageStreamEvent =
       event: 'complete'
       data: {
         file_name: string
-        revised_prompt: string
         image_prompt: string
         image_title: string
         rag_sources?: Array<{

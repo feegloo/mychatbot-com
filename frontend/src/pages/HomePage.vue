@@ -1,5 +1,9 @@
 <template>
   <div class="page home-page">
+    <!-- Home-page-only language toggle (independent of conversation
+         translation handled by LanguageToggle.vue). -->
+    <HomeLanguageToggle v-if="showUpload" />
+
     <!-- Logo + tagline -->
     <HomeHero v-if="showUpload" />
 
@@ -31,8 +35,10 @@
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
           </div>
-          <p><strong>Click to upload or drag & drop</strong></p>
-          <p class="dropzone-hint">PDF, images, .doc, other text files</p>
+          <p>
+            <strong>{{ t.dropzoneTitle }}</strong>
+          </p>
+          <p class="dropzone-hint">{{ t.dropzoneHint }}</p>
           <input
             ref="inputRef"
             type="file"
@@ -83,7 +89,7 @@
         ref="questionInput"
         v-model="question"
         class="chat-textarea"
-        placeholder="Ask a question ..."
+        :placeholder="t.askPlaceholder"
         rows="1"
         @input="autoResize"
         @keydown.enter.exact.prevent="submitQuestion"
@@ -114,12 +120,12 @@ import { runImageGenStream } from '../composables/useImageGenStream'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import HomeHero from '../components/HomeHero.vue'
+import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
+import { homeT } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 
-onMounted(() => {
-  document.title = 'chatrag.app'
-})
+const t = homeT
 
 const router = useRouter()
 
@@ -151,7 +157,7 @@ function onInputChange(event: Event) {
   const allFiles = Array.from(target.files || [])
   const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'))
   uploadFilesArr.value = allFiles.filter((f) => !f.type.startsWith('video/'))
-  if (videoFiles.length) uploadError.value = { message: 'Video files are not supported.' }
+  if (videoFiles.length) uploadError.value = { message: t.value.videoNotSupported }
   if (uploadFilesArr.value.length) submitUpload()
 }
 
@@ -160,7 +166,7 @@ function onDrop(event: DragEvent) {
   const allFiles = Array.from(event.dataTransfer?.files || [])
   const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'))
   uploadFilesArr.value = allFiles.filter((f) => !f.type.startsWith('video/'))
-  if (videoFiles.length) uploadError.value = { message: 'Video files are not supported.' }
+  if (videoFiles.length) uploadError.value = { message: t.value.videoNotSupported }
   if (uploadFilesArr.value.length) submitUpload()
 }
 
@@ -184,7 +190,7 @@ async function submitUpload() {
     const status = httpStatus(err)
     if (status === 413) {
       uploadError.value = {
-        message: 'File too large. Maximum upload size is ~30 MB per file.',
+        message: t.value.fileTooLarge,
         raw,
       }
     } else {
@@ -240,7 +246,7 @@ async function submitUrlUpload(url: string) {
     router.push(data.url)
   } catch (err: unknown) {
     const { message, raw } = extractError(err)
-    uploadError.value = { message: message || 'Failed to load URL', raw }
+    uploadError.value = { message: message || t.value.urlLoadFailed, raw }
   } finally {
     uploading.value = false
   }
@@ -311,6 +317,9 @@ async function submitQuestion() {
           timeoutMs: TIMEOUT_MS,
           useUserId: false,
           language: promptLanguage,
+          onAnnouncement: () => {
+            nextTick(() => scrollToBottom(true))
+          },
         })
       : await Promise.race([askQuestion(convId, currentQuestion, undefined, promptLanguage), timeout])
     reactiveMsg.generatingImage = false
@@ -327,7 +336,7 @@ async function submitQuestion() {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+      reactiveMsg.content = t.value.imageGenError
     } else {
       const { message, raw } = extractError(err)
       reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
@@ -353,6 +362,8 @@ function autoResize(e: Event) {
   padding: 0 32px 24px;
   overflow-y: auto;
   gap: 0;
+  /* Anchor for the absolutely-positioned HomeLanguageToggle. */
+  position: relative;
 }
 
 .upload-section {

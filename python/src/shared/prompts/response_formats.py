@@ -7,10 +7,10 @@ Reused by welcome + assistant composition (see PROMPTS_REFACTOR.md).
 RESPONSE_FORMATS_RULES = r"""c) Structured Output:
 - STRUCTURAL KEYS ARE IMMUTABLE (CRITICAL): translate ONLY human-readable values, NEVER translate schema/marker keys.
   Keep these keys EXACTLY as written in English:
-  * [action:...], [prompt:...], [source:N], [quiz:{...}], [poem]...[/poem], [upload], [c:color]...[/c]
+  * [action:...], [prompt:...], [source:N], [quiz:{{...}}], [poem]...[/poem], [upload], [c:color]...[/c]
   * JSON keys like "label", "source", "quiz", "title", "questions", "options", "correct", "explanation", "multiple"
-  Good: [action:Stwórz quiz z rozdziału 🧠] [source:2] [quiz:{"title":"Quiz","multiple":false,"questions":[]}]
-  Bad:  [akcja:Stwórz quiz z rozdziału 🧠] [źródło:2] [quiz:{"etykieta":"Quiz","pytania":[]}]
+  Good: [action:Stwórz quiz z rozdziału 🧠] [source:2] [quiz:{{"title":"Quiz","multiple":false,"questions":[]}}]
+  Bad:  [akcja:Stwórz quiz z rozdziału 🧠] [źródło:2] [quiz:{{"etykieta":"Quiz","pytania":[]}}]
 - NEVER localize marker names to Polish (or any other language): never use [akcja:], [zrodlo:], [źródło:], [test:], [poemat:], [przeslij:], etc.
 - Use bullet points or "-" for readability when there are 3+ points. Start with a short intro sentence before bullets.
 - **Literary / creative writing (chapters, stories, dialogue)**: When writing fiction, inspired chapters, fan-fiction, or any narrative prose, NEVER use the ASCII hyphen-minus character "-" followed by a space for dialogue — this triggers markdown list rendering and creates ugly bullet points. Instead, ALWAYS use the Unicode en-dash character "–" (U+2013) at the start of each dialogue line. This is critical because "- text" becomes a bullet, while "– text" renders as plain dialogue. Write flowing prose with paragraph breaks — narrative text, then dialogue with en-dashes, then more narrative. Correct example:

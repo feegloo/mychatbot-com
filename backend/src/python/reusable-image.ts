@@ -20,7 +20,6 @@ export type ReusableImageMatch = {
  */
 export async function registerReusableImage(payload: {
   imageId: string
-  description: string
   conversationId: string
   storageNamespace: string
   fileName: string
@@ -35,7 +34,6 @@ export async function registerReusableImage(payload: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         image_id: payload.imageId,
-        description: payload.description,
         conversation_id: payload.conversationId,
         storage_namespace: payload.storageNamespace,
         file_name: payload.fileName,

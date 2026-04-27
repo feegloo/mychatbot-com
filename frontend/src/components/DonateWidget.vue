@@ -18,13 +18,15 @@
     </div>
 
     <!-- Default donate button -->
-    <button v-else-if="canDonate" class="conv-nav-donate" @click="handleDonate">Donate 1$</button>
+    <button v-else-if="canDonate" class="conv-nav-donate" :disabled="stripeInitializing" @click="handleDonate">
+      {{ stripeInitializing ? '...' : 'Donate 1$' }}
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { loadStripe, type Stripe, type PaymentRequest } from '@stripe/stripe-js'
+import { type Stripe, type PaymentRequest } from '@stripe/stripe-js'
 import axios from 'axios'
 
 const api = axios.create({
@@ -36,6 +38,8 @@ const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
 const thankYou = ref(false)
 const showMethods = ref(false)
 const hasApplePay = ref(false)
+const stripeInitialized = ref(false)
+const stripeInitializing = ref(false)
 
 let stripeInstance: Stripe | null = null
 let paymentRequest: PaymentRequest | null = null
@@ -113,45 +117,53 @@ const canDonate = computed(() => {
 })
 
 async function initStripe() {
-  if (!stripeKey) return
+  if (!stripeKey || stripeInitialized.value || stripeInitializing.value) return
 
-  stripeInstance = await loadStripe(stripeKey)
-  if (!stripeInstance) return
+  stripeInitializing.value = true
+  try {
+    const { loadStripe } = await import('@stripe/stripe-js')
+    stripeInstance = await loadStripe(stripeKey)
+    if (!stripeInstance) return
 
-  paymentRequest = stripeInstance.paymentRequest({
-    country: 'US',
-    currency: 'usd',
-    total: { label: 'ChatRAG Donation', amount: 100 },
-    requestPayerName: false,
-    requestPayerEmail: false,
-  })
-
-  const result = await paymentRequest.canMakePayment()
-  if (result?.applePay) {
-    hasApplePay.value = true
-
-    paymentRequest.on('paymentmethod', async (ev) => {
-      try {
-        const { data } = await api.post('/donate')
-        const { error } = await stripeInstance!.confirmCardPayment(
-          data.clientSecret,
-          { payment_method: ev.paymentMethod.id },
-          { handleActions: false },
-        )
-        if (error) {
-          ev.complete('fail')
-        } else {
-          ev.complete('success')
-          showThankYou()
-        }
-      } catch {
-        ev.complete('fail')
-      }
+    paymentRequest = stripeInstance.paymentRequest({
+      country: 'US',
+      currency: 'usd',
+      total: { label: 'ChatRAG Donation', amount: 100 },
+      requestPayerName: false,
+      requestPayerEmail: false,
     })
+
+    const result = await paymentRequest.canMakePayment()
+    if (result?.applePay) {
+      hasApplePay.value = true
+
+      paymentRequest.on('paymentmethod', async (ev) => {
+        try {
+          const { data } = await api.post('/donate')
+          const { error } = await stripeInstance!.confirmCardPayment(
+            data.clientSecret,
+            { payment_method: ev.paymentMethod.id },
+            { handleActions: false },
+          )
+          if (error) {
+            ev.complete('fail')
+          } else {
+            ev.complete('success')
+            showThankYou()
+          }
+        } catch {
+          ev.complete('fail')
+        }
+      })
+    }
+    stripeInitialized.value = true
+  } finally {
+    stripeInitializing.value = false
   }
 }
 
-function handleDonate() {
+async function handleDonate() {
+  await initStripe()
   if (hasApplePay.value && paymentRequest) {
     // Try Apple Pay first; if user cancels, show methods
     const cancelHandler = () => {
@@ -204,7 +216,6 @@ function checkDonateSuccess() {
 }
 
 onMounted(() => {
-  initStripe()
   checkDonateSuccess()
 })
 </script>

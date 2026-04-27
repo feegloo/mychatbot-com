@@ -43,15 +43,25 @@ const GENERATED_IMAGES_STATEMENTS = [
      file_name TEXT NOT NULL,
      image_title TEXT,
      image_prompt TEXT,
-     revised_prompt TEXT,
      user_prompt TEXT,
-     description TEXT NOT NULL,
      source_original_names TEXT[] NOT NULL DEFAULT '{}',
      source_size_bytes BIGINT[] NOT NULL DEFAULT '{}',
      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
    )`,
   // Backfill for older deployments that created the table without user_prompt.
   `ALTER TABLE generated_images ADD COLUMN IF NOT EXISTS user_prompt TEXT`,
+  // Legacy columns from earlier schema — always duplicated `image_prompt`,
+  // so we stopped writing them. Relax NOT NULL on `description` so new
+  // INSERTs (which omit it) succeed against existing deployments.
+  // Conditional: column only exists on older deployments.
+  `DO $$ BEGIN
+     IF EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'generated_images' AND column_name = 'description'
+     ) THEN
+       EXECUTE 'ALTER TABLE generated_images ALTER COLUMN description DROP NOT NULL';
+     END IF;
+   END $$`,
   'CREATE INDEX IF NOT EXISTS idx_generated_images_conversation_id ON generated_images(conversation_id)',
   'CREATE INDEX IF NOT EXISTS idx_generated_images_storage_namespace ON generated_images(storage_namespace)',
   'CREATE INDEX IF NOT EXISTS idx_generated_images_source_names ON generated_images USING GIN (source_original_names)',

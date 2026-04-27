@@ -113,9 +113,7 @@ CREATE TABLE IF NOT EXISTS generated_images (
   file_name              TEXT NOT NULL,
   image_title            TEXT,
   image_prompt           TEXT,
-  revised_prompt         TEXT,
   user_prompt            TEXT,
-  description            TEXT NOT NULL,
   source_original_names  TEXT[] NOT NULL DEFAULT '{}',
   source_size_bytes      BIGINT[] NOT NULL DEFAULT '{}',
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()

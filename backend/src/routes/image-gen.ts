@@ -40,7 +40,6 @@ export const imageGenRouter = new Router()
 
 type ImageGenResult = {
   file_name: string
-  revised_prompt: string
   image_prompt: string
   image_title: string
   rag_sources?: Array<{
@@ -85,7 +84,6 @@ async function finalizeGeneratedImage(params: {
   generatedImage: {
     fileName: string
     imagePrompt: string
-    revisedPrompt: string
     imageTitle: string
   }
 }> {
@@ -134,13 +132,12 @@ async function finalizeGeneratedImage(params: {
     role: 'assistant',
     content: answer,
     citations: {
-      _generatedImageDescription: result.revised_prompt || result.image_prompt,
+      _generatedImageDescription: result.image_prompt,
       _imageSources: citations,
     },
   })
 
   try {
-    const description = result.revised_prompt || result.image_prompt || title
     const sourceOriginalNames = files.map((f) => f.original_name)
     const imageId = await insertGeneratedImage({
       conversationId,
@@ -149,15 +146,12 @@ async function finalizeGeneratedImage(params: {
       fileName: result.file_name,
       imageTitle: result.image_title || title,
       imagePrompt: result.image_prompt || null,
-      revisedPrompt: result.revised_prompt || null,
       userPrompt: question,
-      description,
       sourceOriginalNames,
       sourceSizeBytes: files.map((f) => Number(f.size_bytes)),
     })
     await registerReusableImage({
       imageId,
-      description,
       conversationId,
       storageNamespace: conversation.storage_namespace,
       fileName: result.file_name,
@@ -177,7 +171,6 @@ async function finalizeGeneratedImage(params: {
     generatedImage: {
       fileName: result.file_name,
       imagePrompt: result.image_prompt,
-      revisedPrompt: result.revised_prompt,
       imageTitle: result.image_title,
     },
   }

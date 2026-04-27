@@ -192,7 +192,6 @@ class TestOutput:
         result = image_gen.generate_image(prompt="p", storage_dir=str(tmp_path))
 
         assert result["file_name"].endswith(".png")
-        assert result["revised_prompt"] == "revised"
         assert (tmp_path / result["file_name"]).is_file()
 
     def test_saved_image_dimensions_match_requested_size(self, tmp_path):

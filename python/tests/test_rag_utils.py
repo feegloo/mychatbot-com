@@ -2,7 +2,7 @@
 
 Covers: build_context, _strip_orphan_source_tags, _is_quiz_request,
 _is_exif_request, _is_recognize_request, _handle_exif, _build_citations,
-_format_welcome_messages.
+_limit_image_rows, _format_welcome_messages.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from shared.rag import (
     _is_exif_request,
     _is_quiz_request,
     _is_recognize_request,
+    _limit_image_rows,
     _strip_orphan_source_tags,
     build_context,
 )
@@ -420,3 +421,65 @@ class TestBuildCitations:
         result = _build_citations(rows)
         assert len(result) == 5
         assert [c["chunkId"] for c in result] == ["c0", "c1", "c2", "c3", "c4"]
+
+
+# ---------------------------------------------------------------------------
+# _limit_image_rows
+# ---------------------------------------------------------------------------
+
+
+class TestLimitImageRows:
+    def _text_row(self, chunk_id: str = "t1") -> dict:
+        return {"chunk_id": chunk_id, "file_name": "doc.pdf", "text": "text", "image_name": None}
+
+    def _image_row(self, chunk_id: str = "i1") -> dict:
+        return {"chunk_id": chunk_id, "file_name": "doc.pdf", "text": "img", "image_name": f"{chunk_id}.png"}
+
+    def test_no_images_unchanged(self):
+        rows = [self._text_row("t1"), self._text_row("t2")]
+        assert _limit_image_rows(rows) == rows
+
+    def test_exactly_three_images_all_kept(self):
+        rows = [self._image_row(f"i{i}") for i in range(3)]
+        result = _limit_image_rows(rows)
+        assert len(result) == 3
+
+    def test_excess_images_truncated_to_three(self):
+        rows = [self._image_row(f"i{i}") for i in range(6)]
+        result = _limit_image_rows(rows)
+        assert len(result) == 3
+        assert [r["chunk_id"] for r in result] == ["i0", "i1", "i2"]
+
+    def test_text_rows_always_kept(self):
+        rows = [
+            self._image_row("i1"),
+            self._text_row("t1"),
+            self._image_row("i2"),
+            self._text_row("t2"),
+            self._image_row("i3"),
+            self._image_row("i4"),  # this 4th image should be dropped
+            self._text_row("t3"),
+        ]
+        result = _limit_image_rows(rows)
+        chunk_ids = [r["chunk_id"] for r in result]
+        assert "i4" not in chunk_ids
+        assert "t1" in chunk_ids
+        assert "t2" in chunk_ids
+        assert "t3" in chunk_ids
+
+    def test_empty_rows_returns_empty(self):
+        assert _limit_image_rows([]) == []
+
+    def test_preserves_order_of_kept_rows(self):
+        rows = [
+            self._text_row("t1"),
+            self._image_row("i1"),
+            self._image_row("i2"),
+            self._image_row("i3"),
+            self._image_row("i4"),
+            self._text_row("t2"),
+        ]
+        result = _limit_image_rows(rows)
+        chunk_ids = [r["chunk_id"] for r in result]
+        assert chunk_ids == ["t1", "i1", "i2", "i3", "t2"]
+

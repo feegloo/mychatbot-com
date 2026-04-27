@@ -293,7 +293,6 @@ askRouter.post('/ask', async (ctx) => {
           imageUrl,
           imageTitle: result.image_title || 'Generated Image',
           imagePrompt: result.image_prompt,
-          revisedPrompt: result.revised_prompt,
           imageSources,
         }
         const contentToAppend = renderAutoImageMarkdown(
@@ -307,7 +306,6 @@ askRouter.post('/ask', async (ctx) => {
         })
 
         // Register the new image for future cross-conversation reuse.
-        const description = result.revised_prompt || result.image_prompt || result.image_title || ''
         try {
           const imageId = await insertGeneratedImage({
             conversationId,
@@ -316,15 +314,12 @@ askRouter.post('/ask', async (ctx) => {
             fileName: result.file_name,
             imageTitle: result.image_title || null,
             imagePrompt: result.image_prompt || null,
-            revisedPrompt: result.revised_prompt || null,
             userPrompt: question,
-            description,
             sourceOriginalNames: preferredSourceFiles,
             sourceSizeBytes: data.files.map((f) => Number(f.size_bytes)),
           })
           await registerReusableImage({
             imageId,
-            description,
             conversationId,
             storageNamespace: data.conversation!.storage_namespace,
             fileName: result.file_name,

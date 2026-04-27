@@ -21,7 +21,7 @@ def test_generate_image_endpoint_passes_requested_size(monkeypatch, tmp_path: Pa
         captured['size'] = kwargs.get('size')
         file_name = 'generated-test.jpg'
         (tmp_path / file_name).write_bytes(b'test')
-        return {'file_name': file_name, 'revised_prompt': 'prompt from llm'}
+        return {'file_name': file_name}
 
     monkeypatch.setattr(server, 'generate_image', fake_generate_image)
 

@@ -2,17 +2,21 @@
   <div class="home-hero">
     <img src="/logo.svg" alt="chatrag.app" class="home-logo" />
     <p class="home-subtitle">
-      Upload your Big PDF's and files encrypted end-to-end 🔒 chat with files, let AI extract
-      insights and tell you what’s inside in the author’s voices.<br /><br />
-      Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,
-      synthesize speech 🔊, share answers<br />
-      <span style="font-size: 12px; padding-top: 12px"
-        >Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid
-        diagram 🧩 recipe 🍝 checklist ✅ and more!</span
-      >
+      <!-- v-html is safe here: content comes exclusively from the static
+           homeMessages map under our control (no user input). -->
+      <span v-html="t.subtitleP1Html"></span><br />
+      <span v-html="t.subtitleP1bHtml"></span><br /><br />
+      <span v-html="t.subtitleP2Html"></span><br />
+      <span class="home-subtitle-extra">{{ t.subtitleP3 }}</span>
     </p>
   </div>
 </template>
+
+<script setup lang="ts">
+import { homeT } from '../i18n/homeLocale'
+
+const t = homeT
+</script>
 
 <style scoped>
 .home-hero {
@@ -34,6 +38,12 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.5;
+}
+
+.home-subtitle-extra {
+  font-size: 12px;
+  margin-top: 12px;
+  display: inline-block;
 }
 
 @media (max-width: 768px) {

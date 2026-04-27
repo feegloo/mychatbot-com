@@ -262,7 +262,7 @@ def generate_image(
             ``MAX_REFERENCE_IMAGES``.
 
     Returns:
-        dict with 'file_name' (saved filename) and 'revised_prompt' (DALL-E's prompt).
+        dict with 'file_name' (saved filename).
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
@@ -324,7 +324,6 @@ def generate_image(
             result = _call(retry_prompt)
 
     image_data = result.data[0]
-    revised_prompt = getattr(image_data, "revised_prompt", prompt)
 
     # gpt-image-1 returns b64_json by default; dall-e-3 returns a URL
     image_url = getattr(image_data, "url", None)
@@ -350,7 +349,6 @@ def generate_image(
 
     return {
         "file_name": file_name,
-        "revised_prompt": revised_prompt,
     }
 
 
@@ -379,7 +377,7 @@ def generate_image_streaming(
 
     Yields dicts of shape:
       {"type": "partial", "b64": "...", "index": 0|1|...}
-      {"type": "completed", "file_name": "...", "revised_prompt": "..."}
+      {"type": "completed", "file_name": "..."}
 
     Any exception during streaming falls through to the caller so the
     endpoint can emit an "error" event.
@@ -408,9 +406,8 @@ def generate_image_streaming(
     _ext = "jpg" if output_format == "jpeg" else output_format
     _compression_kwarg = {} if output_format == "png" else {"output_compression": output_compression}
 
-    def _yield_stream(events, default_prompt: str):
+    def _yield_stream(events):
         final_b64: str | None = None
-        revised_prompt = default_prompt
         for event in events:
             ev_type = getattr(event, "type", "")
             if ev_type.endswith("partial_image"):
@@ -420,7 +417,6 @@ def generate_image_streaming(
                     yield {"type": "partial", "b64": b64, "index": idx}
             elif ev_type.endswith("completed"):
                 final_b64 = getattr(event, "b64_json", None)
-                revised_prompt = getattr(event, "revised_prompt", default_prompt) or default_prompt
 
         if not final_b64:
             raise ValueError("OpenAI streaming image response contained no final frame")
@@ -435,7 +431,6 @@ def generate_image_streaming(
         yield {
             "type": "completed",
             "file_name": file_name,
-            "revised_prompt": revised_prompt,
         }
 
     tracer = get_tracer("chatrag.image_gen")
@@ -466,7 +461,7 @@ def generate_image_streaming(
                         stream=True,
                         partial_images=partial_images,
                     )
-                    for item in _yield_stream(events, prompt):
+                    for item in _yield_stream(events):
                         logger.debug(f"📸 Streaming edit event: {item.get('type')}")
                         yield item
                 return
@@ -504,7 +499,7 @@ def generate_image_streaming(
 
         try:
             events = _stream_generate(prompt)
-            for item in _yield_stream(events, prompt):
+            for item in _yield_stream(events):
                 yield item
         except Exception as exc:
             retry_prompt = _emphasize_inspired(prompt)
@@ -513,7 +508,7 @@ def generate_image_streaming(
                 f"retrying once with 'inspired' emphasis"
             )
             events = _stream_generate(retry_prompt)
-            for item in _yield_stream(events, retry_prompt):
+            for item in _yield_stream(events):
                 yield item
 
 

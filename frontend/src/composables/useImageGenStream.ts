@@ -38,6 +38,7 @@ export async function runImageGenStream(options: {
   useUserId?: boolean
   language?: string
   referenceImageFileNames?: string[]
+  onAnnouncement?: () => void
 }): Promise<ImageGenStreamResponse> {
   const {
     conversationId,
@@ -46,16 +47,27 @@ export async function runImageGenStream(options: {
     useUserId = true,
     language,
     referenceImageFileNames,
+    onAnnouncement,
   } = options
   const timeoutMs = options.timeoutMs ?? 120_000
 
   reactiveMsg.generatingImage = true
   reactiveMsg.imageDetailedPrompt = undefined
 
+  // Fires once when the announcement text first appears so callers can
+  // auto-scroll to keep the loading indicator visible.
+  let announcementNotified = false
+  const notifyAnnouncement = () => {
+    if (announcementNotified) return
+    announcementNotified = true
+    onAnnouncement?.()
+  }
+
   announceImage(conversationId, question, language)
     .then(({ announcement }) => {
       if (announcement && reactiveMsg.generatingImage) {
         reactiveMsg.imageAnnouncement = announcement
+        notifyAnnouncement()
       }
     })
     .catch(() => {})
@@ -93,6 +105,7 @@ export async function runImageGenStream(options: {
         }
         if (data.image_title && !reactiveMsg.imageAnnouncement) {
           reactiveMsg.imageAnnouncement = `Generating: ${data.image_title}`
+          notifyAnnouncement()
         }
       },
       onPartial: ({ b64, index }) => {

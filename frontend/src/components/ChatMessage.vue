@@ -1,5 +1,9 @@
 <template>
-  <div class="message-row" :class="msg.role">
+  <div
+    class="message-row"
+    :class="[msg.role, { 'search-hit': searchHighlighted }]"
+    :data-message-id="msg.id || ''"
+  >
     <div class="message" :class="[msg.role, { 'welcome-message': isWelcome }]">
       <strong>{{ senderLabel }}</strong>
 
@@ -351,6 +355,8 @@ const props = withDefaults(
      *  Only set for newly-arrived messages; cleared by parent after animation. */
     animate?: boolean
     isTranslating?: boolean
+    searchHighlighted?: boolean
+    searchTerm?: string
   }>(),
   { maxVisibleActions: 2 },
 )
@@ -759,8 +765,30 @@ type ImageCitationInfo = { url: string; section?: string; imageName: string }
 
 const imageCitations = computed<ImageCitationInfo[]>(() => {
   if (!props.msg.citations) return []
+
+  // Collect imageNames already displayed in earlier messages to avoid repetition
+  const shownBefore = new Set<string>()
+  if (props.allMessages) {
+    const currentIdx = props.allMessages.findIndex(
+      (m) => (m.id && props.msg.id ? m.id === props.msg.id : m === props.msg),
+    )
+    const preceding = currentIdx > 0 ? props.allMessages.slice(0, currentIdx) : []
+    for (const prev of preceding) {
+      if (prev.role === 'assistant' && prev.citations) {
+        for (const c of prev.citations) {
+          if ((c as CitationEntry & { imageName?: string }).imageName) {
+            shownBefore.add((c as CitationEntry & { imageName: string }).imageName)
+          }
+        }
+      }
+    }
+  }
+
   return props.msg.citations
-    .filter((c): c is CitationEntry & { imageName: string } => !!c.imageName)
+    .filter(
+      (c): c is CitationEntry & { imageName: string } =>
+        !!c.imageName && !shownBefore.has(c.imageName),
+    )
     .map((c) => ({
       url: getStorageUrl(effectiveStorageId.value, c.imageName),
       section: c.section,

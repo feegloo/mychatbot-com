@@ -422,14 +422,17 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
     info "  Created API backend service: ${LB_API_BACKEND_SERVICE}"
   else
     # Serverless NEGs cannot be attached when backend service has portName set.
+    # Strip portName via export/import so we don't need to detach the url-map.
     EXISTING_PORT_NAME=$(gcloud compute backend-services describe "$LB_API_BACKEND_SERVICE" --global --format='value(portName)' || true)
     if [[ -n "$EXISTING_PORT_NAME" ]]; then
-      warn "  Recreating API backend service without portName for serverless NEG compatibility..."
-      gcloud compute backend-services delete "$LB_API_BACKEND_SERVICE" --global --quiet
-      gcloud compute backend-services create "$LB_API_BACKEND_SERVICE" \
-        --global \
-        --load-balancing-scheme=EXTERNAL_MANAGED
-      info "  Recreated API backend service: ${LB_API_BACKEND_SERVICE}"
+      warn "  Stripping portName='${EXISTING_PORT_NAME}' from API backend service for serverless NEG compatibility..."
+      TMP_BS_FILE="$(mktemp)"
+      gcloud compute backend-services export "$LB_API_BACKEND_SERVICE" --global --destination="$TMP_BS_FILE"
+      # Remove the portName line in-place (BSD/GNU sed compatible)
+      sed -i.bak '/^portName:/d' "$TMP_BS_FILE" && rm -f "${TMP_BS_FILE}.bak"
+      gcloud compute backend-services import "$LB_API_BACKEND_SERVICE" --global --source="$TMP_BS_FILE" --quiet
+      rm -f "$TMP_BS_FILE"
+      info "  Cleared portName on API backend service: ${LB_API_BACKEND_SERVICE}"
     fi
   fi
 
