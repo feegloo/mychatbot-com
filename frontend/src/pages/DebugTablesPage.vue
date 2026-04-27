@@ -510,6 +510,19 @@ h1 {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .table-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* hide scrollbar but keep functionality */
+    scrollbar-width: none;
+  }
+  .table-tabs::-webkit-scrollbar {
+    display: none;
+  }
 }
 .table-tabs button {
   padding: 8px 16px;
@@ -619,7 +632,8 @@ h1 {
   border-radius: 8px;
 }
 table {
-  width: 100%;
+  min-width: 100%;
+  width: max-content;
   table-layout: auto;
   border-collapse: collapse;
   font-size: 0.8rem;
