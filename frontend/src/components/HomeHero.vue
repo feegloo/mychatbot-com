@@ -6,7 +6,12 @@
            homeMessages map under our control (no user input). -->
       <span v-html="t.subtitleP1Html"></span><br />
       <span v-html="t.subtitleP1bHtml"></span><br /><br />
-      <span v-html="t.subtitleP2Html"></span><br />
+      <span class="desktop-subtitle" v-html="t.subtitleP2Html"></span>
+      <span class="mobile-subtitle">
+        <span v-html="t.subtitleP2MobileLine1Html"></span><br />
+        <span v-html="t.subtitleP2MobileLine2Html"></span>
+      </span>
+      <br />
       <span class="home-subtitle-extra">{{ t.subtitleP3 }}</span>
     </p>
   </div>
@@ -49,6 +54,16 @@ const t = homeT
 @media (max-width: 768px) {
   .home-logo {
     height: 40px;
+  }
+
+  .desktop-subtitle {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-subtitle {
+    display: none;
   }
 }
 </style>

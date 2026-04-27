@@ -55,6 +55,10 @@ export interface HomeMessages {
   subtitleP1bHtml: string
   /** Third subtitle paragraph; contains <strong> for the AI Agent emphasis. */
   subtitleP2Html: string
+  /** Mobile-only: first line of the third subtitle paragraph (no synthesize speech). */
+  subtitleP2MobileLine1Html: string
+  /** Mobile-only: second line of the third subtitle paragraph (synthesize speech + share). */
+  subtitleP2MobileLine2Html: string
   /** Comma-separated capabilities line under the subtitle. */
   subtitleP3: string
   dropzoneTitle: string
@@ -76,6 +80,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'chat with files, let AI extract insights and tell you what\u2019s inside in the author\u2019s voices.',
     subtitleP2Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, synthesize speech 🔊 translate files to your language 🇵🇱🇬🇧 share answers',
+    subtitleP2MobileLine1Html:
+      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search &amp; RAG, translate files to your language 🇵🇱🇬🇧',
+    subtitleP2MobileLine2Html: 'synthesize speech 🔊 share answers',
     subtitleP3:
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
@@ -95,6 +102,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'rozmawiaj z plikami, pozwól AI wyciągnąć wnioski i opowiedzieć, co jest w środku, głosem autorów.',
     subtitleP2Html:
       'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, syntezuj mowę 🔊 tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 udostępniaj odpowiedzi',
+    subtitleP2MobileLine1Html:
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧',
+    subtitleP2MobileLine2Html: 'syntezuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
