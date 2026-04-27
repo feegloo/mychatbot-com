@@ -297,6 +297,33 @@ class TestExtractGifFrames:
         frames = _extract_gif_frames(gif, max_frames=4)
         assert len(frames) <= 4
 
+    def test_first_and_last_frame_always_included(self, tmp_path):
+        from shared.extractors import _extract_gif_frames
+
+        # 10 frames, max_frames=4 → linear indices: 0, 3, 6, 9 (last=9 ✓)
+        gif = tmp_path / "anim.gif"
+        _make_gif(gif, n_frames=10)
+        frames = _extract_gif_frames(gif, max_frames=4)
+        assert len(frames) == 4  # exactly 4 distinct indices
+
+    def test_invalid_max_frames_raises(self, tmp_path):
+        import pytest
+        from shared.extractors import _extract_gif_frames
+
+        gif = tmp_path / "anim.gif"
+        _make_gif(gif, n_frames=5)
+        with pytest.raises(ValueError, match="max_frames must be >= 2"):
+            _extract_gif_frames(gif, max_frames=1)
+
+    def test_max_frames_larger_than_gif_returns_all_frames(self, tmp_path):
+        from shared.extractors import _extract_gif_frames
+
+        gif = tmp_path / "short.gif"
+        _make_gif(gif, n_frames=3)
+        frames = _extract_gif_frames(gif, max_frames=10)
+        # Only 3 frames exist; all 3 should be returned
+        assert len(frames) == 3
+
 
 class TestDescribeGif:
     @patch("shared.extractors.get_settings")
@@ -307,7 +334,7 @@ class TestDescribeGif:
         mock_settings.return_value = MagicMock(
             openai_api_key="test",
             openai_chat_model="gpt-5.4-mini",
-            openai_reasoning_effort=None,
+            openai_reasoning_effort="low",
         )
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
@@ -332,6 +359,8 @@ class TestDescribeGif:
         assert len(image_items) >= 1
         for item in image_items:
             assert item["image_url"]["url"].startswith("data:image/png;base64,")
+        # reasoning_effort must be forwarded to the API call
+        assert call_kwargs.get("reasoning_effort") == "low"
 
     @patch("shared.extractors._describe_image")
     def test_static_gif_falls_back_to_describe_image(self, mock_describe, tmp_path):

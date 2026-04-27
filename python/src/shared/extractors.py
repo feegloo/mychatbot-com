@@ -19,7 +19,7 @@ import docx2txt
 import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
 import pandas as pd
 from openai import OpenAI
-from PIL import Image, ImageSequence
+from PIL import Image
 from pypdf import PdfReader
 
 from .config import get_settings
@@ -438,31 +438,40 @@ def _extract_gif_frames(path: Path, max_frames: int = _GIF_MAX_FRAMES) -> list[b
 
     Args:
         path: Path to the GIF file.
-        max_frames: Maximum number of frames to return. Frames are sampled
-            evenly across the full animation; the first and last frames are
-            always included. Defaults to ``_GIF_MAX_FRAMES``.
+        max_frames: Maximum number of frames to return (must be >= 2). Frames
+            are sampled via linear interpolation so the first and last frames
+            are always included and the gap between any two consecutive samples
+            is as uniform as possible. Defaults to ``_GIF_MAX_FRAMES``.
 
     Returns:
         List of PNG-encoded frame bytes, or an empty list for single-frame
         (static) GIFs so callers can fall back to the standard image path.
+
+    Raises:
+        ValueError: If ``max_frames`` is less than 2.
     """
+    if max_frames < 2:
+        raise ValueError(f"max_frames must be >= 2, got {max_frames}")
+
     with Image.open(path) as img:
-        frames = list(ImageSequence.Iterator(img))
-        if len(frames) <= 1:
+        n_frames: int = getattr(img, "n_frames", 1)
+        if n_frames <= 1:
             return []
 
-        # Build evenly-spaced indices and always include the last frame so the
-        # LLM sees the full animation cycle (e.g. 10 frames, max_frames=6 →
-        # step=1, range gives [0..5] without this fix, missing frames 6-9).
-        step = max(1, len(frames) // max_frames)
-        indices = list(range(0, len(frames), step))[:max_frames]
-        last_idx = len(frames) - 1
-        if indices[-1] != last_idx:
-            indices[-1] = last_idx
+        k = min(max_frames, n_frames)
+        # Linear interpolation gives perfectly even spacing and always
+        # includes index 0 (first) and n_frames-1 (last).
+        if k == 1:
+            indices = [0]
+        else:
+            indices = sorted(
+                {round(i * (n_frames - 1) / (k - 1)) for i in range(k)}
+            )
 
         result: list[bytes] = []
         for idx in indices:
-            frame = frames[idx].convert("RGBA")
+            img.seek(idx)
+            frame = img.copy().convert("RGBA")
             # Composite onto white background so transparent areas don't
             # look odd when the LLM inspects the PNG
             bg = Image.new("RGBA", frame.size, (255, 255, 255, 255))
@@ -529,6 +538,7 @@ def _describe_gif(path: Path, *, conversation_id: str | None = None) -> str:
         operation="vision_gif",
         conversation_id=conversation_id,
         max_completion_tokens=800,
+        reasoning_effort=settings.openai_reasoning_effort,
     )
     return text.strip()
 
