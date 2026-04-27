@@ -345,8 +345,7 @@ export function renderInlineMarkdown(content: string): string {
  * 40-char window keeps false positives low (e.g. "imagine a creative
  * scene" has no "image" token at all).
  *
- * All other phrasings (including Polish verbs like "wygeneruj obraz") are
- * intentionally NOT matched here — suggested-question prompts always append
- * 🎨, so the emoji branch covers them.
+ * Polish "wygeneruj obraz" is also matched so users can type it directly
+ * without needing the 🎨 emoji.
  */
-export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b/i
+export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b|\bwygeneruj\b[^\n]{0,40}?\bobraz\b/i

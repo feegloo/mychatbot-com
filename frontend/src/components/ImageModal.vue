@@ -128,7 +128,7 @@ defineEmits<{
   right: 0;
   padding: 14px 20px 16px;
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.4;
   text-align: center;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));

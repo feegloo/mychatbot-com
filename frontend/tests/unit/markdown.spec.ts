@@ -153,13 +153,15 @@ describe('IMAGE_GEN_REGEX', () => {
     'generate inspired image: Harry Potter: The Complete Collection - J.K. Rowling',
     'create a new image of a dragon',
     "Make another image about Rumi's desert",
+    'wygeneruj obraz inspirowany',
+    'wygeneruj obraz zachodu słońca',
+    'Wygeneruj obraz inspirowany: mroczny las',
   ])('matches image-generation request %j', (input) => {
     expect(IMAGE_GEN_REGEX.test(input)).toBe(true)
   })
 
   it.each([
     'Tell me about image processing',
-    'wygeneruj obraz zachodu słońca',
     'What is a new imaginary world?',
     'I imagine a creative scene',
     'Show me the document content',
