@@ -8,9 +8,7 @@ export type GeneratedImageRecord = {
   file_name: string
   image_title: string | null
   image_prompt: string | null
-  revised_prompt: string | null
   user_prompt: string | null
-  description: string
   source_original_names: string[]
   source_size_bytes: string[] // BIGINT comes back as string from pg
 }
@@ -26,18 +24,16 @@ export async function insertGeneratedImage(params: {
   fileName: string
   imageTitle: string | null
   imagePrompt: string | null
-  revisedPrompt: string | null
   userPrompt: string | null
-  description: string
   sourceOriginalNames: string[]
   sourceSizeBytes: number[]
 }): Promise<string> {
   const result = await query<{ id: string }>(
     `INSERT INTO generated_images
        (conversation_id, message_id, storage_namespace, file_name,
-        image_title, image_prompt, revised_prompt, user_prompt, description,
+        image_title, image_prompt, user_prompt,
         source_original_names, source_size_bytes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
      RETURNING id`,
     [
       params.conversationId,
@@ -46,9 +42,7 @@ export async function insertGeneratedImage(params: {
       params.fileName,
       params.imageTitle,
       params.imagePrompt,
-      params.revisedPrompt,
       params.userPrompt,
-      params.description,
       params.sourceOriginalNames,
       params.sourceSizeBytes,
     ],
@@ -59,7 +53,7 @@ export async function insertGeneratedImage(params: {
 export async function getGeneratedImageById(id: string) {
   const result = await query<GeneratedImageRecord>(
     `SELECT id, conversation_id, message_id, storage_namespace, file_name,
-            image_title, image_prompt, revised_prompt, user_prompt, description,
+            image_title, image_prompt, user_prompt,
             source_original_names, source_size_bytes
        FROM generated_images
       WHERE id = $1`,

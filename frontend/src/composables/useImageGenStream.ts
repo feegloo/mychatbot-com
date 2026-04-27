@@ -36,18 +36,38 @@ export async function runImageGenStream(options: {
   reactiveMsg: ChatMessage
   timeoutMs?: number
   useUserId?: boolean
+  language?: string
   referenceImageFileNames?: string[]
+  onAnnouncement?: () => void
 }): Promise<ImageGenStreamResponse> {
-  const { conversationId, question, reactiveMsg, useUserId = true, referenceImageFileNames } = options
+  const {
+    conversationId,
+    question,
+    reactiveMsg,
+    useUserId = true,
+    language,
+    referenceImageFileNames,
+    onAnnouncement,
+  } = options
   const timeoutMs = options.timeoutMs ?? 120_000
 
   reactiveMsg.generatingImage = true
   reactiveMsg.imageDetailedPrompt = undefined
 
-  announceImage(conversationId, question)
+  // Fires once when the announcement text first appears so callers can
+  // auto-scroll to keep the loading indicator visible.
+  let announcementNotified = false
+  const notifyAnnouncement = () => {
+    if (announcementNotified) return
+    announcementNotified = true
+    onAnnouncement?.()
+  }
+
+  announceImage(conversationId, question, language)
     .then(({ announcement }) => {
       if (announcement && reactiveMsg.generatingImage) {
         reactiveMsg.imageAnnouncement = announcement
+        notifyAnnouncement()
       }
     })
     .catch(() => {})
@@ -85,6 +105,7 @@ export async function runImageGenStream(options: {
         }
         if (data.image_title && !reactiveMsg.imageAnnouncement) {
           reactiveMsg.imageAnnouncement = `Generating: ${data.image_title}`
+          notifyAnnouncement()
         }
       },
       onPartial: ({ b64, index }) => {
@@ -111,7 +132,7 @@ export async function runImageGenStream(options: {
         clearTimeout(timeoutHandle)
         reject(new Error(message))
       },
-    }, referenceImageFileNames).catch((err) => {
+    }, language, referenceImageFileNames).catch((err) => {
       clearTimeout(timeoutHandle)
       reject(err)
     })

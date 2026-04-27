@@ -843,6 +843,48 @@ describe("LanguageToggle", () => {
       expect(out).toContain("[action:PL:Create diagram 📊]");
       expect(out).toContain("[action:PL:Show metadata 📄]");
     });
+
+    it("restores [action:…] markers even when the translator mangles placeholder boundaries", async () => {
+      // Regression for Arabic → English on /c/Q2HYbDz9ClmdHTkW where Google
+      // Translate stripped the leading underscores from `__MRK0_0__`-style
+      // placeholders, leaking raw `MRK0_0__` tokens into the rendered
+      // message and breaking action-button rendering. Simulate the exact
+      // class of mangling: drop the placeholder's leading boundary letter
+      // and re-flow the placeholders to the end of the text.
+      Object.defineProperty(navigator, "language", { value: "ar", configurable: true });
+      detectLanguageMock.mockResolvedValue({ language: "ar", confidence: 0.99 });
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map((t, idx) => {
+          if (idx === 0) {
+            const tokens = t.match(/XMRK\d+X\d+XEND/g) ?? [];
+            const mangled = tokens.map((tok) => tok.replace(/^X/, "")).join(" ");
+            return `English translation of the text. ${mangled}`;
+          }
+          return `EN:${t}`;
+        }),
+      }));
+
+      const msg =
+        "نص عربي طويل بما فيه الكفاية للكشف. [action:ما أهم محاور الملف؟] [action:أنشئ أسئلة مراجعة من الملف 🧠]";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: [{ role: "assistant", content: msg }] },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // ar + en (browser=ar so en is the only "other" target → toggle mode)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      const translated = wrapper.emitted("translated")![0][0] as Map<number, string>;
+      const out = translated.get(0)!;
+      // Tolerant restoration must rescue both action buttons even though
+      // the translator damaged the placeholder prefix.
+      expect(out).toContain("[action:EN:ما أهم محاور الملف؟]");
+      expect(out).toContain("[action:EN:أنشئ أسئلة مراجعة من الملف 🧠]");
+      // No raw placeholder fragments leak through to the user.
+      expect(out).not.toMatch(/MRK\d+X\d+XEND/);
+    });
   });
 
   // ── Persisted translation per conversation + message ──

@@ -17,33 +17,3 @@ body,
 body {
   font-family: 'Manrope', 'Segoe UI', sans-serif;
 }
-
-.app-shell {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  min-height: 100vh;
-}
-
-.menu-column {
-  background: var(--menu-column-bg);
-}
-
-.content-column {
-  background: var(--content-column-bg);
-  overflow: auto;
-}
-
-.content-column > * {
-  min-height: 100%;
-}
-
-@media (max-width: 768px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: 120px minmax(0, 1fr);
-  }
-
-  .menu-column {
-    min-height: 120px;
-  }
-}

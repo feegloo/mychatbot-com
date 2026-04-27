@@ -64,8 +64,9 @@ jobs:
             --port 8080 \
             --memory 16Gi \
             --cpu 8 \
-            --min-instances 2 \
-            --max-instances 4 \
+            --no-cpu-throttling \
+            --min-instances 1 \
+            --max-instances 1 \
             --timeout 300 \
             --update-env-vars "\
           NODE_ENV=production,\
@@ -83,10 +84,7 @@ jobs:
           DEBUG_PASS=${{ secrets.DEBUG_PASS }},\
           STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},\
           SENTRY_DSN=${{ secrets.SENTRY_DSN }},\
-          WORKER_MODE=cloud_run,\
-          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},\
-          PUBSUB_TOPIC=chatrag-indexing,\
-          PUBSUB_SUBSCRIPTION=chatrag-indexing-sub"
+          WORKER_MODE=inline"
 
       - name: Get service URL
         run: |

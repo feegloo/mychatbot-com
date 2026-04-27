@@ -35,7 +35,7 @@ async def test_stream_endpoint_skips_pdf_auto_refs_without_explicit_selection(mo
     def fake_streaming(**kwargs):
         captured['reference_image_paths'] = kwargs.get('reference_image_paths')
         yield {'type': 'partial', 'b64': 'ZmFrZQ==', 'index': 0}
-        yield {'type': 'completed', 'file_name': 'generated-test.png', 'revised_prompt': 'prompt from llm'}
+        yield {'type': 'completed', 'file_name': 'generated-test.png'}
 
     monkeypatch.setattr(server, 'generate_image_streaming', fake_streaming)
 

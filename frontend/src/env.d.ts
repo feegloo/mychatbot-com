@@ -6,3 +6,14 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>
   export default component
 }
+
+declare module '@tinymomentum/liquid-glass-vue' {
+  import type { DefineComponent, Plugin } from 'vue'
+
+  export const LiquidGlassContainer: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+  export const LiquidGlassButton: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+  export const LiquidGlassLink: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
+
+  const plugin: Plugin
+  export default plugin
+}

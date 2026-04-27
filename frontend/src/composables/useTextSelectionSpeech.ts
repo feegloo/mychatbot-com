@@ -470,11 +470,13 @@ export function useTextSelectionSpeech(
     const colors = getLanguageColors(currentLanguage?.value || '')
     if (!captionHighlightEl) captionHighlightEl = ensureHighlightEl(null)
     if (!captionGhostEl) captionGhostEl = ensureGhostEl(null)
-    const singleWordMatched: MatchedCaption[] = [{
-      caption: { word: translatedText.trim(), start: 0, end: 9999 },
-      range,
-      ghostWord: translatedText.trim(),
-    }]
+    const singleWordMatched: MatchedCaption[] = [
+      {
+        caption: { word: translatedText.trim(), start: 0, end: 9999 },
+        range,
+        ghostWord: translatedText.trim(),
+      },
+    ]
     renderCaptionVisuals(0, singleWordMatched, captionHighlightEl, captionGhostEl, colors)
   }
 
@@ -640,11 +642,14 @@ export function useTextSelectionSpeech(
   function onMouseDown(e: MouseEvent) {
     // If clicking on the tooltip itself, don't hide
     if (tooltip && tooltip.contains(e.target as Node)) return
-    // Don't hide while loading or playing
-    if (isLoading || isPlaying) return
-    // Don't hide tooltip when pinned — onClickWord will handle toggling
-    if (!isPinned) hideTooltip()
+    // Always track down-position so click-vs-drag detection works while audio is playing.
     mouseDownPos = { x: e.clientX, y: e.clientY }
+
+    // Keep current playback/loader tooltip visible.
+    if (isLoading || isPlaying) return
+
+    // Don't hide tooltip when pinned — onClickWord will handle toggling.
+    if (!isPinned) hideTooltip()
   }
 
   function unpinWord() {

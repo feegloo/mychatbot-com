@@ -42,14 +42,11 @@ async function findFileInDir(dir: string, targetName: string): Promise<string | 
 
 /**
  * GET /storage/:conversationId/:fileName/url
- * Returns a direct URL the browser can load the file from without a cross-origin
- * redirect. For GCS-backed deployments this is a short-lived signed URL served
- * from storage.googleapis.com; for local storage it's the same-origin proxy URL.
+ * Returns a stable same-origin storage URL for browser previews.
  *
- * This exists so PDF `<object>`/`<iframe>` embeds can point directly at the
- * final origin and avoid Chrome's "Unsafe attempt to load URL ... from frame"
- * warning that appears when the frame redirects from same-origin to GCS with a
- * `#page=...` fragment.
+ * We intentionally avoid returning signed storage.googleapis.com links here,
+ * so clients can consistently embed `/api/storage/:conversationId/:fileName`
+ * for both PDFs and images.
  */
 storageRouter.get('/storage/:conversationId/:fileName/url', async (ctx) => {
   const { conversationId } = ctx.params
@@ -62,23 +59,6 @@ storageRouter.get('/storage/:conversationId/:fileName/url', async (ctx) => {
   }
 
   const safeName = path.basename(fileName)
-  const namespace = await getStorageNamespace(conversationId)
-
-  if (config.storageProvider === 'gcs' && config.gcsBucket) {
-    // Prefer DB-stored name (original upload may have been renamed with a suffix)
-    const storedName = await findStoredName(namespace, safeName)
-    const gcsKey = `${namespace}/${storedName ?? safeName}`
-    const ext = path.extname(safeName).toLowerCase()
-    const contentType = ext === '.pdf' ? 'application/pdf' : undefined
-    try {
-      const signedUrl = await generateSignedReadUrl(gcsKey, contentType)
-      ctx.body = { url: signedUrl }
-      return
-    } catch {
-      // Fall through to same-origin URL below
-    }
-  }
-
   ctx.body = {
     url: `/api/storage/${conversationId}/${encodeURIComponent(safeName)}`,
   }
@@ -142,7 +122,9 @@ storageRouter.get('/storage/:conversationId/:fileName', async (ctx) => {
   let resolvedOnDisk: { filePath: string; size: number } | null
   let resolvedStoredName: string | null = null
 
-  async function resolveOnDisk(candidatePath: string): Promise<{ filePath: string; size: number } | null> {
+  async function resolveOnDisk(
+    candidatePath: string,
+  ): Promise<{ filePath: string; size: number } | null> {
     const resolved = path.resolve(candidatePath)
     if (!resolved.startsWith(path.resolve(config.storageRoot))) {
       return null

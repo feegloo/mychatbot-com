@@ -89,7 +89,9 @@ def _get_openai_client() -> OpenAI:
     if _openai_client is not None:
         return _openai_client
     settings = get_settings()
-    _openai_client = OpenAI(api_key=settings.openai_api_key)
+    # Explicit timeout prevents a stalled embedding call from hanging the
+    # indexing pipeline indefinitely (default SDK timeout is 600 s = 10 min).
+    _openai_client = OpenAI(api_key=settings.openai_api_key, timeout=120.0)
     return _openai_client
 
 

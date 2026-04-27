@@ -117,3 +117,65 @@ describe('ChatMessage', () => {
     expect(document.body.textContent).toContain('Cited text')
   })
 })
+
+describe('ChatMessage — image citations deduplication', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  function makeMsg(id: string, imageNames: string[]) {
+    return {
+      id,
+      role: 'assistant' as const,
+      content: 'Answer.',
+      citations: imageNames.map((name, idx) => ({
+        fileName: 'doc.pdf',
+        chunkId: `c${idx}`,
+        text: 'chunk',
+        section: `Image (page ${idx + 1})`,
+        page: idx + 1,
+        imageName: name,
+      })),
+    }
+  }
+
+  it('shows all images when there are no previous messages', async () => {
+    const msg = makeMsg('m1', ['img1.png', 'img2.png'])
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: { ...baseProps(), msg, allMessages: [msg] },
+    })
+    await nextTick()
+    expect(wrapper.findAll('.citation-image-thumb').length).toBe(2)
+  })
+
+  it('hides images already shown in an earlier message', async () => {
+    const prev = makeMsg('m1', ['img1.png', 'img2.png'])
+    const curr = makeMsg('m2', ['img1.png', 'img3.png'])
+    const allMessages = [prev, curr]
+
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: { ...baseProps(), msg: curr, allMessages },
+    })
+    await nextTick()
+
+    // img1.png was in prev — only img3.png should be shown
+    const thumbs = wrapper.findAll('.citation-image-thumb')
+    expect(thumbs.length).toBe(1)
+    expect(thumbs[0].find('.citation-image-label').text()).toContain('Image (page 2)')
+  })
+
+  it('shows no thumbnails when all images appeared in earlier messages', async () => {
+    const prev = makeMsg('m1', ['img1.png', 'img2.png'])
+    const curr = makeMsg('m2', ['img1.png', 'img2.png'])
+
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: { ...baseProps(), msg: curr, allMessages: [prev, curr] },
+    })
+    await nextTick()
+    expect(wrapper.findAll('.citation-image-thumb').length).toBe(0)
+  })
+})
+

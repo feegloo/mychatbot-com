@@ -143,6 +143,28 @@ def _render_pdf_cover_png(pdf_path: Path) -> Path | None:
         return None
 
 
+def _normalize_reference_image_for_edit(path: Path) -> Path | None:
+    """Re-encode reference images to a stable PNG accepted by edit endpoint.
+
+    Some camera/library outputs (mode/profile/container quirks) are valid files
+    but still rejected by OpenAI edits. Normalizing to RGB/RGBA PNG avoids most
+    of those mode/container mismatches.
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(path) as img:
+            has_alpha = "A" in img.getbands()
+            target_mode = "RGBA" if has_alpha else "RGB"
+            normalized = img.convert(target_mode)
+            out_path = path.with_suffix(path.suffix + ".edit-ready.png")
+            normalized.save(out_path, format="PNG", optimize=True)
+            return out_path
+    except Exception as exc:
+        logger.warning(f"⚠️ Failed to normalize reference image {path.name}: {exc}")
+        return None
+
+
 def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
     """Normalize and validate reference image paths for the edit endpoint.
 
@@ -171,7 +193,10 @@ def _validate_reference_paths(paths: list[str] | None) -> list[Path]:
                 f"⚠️ Unsupported reference image mime '{mime}' for {p.name}, skipping"
             )
             continue
-        resolved.append(p)
+        normalized = _normalize_reference_image_for_edit(p)
+        if normalized is None:
+            continue
+        resolved.append(normalized)
     return resolved
 
 
@@ -237,7 +262,7 @@ def generate_image(
             ``MAX_REFERENCE_IMAGES``.
 
     Returns:
-        dict with 'file_name' (saved filename) and 'revised_prompt' (DALL-E's prompt).
+        dict with 'file_name' (saved filename).
     """
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
@@ -299,7 +324,6 @@ def generate_image(
             result = _call(retry_prompt)
 
     image_data = result.data[0]
-    revised_prompt = getattr(image_data, "revised_prompt", prompt)
 
     # gpt-image-1 returns b64_json by default; dall-e-3 returns a URL
     image_url = getattr(image_data, "url", None)
@@ -325,7 +349,6 @@ def generate_image(
 
     return {
         "file_name": file_name,
-        "revised_prompt": revised_prompt,
     }
 
 
@@ -354,7 +377,7 @@ def generate_image_streaming(
 
     Yields dicts of shape:
       {"type": "partial", "b64": "...", "index": 0|1|...}
-      {"type": "completed", "file_name": "...", "revised_prompt": "..."}
+      {"type": "completed", "file_name": "..."}
 
     Any exception during streaming falls through to the caller so the
     endpoint can emit an "error" event.
@@ -383,9 +406,8 @@ def generate_image_streaming(
     _ext = "jpg" if output_format == "jpeg" else output_format
     _compression_kwarg = {} if output_format == "png" else {"output_compression": output_compression}
 
-    def _yield_stream(events, default_prompt: str):
+    def _yield_stream(events):
         final_b64: str | None = None
-        revised_prompt = default_prompt
         for event in events:
             ev_type = getattr(event, "type", "")
             if ev_type.endswith("partial_image"):
@@ -395,7 +417,6 @@ def generate_image_streaming(
                     yield {"type": "partial", "b64": b64, "index": idx}
             elif ev_type.endswith("completed"):
                 final_b64 = getattr(event, "b64_json", None)
-                revised_prompt = getattr(event, "revised_prompt", default_prompt) or default_prompt
 
         if not final_b64:
             raise ValueError("OpenAI streaming image response contained no final frame")
@@ -410,7 +431,6 @@ def generate_image_streaming(
         yield {
             "type": "completed",
             "file_name": file_name,
-            "revised_prompt": revised_prompt,
         }
 
     tracer = get_tracer("chatrag.image_gen")
@@ -441,7 +461,7 @@ def generate_image_streaming(
                         stream=True,
                         partial_images=partial_images,
                     )
-                    for item in _yield_stream(events, prompt):
+                    for item in _yield_stream(events):
                         logger.debug(f"📸 Streaming edit event: {item.get('type')}")
                         yield item
                 return
@@ -479,7 +499,7 @@ def generate_image_streaming(
 
         try:
             events = _stream_generate(prompt)
-            for item in _yield_stream(events, prompt):
+            for item in _yield_stream(events):
                 yield item
         except Exception as exc:
             retry_prompt = _emphasize_inspired(prompt)
@@ -488,7 +508,7 @@ def generate_image_streaming(
                 f"retrying once with 'inspired' emphasis"
             )
             events = _stream_generate(retry_prompt)
-            for item in _yield_stream(events, retry_prompt):
+            for item in _yield_stream(events):
                 yield item
 
 
@@ -540,6 +560,8 @@ def build_image_announcement(
     question: str,
     welcome_messages: list[str] | None = None,
     chat_history: list[dict] | None = None,
+    conversation_language_code: str | None = None,
+    conversation_language_name: str | None = None,
 ) -> str:
     """Produce a short one-sentence teaser shown to the user while the
     image is being generated.
@@ -554,6 +576,13 @@ def build_image_announcement(
     settings = get_settings()
     client = OpenAI(api_key=settings.openai_api_key)
 
+    language_line = (
+        f"Conversation language: {conversation_language_name}"
+        + (f" (code: {conversation_language_code})" if conversation_language_code else "")
+        if conversation_language_name
+        else "Conversation language: not specified"
+    )
+
     system = (
         "You announce, in a single sentence, the image you are about to "
         "generate for the user. Start with 'Generating an image inspired "
@@ -561,7 +590,10 @@ def build_image_announcement(
         "follow it with a vivid, specific description of the creative "
         "angle — style, mood, key visual elements. Do not ask questions, "
         "do not offer options, do not mention that you are an AI. Keep it "
-        "under 40 words. Output ONLY the sentence, no quotes, no prefix."
+        "under 40 words. Output ONLY the sentence, no quotes, no prefix.\n\n"
+        "LANGUAGE PRIORITY:\n"
+        f"{language_line}\n"
+        "Use the conversation language above for the output sentence."
     )
 
     user_content = f"User request: {question}\n"
@@ -597,6 +629,8 @@ def build_image_prompt(
     welcome_messages: list[str] | None = None,
     rag_chunks: list[dict] | None = None,
     chat_history: list[dict] | None = None,
+    conversation_language_code: str | None = None,
+    conversation_language_name: str | None = None,
 ) -> dict:
     """Build a DALL-E prompt, title, and source references from the user's question and context.
 
@@ -610,6 +644,12 @@ def build_image_prompt(
     client = OpenAI(api_key=settings.openai_api_key)
     aspect = infer_prompt_aspect(question)
     aspect_framing_instruction = build_aspect_framing_instruction(aspect)
+    language_line = (
+        f"Conversation language: {conversation_language_name}"
+        + (f" (code: {conversation_language_code})" if conversation_language_code else "")
+        if conversation_language_name
+        else "Conversation language: not specified"
+    )
 
     system = (
         "You are an expert prompt engineer for gpt-image-2, an AI image generation model. "
@@ -680,7 +720,9 @@ def build_image_prompt(
         "An evocative title reflecting the specific creative angle — NOT a generic description. "
         "Write in the SAME LANGUAGE AND SCRIPT as the user's request and document sources "
         "(Arabic → Arabic script, Polish → Polish, Chinese → Chinese). Use English only when "
-        "source material is in English.\n\n"
+        "source material is in English.\n"
+        "CRITICAL: the title MUST be generated in the conversation language provided below.\n"
+        f"{language_line}\n\n"
         "─────────────────────────────────────────────\n"
         "OUTPUT 3 — SOURCE INDICES\n"
         "─────────────────────────────────────────────\n"
@@ -692,6 +734,7 @@ def build_image_prompt(
     creative_seed = _random_creative_seed()
     user_content = (
         f"User request: {question}\n"
+        f"{language_line}\n"
         f"Requested frame handling: {aspect_framing_instruction}\n\n"
         f"{creative_seed}\n"
     )

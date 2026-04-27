@@ -342,6 +342,16 @@ _VISION_OCR_FIRST_PROMPT = (
     "5) If both text and visual context matter, output the exact text first, then one short factual visual note."
 )
 
+_VISION_STANDALONE_IMAGE_PROMPT = (
+    "You are an OCR-plus-visual analysis engine for standalone image uploads.\n"
+    "Priority rules:\n"
+    "1) If meaningful visible text exists, transcribe it exactly in the original language/script.\n"
+    "2) Even when text exists, ALWAYS add a concise factual visual description after transcription.\n"
+    "3) If people are visible, describe visible appearance only: count, clothing, pose/activity, facial expression, and immediate scene context.\n"
+    "4) Do not identify people by name and do not infer sensitive traits (ethnicity, religion, health, sexuality, political views).\n"
+    "5) Keep it concrete and neutral; avoid speculation and marketing-style wording."
+)
+
 
 def _vision_extract_or_describe(
     image_bytes: bytes,
@@ -350,6 +360,7 @@ def _vision_extract_or_describe(
     max_completion_tokens: int = 1200,
     detail: str = "auto",
     conversation_id: str | None = None,
+    system_prompt: str | None = None,
 ) -> str:
     """Extract OCR text first, otherwise describe visual content."""
     settings = get_settings()
@@ -361,7 +372,7 @@ def _vision_extract_or_describe(
     messages = [
         {
             "role": "system",
-            "content": _VISION_OCR_FIRST_PROMPT,
+            "content": system_prompt or _VISION_OCR_FIRST_PROMPT,
         },
         {
             "role": "user",
@@ -390,14 +401,17 @@ def _describe_image(
     mime_type: str = "image/png",
     *,
     conversation_id: str | None = None,
+    include_people_appearance: bool = False,
 ) -> str:
     """Describe/extract text from an image using OCR-first vision."""
+    prompt = _VISION_STANDALONE_IMAGE_PROMPT if include_people_appearance else _VISION_OCR_FIRST_PROMPT
     return _vision_extract_or_describe(
         image_bytes,
         mime_type=mime_type,
         max_completion_tokens=1200,
         detail="auto",
         conversation_id=conversation_id,
+        system_prompt=prompt,
     )
 
 
@@ -727,7 +741,10 @@ def extract_image(path: Path, *, conversation_id: str | None = None) -> str:
     mime = _MIME_TYPES.get(path.suffix.lower(), "image/png")
     try:
         description = _describe_image(
-            image_bytes, mime_type=mime, conversation_id=conversation_id
+            image_bytes,
+            mime_type=mime,
+            conversation_id=conversation_id,
+            include_people_appearance=True,
         )
         logger.info(f"\U0001f5bc\ufe0f  Described image {path.name}: {description[:80]}...")
         return _sanitize_text(description)

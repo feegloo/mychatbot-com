@@ -1,4 +1,5 @@
 import type jsPDF from 'jspdf'
+import { getConversationToken } from '../api'
 import { ensureFontsLoaded, registerFonts, PDF_FONT } from './pdfFonts'
 
 /**
@@ -173,30 +174,327 @@ async function renderMermaidToPng(
   }
 }
 
-/**
- * Generates a PDF from raw markdown content using native jsPDF text rendering.
- * No html2canvas / DOM screenshot — instant, no blink, clean vector text output.
- */
-export async function printContentAsPdf(markdown: string, title: string) {
-  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  registerFonts(doc)
+type PdfPrintOptions = {
+  conversationId?: string
+}
+
+type ExportableAssistantMessage = {
+  content: string
+}
+
+type InlineStyle = 'normal' | 'bold' | 'italic' | 'bolditalic'
+type InlineToken = {
+  text: string
+  style: InlineStyle
+  isCode?: boolean
+  isStrike?: boolean
+  isLink?: boolean
+}
+
+type PdfLayout = {
+  pageWidth: number
+  pageHeight: number
+  marginLeft: number
+  marginRight: number
+  marginBottom: number
+  contentWidth: number
+}
+
+type YRef = { y: number }
+
+function createLayout(doc: jsPDF): PdfLayout {
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const marginLeft = 20
   const marginRight = 20
   const marginBottom = 20
-  const contentWidth = pageWidth - marginLeft - marginRight
-  let y = 20
+  return {
+    pageWidth,
+    pageHeight,
+    marginLeft,
+    marginRight,
+    marginBottom,
+    contentWidth: pageWidth - marginLeft - marginRight,
+  }
+}
 
-  const checkNewPage = (needed: number) => {
-    if (y + needed > pageHeight - marginBottom) {
-      doc.addPage()
-      y = 20
+function ensureNewPage(doc: jsPDF, yRef: YRef, layout: PdfLayout, needed: number) {
+  if (yRef.y + needed > layout.pageHeight - layout.marginBottom) {
+    doc.addPage()
+    yRef.y = 20
+  }
+}
+
+function combineInlineStyle(base: InlineStyle, token: InlineStyle): InlineStyle {
+  if (token === 'normal') return base
+  if (token === 'bolditalic') return 'bolditalic'
+  if (token === 'bold') {
+    return base === 'italic' || base === 'bolditalic' ? 'bolditalic' : 'bold'
+  }
+  if (token === 'italic') {
+    return base === 'bold' || base === 'bolditalic' ? 'bolditalic' : 'italic'
+  }
+  return base
+}
+
+function parseInlineTokens(text: string): InlineToken[] {
+  const tokens: InlineToken[] = []
+  const re =
+    /(\[([^\]]+)\]\(([^)]+)\)|\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_|~~([^~]+)~~|`([^`]+)`)/g
+  let cursor = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > cursor) {
+      tokens.push({ text: text.slice(cursor, match.index), style: 'normal' })
+    }
+    if (match[2]) tokens.push({ text: match[2], style: 'normal', isLink: true })
+    else if (match[4]) tokens.push({ text: match[4], style: 'bolditalic' })
+    else if (match[5] || match[6]) tokens.push({ text: match[5] || match[6], style: 'bold' })
+    else if (match[7] || match[8]) tokens.push({ text: match[7] || match[8], style: 'italic' })
+    else if (match[9]) tokens.push({ text: match[9], style: 'normal', isStrike: true })
+    else if (match[10]) tokens.push({ text: match[10], style: 'normal', isCode: true })
+    cursor = re.lastIndex
+  }
+  if (cursor < text.length) {
+    tokens.push({ text: text.slice(cursor), style: 'normal' })
+  }
+  return tokens.filter((t) => t.text.length > 0)
+}
+
+type WrappedPiece = InlineToken & { width: number }
+
+function splitTokenPieces(token: InlineToken): InlineToken[] {
+  return token.text.split(/(\s+)/).map((part) => ({ ...token, text: part }))
+}
+
+function measurePiece(doc: jsPDF, piece: InlineToken, fontSize: number, baseStyle: InlineStyle): number {
+  doc.setFont(PDF_FONT, combineInlineStyle(baseStyle, piece.style))
+  doc.setFontSize(fontSize)
+  return doc.getTextWidth(piece.text)
+}
+
+function splitLongPiece(
+  doc: jsPDF,
+  piece: InlineToken,
+  fontSize: number,
+  baseStyle: InlineStyle,
+  maxWidth: number,
+): WrappedPiece[] {
+  const chars = [...piece.text]
+  const out: WrappedPiece[] = []
+  let buf = ''
+  for (const ch of chars) {
+    const candidate = buf + ch
+    const candidateWidth = measurePiece(doc, { ...piece, text: candidate }, fontSize, baseStyle)
+    if (buf && candidateWidth > maxWidth) {
+      out.push({ ...piece, text: buf, width: measurePiece(doc, { ...piece, text: buf }, fontSize, baseStyle) })
+      buf = ch
+    } else {
+      buf = candidate
     }
   }
+  if (buf) {
+    out.push({ ...piece, text: buf, width: measurePiece(doc, { ...piece, text: buf }, fontSize, baseStyle) })
+  }
+  return out
+}
 
-  // Extract and render mermaid blocks
+function wrapInlineTokens(
+  doc: jsPDF,
+  tokens: InlineToken[],
+  maxWidth: number,
+  fontSize: number,
+  baseStyle: InlineStyle,
+): WrappedPiece[][] {
+  const lines: WrappedPiece[][] = []
+  let current: WrappedPiece[] = []
+  let width = 0
+
+  const pushLine = () => {
+    if (current.length === 0) return
+    lines.push(current)
+    current = []
+    width = 0
+  }
+
+  for (const token of tokens) {
+    const pieces = splitTokenPieces(token)
+    for (const piece of pieces) {
+      if (!piece.text) continue
+      let pieceWidth = measurePiece(doc, piece, fontSize, baseStyle)
+      if (piece.text.trim().length === 0 && current.length === 0) continue
+
+      if (pieceWidth > maxWidth) {
+        const chunks = splitLongPiece(doc, piece, fontSize, baseStyle, maxWidth)
+        for (const chunk of chunks) {
+          if (width + chunk.width > maxWidth && current.length > 0) pushLine()
+          current.push(chunk)
+          width += chunk.width
+          if (width >= maxWidth - 0.1) pushLine()
+        }
+        continue
+      }
+
+      if (width + pieceWidth > maxWidth && current.length > 0) pushLine()
+      if (piece.text.trim().length === 0 && current.length === 0) continue
+
+      current.push({ ...piece, width: pieceWidth })
+      width += pieceWidth
+    }
+  }
+  pushLine()
+  return lines.length ? lines : [[{ text: '', style: baseStyle, width: 0 }]]
+}
+
+function drawWrappedLine(
+  doc: jsPDF,
+  line: WrappedPiece[],
+  x: number,
+  y: number,
+  fontSize: number,
+  baseStyle: InlineStyle,
+) {
+  let cx = x
+  for (const piece of line) {
+    const style = combineInlineStyle(baseStyle, piece.style)
+    doc.setFont(PDF_FONT, style)
+    doc.setFontSize(fontSize)
+
+    if (piece.isCode && piece.text.trim()) {
+      doc.setFillColor(245, 245, 245)
+      doc.setDrawColor(230, 230, 230)
+      doc.roundedRect(cx - 0.8, y - fontSize * 0.33, piece.width + 1.6, fontSize * 0.55, 0.6, 0.6, 'FD')
+    }
+
+    if (piece.isLink) doc.setTextColor(70, 130, 220)
+    else doc.setTextColor(0, 0, 0)
+
+    doc.text(piece.text, cx, y)
+
+    if (piece.isStrike && piece.text.trim()) {
+      doc.setDrawColor(100, 100, 100)
+      doc.setLineWidth(0.2)
+      doc.line(cx, y - fontSize * 0.2, cx + piece.width, y - fontSize * 0.2)
+    }
+    if (piece.isLink && piece.text.trim()) {
+      doc.setDrawColor(70, 130, 220)
+      doc.setLineWidth(0.2)
+      doc.line(cx, y + 0.4, cx + piece.width, y + 0.4)
+    }
+
+    cx += piece.width
+  }
+}
+
+function renderInlineWrappedText(
+  doc: jsPDF,
+  rawText: string,
+  x: number,
+  yRef: YRef,
+  maxWidth: number,
+  layout: PdfLayout,
+  opts: { fontSize: number; lineHeight: number; baseStyle: InlineStyle },
+) {
+  const tokens = parseInlineTokens(rawText)
+  const lines = wrapInlineTokens(doc, tokens, maxWidth, opts.fontSize, opts.baseStyle)
+  for (const line of lines) {
+    ensureNewPage(doc, yRef, layout, opts.lineHeight + 1)
+    drawWrappedLine(doc, line, x, yRef.y, opts.fontSize, opts.baseStyle)
+    yRef.y += opts.lineHeight
+  }
+}
+
+function replaceInlineImagesWithAlt(text: string): string {
+  return text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string) => `${alt || 'image'} [image]`)
+}
+
+function parseMarkdownImageTarget(rawTarget: string): { alt: string; url: string } | null {
+  const match = rawTarget.match(/^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/)
+  if (!match) return null
+  const alt = (match[1] || '').trim()
+  const target = (match[2] || '').trim()
+  if (!target) return null
+  const url = target.startsWith('<')
+    ? (target.slice(1, target.indexOf('>') > 0 ? target.indexOf('>') : target.length - 1).trim() || target)
+    : target.split(/\s+/)[0]
+  if (!url) return null
+  return { alt, url }
+}
+
+function toDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('Failed to read image blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+function loadImageDimensions(dataUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth || img.width, height: img.naturalHeight || img.height })
+    img.onerror = () => reject(new Error('Failed to load image dimensions'))
+    img.src = dataUrl
+  })
+}
+
+function normalizeImageUrl(url: string): string {
+  if (/^data:/i.test(url)) return url
+  if (/^https?:\/\//i.test(url)) return url
+  if (/^blob:/i.test(url)) return url
+  return new URL(url, window.location.origin).toString()
+}
+
+async function loadMarkdownImage(
+  imageUrl: string,
+  options?: PdfPrintOptions,
+): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' | 'WEBP'; width: number; height: number } | null> {
+  try {
+    const normalized = normalizeImageUrl(imageUrl)
+    if (/^data:/i.test(normalized)) {
+      const dims = await loadImageDimensions(normalized)
+      const fmt = normalized.includes('image/png')
+        ? 'PNG'
+        : normalized.includes('image/webp')
+          ? 'WEBP'
+          : 'JPEG'
+      return { dataUrl: normalized, format: fmt, ...dims }
+    }
+
+    const headers: Record<string, string> = {}
+    if (options?.conversationId) {
+      const token = getConversationToken(options.conversationId)
+      if (token) headers['x-conversation-token'] = token
+    }
+
+    const res = await fetch(normalized, {
+      credentials: 'include',
+      headers,
+    })
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
+    const blob = await res.blob()
+    const dataUrl = await toDataUrl(blob)
+    const dims = await loadImageDimensions(dataUrl)
+    const mime = (blob.type || '').toLowerCase()
+    const format = mime.includes('png') ? 'PNG' : mime.includes('webp') ? 'WEBP' : 'JPEG'
+    return { dataUrl, format, ...dims }
+  } catch (err) {
+    console.warn('Failed to load markdown image for PDF:', err)
+    return null
+  }
+}
+
+async function renderMarkdownBlock(
+  doc: jsPDF,
+  markdown: string,
+  layout: PdfLayout,
+  yRef: YRef,
+  options?: PdfPrintOptions,
+) {
+  // Extract and render mermaid blocks.
   const mermaidBlockRe = /```mermaid\s*\n([\s\S]*?)```/g
   const mermaidCodes: string[] = []
   let mermaidMatch: RegExpExecArray | null
@@ -204,21 +502,18 @@ export async function printContentAsPdf(markdown: string, title: string) {
     mermaidCodes.push(mermaidMatch[1].trim())
   }
   const mermaidImages = await Promise.all(
-    mermaidCodes.map((code) => renderMermaidToPng(code, contentWidth)),
+    mermaidCodes.map((code) => renderMermaidToPng(code, layout.contentWidth)),
   )
 
-  // Replace mermaid blocks with indexed placeholders
-  let placeholderIdx = 0
-  const withPlaceholders = markdown.replace(/```mermaid\s*\n[\s\S]*?```/g, () => {
-    return `[MERMAID_DIAGRAM_${placeholderIdx++}]`
+  let mermaidPlaceholderIdx = 0
+  const withMermaidPlaceholders = markdown.replace(/```mermaid\s*\n[\s\S]*?```/g, () => {
+    return `[MERMAID_DIAGRAM_${mermaidPlaceholderIdx++}]`
   })
 
-  // Strip source citations and action markers
-  const cleaned = withPlaceholders
+  const cleaned = withMermaidPlaceholders
     .replace(/\[source:\s*\d+(?:,\s*\d+)*\]/g, '')
     .replace(/\[action:\s*[^\]]+\]/g, '')
 
-  // Extract [poem]...[/poem] blocks into placeholders
   const poemBlocks: string[][] = []
   let poemIdx = 0
   const withPoemPlaceholders = cleaned.replace(
@@ -227,7 +522,7 @@ export async function printContentAsPdf(markdown: string, title: string) {
       const pLines = body
         .trim()
         .split('\n')
-        .map((l: string) => stripInlineFormatting(l.trim()))
+        .map((line: string) => stripInlineFormatting(line.trim()))
         .filter(Boolean)
       poemBlocks.push(pLines)
       return `[POEM_BLOCK_${poemIdx++}]`
@@ -241,69 +536,56 @@ export async function printContentAsPdf(markdown: string, title: string) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // --- Code blocks ---
     if (line.trimStart().startsWith('```')) {
-      if (!inCodeBlock) {
-        inCodeBlock = true
-        i++
-        continue
-      } else {
-        inCodeBlock = false
-        y += 2
-        i++
-        continue
-      }
+      inCodeBlock = !inCodeBlock
+      if (!inCodeBlock) yRef.y += 2
+      i++
+      continue
     }
 
     if (inCodeBlock) {
-      checkNewPage(5)
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(9)
-      doc.setTextColor(60, 60, 60)
-      const codeLines = doc.splitTextToSize(line || ' ', contentWidth - 8)
-      // Draw code background
+      const codeLines = doc.splitTextToSize(line || ' ', layout.contentWidth - 8)
       const blockH = codeLines.length * 4 + 2
-      checkNewPage(blockH)
+      ensureNewPage(doc, yRef, layout, blockH)
+      doc.setTextColor(60, 60, 60)
       doc.setFillColor(245, 245, 245)
       doc.setDrawColor(220, 220, 220)
-      doc.roundedRect(marginLeft, y - 3, contentWidth, blockH, 1, 1, 'FD')
-      doc.text(codeLines, marginLeft + 4, y)
-      y += blockH + 1
+      doc.roundedRect(layout.marginLeft, yRef.y - 3, layout.contentWidth, blockH, 1, 1, 'FD')
+      doc.text(codeLines, layout.marginLeft + 4, yRef.y)
+      yRef.y += blockH + 1
       i++
       continue
     }
 
-    // --- Blank lines ---
     if (line.trim() === '') {
-      y += 3
+      yRef.y += 3
       i++
       continue
     }
 
-    // --- Mermaid diagram placeholder ---
     const mermaidPlaceholder = line.trim().match(/^\[MERMAID_DIAGRAM_(\d+)\]$/)
     if (mermaidPlaceholder) {
       const idx = parseInt(mermaidPlaceholder[1], 10)
       const img = mermaidImages[idx]
       if (img) {
-        checkNewPage(img.height + 4)
-        const imgX = marginLeft + (contentWidth - img.width) / 2 // center
-        doc.addImage(img.dataUrl, 'PNG', imgX, y, img.width, img.height)
-        y += img.height + 4
+        ensureNewPage(doc, yRef, layout, img.height + 4)
+        const imgX = layout.marginLeft + (layout.contentWidth - img.width) / 2
+        doc.addImage(img.dataUrl, 'PNG', imgX, yRef.y, img.width, img.height)
+        yRef.y += img.height + 4
       } else {
-        // Fallback if rendering failed
-        checkNewPage(6)
+        ensureNewPage(doc, yRef, layout, 6)
         doc.setFont(PDF_FONT, 'italic')
         doc.setFontSize(10)
         doc.setTextColor(120, 120, 120)
-        doc.text('[Diagram could not be rendered]', marginLeft, y)
-        y += 6
+        doc.text('[Diagram could not be rendered]', layout.marginLeft, yRef.y)
+        yRef.y += 6
       }
       i++
       continue
     }
 
-    // --- Poem block placeholder ---
     const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)
     if (poemPlaceholder) {
       const idx = parseInt(poemPlaceholder[1], 10)
@@ -312,166 +594,186 @@ export async function printContentAsPdf(markdown: string, title: string) {
       const quoteMarkH = 8
       const padding = 6
       const blockH = quoteMarkH + pLines.length * lineH + quoteMarkH + padding * 2
-      checkNewPage(blockH)
+      ensureNewPage(doc, yRef, layout, blockH)
 
-      // Background box (soft purple tint, like the Vue component)
       doc.setFillColor(248, 245, 255)
       doc.setDrawColor(210, 195, 250)
-      doc.roundedRect(marginLeft, y - 2, contentWidth, blockH, 3, 3, 'FD')
+      doc.roundedRect(layout.marginLeft, yRef.y - 2, layout.contentWidth, blockH, 3, 3, 'FD')
 
-      // Opening quote mark "\u201C"
-      y += padding + 5
+      yRef.y += padding + 5
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(32)
       doc.setTextColor(167, 139, 250)
-      doc.text('\u201C', marginLeft + contentWidth / 2, y, { align: 'center' })
-      y += quoteMarkH
+      doc.text('\u201C', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+      yRef.y += quoteMarkH
 
-      // Poem lines (centered, italic)
       doc.setFont(PDF_FONT, 'italic')
       doc.setFontSize(11)
       doc.setTextColor(80, 80, 80)
       for (const pLine of pLines) {
-        doc.text(pLine, marginLeft + contentWidth / 2, y, { align: 'center' })
-        y += lineH
+        doc.text(pLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+        yRef.y += lineH
       }
 
-      // Closing quote mark "\u201D"
-      y += 2
+      yRef.y += 2
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(32)
       doc.setTextColor(167, 139, 250)
-      doc.text('\u201D', marginLeft + contentWidth / 2, y, { align: 'center' })
-      y += quoteMarkH + padding
-
+      doc.text('\u201D', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+      yRef.y += quoteMarkH + padding
       i++
       continue
     }
 
-    // --- Horizontal rule ---
     if (/^(\s*[-*_]){3,}\s*$/.test(line)) {
-      checkNewPage(6)
+      ensureNewPage(doc, yRef, layout, 6)
       doc.setDrawColor(180, 180, 180)
       doc.setLineWidth(0.3)
-      doc.line(marginLeft, y, pageWidth - marginRight, y)
-      y += 6
+      doc.line(layout.marginLeft, yRef.y, layout.pageWidth - layout.marginRight, yRef.y)
+      yRef.y += 6
       i++
       continue
     }
 
-    // --- Headings ---
+    const imageLine = parseMarkdownImageTarget(line)
+    if (imageLine) {
+      const image = await loadMarkdownImage(imageLine.url, options)
+      if (image) {
+        const maxImageWidth = layout.contentWidth
+        const maxImageHeight = layout.pageHeight - 20 - layout.marginBottom
+        const ratio = Math.min(maxImageWidth / image.width, maxImageHeight / image.height, 1)
+        const drawW = image.width * ratio
+        const drawH = image.height * ratio
+        ensureNewPage(doc, yRef, layout, drawH + 4)
+        const drawX = layout.marginLeft + (layout.contentWidth - drawW) / 2
+        doc.addImage(image.dataUrl, image.format, drawX, yRef.y, drawW, drawH)
+        yRef.y += drawH + 3
+        if (imageLine.alt) {
+          renderInlineWrappedText(doc, imageLine.alt, layout.marginLeft, yRef, layout.contentWidth, layout, {
+            fontSize: 9,
+            lineHeight: 4,
+            baseStyle: 'italic',
+          })
+          yRef.y += 2
+        }
+      } else {
+        ensureNewPage(doc, yRef, layout, 6)
+        doc.setFont(PDF_FONT, 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(120, 120, 120)
+        doc.text('[Image could not be rendered]', layout.marginLeft, yRef.y)
+        yRef.y += 6
+      }
+      i++
+      continue
+    }
+
     const headingMatch = line.match(/^(#{1,6})\s+(.*)/)
     if (headingMatch) {
       const level = headingMatch[1].length
-      const text = stripInlineFormatting(headingMatch[2])
+      const text = replaceInlineImagesWithAlt(headingMatch[2])
       const sizes: Record<number, number> = { 1: 18, 2: 15, 3: 13, 4: 12, 5: 11, 6: 10.5 }
       const fontSize = sizes[level] || 11
+      const lineHeight = Math.max(4.5, fontSize * 0.45)
       const spacing = level <= 2 ? 8 : 5
 
-      y += spacing
-      checkNewPage(fontSize / 2 + 4)
-      doc.setFont(PDF_FONT, 'bold')
-      doc.setFontSize(fontSize)
-      doc.setTextColor(0, 0, 0)
-      const wrapped = doc.splitTextToSize(text, contentWidth)
-      doc.text(wrapped, marginLeft, y)
-      y += wrapped.length * (fontSize * 0.4) + 3
+      yRef.y += spacing
+      ensureNewPage(doc, yRef, layout, lineHeight + 2)
+      renderInlineWrappedText(doc, text, layout.marginLeft, yRef, layout.contentWidth, layout, {
+        fontSize,
+        lineHeight,
+        baseStyle: 'bold',
+      })
+      yRef.y += 3
       i++
       continue
     }
 
-    // --- Tables ---
     if (line.includes('|') && line.trim().startsWith('|')) {
       const tableLines: string[] = []
       while (i < lines.length && lines[i].includes('|') && lines[i].trim().startsWith('|')) {
         tableLines.push(lines[i])
         i++
       }
-      y = renderTable(doc, tableLines, marginLeft, contentWidth, y, checkNewPage)
-      y += 4
+      yRef.y = renderTable(doc, tableLines, layout.marginLeft, layout.contentWidth, yRef.y, (needed) =>
+        ensureNewPage(doc, yRef, layout, needed),
+      )
+      yRef.y += 4
       continue
     }
 
-    // --- Checklists ---
     const checklistMatch = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)/)
     if (checklistMatch) {
       const checked = checklistMatch[2].toLowerCase() === 'x'
-      const text = stripInlineFormatting(checklistMatch[3])
-      checkNewPage(6)
-      doc.setFont(PDF_FONT, 'normal')
-      doc.setFontSize(10.5)
-      doc.setTextColor(0, 0, 0)
-      // Draw checkbox
-      const boxX = marginLeft + 2
-      const boxY = y - 3
+      const text = replaceInlineImagesWithAlt(checklistMatch[3])
+      ensureNewPage(doc, yRef, layout, 7)
+      const boxX = layout.marginLeft + 2
+      const boxY = yRef.y - 3
       doc.setLineWidth(0.4)
       if (checked) {
         doc.setDrawColor(34, 197, 94)
         doc.setFillColor(34, 197, 94)
         doc.rect(boxX, boxY, 3.5, 3.5, 'FD')
-        // Draw checkmark with vector lines (like quiz)
         doc.setDrawColor(255, 255, 255)
         doc.setLineWidth(0.6)
         doc.line(boxX + 0.6, boxY + 1.75, boxX + 1.4, boxY + 2.8)
         doc.line(boxX + 1.4, boxY + 2.8, boxX + 2.9, boxY + 0.7)
-        doc.setLineWidth(0.4)
       } else {
         doc.setDrawColor(100, 100, 100)
         doc.rect(boxX, boxY, 3.5, 3.5)
       }
-      const wrapped = doc.splitTextToSize(text, contentWidth - 12)
-      doc.text(wrapped, marginLeft + 9, y)
-      y += wrapped.length * 4.5 + 2
+      renderInlineWrappedText(doc, text, layout.marginLeft + 9, yRef, layout.contentWidth - 12, layout, {
+        fontSize: 10.5,
+        lineHeight: 4.5,
+        baseStyle: 'normal',
+      })
+      yRef.y += 2
       i++
       continue
     }
 
-    // --- Unordered list items ---
     const ulMatch = line.match(/^(\s*)[-*+]\s+(.*)/)
     if (ulMatch) {
       const indent = Math.min(Math.floor(ulMatch[1].length / 2), 3)
-      const text = stripInlineFormatting(ulMatch[2])
-      checkNewPage(6)
+      const text = replaceInlineImagesWithAlt(ulMatch[2])
+      ensureNewPage(doc, yRef, layout, 7)
+      const bulletX = layout.marginLeft + indent * 5
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(10.5)
       doc.setTextColor(0, 0, 0)
-      const bulletX = marginLeft + indent * 5
-      doc.text('•', bulletX, y)
-      const wrapped = doc.splitTextToSize(text, contentWidth - indent * 5 - 5)
-      doc.text(wrapped, bulletX + 4, y)
-      y += wrapped.length * 4.5 + 2
+      doc.text('•', bulletX, yRef.y)
+      renderInlineWrappedText(doc, text, bulletX + 4, yRef, layout.contentWidth - indent * 5 - 5, layout, {
+        fontSize: 10.5,
+        lineHeight: 4.5,
+        baseStyle: 'normal',
+      })
+      yRef.y += 2
       i++
       continue
     }
 
-    // --- Ordered list items ---
     const olMatch = line.match(/^(\s*)(\d+)[.)]\s+(.*)/)
     if (olMatch) {
       const indent = Math.min(Math.floor(olMatch[1].length / 2), 3)
       const num = olMatch[2]
-      const text = stripInlineFormatting(olMatch[3])
-      checkNewPage(6)
+      const text = replaceInlineImagesWithAlt(olMatch[3])
+      ensureNewPage(doc, yRef, layout, 7)
+      const numX = layout.marginLeft + indent * 5
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(10.5)
       doc.setTextColor(0, 0, 0)
-      const numX = marginLeft + indent * 5
-      doc.text(`${num}.`, numX, y)
-      const wrapped = doc.splitTextToSize(text, contentWidth - indent * 5 - 7)
-      doc.text(wrapped, numX + 6, y)
-      y += wrapped.length * 4.5 + 2
+      doc.text(`${num}.`, numX, yRef.y)
+      renderInlineWrappedText(doc, text, numX + 6, yRef, layout.contentWidth - indent * 5 - 7, layout, {
+        fontSize: 10.5,
+        lineHeight: 4.5,
+        baseStyle: 'normal',
+      })
+      yRef.y += 2
       i++
       continue
     }
 
-    // --- Regular paragraph ---
-    const text = stripInlineFormatting(line)
-    checkNewPage(6)
-    doc.setFont(PDF_FONT, 'normal')
-    doc.setFontSize(10.5)
-    doc.setTextColor(0, 0, 0)
-
-    // Collect continuation lines (non-blank, non-special)
-    let paragraph = text
+    let paragraph = replaceInlineImagesWithAlt(line)
     while (
       i + 1 < lines.length &&
       lines[i + 1].trim() !== '' &&
@@ -480,23 +782,24 @@ export async function printContentAsPdf(markdown: string, title: string) {
       !lines[i + 1].trimStart().match(/^[-*+]\s/) &&
       !lines[i + 1].trimStart().match(/^\d+[.)]\s/) &&
       !(lines[i + 1].includes('|') && lines[i + 1].trim().startsWith('|')) &&
-      !/^(\s*[-*_]){3,}\s*$/.test(lines[i + 1])
+      !/^(\s*[-*_]){3,}\s*$/.test(lines[i + 1]) &&
+      !parseMarkdownImageTarget(lines[i + 1])
     ) {
       i++
-      paragraph += ' ' + stripInlineFormatting(lines[i])
+      paragraph += ' ' + replaceInlineImagesWithAlt(lines[i])
     }
 
-    const wrapped = doc.splitTextToSize(paragraph, contentWidth)
-    for (const wline of wrapped) {
-      checkNewPage(5)
-      doc.text(wline, marginLeft, y)
-      y += 4.5
-    }
-    y += 2
+    renderInlineWrappedText(doc, paragraph, layout.marginLeft, yRef, layout.contentWidth, layout, {
+      fontSize: 10.5,
+      lineHeight: 4.5,
+      baseStyle: 'normal',
+    })
+    yRef.y += 2
     i++
   }
+}
 
-  // Add watermark on every page
+function applyWatermark(doc: jsPDF) {
   const totalPages = doc.getNumberOfPages()
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p)
@@ -508,11 +811,9 @@ export async function printContentAsPdf(markdown: string, title: string) {
     const link = 'chatrag.app'
     const prefixWidth = doc.getTextWidth(prefix)
     const linkWidth = doc.getTextWidth(link)
-    const totalWidth = prefixWidth + linkWidth
-    const wmX = pw - 12 - totalWidth
+    const wmX = pw - 12 - (prefixWidth + linkWidth)
     const wmY = ph - 8
     doc.setTextColor(0, 0, 0)
-    // jsPDF's GState is attached at runtime and missing from its .d.ts.
     const GState = (doc as unknown as { GState: new (opts: { opacity: number }) => unknown }).GState
     doc.setGState(new GState({ opacity: 0.35 }))
     doc.text(prefix, wmX, wmY)
@@ -520,12 +821,58 @@ export async function printContentAsPdf(markdown: string, title: string) {
     doc.textWithLink(link, wmX + prefixWidth, wmY, { url: 'https://chatrag.app' })
     doc.setGState(new GState({ opacity: 1 }))
   }
+}
 
+function savePdf(doc: jsPDF, title: string) {
   const safeName = title
     .replace(/[^a-zA-Z0-9\u0080-\uFFFF _-]+/g, '_')
     .replace(/_+/g, '_')
     .slice(0, 100)
   doc.save(`${safeName}.pdf`)
+}
+
+/**
+ * Generates a PDF for a single markdown message.
+ */
+export async function printContentAsPdf(markdown: string, title: string, options?: PdfPrintOptions) {
+  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  registerFonts(doc)
+
+  const layout = createLayout(doc)
+  const yRef: YRef = { y: 20 }
+  await renderMarkdownBlock(doc, markdown, layout, yRef, options)
+
+  applyWatermark(doc)
+  savePdf(doc, title)
+}
+
+/**
+ * Generates a PDF from assistant messages, starting each message on a new page.
+ */
+export async function printAssistantMessagesAsPdf(
+  messages: ExportableAssistantMessage[],
+  title: string,
+  options?: PdfPrintOptions,
+) {
+  const nonEmptyMessages = messages.map((m) => m.content?.trim() || '').filter(Boolean)
+  if (!nonEmptyMessages.length) {
+    return printContentAsPdf('', title, options)
+  }
+
+  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  registerFonts(doc)
+  const layout = createLayout(doc)
+
+  for (let idx = 0; idx < nonEmptyMessages.length; idx++) {
+    if (idx > 0) doc.addPage()
+    const yRef: YRef = { y: 20 }
+    await renderMarkdownBlock(doc, nonEmptyMessages[idx], layout, yRef, options)
+  }
+
+  applyWatermark(doc)
+  savePdf(doc, title)
 }
 
 /** Strip markdown inline formatting (bold, italic, code, links) to plain text */

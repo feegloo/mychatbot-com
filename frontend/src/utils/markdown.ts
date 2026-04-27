@@ -50,19 +50,38 @@ function normalizeCitations(text: string): string {
   return text
 }
 
+function isChecklistBody(lineBody: string): boolean {
+  // Accept both markdown-compliant "[ ]" and shorthand "[]" emitted by the model.
+  return /^\[(?:\s|x|X)?\]\s+/.test(lineBody) || /^\[\]\s+/.test(lineBody)
+}
+
 export function renderMarkdown(content: string): string {
   let normalized = normalizeCitations(content)
+
+  // Some model responses emit shorthand checklist items as "- [] item".
+  // Normalize to markdown-compliant "- [ ] item" so marked creates checkboxes.
+  normalized = normalized.replace(/^([ \t]*[*\-+]\s+)\[\]\s+/gm, '$1[ ] ')
 
   // Convert dialogue-style "- text" lines to "– text" (en-dash) so they render
   // as plain prose instead of <li> bullets.
   // Heuristic: A block of consecutive "- " lines preceded by a paragraph of
   // narrative text (not another list item) is dialogue, not a real list.
   // Also catch isolated "- text" surrounded by blank lines.
-  normalized = normalized.replace(/(?<=^|\n\n)- (.+?)(?=\n\n|$)/g, '– $1')
+  normalized = normalized.replace(/(?<=^|\n\n)- (.+?)(?=\n\n|$)/g, (match, body: string) =>
+    isChecklistBody(body) ? match : `– ${body}`,
+  )
   // Catch consecutive dialogue lines: a block of "- " lines after a prose paragraph
   normalized = normalized.replace(
     /(?<=^|\n\n)((?:- .+\n?){2,})(?=\n\n|$)/g,
-    (_match, block: string) => block.replace(/^- /gm, '– '),
+    (_match, block: string) =>
+      block
+        .split('\n')
+        .map((line) => {
+          if (!line.startsWith('- ')) return line
+          const body = line.slice(2)
+          return isChecklistBody(body) ? line : `– ${body}`
+        })
+        .join('\n'),
   )
 
   // Ensure bold-only lines (like filenames) between list items get paragraph separation
@@ -104,7 +123,7 @@ export function renderMarkdown(content: string): string {
   // causing the post-DOMPurify regex replacements to miss).
   const actionPlaceholders: string[] = []
   const actionToken = (idx: number) => `\x01ACTION${idx}\x01`
-  normalized = normalized.replace(/\[action:\s*([^\]]+)\]/g, (_, label) => {
+  normalized = normalized.replace(/\[(?:action|akcja):\s*([^\]]+)\]/gi, (_, label) => {
     const i = actionPlaceholders.length
     actionPlaceholders.push(label.trim())
     return actionToken(i)
@@ -167,7 +186,9 @@ export function renderMarkdown(content: string): string {
     allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
   )
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
-  const withSources = withColors.replace(/\[source:\s*(\d+(?:,\s*\d+)*)\]/g, (_, nums) =>
+  const withSources = withColors.replace(
+    /\[(?:source|zrodlo|źródło):\s*(\d+(?:,\s*\d+)*)\]/gi,
+    (_, nums) =>
     nums
       .split(/,\s*/)
       .map(

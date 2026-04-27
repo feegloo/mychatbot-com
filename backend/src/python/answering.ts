@@ -11,6 +11,15 @@ export async function answerQuestion(options: {
   storageDir?: string
   previousSuggestedQuestions?: string[]
   conversationName?: string
+  conversationLanguageCode?: string
+  conversationLanguageName?: string
+  /**
+   * Per-conversation internal "idea file" generated at indexing time. When
+   * provided, the Python answering pipeline injects it as a structured
+   * Section 3a in ANSWER_PROMPT so the LLM has a compounding map of
+   * entities/relationships instead of re-deriving them from chunks every turn.
+   */
+  wikiMessage?: string
   requestId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
@@ -30,6 +39,9 @@ export async function answerQuestion(options: {
       storage_dir: options.storageDir || null,
       previous_suggested_questions: options.previousSuggestedQuestions || null,
       conversation_name: options.conversationName || null,
+      conversation_language_code: options.conversationLanguageCode || null,
+      conversation_language_name: options.conversationLanguageName || null,
+      wiki_message: options.wikiMessage || null,
     }),
   })
 

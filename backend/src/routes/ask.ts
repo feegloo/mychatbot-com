@@ -4,6 +4,7 @@ import { z } from 'zod'
 import * as Sentry from '@sentry/node'
 import {
   getConversation,
+  getInternalWikiMessage,
   insertConversationMessage,
   resolveConversationRole,
   appendToMessageContent,
@@ -30,11 +31,13 @@ import { findReusableImage, registerReusableImage } from '../python/reusable-ima
 import { insertGeneratedImage } from '../repositories/generated-images.js'
 import { uploadLocalFileToGcs } from '../storage/gcs-storage.js'
 import { getRequestId, startHeartbeat } from '../middleware/requestId.js'
+import { resolveConversationLanguage } from '../utils/conversation-language.js'
 
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
   question: z.string().min(1),
   userId: z.number().int().min(0).optional(),
+  language: z.string().trim().min(2).max(16).optional(),
 })
 
 export const askRouter = new Router()
@@ -47,7 +50,8 @@ askRouter.post('/ask', async (ctx) => {
     return
   }
 
-  const { conversationId, question, userId } = parsed.data
+  const { conversationId, question, userId, language } = parsed.data
+  const conversationLanguage = resolveConversationLanguage(language)
 
   // Only owners/editors can post questions
   const token = getConversationToken(ctx)
@@ -131,6 +135,10 @@ askRouter.post('/ask', async (ctx) => {
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
 
+  // Internal "idea file" — generated once at indexing time. Threads inherit
+  // their parent's wiki via storage_namespace fallback inside the repo helper.
+  const wikiMessage = await getInternalWikiMessage(conversationId)
+
   // Collect all previously shown suggested questions:
   // 1. Indexing-time suggested questions from DB
   const previousSuggestedQuestions: string[] = data.suggestedQuestions.map((q) => q.question)
@@ -170,6 +178,9 @@ askRouter.post('/ask', async (ctx) => {
             ? previousSuggestedQuestions
             : undefined,
           conversationName: data.conversation.display_name || undefined,
+          conversationLanguageCode: conversationLanguage.code || undefined,
+          conversationLanguageName: conversationLanguage.nativeName || undefined,
+          wikiMessage: wikiMessage || undefined,
           requestId: requestId || undefined,
         }),
     )
@@ -262,6 +273,8 @@ askRouter.post('/ask', async (ctx) => {
           conversationId,
           chatHistory: chatHistory.slice(-6),
           quality: 'low',
+          conversationLanguageCode: conversationLanguage.code || undefined,
+          conversationLanguageName: conversationLanguage.nativeName || undefined,
         })
         // Persist to GCS so it survives Cloud Run instance turnover.
         if (config.storageProvider === 'gcs' && config.gcsBucket) {
@@ -286,7 +299,6 @@ askRouter.post('/ask', async (ctx) => {
           imageUrl,
           imageTitle: result.image_title || 'Generated Image',
           imagePrompt: result.image_prompt,
-          revisedPrompt: result.revised_prompt,
           imageSources,
         }
         const contentToAppend = renderAutoImageMarkdown(
@@ -300,7 +312,6 @@ askRouter.post('/ask', async (ctx) => {
         })
 
         // Register the new image for future cross-conversation reuse.
-        const description = result.revised_prompt || result.image_prompt || result.image_title || ''
         try {
           const imageId = await insertGeneratedImage({
             conversationId,
@@ -309,15 +320,12 @@ askRouter.post('/ask', async (ctx) => {
             fileName: result.file_name,
             imageTitle: result.image_title || null,
             imagePrompt: result.image_prompt || null,
-            revisedPrompt: result.revised_prompt || null,
             userPrompt: question,
-            description,
             sourceOriginalNames: preferredSourceFiles,
             sourceSizeBytes: data.files.map((f) => Number(f.size_bytes)),
           })
           await registerReusableImage({
             imageId,
-            description,
             conversationId,
             storageNamespace: data.conversation!.storage_namespace,
             fileName: result.file_name,

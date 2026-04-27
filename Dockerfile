@@ -3,7 +3,18 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+RUN set -eux; \
+        npm config set fetch-retries 5; \
+        npm config set fetch-retry-mintimeout 20000; \
+        npm config set fetch-retry-maxtimeout 120000; \
+        for attempt in 1 2 3; do \
+            npm ci && break; \
+            if [ "$attempt" -eq 3 ]; then \
+                exit 1; \
+            fi; \
+            echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
+            sleep 10; \
+        done
 COPY frontend/ ./
 # Stripe publishable key is a public client-side key, not a secret
 ARG VITE_STRIPE_PUBLISHABLE_KEY
@@ -12,6 +23,8 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ARG VITE_SENTRY_DSN
 ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+ARG VITE_COMMIT_HASH
+ENV VITE_COMMIT_HASH=${VITE_COMMIT_HASH}
 # Sentry source map upload (build-time only, not embedded in client bundle)
 ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG
@@ -29,7 +42,18 @@ RUN ls -la /app/frontend/dist/ || (echo "=== ERROR: dist/ not found after build 
 FROM node:22-alpine AS ui-build
 WORKDIR /app/ui
 COPY ui/package.json ui/package-lock.json* ./
-RUN npm ci
+RUN set -eux; \
+        npm config set fetch-retries 5; \
+        npm config set fetch-retry-mintimeout 20000; \
+        npm config set fetch-retry-maxtimeout 120000; \
+        for attempt in 1 2 3; do \
+            npm ci && break; \
+            if [ "$attempt" -eq 3 ]; then \
+                exit 1; \
+            fi; \
+            echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
+            sleep 10; \
+        done
 COPY ui/ ./
 # ui imports HomeHero from frontend via alias ../../frontend/src/...
 COPY frontend/src /app/frontend/src
@@ -41,7 +65,18 @@ RUN ls -la /app/ui/dist/ || (echo "=== ERROR: ui/dist/ not found after build ===
 FROM node:22-alpine AS backend-build
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json* ./
-RUN npm ci
+RUN set -eux; \
+        npm config set fetch-retries 5; \
+        npm config set fetch-retry-mintimeout 20000; \
+        npm config set fetch-retry-maxtimeout 120000; \
+        for attempt in 1 2 3; do \
+            npm ci && break; \
+            if [ "$attempt" -eq 3 ]; then \
+                exit 1; \
+            fi; \
+            echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
+            sleep 10; \
+        done
 COPY backend/ ./
 ENV NODE_ENV=production
 RUN npm run build
@@ -64,7 +99,19 @@ COPY python/ /app/python/
 
 # -- Backend production deps --
 COPY backend/package.json backend/package-lock.json* /app/backend/
-RUN cd /app/backend && npm ci --omit=dev
+RUN set -eux; \
+        cd /app/backend; \
+        npm config set fetch-retries 5; \
+        npm config set fetch-retry-mintimeout 20000; \
+        npm config set fetch-retry-maxtimeout 120000; \
+        for attempt in 1 2 3; do \
+            npm ci --omit=dev && break; \
+            if [ "$attempt" -eq 3 ]; then \
+                exit 1; \
+            fi; \
+            echo "npm ci --omit=dev failed (attempt $attempt), retrying in 10s..."; \
+            sleep 10; \
+        done
 
 # -- Backend compiled code --
 COPY --from=backend-build /app/backend/dist /app/backend/dist

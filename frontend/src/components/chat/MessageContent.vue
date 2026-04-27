@@ -7,7 +7,15 @@
  * plus delegated clicks for [source:N] citations, inline images, the
  * [upload] button, and checklist boxes.
  */
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
 import { applyWordReveal } from '../../composables/wordReveal'
@@ -68,8 +76,7 @@ const parts = computed(() => {
 const hasPrompts = computed(() => parsedTokens.value.visiblePrompts.length > 0)
 const hasActions = computed(
   () =>
-    parsedTokens.value.visibleActions.length > 0 ||
-    parsedTokens.value.overflowActions.length > 0,
+    parsedTokens.value.visibleActions.length > 0 || parsedTokens.value.overflowActions.length > 0,
 )
 
 // Fast label → ActionToken lookup to find refFileName on click.
@@ -98,10 +105,14 @@ function onContentClick(e: MouseEvent) {
     // Prefer the visible caption text (may be translated) over the img.alt
     // which reflects the original markdown alt attribute.
     const captionEl = img.closest('p')?.nextElementSibling
-    const captionTitle =
-      captionEl?.classList.contains('image-caption')
-        ? captionEl.textContent?.replace(/^"|"$/g, '').trim()
-        : undefined
+    const captionTitle = (() => {
+      if (!captionEl?.classList.contains('image-caption')) return undefined
+      // Clone the element and remove source citation buttons before reading
+      // textContent, so the title doesn't include "↑1↑2" etc.
+      const clone = captionEl.cloneNode(true) as HTMLElement
+      clone.querySelectorAll('.inline-source-btn').forEach((btn) => btn.remove())
+      return clone.textContent?.replace(/^"|"$/g, '').trim() || undefined
+    })()
     emit('image-click', img.src, captionTitle || img.alt || 'Image')
     return
   }

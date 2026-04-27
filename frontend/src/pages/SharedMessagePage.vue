@@ -13,6 +13,7 @@
       <div class="shared-message-container">
         <ChatMessageItem
           :msg="message"
+          :all-messages="message ? [message] : []"
           :asking="false"
           :conversation-id="message.conversationId"
           :is-welcome="sharedIsWelcome"

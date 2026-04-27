@@ -106,6 +106,7 @@
               }
             "
             :msg="msg"
+            :all-messages="displayedMessages"
             :asking="assistantPending"
             :conversation-id="conversationId"
             :storage-conversation-id="storageConversationId"
@@ -120,9 +121,13 @@
             :no-animation="index < initialMessageCount"
             :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
+            :search-highlighted="isSearchHit(msg, index)"
+            :search-term="searchTermFromRoute"
             @select-question="
-              question = $event;
-              submitQuestion();
+              (q: string) => {
+                question = q
+                submitQuestion()
+              }
             "
             @select-image-variant="handleSelectImageVariant"
             @upload-files="handleUploadFiles"
@@ -147,7 +152,7 @@
             ref="questionInput"
             v-model="question"
             class="chat-textarea"
-            :placeholder="isViewer ? 'Reply to start your own thread...' : 'Ask a question...'"
+            :placeholder="isViewer ? homeT.viewerReplyPlaceholder : homeT.askPlaceholder"
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
@@ -180,7 +185,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, onActivated, onDeactivated, ref, watch, nextTick } from 'vue'
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  onActivated,
+  onDeactivated,
+  ref,
+  watch,
+  nextTick,
+} from 'vue'
 import { AxiosError } from 'axios'
 import {
   askQuestion,
@@ -197,7 +211,7 @@ import { runImageGenStream } from '../composables/useImageGenStream'
 import { cleanFileName } from '../utils/text'
 import { getUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
@@ -207,6 +221,8 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { homeT } from '../i18n/homeLocale'
+import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
@@ -217,7 +233,7 @@ const STEP_LABELS: Record<ProcessingStep, string> = {
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] || ''
 }
-import {newContent} from '../composables/newContent'
+import { newContent } from '../composables/newContent'
 import {
   attachRenderKey,
   buildRenderKeyIndex,
@@ -354,6 +370,30 @@ const processingLoaderLabel = computed(() => {
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
 const loaded = ref(false)
 const routerInstance = useRouter()
+const route = useRoute()
+
+const searchTermFromRoute = ref('')
+const searchMessageIdFromRoute = ref('')
+const searchMessageIndexFromRoute = ref<number | null>(null)
+
+function parseSearchMessageIndex(rawValue: unknown): number | null {
+  if (typeof rawValue !== 'string') return null
+  const parsed = Number.parseInt(rawValue, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
+function syncSearchFromRoute() {
+  searchTermFromRoute.value = typeof route.query.searchTerm === 'string' ? route.query.searchTerm : ''
+  searchMessageIdFromRoute.value =
+    typeof route.query.searchMessageId === 'string' ? route.query.searchMessageId : ''
+  searchMessageIndexFromRoute.value = parseSearchMessageIndex(route.query.searchMessageIndex)
+}
+
+function isSearchHit(msg: MessageWithRenderKey<ChatMessage>, index: number): boolean {
+  if (!searchTermFromRoute.value) return false
+  if (searchMessageIdFromRoute.value) return msg.id === searchMessageIdFromRoute.value
+  return searchMessageIndexFromRoute.value === index
+}
 
 const isThread = computed(() => !!status.value.parentMessageId)
 
@@ -635,7 +675,20 @@ function viewHeaderThreads() {
   }
 }
 
-function scrollToBottom(smooth = false, toEnd = false) {
+function scrollToElement(container: HTMLElement, element: HTMLElement) {
+  const containerTop = container.getBoundingClientRect().top
+  const elementTop = element.getBoundingClientRect().top
+
+  const currentScroll = container.scrollTop
+  const target = elementTop - containerTop + currentScroll
+
+  container.scrollTo({
+    top: target,
+    behavior: 'smooth',
+  })
+}
+
+function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
   // When `toEnd` is true, scroll all the way to the bottom — used when the
@@ -648,24 +701,63 @@ function scrollToBottom(smooth = false, toEnd = false) {
     })
     return
   }
-  // Find the last message element
   const messageEls = container.querySelectorAll('.message')
-  const lastMsg = messageEls[messageEls.length - 1] as HTMLElement | undefined
-  if (lastMsg) {
-    // Scroll so the top of the last message aligns with the top of the container.
-    // If the message is shorter than the viewport, scrolling to its top is enough.
-    const msgTop = lastMsg.offsetTop - container.offsetTop
-    const maxScroll = container.scrollHeight - container.clientHeight
-    container.scrollTo({
-      top: Math.min(msgTop, maxScroll),
-      behavior: smooth ? 'smooth' : 'instant',
-    })
+  // When `showUserQuestion` is true, scroll so the last user message is at the
+  // top of the container — this keeps the question visible with the response
+  // flowing below it, matching the desired layout after submitting a question.
+  let targetMsg: HTMLElement | undefined
+  if (showUserQuestion) {
+    for (let i = messageEls.length - 1; i >= 0; i--) {
+      if ((messageEls[i] as HTMLElement).classList.contains('user')) {
+        targetMsg = messageEls[i] as HTMLElement
+        break
+      }
+    }
+  }
+
+  targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
+  if (targetMsg) {
+    // Scroll so the top of the target message aligns with the top of the container.
+    // const msgTop = targetMsg.offsetTop - container.offsetTop
+    // const maxScroll = container.scrollHeight - container.clientHeight
+    // container.scrollTo({
+    //   top: Math.min(msgTop, maxScroll),
+    //   behavior: smooth ? 'smooth' : 'instant',
+    // })
+
+    const users = document.querySelectorAll('.chat-log .message-row.user')
+    const user = users[users.length - 1] as HTMLElement | undefined
+    const chatLog = document.querySelector('.chat-log') as HTMLElement | null
+
+    if (chatLog && user) {
+      scrollToElement(chatLog, user)
+    }
   } else {
     container.scrollTo({
       top: container.scrollHeight,
       behavior: smooth ? 'smooth' : 'instant',
     })
   }
+}
+
+function scrollToSearchHit() {
+  if (!chatContainer.value || !searchTermFromRoute.value) return
+  const container = chatContainer.value
+  let target: HTMLElement | null = null
+
+  if (searchMessageIdFromRoute.value) {
+    target = container.querySelector(
+      `.message-row[data-message-id="${searchMessageIdFromRoute.value}"]`,
+    ) as HTMLElement | null
+  }
+
+  if (!target && searchMessageIndexFromRoute.value !== null) {
+    const rows = container.querySelectorAll('.message-row')
+    target = (rows[searchMessageIndexFromRoute.value] as HTMLElement | undefined) || null
+  }
+
+  if (!target) return
+  scrollToElement(container, target)
 }
 
 function onMessageImageRevealed(index: number, success: boolean) {
@@ -737,27 +829,21 @@ async function ask() {
   asking.value = true
   hasLocalError.value = false
   const currentQuestion = question.value
+  const promptLanguage =
+    currentLanguage.value || getStoredConversationLanguage(conversationId) || undefined
   question.value = ''
   const optimisticUserMessage: MessageWithRenderKey<ChatMessage> = {
     role: 'user',
     content: currentQuestion,
   }
-  messages.value.push(
-    attachRenderKey(
-      optimisticUserMessage,
-      nextMessageRenderKey('local-user'),
-    ),
-  )
+  messages.value.push(attachRenderKey(optimisticUserMessage, nextMessageRenderKey('local-user')))
 
   const optimisticAssistantMessage: MessageWithRenderKey<ChatMessage> = {
     role: 'assistant',
     content: '',
   }
   messages.value.push(
-    attachRenderKey(
-      optimisticAssistantMessage,
-      nextMessageRenderKey('local-assistant'),
-    ),
+    attachRenderKey(optimisticAssistantMessage, nextMessageRenderKey('local-assistant')),
   )
   // Use the reactive proxy so Vue detects content updates immediately
   const reactiveMsg = messages.value[messages.value.length - 1]
@@ -776,10 +862,19 @@ async function ask() {
           question: currentQuestion,
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
+          language: promptLanguage,
           referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
+          onAnnouncement: () => {
+            nextTick(() => scrollToBottom(true, false, true))
+          },
         })
       : await Promise.race([
-          askQuestion(conversationId, currentQuestion, getUserId() || undefined),
+          askQuestion(
+            conversationId,
+            currentQuestion,
+            getUserId() || undefined,
+            promptLanguage,
+          ),
           timeout,
         ])
     reactiveMsg.generatingImage = false
@@ -792,10 +887,9 @@ async function ask() {
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
     await nextTick()
-    scrollToBottom(true)
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true), 0)
+    setTimeout(() => scrollToBottom(true, false, true), 200)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
@@ -874,7 +968,12 @@ watch(
   () => status.value.status,
   (newStatus) => {
     const hasUserMessages = messages.value.some((m) => m.role === 'user')
-    if (newStatus === 'ready' && !welcomeReadTriggered && messages.value.length > 0 && !hasUserMessages) {
+    if (
+      newStatus === 'ready' &&
+      !welcomeReadTriggered &&
+      messages.value.length > 0 &&
+      !hasUserMessages
+    ) {
       welcomeReadTriggered = true
       readWelcomeIfEnabled()
     }
@@ -886,13 +985,31 @@ watch(
   async (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
       await nextTick()
-      setTimeout(() => scrollToBottom(), 0)
+      // Show user question at top so the response streams into view below it
+      setTimeout(() => scrollToBottom(false, false, true), 0)
     }
     prevMessageCount = newLen
+
+    if (searchTermFromRoute.value) {
+      await nextTick()
+      setTimeout(scrollToSearchHit, 30)
+    }
   },
 )
 
+watch(
+  () => route.query,
+  async () => {
+    syncSearchFromRoute()
+    if (!searchTermFromRoute.value) return
+    await nextTick()
+    setTimeout(scrollToSearchHit, 30)
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
+  syncSearchFromRoute()
   await loadConversation()
   loaded.value = true
   roleLoaded.value = true
@@ -900,6 +1017,9 @@ onMounted(async () => {
   // Restore saved scroll position, or fall back to scrolling to bottom
   if (!restoreScrollPosition()) {
     scrollToBottom()
+  }
+  if (searchTermFromRoute.value) {
+    setTimeout(scrollToSearchHit, 30)
   }
   prevMessageCount = messages.value.length
   conversationReady.value = true
@@ -926,7 +1046,6 @@ onMounted(async () => {
     await nextTick()
     submitQuestion()
   }
-
 })
 
 onUnmounted(() => {

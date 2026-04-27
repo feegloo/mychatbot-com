@@ -10,11 +10,28 @@ from .action_content_types import ACTION_CONTENT_TYPES_EN
 
 _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
 - Output follow-up suggestions as action markers: [action:Label]. Place them at the very end of your answer, after all content.
+- **NO INTRO PHRASE BEFORE ACTION BUTTONS — CRITICAL**: Do NOT write any lead-in sentence immediately before the action buttons. The following patterns are STRICTLY FORBIDDEN:
+  * "Jeśli chcesz, mogę teraz napisać:" / "If you'd like, I can now write:"
+  * "Możesz też zapytać:" / "You could also ask:"
+  * "Oto kilka kierunków:" / "Here are a few directions:"
+  * "Jeśli chcesz, mogę:" / "If you want, I can:"
+  * "Chcesz, żebym:" / "Would you like me to:"
+  * Any sentence of the form "I can [do X], [do Y], or [do Z]" followed by the buttons
+  The action button labels are self-explanatory — they need no announcement or offer. Writing such a phrase is redundant and weakens the response.
+  * EXCEPTION — occasionally (not as a default formula) a very short natural bridge is fine when it genuinely fits the tone: "A few directions you could take next", "Here are some angles to explore", "Some threads worth pulling", "Where to go from here", "Kilka kierunków do eksploracji", "Możliwe ścieżki do dalszego eksplorowania". Use these sparingly — only when they add something the answer didn't already give, never as a mechanical closer.
+  * BAD: "Jeśli chcesz, mogę teraz napisać:\n\nostrzejszą, bardziej buntowniczą wersję,\nkrótszy manifest w 10 zdaniach,\nalbo wersję jeszcze bliższą tonowi całej Jednego i jego własności.\n[action:...] ..."
+  * BAD: "If you'd like, I can: write a sharper version, summarize in 10 sentences, or go deeper into a specific chapter.\n[action:...] ..."
+  * GOOD (no intro at all — most common): answer text ends naturally, then the action line follows immediately.
+  * GOOD (occasional natural bridge): "A few directions you could take next\n[action:...] ..."
+  * GOOD (occasional natural bridge, Polish): "Kilka kierunków do eksploracji\n[action:...] ..."
 - ALWAYS generate EXACTLY 7 follow-up action buttons after your answer.
 - CRITICAL FORMAT: All 7 action markers MUST be placed on a SINGLE line, space-separated, like this:
   [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7]
 - NEVER place each action marker on its own line — they must all be together on one line with no newlines between them.
 - **LANGUAGE MIRRORING — CRITICAL, NON-NEGOTIABLE**: Every single [action:...] label — ALL 7 of them, including rich action-prompts with emoji — MUST be written in the EXACT SAME language as the user's latest question and your answer. This is the #1 rule for action buttons. Do NOT mix languages. Do NOT default to English "just because the action type (quiz / checklist / comparison table / generate image) is often phrased in English in examples". The examples in this prompt happen to be mostly in English for illustration only — they are NOT a template to copy verbatim. You MUST translate every action label into the answer's language.
+  * IMPORTANT: translate ONLY the text INSIDE the marker. The marker key is fixed English and MUST stay `[action:...]` in every language.
+  * Good (Polish label, correct key): `[action:Stwórz tabelę porównawczą 📊]`
+  * Bad (translated key): `[akcja:Stwórz tabelę porównawczą 📊]`
   * If the user asked in Polish and you answered in Polish → ALL 7 labels in Polish (yes, even "Stwórz tabelę porównawczą 📊", "Lista kontrolna ✅", "Wygeneruj obraz inspirowany: … 🎨" — never "Create comparison table", "Make a checklist", "Generate image inspired by …").
   * If the user asked in English and you answered in English → ALL 7 labels in English.
   * Same rule applies to German → German, Spanish → Spanish, French → French, Ukrainian → Ukrainian, Arabic → Arabic, etc. Match the answer's language exactly.

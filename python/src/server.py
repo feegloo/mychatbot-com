@@ -82,14 +82,13 @@ from shared.indexing import index_documents  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
+from shared.logging_utils import configure_safe_logging  # noqa: E402
 from shared.telemetry import close_db_pool  # noqa: E402
 from shared.url_fetch import _extract_visible_text, describe_url, fetch_url  # noqa: E402
 from shared.vector_store import collection_count, query_chunks  # noqa: E402
 from shared.video_gen import build_video_prompt, generate_video  # noqa: E402
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+configure_safe_logging(logging.INFO)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -113,14 +112,30 @@ async def _request_id_middleware(request, call_next):
     is visible in the Sentry trace.
     """
     request_id = request.headers.get("x-request-id") or ""
-    if request_id:
-        with sentry_sdk.new_scope() as scope:
+    trace_id = request.headers.get("x-trace-id") or ""
+    with sentry_sdk.new_scope() as scope:
+        if request_id:
             scope.set_tag("request_id", request_id)
-            logger.info(f"▶️  {request.method} {request.url.path} | request_id={request_id}")
-            response = await call_next(request)
+        if trace_id:
+            scope.set_tag("trace_id", trace_id)
+            sentry_logger.debug(
+                "Python server accepted traced request",
+                attributes={
+                    "trace_id": trace_id,
+                    "path": request.url.path,
+                    "method": request.method,
+                },
+            )
+        logger.info(
+            f"▶️  {request.method} {request.url.path} "
+            f"| request_id={request_id} trace_id={trace_id}"
+        )
+        response = await call_next(request)
+    if request_id:
         response.headers["X-Request-Id"] = request_id
-        return response
-    return await call_next(request)
+    if trace_id:
+        response.headers["X-Trace-Id"] = trace_id
+    return response
 
 
 class AnswerRequest(BaseModel):
@@ -134,12 +149,19 @@ class AnswerRequest(BaseModel):
     storage_dir: str | None = None
     previous_suggested_questions: list[str] | None = None
     conversation_name: str | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
+    # Internal "idea file" for this conversation, generated at indexing time.
+    # Injected into ANSWER_PROMPT as Section 3a so the LLM has a structured
+    # entity/relationship map without re-deriving it from chunks each turn.
+    wiki_message: str | None = None
 
 
 class IndexRequest(BaseModel):
     conversation_id: str
     collection_name: str
     file_paths: list[str]
+    trace_id: str | None = None
 
 
 class EnrichMetadataRequest(BaseModel):
@@ -152,6 +174,7 @@ class DescribeUrlRequest(BaseModel):
     url: str
     conversation_id: str
     collection_name: str
+    trace_id: str | None = None
 
 
 class GenerateImageRequest(BaseModel):
@@ -168,17 +191,20 @@ class GenerateImageRequest(BaseModel):
     # Absolute paths to reference images the model should condition on
     # (routed through OpenAI's images.edit endpoint). Optional.
     reference_image_paths: list[str] | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
 
 
 class AnnounceImageRequest(BaseModel):
     question: str
     welcome_messages: list[str] | None = None
     chat_history: list[dict] | None = None
+    conversation_language_code: str | None = None
+    conversation_language_name: str | None = None
 
 
 class RegisterImageRequest(BaseModel):
     image_id: str
-    description: str
     conversation_id: str
     storage_namespace: str
     file_name: str
@@ -265,18 +291,27 @@ async def get_collection_count(collection_name: str):
 @app.post("/index")
 async def index(req: IndexRequest):
     try:
+        if req.trace_id:
+            sentry_sdk.set_tag("trace_id", req.trace_id)
         sentry_logger.info(
             "Indexing documents for conversation {conversation_id}",
             conversation_id=req.conversation_id,
             collection_name=req.collection_name,
             file_count=len(req.file_paths),
+            attributes={"trace_id": req.trace_id or ""},
         )
-        result = await asyncio.to_thread(
-            index_documents,
-            conversation_id=req.conversation_id,
-            collection_name=req.collection_name,
-            file_paths=req.file_paths,
-        )
+        with sentry_sdk.start_span(
+            name="python.index_documents",
+            op="task.index",
+        ) as span:
+            span.set_data("conversation_id", req.conversation_id)
+            span.set_data("chatrag.trace_id", req.trace_id or "")
+            result = await asyncio.to_thread(
+                index_documents,
+                conversation_id=req.conversation_id,
+                collection_name=req.collection_name,
+                file_paths=req.file_paths,
+            )
         sentry_logger.info(
             "Indexing completed for conversation {conversation_id}",
             conversation_id=req.conversation_id,
@@ -346,6 +381,7 @@ async def index_stream(req: IndexRequest):
     sentry_logger.info(
         "Streaming index for conversation {conversation_id}",
         conversation_id=req.conversation_id,
+        attributes={"trace_id": req.trace_id or ""},
     )
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
@@ -382,6 +418,9 @@ async def answer(req: AnswerRequest):
             storage_dir=req.storage_dir,
             previous_suggested_questions=req.previous_suggested_questions,
             conversation_name=req.conversation_name,
+            conversation_language_code=req.conversation_language_code,
+            conversation_language_name=req.conversation_language_name,
+            wiki_message=req.wiki_message,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(
@@ -436,6 +475,8 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
     ask follow-up questions about the website content.
     """
     try:
+        if req.trace_id:
+            sentry_sdk.set_tag("trace_id", req.trace_id)
 
         def _process_url():
             from shared.chunkers import split_into_chunks
@@ -535,6 +576,8 @@ async def announce_image_endpoint(req: AnnounceImageRequest):
             req.question,
             req.welcome_messages,
             req.chat_history,
+            req.conversation_language_code,
+            req.conversation_language_name,
         )
         return {"announcement": announcement}
     except Exception as e:
@@ -586,6 +629,8 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 welcome_messages=req.welcome_messages,
                 rag_chunks=rag_chunks if rag_chunks else None,
                 chat_history=req.chat_history,
+                conversation_language_code=req.conversation_language_code,
+                conversation_language_name=req.conversation_language_name,
             )
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
@@ -628,7 +673,7 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
     before the final image is ready:
       {"event": "prompt_ready", "data": {"image_prompt": ..., "image_title": ...}}
       {"event": "partial",      "data": {"b64": "...", "index": 0}}
-      {"event": "complete",     "data": {file_name, revised_prompt, image_prompt, image_title, rag_sources}}
+      {"event": "complete",     "data": {file_name, image_prompt, image_title, rag_sources}}
       {"event": "error",        "data": {"error": "..."}}
     """
     from fastapi.responses import StreamingResponse  # noqa: E402
@@ -664,6 +709,8 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
             welcome_messages=req.welcome_messages,
             rag_chunks=rag_chunks if rag_chunks else None,
             chat_history=req.chat_history,
+            conversation_language_code=req.conversation_language_code,
+            conversation_language_name=req.conversation_language_name,
         )
         image_prompt = prompt_result["prompt"]
         image_title = prompt_result["title"]
@@ -699,7 +746,6 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         ]
         return {
             "file_name": final["file_name"],
-            "revised_prompt": final["revised_prompt"],
             "image_prompt": image_prompt,
             "image_title": image_title,
             "rag_sources": cited_sources,
@@ -743,7 +789,6 @@ async def register_image_endpoint(req: RegisterImageRequest):
         await asyncio.to_thread(
             register_image,
             image_id=req.image_id,
-            description=req.description,
             conversation_id=req.conversation_id,
             storage_namespace=req.storage_namespace,
             file_name=req.file_name,

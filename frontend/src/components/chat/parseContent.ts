@@ -17,7 +17,7 @@ export type ContentToken =
   | { type: 'prompt'; label: string }
   | { type: 'action'; label: string; refFileName?: string }
 
-const TOKEN_RE = /\[(prompt|action):([^\]]+)\]/g
+const TOKEN_RE = /\[(prompt|action|akcja):([^\]]+)\]/gi
 
 /**
  * Parse a raw action label that may carry an optional `|ref:fileName` suffix.
@@ -39,12 +39,13 @@ export function parseMessageContent(content: string): ContentToken[] {
   let lastIndex = 0
   for (const match of content.matchAll(TOKEN_RE)) {
     const [full, kind, rawLabel] = match
+    const normalizedKind = kind.toLowerCase()
     const start = match.index ?? 0
     if (start > lastIndex) {
       const text = content.slice(lastIndex, start)
       if (text.trim()) tokens.push({ type: 'text', value: text })
     }
-    if (kind === 'action') {
+    if (normalizedKind === 'action' || normalizedKind === 'akcja') {
       const { label, refFileName } = parseActionLabel(rawLabel.trim())
       tokens.push({ type: 'action', label, refFileName })
     } else {

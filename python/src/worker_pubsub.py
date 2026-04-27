@@ -1,42 +1,4 @@
-"""Long-running Pub/Sub subscriber for the chatrag-worker service.
-
-Replaces the previous Postgres-queue-driven ``worker.py`` (which was a
-Cloud Run Job task launched once per PDF *page*). The new model:
-
-  * One chatrag-worker Cloud Run *service* stays warm (min=1 replica).
-  * It subscribes to ``PUBSUB_SUBSCRIPTION`` and processes whole PDFs
-    in-process via ``shared.indexing.index_documents``.
-  * Progress events flow back to the backend via the existing
-    ``indexing_events`` table → NOTIFY → backend SSE relay.
-  * When processing is done the message is ACK'd and Pub/Sub drops it;
-    on unhandled exception we NACK and let Pub/Sub redeliver up to its
-    configured max-delivery-attempts (DLQ after that).
-
-This module never imports FastAPI — it's a long-running asyncio-free
-process so Cloud Run sees it as a plain foreground container.
-
-Local development
------------------
-Run end-to-end on your laptop without GCP credentials:
-
-    docker compose up -d postgres chroma pubsub-emulator pubsub-init
-
-    export PUBSUB_EMULATOR_HOST=localhost:8085
-    export GCP_PROJECT_ID=chatrag-local
-    export PUBSUB_TOPIC=chatrag-indexing
-    export PUBSUB_SUBSCRIPTION=chatrag-indexing-sub
-
-    # In one terminal: start the worker
-    python python/src/worker_pubsub.py
-
-    # In another: start the backend (with the same env vars + WORKER_MODE=cloud_run)
-    cd backend && WORKER_MODE=cloud_run npm run dev
-
-    # Upload a PDF — the backend publishes a job, the worker picks it up.
-
-The google-cloud-pubsub and @google-cloud/pubsub libraries both honour
-``PUBSUB_EMULATOR_HOST`` automatically, so no code change is needed.
-"""
+"""Long-running Pub/Sub subscriber for the chatrag-worker service."""
 
 from __future__ import annotations
 
@@ -46,6 +8,7 @@ import signal
 import sys
 import time
 from concurrent import futures
+from contextlib import nullcontext
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -64,12 +27,17 @@ sentry_sdk.init(
 )
 
 from sentry_sdk import logger as sentry_logger  # noqa: E402
+from shared.logging_utils import configure_safe_logging  # noqa: E402
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_safe_logging(logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Maximum seconds a single indexing job may run before it is abandoned.
+_JOB_TIMEOUT_SEC = int(os.environ.get("JOB_TIMEOUT_SEC", "900"))
+
+# Cold-start metrics: first message latency since process boot.
+_PROCESS_BOOT_TS = time.time()
+_FIRST_JOB_SEEN = False
 
 
 def _emit_event_to_db(
@@ -84,8 +52,6 @@ def _emit_event_to_db(
 
     from shared.telemetry import _get_db_pool
 
-    # Merge job_id into payload so backend handler can correlate without
-    # depending on the (potentially-dropped) indexing_events.job_id column.
     enriched_payload = dict(payload)
     if job_id:
         enriched_payload.setdefault("job_id", job_id)
@@ -108,13 +74,7 @@ def _emit_event_to_db(
 
 
 def _ensure_files_local(file_paths: list[str]) -> list[str]:
-    """Resolve each payload entry to a local readable path.
-
-    Each entry may be:
-      * A local absolute path (e.g. shared volume in docker-compose)
-      * A ``gs://bucket/key`` URI (downloaded to /tmp)
-      * A ``<local>|gs://...`` pair (prefer local, fall back to GCS)
-    """
+    """Resolve each payload entry to a local readable path."""
     resolved: list[str] = []
     for entry in file_paths:
         candidates = entry.split("|")
@@ -169,73 +129,137 @@ def _process_message(message) -> None:
         message.ack()
         return
 
-    logger.info(
-        f"📨 Received job {payload.job_id} "
-        f"(conv={payload.conversation_id}, files={len(payload.file_names)})"
-    )
-    sentry_logger.info(
-        "Worker received indexing job",
-        attributes={
-            "job_id": payload.job_id,
-            "conversation_id": payload.conversation_id,
-            "file_count": len(payload.file_names),
-            "requested_by": payload.worker_name,
-        },
+    metadata = payload.metadata or {}
+    trace_id = str(metadata.get("traceId") or "")
+    upstream_sentry_trace = str(metadata.get("sentryTrace") or "")
+    upstream_baggage = str(metadata.get("baggage") or "")
+
+    global _FIRST_JOB_SEEN
+    if not _FIRST_JOB_SEEN:
+        _FIRST_JOB_SEEN = True
+        cold_start_seconds = round(time.time() - _PROCESS_BOOT_TS, 3)
+        sentry_logger.debug(
+            "chatrag-worker cold start initialized",
+            attributes={
+                "cold_start_seconds": cold_start_seconds,
+                "job_id": payload.job_id,
+                "conversation_id": payload.conversation_id,
+                "trace_id": trace_id,
+            },
+        )
+        sentry_sdk.capture_message(
+            f"chatrag-worker cold start: {cold_start_seconds}s",
+            level="debug",
+        )
+
+    if trace_id:
+        sentry_sdk.set_tag("trace_id", trace_id)
+
+    trace_ctx = (
+        sentry_sdk.continue_trace(
+            {
+                "sentry-trace": upstream_sentry_trace,
+                "baggage": upstream_baggage,
+            }
+        )
+        if upstream_sentry_trace
+        else nullcontext()
     )
 
-    start_ts = time.time()
-
-    def on_progress(event_type: str, data: dict) -> None:
-        enriched = dict(data)
-        # Embed per-job metadata so the backend handler can correlate
-        # without joining against any jobs table. Only attached to the
-        # heavyweight events that actually need it; ``page_progress``
-        # stays lean.
-        if event_type in ("welcome_message", "complete"):
-            meta = payload.metadata or {}
-            enriched.setdefault(
-                "_meta",
-                {
-                    "uploadedFileNames": meta.get("uploadedFileNames", []),
-                    "storedToOriginal": meta.get("storedToOriginal", {}),
+    with trace_ctx:
+        with sentry_sdk.start_span(
+            name="worker.process_indexing_job",
+            op="queue.process",
+        ) as span:
+            span.set_data("conversation_id", payload.conversation_id)
+            span.set_data("job_id", payload.job_id)
+            span.set_data("chatrag.trace_id", trace_id)
+            logger.info(
+                f"📨 Received job {payload.job_id} "
+                f"(conv={payload.conversation_id}, files={len(payload.file_names)})"
+            )
+            sentry_logger.info(
+                "Worker received indexing job",
+                attributes={
+                    "job_id": payload.job_id,
+                    "conversation_id": payload.conversation_id,
+                    "file_count": len(payload.file_names),
+                    "requested_by": payload.worker_name,
+                    "trace_id": trace_id,
                 },
             )
-        _emit_event_to_db(
-            payload.conversation_id,
-            event_type,
-            enriched,
-            job_id=payload.job_id,
-        )
 
-    try:
-        local_paths = _ensure_files_local(payload.file_names)
-    except Exception as e:
-        logger.exception(f"❌ Failed to resolve files for job {payload.job_id}: {e}")
-        sentry_sdk.capture_exception(e)
-        on_progress("error", {"error": f"file resolution failed: {e}"})
-        message.ack()  # don't retry — input is bad
-        return
+            def on_progress(event_type: str, data: dict) -> None:
+                enriched = dict(data)
+                if event_type in ("welcome_message", "complete"):
+                    enriched.setdefault(
+                        "_meta",
+                        {
+                            "uploadedFileNames": metadata.get("uploadedFileNames", []),
+                            "storedToOriginal": metadata.get("storedToOriginal", {}),
+                            "traceId": trace_id,
+                        },
+                    )
+                _emit_event_to_db(
+                    payload.conversation_id,
+                    event_type,
+                    enriched,
+                    job_id=payload.job_id,
+                )
 
-    try:
-        # allow_delegation=False: worker never re-delegates to itself.
-        index_documents(
-            conversation_id=payload.conversation_id,
-            collection_name=payload.collection_name,
-            file_paths=local_paths,
-            on_progress=on_progress,
-            job_metadata=payload.metadata,
-            allow_delegation=False,
-        )
-        logger.info(
-            f"✅ Job {payload.job_id} done in {int(time.time() - start_ts)}s"
-        )
-        message.ack()
-    except Exception as e:
-        logger.exception(f"❌ Job {payload.job_id} failed: {e}")
-        sentry_sdk.capture_exception(e)
-        on_progress("error", {"error": str(e)[:500]})
-        # NACK — let Pub/Sub retry (it'll DLQ after max attempts).
-        message.nack()
+            try:
+                local_paths = _ensure_files_local(payload.file_names)
+            except Exception as e:
+                logger.exception(f"❌ Failed to resolve files for job {payload.job_id}: {e}")
+                sentry_sdk.capture_exception(e)
+                on_progress("error", {"error": f"file resolution failed: {e}"})
+                message.ack()
+                return
+
+            start_ts = time.time()
+            executor = futures.ThreadPoolExecutor(max_workers=1)
+            job_future = executor.submit(
+                index_documents,
+                conversation_id=payload.conversation_id,
+                collection_name=payload.collection_name,
+                file_paths=local_paths,
+                on_progress=on_progress,
+                job_metadata=payload.metadata,
+                allow_delegation=False,
+            )
+            try:
+                job_future.result(timeout=_JOB_TIMEOUT_SEC)
+                elapsed = round(time.time() - start_ts, 3)
+                logger.info(f"✅ Job {payload.job_id} done in {elapsed}s")
+                sentry_logger.debug(
+                    "Worker finished indexing job",
+                    attributes={
+                        "job_id": payload.job_id,
+                        "conversation_id": payload.conversation_id,
+                        "duration_seconds": elapsed,
+                        "trace_id": trace_id,
+                    },
+                )
+                message.ack()
+            except futures.TimeoutError:
+                elapsed = int(time.time() - start_ts)
+                logger.error(
+                    f"⏱️ Job {payload.job_id} timed out after {elapsed}s "
+                    f"(limit={_JOB_TIMEOUT_SEC}s)"
+                )
+                sentry_sdk.capture_message(
+                    f"Indexing job timed out: {payload.conversation_id}",
+                    level="error",
+                )
+                on_progress("error", {"error": f"Processing timed out after {elapsed}s"})
+                message.ack()
+            except Exception as e:
+                logger.exception(f"❌ Job {payload.job_id} failed: {e}")
+                sentry_sdk.capture_exception(e)
+                on_progress("error", {"error": str(e)[:500]})
+                message.nack()
+            finally:
+                executor.shutdown(wait=False)
 
 
 def main() -> int:
@@ -248,13 +272,9 @@ def main() -> int:
 
     subscriber = pubsub_v1.SubscriberClient()
 
-    # Flow control tuned for CPU-heavy indexing: process one message at a
-    # time per worker (a single PDF can use all allocated CPU).
     max_messages = int(os.environ.get("PUBSUB_MAX_MESSAGES", "1"))
     flow_control = pubsub_v1.types.FlowControl(max_messages=max_messages)
 
-    # The subscriber runs in a background thread pool; the modifyAckDeadline
-    # task extends the lease automatically for long jobs.
     streaming_pull_future = subscriber.subscribe(
         subscription_path,
         callback=_process_message,

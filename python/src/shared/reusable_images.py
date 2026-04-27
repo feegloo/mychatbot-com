@@ -61,7 +61,6 @@ def _collection():
 def register_image(
     *,
     image_id: str,
-    description: str,
     conversation_id: str,
     storage_namespace: str,
     file_name: str,
@@ -76,21 +75,21 @@ def register_image(
     ``generated_images`` table so the two systems stay in lockstep.
 
     The embedded document concatenates the originating user prompt with
-    the richer LLM-generated description. This lets us hit the same image
+    the richer LLM-generated image prompt. This lets us hit the same image
     two ways: a future user typing the *exact same* prompt in another
     conversation (surface-level match), or a semantically similar
     creative-writing answer whose text overlaps with the scene the
-    description paints (deeper match).
+    prompt paints (deeper match).
     """
-    if not description.strip() and not (user_prompt or "").strip():
+    if not (image_prompt or "").strip() and not (user_prompt or "").strip():
         logger.warning(
-            "⚠️ refusing to register image %s without a description or user prompt",
+            "⚠️ refusing to register image %s without an image_prompt or user prompt",
             image_id,
         )
         return
 
     collection = _collection()
-    embed_text = _build_embed_text(user_prompt=user_prompt, description=description)
+    embed_text = _build_embed_text(user_prompt=user_prompt, image_prompt=image_prompt or "")
     vector = list(_embed_single_cached(embed_text))
     metadata: dict[str, Any] = {
         "conversation_id": conversation_id,
@@ -112,7 +111,7 @@ def register_image(
     )
 
 
-def _build_embed_text(*, user_prompt: str | None, description: str) -> str:
+def _build_embed_text(*, user_prompt: str | None, image_prompt: str) -> str:
     """Compose the text we embed for a stored image.
 
     Keeping both fields in one document means a single vector covers both
@@ -122,8 +121,8 @@ def _build_embed_text(*, user_prompt: str | None, description: str) -> str:
     parts: list[str] = []
     if user_prompt and user_prompt.strip():
         parts.append(f"PROMPT: {user_prompt.strip()}")
-    if description and description.strip():
-        parts.append(f"DESCRIPTION: {description.strip()}")
+    if image_prompt and image_prompt.strip():
+        parts.append(f"DESCRIPTION: {image_prompt.strip()}")
     return "\n\n".join(parts)
 
 

@@ -41,6 +41,10 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
 import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
+import {
+  getStoredConversationLanguage,
+  storeConversationLanguage,
+} from '../utils/conversationLanguage'
 
 // Marker handling for translation:
 // - [source:N] markers are fully opaque (numeric id, must not change)
@@ -100,12 +104,33 @@ function extractQuizBlocks(
       continue
     }
     const original = result.slice(start, endIndex + 1)
-    const placeholder = `__MRK${textIndex}_${counterRef.value++}__`
+    const placeholder = makePlaceholder(textIndex, counterRef.value++)
     found.push({ placeholder, original })
     result = result.slice(0, start) + placeholder + result.slice(endIndex + 1)
     searchFrom = start + placeholder.length
   }
   return { result, found }
+}
+
+// Placeholder format chosen to survive round-trips through Google Translate,
+// including across-script boundaries (notably Arabic ↔ Latin) where the
+// previous `__MRK0_0__` form had its leading underscores silently stripped
+// by the translator, leaking raw `MRK0_0__` tokens into the rendered
+// message and breaking action-button restoration. Using only letters and
+// digits with letter delimiters avoids that class of mangling.
+function makePlaceholder(textIndex: number, counter: number): string {
+  return `XMRK${textIndex}X${counter}XEND`
+}
+
+// Tolerant matcher used as a fallback when an exact-string replace fails.
+// The translator can strip or alter the boundary letters (`X`/`END`) when
+// crossing scripts (Arabic → Latin observed in production). Match the
+// invariant numeric core `MRK<i>X<c>` and consume any surviving boundary
+// letters/whitespace around it so the placeholder is fully replaced.
+function placeholderRegex(placeholder: string): RegExp {
+  // Placeholder shape: `XMRK<i>X<c>XEND`. Extract the numeric core.
+  const core = placeholder.replace(/^XMRK/, '').replace(/XEND$/, '')
+  return new RegExp(`\\s*X?MRK${core}X?(?:END)?\\s*`, 'i')
 }
 
 type MarkerInfo = {
@@ -133,17 +158,17 @@ function extractMarkers(texts: string[]): {
     // Extract markdown images so their `[alt]` brackets don't collide
     // with the [source:…]/[action:…] marker regex on the following pass.
     let result = afterQuiz.replace(IMAGE_MD_RE, (match) => {
-      const placeholder = `__MRK${i}_${counterRef.value++}__`
+      const placeholder = makePlaceholder(i, counterRef.value++)
       found.push({ placeholder, kind: 'image', original: match })
       return placeholder
     })
     result = result.replace(POEM_TAG_RE, (match) => {
-      const placeholder = `__MRK${i}_${counterRef.value++}__`
+      const placeholder = makePlaceholder(i, counterRef.value++)
       found.push({ placeholder, kind: 'poem', original: match })
       return placeholder
     })
     result = result.replace(MARKER_RE, (match, kind: string, inner: string) => {
-      const placeholder = `__MRK${i}_${counterRef.value++}__`
+      const placeholder = makePlaceholder(i, counterRef.value++)
       const info: MarkerInfo = {
         placeholder,
         kind: kind.toLowerCase() === 'action' ? 'action' : 'source',
@@ -169,7 +194,18 @@ function restoreMarkers(translations: string[], markers: Map<number, MarkerInfo[
         info.kind === 'action' && info.label !== undefined
           ? `[action:${info.label}]`
           : info.original
-      result = result.replace(info.placeholder, replacement)
+      // Exact match first (cheap, common case). Fall back to a tolerant
+      // regex when the translator has nudged whitespace or casing around
+      // the placeholder — this is what protects action buttons when
+      // translating from RTL scripts (e.g. Arabic) into Latin targets.
+      if (result.includes(info.placeholder)) {
+        result = result.replace(info.placeholder, replacement)
+      } else {
+        const re = placeholderRegex(info.placeholder)
+        if (re.test(result)) {
+          result = result.replace(re, replacement)
+        }
+      }
     }
     return result
   })
@@ -291,33 +327,12 @@ const translatedUpToIndex = ref(-1)
 const showDropdown = ref(false)
 const wrapRef = ref<HTMLElement | null>(null)
 
-const CONV_LANG_KEY = 'conversation-languages'
-
 function getStoredLanguage(): string | null {
-  if (!props.conversationId) return null
-  try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
-    return map[props.conversationId] || null
-  } catch {
-    return null
-  }
+  return getStoredConversationLanguage(props.conversationId)
 }
 
 function storeLanguage(lang: string) {
-  if (!props.conversationId) return
-  try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
-    if (lang === detectedLang.value) {
-      delete map[props.conversationId]
-    } else {
-      map[props.conversationId] = lang
-    }
-    localStorage.setItem(CONV_LANG_KEY, JSON.stringify(map))
-  } catch {
-    /* ignore */
-  }
+  storeConversationLanguage(props.conversationId, lang, detectedLang.value)
 }
 
 const LANG_FLAGS: Record<string, string> = {
