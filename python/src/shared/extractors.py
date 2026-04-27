@@ -349,9 +349,20 @@ _VISION_STANDALONE_IMAGE_PROMPT = (
     "Priority rules:\n"
     "1) If meaningful visible text exists, transcribe it exactly in the original language/script.\n"
     "2) Even when text exists, ALWAYS add a concise factual visual description after transcription.\n"
-    "3) If people are visible, describe visible appearance only: count, clothing, pose/activity, facial expression, and immediate scene context.\n"
-    "4) Do not identify people by name and do not infer sensitive traits (ethnicity, religion, health, sexuality, political views).\n"
-    "5) Keep it concrete and neutral; avoid speculation and marketing-style wording."
+    "3) If people are visible, describe them richly and concretely across two focused sections:\n"
+    "   PEOPLE: How many are present. For each person — estimated age range (e.g. 'teenager', 'woman in her 30s'), "
+    "gender, clothing (colors and style, e.g. 'blue-and-white school uniform', 'striped shirt'), "
+    "hair (color, length, style), height if discernible, expression, and any notable physical features.\n"
+    "   ACTIVITY & CONTEXT: What are they doing (e.g. sharing a gift, posing for a photo, playing football, "
+    "eating together, working in a field)? What does the setting reveal — indoor/outdoor, location type "
+    "(schoolyard, park, city street, home), specific background features (trees, buildings, vehicles)? "
+    "What is the likely social occasion (school event, family gathering, birthday, wedding, sport, "
+    "work, casual outing, religious ceremony, market, celebration)? "
+    "Note time of day if clear (bright midday sun, golden hour, overcast, indoor lighting) "
+    "and season or weather if visible (summer heat, winter coats, rainy, autumn leaves).\n"
+    "4) Do not identify people by name. Do not explicitly state ethnicity, nationality, or religion.\n"
+    "5) Keep it concrete and factual — describe what you see. Do not comment on photographic "
+    "composition, framing, cropping, or artistic quality unless the photo is clearly about photography as art."
 )
 
 

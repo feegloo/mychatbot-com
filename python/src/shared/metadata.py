@@ -43,6 +43,49 @@ def _parse_gps_coord(coord: tuple, ref: str) -> float | None:
         return None
 
 
+def reverse_geocode_coordinates(lat: float, lon: float) -> str | None:
+    """Resolve GPS coordinates to a rich human-readable location description via OpenAI web search.
+
+    Uses the OpenAI Responses API with the web_search_preview tool to look up the
+    location. Returns 2-4 sentences covering country, division/region, district,
+    sub-district, and any notable geographic features (rivers, coast, agricultural
+    character). Concise but specific — enough context to be meaningful to the user.
+    Returns None when the lookup fails or the API is unavailable.
+    """
+    try:
+        from openai import OpenAI
+
+        from .config import get_settings
+
+        settings = get_settings()
+        if not settings.openai_api_key:
+            return None
+
+        client = OpenAI(api_key=settings.openai_api_key, timeout=15.0)
+        query = (
+            f"Locate GPS coordinates {lat:.6f}, {lon:.6f} precisely. "
+            f"Provide a concise 2-3 sentence description covering: "
+            f"(1) the country and administrative division/region, "
+            f"(2) the district and sub-district (upazila / county / commune / municipality), "
+            f"(3) the nearest named village, town, or landmark if identifiable, "
+            f"(4) any notable geographic character (coastal, riverine, agricultural, urban, mountainous, etc.). "
+            f"Be specific and factual. No preamble, no bullet points, plain prose only."
+        )
+        response = client.responses.create(
+            model="gpt-4o-mini",
+            tools=[{"type": "web_search_preview"}],
+            input=query,
+        )
+        place = (response.output_text or "").strip()
+        if place:
+            logger.info(f"📍 Reverse geocoded ({lat}, {lon}) → {place[:120]}...")
+            return place
+        return None
+    except Exception as e:
+        logger.warning(f"⚠️  Reverse geocoding failed for ({lat}, {lon}): {e}")
+        return None
+
+
 def extract_image_metadata(file_path: str, web_search: bool = False) -> dict:
     """Extract EXIF and basic metadata from an image file.
 
@@ -126,6 +169,9 @@ def extract_image_metadata(file_path: str, web_search: bool = False) -> dict:
                 if lat is not None and lon is not None:
                     metadata["gps_latitude"] = lat
                     metadata["gps_longitude"] = lon
+                    place_name = reverse_geocode_coordinates(lat, lon)
+                    if place_name:
+                        metadata["gps_place_name"] = place_name
                 if "GPSAltitude" in gps_info:
                     metadata["gps_altitude"] = _safe_exif_value(gps_info["GPSAltitude"])
 

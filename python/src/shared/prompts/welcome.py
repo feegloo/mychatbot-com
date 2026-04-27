@@ -167,8 +167,11 @@ Twoja odpowiedź MUSI składać się z trzech części:
    - Liczba uczestników, respondentów, próbka badawcza (np. "badanie na **1200 pacjentach**")
    Im więcej konkretnych, mierzalnych faktów — tym lepszy opis. Każde zdanie powinno zawierać co najmniej jedną liczbę, nazwę własną lub mierzalny fakt. Użytkownik powinien z opisu dowiedzieć się KONKRETNYCH rzeczy, nie ogólników.
    Jeśli w metadanych pliku jest pole page_count, KONIECZNIE wspomnij ile stron liczy dokument (np. "Ten **14-stronicowy** przewodnik...").
-   Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja).
-  Jeśli na zdjęciu widać osobę lub ludzi, opisz ich wygląd w sposób obserwowalny: ile osób widać, jak są ubrane, co robią, jaki mają wyraz twarzy oraz jaki jest najbliższy kontekst tła.
+   Jeśli przesłano zdjęcie z metadanymi EXIF, wspomnij najciekawsze szczegóły (aparat, data, lokalizacja GPS). Jeśli w metadanych jest pole `gps_place_name`, wpleć jego treść naturalnie w opis — podaj kraj, region administracyjny, dystrykt i charakter geograficzny (nadbrzeżny, nadrzeczny, rolniczy itp.). NIE powtarzaj samych współrzędnych; użyj opisu miejsca jako punktu odniesienia lokalizacji. Przykład: "Zdjęcie wykonano w **dzielnicy Lakshmipur**, w **oddziale Chittagong w Bangladeszu** — nizinnym, nadrzecznym obszarze rolniczym z charakterystycznymi osadami delta-czarnorodnymi."
+  Jeśli na zdjęciu widać osobę lub ludzi, opis MUSI obejmować dwa obszary:
+  LUDZIE: Ile osób widać. Dla każdej osoby — szacowany przedział wiekowy (np. "nastolatek", "kobieta ok. 30 lat"), płeć, ubranie (kolory i styl), włosy (kolor, długość, fryzura), wyróżniające cechy fizyczne (wzrost, wyraz twarzy). Jeśli dostępne są dane GPS, możesz naturalnie wspomnieć o prawdopodobnym kontekście kulturowym lub regionalnym.
+  AKTYWNOŚĆ I KONTEKST: Co robią osoby (np. wręczają prezent, grają w piłkę, jedzą razem, pozują do zdjęcia, pracują)? Co tło zdradza o miejscu (boisko szkolne, park, ulica, dom, restauracja, pole)? Jaki jest prawdopodobny kontekst społeczny (spotkanie rodzinne, szkolne wydarzenie, praca, trening sportowy, urodziny, ślub, ceremonia religijna, wyjście)? Podaj porę dnia, jeśli widać (jaskrawe południe, złota godzina, zachmurzone niebo, oświetlenie wnętrza) i porę roku lub pogodę, jeśli widać (letni upał, deszczowy dzień, zimowe kurtki, jesienne liście).
+  NIE pisz o kompozycji fotograficznej, kadrze, punkcie ostrości, obiektywie ani o jakości artystycznej — chyba że zdjęcie jest wyraźnie sztuką fotograficzną.
   Nie identyfikuj osób po nazwisku i nie zgaduj cech wrażliwych. Nie pisz, że "nie widać osób", jeśli nie masz pewności.
   Jeśli nazwa pliku i osadzone metadane autora lub twórcy różnią się od siebie, wspomnij o tej rozbieżności naturalnie w opisie lub eksperckim wglądzie, np. że nazwa pliku wskazuje na jednego twórcę, a metadane PDF/EXIF na innego.
 
@@ -184,7 +187,8 @@ Twoja odpowiedź MUSI składać się z trzech części:
    - Dokumenty prawne: wskaż kluczowe zapisy, ryzyka, terminy.
    - Pisma problemowe (wezwania, nakazy, decyzje, odmowy, pisma urzędowe, windykacja, spory): zidentyfikuj konkretny problem — kto żąda, czego żąda, w jakim terminie i jakie konsekwencje grożą za brak działania. Natychmiast wskaż użytkownikowi konkretne kroki: co zrobić, jakie dokumenty zebrać, z kim się skontaktować, do którego urzędu/sądu/firmy się odwołać. Podaj termin i priorytety — co jest pilne, a co można zrobić później.
    - Artykuły/raporty: wskaż główną tezę, zaskakujący wniosek lub kontekst.
-   - Zdjęcia: opisz co ciekawego widać, kontekst techniczny lub artystyczny.
+   - Zdjęcia z ludźmi: uchwyt emocjonalny moment lub historię — relacje między osobami, przypuszczalne wydarzenie, kontekst kulturowy z ubrań lub otoczenia, coś niespodziewanego w tle. NIE oceniaj kompozycji fotograficznej, kadrowania ani techniki.
+   - Zdjęcia bez ludzi (krajobrazy, przedmioty, jedzenie, architektura, sztuka): zauważ coś ciekawego o przedmiocie, miejscu, szczegółach technicznych lub kontekście wizualnym.
    - Dane/tabele: wskaż trend, anomalię lub najważniejszą liczbę.
 
 Jeśli podano metadane pliku (JSON poniżej oznaczony =====), KONIECZNIE wykorzystaj je — np. autora, datę utworzenia, tytuł, aparat itp. Wyjątek: jeśli osobny blok z podpowiedziami z nazwy pliku pokazuje konflikt autora lub twórcy i kandydat z nazwy pliku wygląda na realne imię/nazwę twórcy (a nie domenę/URL/watermark), możesz użyć go w nagłówku.
@@ -267,8 +271,11 @@ Your response MUST have three parts:
    - Sample sizes, participant counts (e.g. "study of **1,200 patients**")
    The more concrete, measurable facts — the better the description. Every sentence should contain at least one number, proper name, or measurable fact. The user should learn SPECIFIC things from the description, not generalities.
    If file metadata includes page_count, you MUST mention how many pages the document has (e.g. "This **14-page** scar treatment guide...").
-   If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location).
-  If the image shows a person or people, explicitly describe visible appearance: how many people are present, what they are wearing, what they are doing, their expression, and the immediate background context.
+   If an image was uploaded with EXIF metadata, mention the most interesting details (camera, date, GPS location). If the metadata includes a `gps_place_name` field, weave its content naturally into the description — include country, administrative region, district, and any geographic character mentioned (coastal, riverine, agricultural, etc.). Do NOT just repeat the raw coordinates; use the place name description as your location reference. Example: "It was shot in the **Lakshmipur District** of **Chittagong Division, Bangladesh** — a low-lying riverine area of agricultural land and coastal char sediment."
+  If the image shows a person or people, your description MUST cover two focused areas:
+  PEOPLE FACTS: How many people are present. For each visible person — estimated age range (e.g. "teenager", "woman in her 30s"), gender, clothing (colors and style), hair (color, length, style), notable physical features (height, expression). If GPS location data is available, you MAY naturally mention likely cultural or regional context based on the combination of location and visible appearance.
+  ACTIVITY & CONTEXT: What are the people doing (e.g. sharing a gift, playing football, having lunch, posing for a photo, working)? What does the background reveal about the setting (schoolyard, park, city street, home, restaurant, field)? What is the likely social context (family gathering, school event, workplace, sports practice, birthday, wedding, religious ceremony, casual outing)? Note time of day if discernible (bright midday sun, golden hour, overcast daylight, evening indoors) and season or weather if visible (summer heat, rainy day, winter coats, autumn leaves).
+  Do NOT write about photographic composition, cropping, focal points, lens choice, or framing — unless the photo is clearly fine-art photography where technique is the subject.
   Do not identify people by name and do not infer sensitive attributes. Do not claim no people are visible unless you are genuinely certain.
   If the uploaded filename and embedded author or creator metadata disagree, mention that mismatch naturally in the description or expert insight, e.g. that the filename points to one creator while the PDF or EXIF metadata lists another.
 
@@ -284,7 +291,8 @@ Your response MUST have three parts:
    - Legal documents: point out key clauses, risks, deadlines.
    - Problem documents (notices, demands, court letters, denial letters, administrative decisions, debt collection, insurance disputes, workplace conflicts, fines): identify the specific problem — who is demanding what, by what deadline, and what happens if ignored. Immediately give the user concrete next steps: what to do first, what documents to gather, who to contact, which office/court/company to reach out to. Flag urgency — what is time-sensitive vs. what can wait.
    - Articles/reports: surface the main thesis, a surprising finding, or broader context.
-   - Photos: note something interesting about composition, technical details, or context.
+   - Photos with people: capture the emotional moment or story — the relationship dynamic, guessed occasion, cultural context from clothing or setting, or something unexpected in the background. Do NOT critique photographic composition, cropping, or framing.
+   - Photos without people (landscapes, objects, food, architecture, art): note something interesting about the subject, setting, technical details, or visual context.
    - Data/tables: point out a trend, anomaly, or the single most important number.
    - Classical/religious/philosophical texts: place the work in its historical and cultural context — mention the tradition, the era, and why it remains relevant. For example: "The Masnavi (مثنوی) is considered the greatest work of Persian Sufi poetry — Rumi dictated its ~25,000 verses to his disciple **Husam Chelebi** over many years, and classical scholars called it 'the Quran in Persian'." Be specific and scholarly.
 
