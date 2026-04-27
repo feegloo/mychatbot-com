@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 _MATCHED_PAGES_MAX_CHARS = 40_000
 
 # Hard cap on total prompt tokens sent to the LLM.
-# gpt-5.4 has a 1M context window; we use 400K to stay well within budget
-# while allowing much larger documents to be processed in a single call.
-_MAX_PROMPT_TOKENS = 400_000
+# OpenAI enforces a 300K token limit per request. We use 280K to leave
+# a 20K buffer for safety and account for tokenization variations.
+_MAX_PROMPT_TOKENS = 280_000
 
 # Baseline sampling temperature for the answering LLM (OpenAI).
 # The system prompt instructs the model to self-regulate its effective
@@ -63,7 +63,10 @@ Always write the answer and all [action:...] labels in this conversation languag
 Read all context sections carefully before answering.
 
 Context sections provided (in the human message):
-1. Matching Sources — top embedding matches with similarity scores
+1. Matching Sources — top embedding matches with two similarity scores per source:
+   - HNSW score (Hierarchical Navigable Small World Graph): the L2-based approximate nearest-neighbour score (1 = identical vectors, 0 = maximally distant). ChromaDB uses an HNSW graph index to navigate a multi-layered graph structure and efficiently find the closest vectors without comparing against every stored chunk.
+   - Cosine Similarity: the angle between the query and document embedding vectors (1 = vectors point in same direction / meaning matches, -1 = vectors point in opposite directions / opposite meaning, 0 = orthogonal / unrelated). Higher cosine values indicate stronger semantic alignment with the query regardless of vector magnitude.
+   Use both values together: HNSW selects candidates efficiently, Cosine confirms semantic match quality.
 2. Welcome Page Description — short summary of each uploaded file
 3. Full Pages of Matched Sources — complete page text where matches were found
 4. Chapter Context — full text of the most relevant chapter (if available)
@@ -158,7 +161,7 @@ Rules:
 
 --
 
-== SECTION 6: Start Answering ==
+{no_file_context_instruction}== SECTION 6: Start Answering ==
 You have all the context above. Now answer the following question thoroughly with inline [source:N] citations:
 "{question}"
 """,
@@ -172,9 +175,9 @@ def build_context(rows: list[dict]) -> str:
         return "(no matching sources found)"
     parts = []
     for i, row in enumerate(rows, 1):
-        # Convert L2 distance to approximate cosine similarity: sim ≈ 1 - dist/2
         distance = row.get("distance", 0)
-        similarity = max(0.0, 1.0 - distance / 2.0)
+        # L2 distance → HNSW score in [0, 1]: 1 = identical, 0 = maximally distant
+        hnsw_score = max(0.0, 1.0 - distance / 2.0)
         label = f"[Source {i}] File: {row['file_name']}"
         if row.get("page") is not None:
             label += f" (Page {row['page']})"
@@ -185,7 +188,9 @@ def build_context(rows: list[dict]) -> str:
             label += f" ({ch_label})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
-        label += f" | Similarity: {similarity:.2f}"
+        label += f" | HNSW (Hierarchical Navigable Small World Graph): {hnsw_score:.2f}"
+        if row.get("cosine_similarity") is not None:
+            label += f" - Cosine Similarity: {row['cosine_similarity']:.2f}"
         parts.append(f'{label}\n"{row["text"]}"')
     return "\n\n--\n\n".join(parts)
 
@@ -835,6 +840,18 @@ def _trim_prompt_to_budget(
     })
 
     vars_copy = dict(prompt_vars)
+    
+    # Log initial context sizes for debugging
+    context_sections = {
+        "question": len(vars_copy.get("question", "")),
+        "context": len(vars_copy.get("context", "")),
+        "chat_history": len(vars_copy.get("chat_history", "")),
+        "matched_pages": len(vars_copy.get("matched_pages", "")),
+        "chapter_context": len(vars_copy.get("chapter_context", "")),
+        "welcome_messages": len(vars_copy.get("welcome_messages", "")),
+        "previous_suggested_questions": len(vars_copy.get("previous_suggested_questions", "")),
+    }
+    
     for attempt in range(12):
         rendered_messages = prompt.format_messages(**vars_copy)
         full_text = "\n".join(m.content for m in rendered_messages)
@@ -845,6 +862,12 @@ def _trim_prompt_to_budget(
                 logger.warning(
                     f"✂️ Prompt trimmed after {attempt} reduction(s): "
                     f"{total_tokens:,} tokens (budget={max_tokens:,})"
+                )
+            # Warn if approaching the limit (>85% of budget)
+            if total_tokens > max_tokens * 0.85:
+                logger.warning(
+                    f"⚠️ Prompt is large and approaching token budget: "
+                    f"{total_tokens:,} / {max_tokens:,} tokens ({total_tokens*100//max_tokens}%)"
                 )
             return vars_copy
 
@@ -1023,6 +1046,19 @@ def answer_with_citations(
             }
         else:
             conv_name = conversation_name or "(unnamed conversation)"
+            is_first_message = not chat_history or len(chat_history) == 0
+            has_no_files = not welcome_messages or len(welcome_messages) == 0
+            if is_first_message and has_no_files:
+                no_file_context_instruction = (
+                    "== FIRST REPLY — NO FILES UPLOADED ==\n"
+                    "The user has NOT uploaded any files. This is their very first message and there is "
+                    "no document context at all — Sections 1–4 above are empty.\n"
+                    "MANDATORY: You MUST include [upload] exactly once, inline within a sentence, "
+                    "somewhere in your reply — to invite the user to share relevant files.\n"
+                    "Do NOT skip this. Do NOT put [upload] on its own line or as a heading.\n\n"
+                )
+            else:
+                no_file_context_instruction = ""
             prompt_vars = {
                 "question": question,
                 "conversation_language_code": conversation_language_code or "unknown",
@@ -1036,6 +1072,7 @@ def answer_with_citations(
                 "previous_suggested_questions": prev_questions_str,
                 "conversation_name": conv_name,
                 "conversation_id": conversation_id,
+                "no_file_context_instruction": no_file_context_instruction,
             }
 
         # Trim context sections if total prompt would exceed the per-request token limit

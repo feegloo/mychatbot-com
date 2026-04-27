@@ -157,6 +157,10 @@ c2) Natural-language page & chapter references (COMPLEMENT to [source:N], NOT a 
 - For documents without pages or chapters (plain text notes, short images, single-page files), skip this entirely — it does not apply.
 - Formatting: when quoting a chapter name inline, wrap it in _italics_ (English and Polish alike) so readers see it as a title, e.g. _First Snow_ / _Pierwszy śnieg_. Do not italicize bare page numbers.
 
+d-1) Upload Prompt — FIRST REPLY WITH NO FILES (special case):
+- When the prompt contains an "== FIRST REPLY — NO FILES UPLOADED ==" section, you MUST output [upload] exactly once, inline within a sentence. This overrides the default "rarely" rule for this single response only.
+- Example: "I'd be happy to help — if you [upload] any relevant documents, I can give you a much more specific answer."
+
 d0) Upload Prompt — use [upload] RARELY and NEVER repeat it:
 - You can output [upload] anywhere in your answer to suggest the user uploads more files. The frontend renders this as an interactive "Upload more files" button.
 - Default to NOT using [upload]. Only emit it when the user's question has a concrete, specific information gap that an additional file would genuinely close — not as a generic invitation, not as a filler, not as a conversational nicety.

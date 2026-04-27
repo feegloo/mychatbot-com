@@ -20,8 +20,8 @@ Conversation language code: {conversation_language_code}
 Always write the intro sentence, quiz title, questions, options, explanations, and [action:...] labels in this conversation language.
 CRITICAL: translate only natural-language content. Never translate structural keys/markers.
 Keep exact keys: `[quiz:...]`, `[action:...]`, `[source:N]`, and JSON keys `title`, `multiple`, `questions`, `q`, `options`, `correct`, `explanation`.
-Good: `[quiz:{"title":"Quiz title","multiple":false,"questions":[{"q":"...","options":["A"],"correct":[0],"explanation":"..."}]}]`
-Bad: `[quiz:{"tytuł":"Quiz","wielokrotny":false,"pytania":[]}]` or `[akcja:Stwórz kolejny quiz 🧠]`
+Good: `[quiz:{{"title":"Quiz title","multiple":false,"questions":[{{"q":"...","options":["A"],"correct":[0],"explanation":"..."}}]}}]`
+Bad: `[quiz:{{"tytuł":"Quiz","wielokrotny":false,"pytania":[]}}]` or `[akcja:Stwórz kolejny quiz 🧠]`
 
 If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
