@@ -193,17 +193,26 @@ const MOBILE_VISIBLE_TABS = 3
 const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < 768)
 const tabsExpanded = ref(false)
 
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
 onMounted(() => {
-  const handler = () => {
-    isMobile.value = window.innerWidth < 768
-  }
-  window.addEventListener('resize', handler)
-  onUnmounted(() => window.removeEventListener('resize', handler))
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 
 const visibleTableNames = computed(() => {
   if (!isMobile.value || tabsExpanded.value) return TABLE_NAMES
-  return TABLE_NAMES.slice(0, MOBILE_VISIBLE_TABS)
+  const visibleNames = TABLE_NAMES.slice(0, MOBILE_VISIBLE_TABS)
+  const current = activeTable.value
+  if (current === SQL_TAB || visibleNames.includes(current as DebugTableName)) {
+    return visibleNames
+  }
+  return [...visibleNames.slice(0, MOBILE_VISIBLE_TABS - 1), current as DebugTableName]
 })
 
 const authenticated = ref(false)
@@ -636,6 +645,7 @@ td {
 }
 .col-content {
   min-width: 280px;
+  max-width: none;
 }
 .col-content .cell {
   max-width: 500px;
