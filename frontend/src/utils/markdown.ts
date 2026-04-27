@@ -182,7 +182,7 @@ export function renderMarkdown(content: string): string {
     'pink',
     'gray',
   ])
-  const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c\]/g, (_, color, text) =>
+  const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c(?::\w+)?\]/g, (_, color, text) =>
     allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
   )
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons

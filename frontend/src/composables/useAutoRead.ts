@@ -66,7 +66,7 @@ export function cleanTextForTTS(text: string): string {
     .replace(/\[source:\s*\d+(?:,\s*\d+)*\]/g, '')
     .replace(/(?<!\w)\[(\d+(?:\s*,\s*\d+)*)\](?!\()/g, '')
     .replace(/\[action:\s*[^\]]+\]/g, '')
-    .replace(/\[c:\w+\](.*?)\[\/c\]/g, '$1')
+    .replace(/\[c:\w+\](.*?)\[\/c(?::\w+)?\]/g, '$1')
     .replace(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi, '$1')
     .replace(/\[quiz:[\s\S]*?\]/g, '')
     .replace(/```mermaid\s*\n[\s\S]*?```/g, '')

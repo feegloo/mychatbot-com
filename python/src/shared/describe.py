@@ -259,7 +259,7 @@ _META_EXCLUDE_KEYS = {
 }
 
 # ── Token budget for the describe prompt ─────────────────────────────
-# gpt-5.4-mini has a 272K token context window. Keep the char-budget conservative
+# gpt-5.4-nano has a ~400K context window. Keep the char-budget conservative
 # so the large-document path engages earlier before token budgets get tight.
 _DESCRIBE_MAX_CONTENT_CHARS = 600_000
 
@@ -296,9 +296,9 @@ _SPLIT_INTER_CALL_DELAY = 2.0
 _SYNTHESIS_RAW_TEXT_CHARS = 400_000
 # Whole-book path: if the book fits inside this estimated token budget,
 # send the full raw text to the welcome-message prompt instead of truncating.
-# Keep well under _MAX_CONTENT_TOKENS since tiktoken estimates can be off
-# (especially for non-Latin scripts), and system prompt adds overhead.
-_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 200_000
+# For a 400K-context model, keep whole-book mode below the hard request cap
+# to leave room for system/developer instructions.
+_WHOLE_BOOK_MAX_ESTIMATED_TOKENS = 300_000
 # Keep the extracted raw text in memory up to 500 MB as requested.
 _WHOLE_BOOK_MEMORY_LIMIT_BYTES = 500 * 1024 * 1024
 # Large-book compaction path packs adjacent chapters/page ranges into 4-8 LLM calls.
@@ -454,26 +454,12 @@ def _estimate_word_count(text: str) -> int:
 
 
 # ── Token budgeting (tiktoken-backed for accurate non-Latin counts) ──
-# gpt-5.4-mini has a 272K token context window. Keep a single request cap,
-# then derive the content budget by reserving space for prompt parts that are
-# appended outside {content} (system prompt, metadata/OCR notes, response).
-_MAX_REQUEST_TOKENS = 257_000
-
-# System prompts in this module can be large (~5-15K tokens of rules).
-_SYSTEM_PROMPT_HEADROOM_TOKENS = 15_000
-# Metadata sections / OCR notes are appended separately from {content}.
-_METADATA_HEADROOM_TOKENS = 10_000
-# Leave room for the model's completion and minor prompt variance.
-_COMPLETION_HEADROOM_TOKENS = 10_000
-
-# Safe budget for the main {content} portion of a single LLM call after
-# reserving explicit overhead for system prompt, metadata/OCR, and response.
-_MAX_CONTENT_TOKENS = (
-    _MAX_REQUEST_TOKENS
-    - _SYSTEM_PROMPT_HEADROOM_TOKENS
-    - _METADATA_HEADROOM_TOKENS
-    - _COMPLETION_HEADROOM_TOKENS
-)
+# gpt-5.4-nano has a ~400K context window. Hard-cap requests at 400K tokens.
+_MAX_REQUEST_TOKENS = 400_000
+# Safe budget for the *content* portion of a single LLM call.  The system
+# prompts in this module are large (~5-15K tokens of rules), so we reserve
+# extra headroom when packing raw text.
+_MAX_CONTENT_TOKENS = 350_000
 
 _tiktoken_enc = None
 
