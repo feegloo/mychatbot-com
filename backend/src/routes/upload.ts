@@ -217,6 +217,24 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
                 suggestedQuestions: earlySuggestedQuestions,
               },
             })
+          } else if (event === 'wiki_message') {
+            // Hidden "idea file" — stored as an internal message and
+            // injected into ANSWER_PROMPT on every subsequent /ask. Never
+            // surfaced to the user, so no SSE re-broadcast.
+            const wikiContent = (data.wiki_message as string) || ''
+            if (wikiContent) {
+              try {
+                await insertConversationMessage({
+                  conversationId,
+                  role: 'assistant',
+                  content: wikiContent,
+                  isInternal: true,
+                  internalKind: (data.internal_kind as string) || 'wiki',
+                })
+              } catch (err: any) {
+                console.error('[wiki message persist error]:', err.message)
+              }
+            }
           } else if (event === 'complete') {
             Sentry.logger.info(
               Sentry.logger.fmt`Indexing completed for conversation ${conversationId}`,
@@ -526,6 +544,21 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
                 suggestedQuestions: earlySuggestedQuestions,
               },
             })
+          } else if (event === 'wiki_message') {
+            const wikiContent = (data.wiki_message as string) || ''
+            if (wikiContent) {
+              try {
+                await insertConversationMessage({
+                  conversationId: conversationId as string,
+                  role: 'assistant',
+                  content: wikiContent,
+                  isInternal: true,
+                  internalKind: (data.internal_kind as string) || 'wiki',
+                })
+              } catch (err: any) {
+                console.error('[wiki message persist error]:', err.message)
+              }
+            }
           } else if (event === 'complete') {
             const suggestedQuestions = (data.suggested_questions as string[]) || []
             const finalWelcomeMessage = (data.welcome_message as string) || ''

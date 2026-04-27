@@ -4,6 +4,7 @@ import { z } from 'zod'
 import * as Sentry from '@sentry/node'
 import {
   getConversation,
+  getInternalWikiMessage,
   insertConversationMessage,
   resolveConversationRole,
   appendToMessageContent,
@@ -134,6 +135,10 @@ askRouter.post('/ask', async (ctx) => {
 
   const storageDir = path.join(config.storageRoot, data.conversation.storage_namespace)
 
+  // Internal "idea file" — generated once at indexing time. Threads inherit
+  // their parent's wiki via storage_namespace fallback inside the repo helper.
+  const wikiMessage = await getInternalWikiMessage(conversationId)
+
   // Collect all previously shown suggested questions:
   // 1. Indexing-time suggested questions from DB
   const previousSuggestedQuestions: string[] = data.suggestedQuestions.map((q) => q.question)
@@ -175,6 +180,7 @@ askRouter.post('/ask', async (ctx) => {
           conversationName: data.conversation.display_name || undefined,
           conversationLanguageCode: conversationLanguage.code || undefined,
           conversationLanguageName: conversationLanguage.nativeName || undefined,
+          wikiMessage: wikiMessage || undefined,
           requestId: requestId || undefined,
         }),
     )

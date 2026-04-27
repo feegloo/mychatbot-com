@@ -152,7 +152,7 @@
             ref="questionInput"
             v-model="question"
             class="chat-textarea"
-            :placeholder="isViewer ? 'Reply to start your own thread...' : 'Ask a question...'"
+            :placeholder="isViewer ? homeT.viewerReplyPlaceholder : homeT.askPlaceholder"
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
@@ -221,6 +221,7 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { homeT } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''

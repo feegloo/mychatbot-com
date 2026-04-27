@@ -195,9 +195,15 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 # ---------------------------------------------------------------------------
 
 _WIKI_SYSTEM = """You are an internal knowledge curator. Your job is to read the
-welcome-message summary and a strategic sample of source chunks, then produce a
-compact "internal wiki" — a structured idea file that the answering assistant
-will receive on every future question in this conversation.
+welcome-message summary plus a generous slice of the underlying source
+material (top embedding matches, their full pages, and the dominant chapter)
+and produce a compact "internal wiki" — a structured idea file that the
+answering assistant will receive on every future question in this conversation.
+
+This pattern is inspired by Andrej Karpathy's "LLM Wiki" idea file:
+https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f — a
+compounding, hand-curated knowledge artifact the model accumulates and reuses,
+rather than re-deriving the document's shape on every turn.
 
 This document is NEVER shown to the end user. It is the assistant's private
 scratchpad. Optimize for *machine readability* and *high-density signal*, not
@@ -286,12 +292,19 @@ Write the wiki in: {language}
 == WELCOME MESSAGE (already shown to user) ==
 {welcome_message}
 
-== STRATEGIC CHUNK SAMPLE ==
-The following are representative excerpts from the indexed sources. Use them to
-ground entities and relationships. Excerpts are labeled by file and page so you
-can disambiguate, but DO NOT cite them in the output.
+== RAW MATERIAL ==
+The following block is assembled from three retrieval layers, each labeled with
+an ALL-CAPS section header:
+  * TOP MATCHES — chunks whose embeddings are closest to the welcome message.
+  * FULL PAGES OF TOP MATCHES — the complete page each top match came from
+    (preserves structure, formulas, lists, dialogue boundaries that chunking
+    splits across).
+  * DOMINANT CHAPTER CONTEXT — the chapter most frequent across top matches,
+    end-to-end, for long-range narrative / structural context.
+Use them to ground entities and relationships. Excerpts are labeled by file
+and page so you can disambiguate, but DO NOT cite them in the output.
 
-{chunk_sample}
+{raw_material}
 
 == TASK ==
 Produce the internal wiki now, following the strict format above.

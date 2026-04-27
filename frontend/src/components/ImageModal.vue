@@ -50,6 +50,7 @@ defineEmits<{
   top: 2px;
   right: -33px;
   width: 30px;
+  position: absolute;
   height: 30px;
   border-radius: 50%;
   border: none;

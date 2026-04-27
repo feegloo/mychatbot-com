@@ -151,6 +151,10 @@ class AnswerRequest(BaseModel):
     conversation_name: str | None = None
     conversation_language_code: str | None = None
     conversation_language_name: str | None = None
+    # Internal "idea file" for this conversation, generated at indexing time.
+    # Injected into ANSWER_PROMPT as Section 3a so the LLM has a structured
+    # entity/relationship map without re-deriving it from chunks each turn.
+    wiki_message: str | None = None
 
 
 class IndexRequest(BaseModel):

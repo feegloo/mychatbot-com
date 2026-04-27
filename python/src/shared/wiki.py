@@ -1,14 +1,22 @@
 """Internal-wiki builder — Karpathy-style "idea file" per conversation.
 
-Given the welcome message + a sample of indexed chunks, produces a compact
-structured markdown wiki that is stored as an internal (hidden) message and
-injected into the answering prompt for every subsequent question.
+Pattern source: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-The wiki is generated AFTER the user-facing welcome message has been emitted,
-on a background thread, so it never blocks the upload UX.
+After the user-facing welcome message has been emitted, we build a compact,
+*structured* internal wiki that is stored as a hidden message and injected
+into the answering prompt for every subsequent question. This compounds
+knowledge instead of re-deriving the document's shape on every turn.
 
-See [python/src/shared/prompts/wiki.py](python/src/shared/prompts/wiki.py) for
-the system prompt + format contract + few-shot examples.
+Retrieval strategy
+------------------
+The welcome message is itself a high-quality query: it already names the
+dominant entities and stakes of the upload. We therefore embed it and run a
+top-K Chroma search against the just-indexed conversation collection. For
+each match we expand to its full page (so structure and relationships
+survive) and to the dominant chapter, all packed into a generous token
+budget (default ~300k tokens). The wiki LLM then has both the high-level
+framing (welcome) and the concrete material (matched pages + chapter) when
+it constructs the entity/relationship graph.
 """
 
 from __future__ import annotations
@@ -23,100 +31,155 @@ from .prompts.wiki import WIKI_PROMPT
 
 logger = logging.getLogger(__name__)
 
-# Hard caps — wiki is meant to be terse. We enforce length on input AND output.
-_MAX_CHUNK_SAMPLE_CHARS = 12000
-_MAX_WELCOME_CHARS = 4000
-_MAX_OUTPUT_CHARS = 7000  # ~1750 tokens; soft trim if model overshoots
-_TARGET_SAMPLE_CHUNKS = 10
+# 4 chars/token is the conservative English approximation; Polish/Arabic etc
+# trend toward 3.5, so we add a small safety factor by reserving ~10% of the
+# budget for prompt scaffolding (system prompt + examples + welcome + headers).
+_CHARS_PER_TOKEN = 4
+_DEFAULT_TOKEN_BUDGET = 300_000
+_MAX_WELCOME_CHARS = 6_000  # welcome is concentrated framing — full clip rarely needed
+_MAX_OUTPUT_CHARS = 7_000  # ~1750 tokens; soft trim if model overshoots
+_TOP_K_CHUNKS = 10  # vector neighbours retrieved against the welcome message
 
 
-def _sample_chunks(chunks: list[str], max_chunks: int = _TARGET_SAMPLE_CHUNKS) -> list[str]:
-    """Stratified sample: head + middle + tail to capture topical diversity.
+def _budget_chars(token_budget: int) -> int:
+    """Convert a token budget to a raw-material char budget.
 
-    Mirrors `suggested_questions._sample_chunks` so the wiki and the suggested
-    questions see a comparable cross-section of the document.
+    Reserves ~10% headroom for prompt scaffolding so the raw-material section
+    never single-handedly exhausts the context window.
     """
-    if not chunks:
-        return []
-    if len(chunks) <= max_chunks:
-        return chunks
-    indices: set[int] = set()
-    head = min(3, len(chunks))
-    indices.update(range(head))
-    mid_start = len(chunks) // 3
-    mid_end = 2 * len(chunks) // 3
-    step = max(1, (mid_end - mid_start) // max(1, max_chunks - 6))
-    indices.update(range(mid_start, mid_end, step))
-    indices.update(range(max(0, len(chunks) - 3), len(chunks)))
-    return [chunks[i] for i in sorted(indices)[:max_chunks]]
+    if token_budget <= 0:
+        return 0
+    return int(token_budget * _CHARS_PER_TOKEN * 0.9)
 
 
-def _format_chunk_sample(chunk_records: list[dict]) -> str:
-    """Format chunk records as labeled excerpts (file + page).
+def _build_raw_material(
+    *,
+    collection_name: str,
+    conversation_id: str,
+    welcome_message: str,
+    storage_dir: str | None,
+    char_budget: int,
+) -> tuple[str, int]:
+    """Retrieve material relevant to the welcome message.
 
-    Each record is expected to expose ``file_name``, ``page`` (optional), and
-    ``text``. Anything missing is rendered with safe fallbacks. Total output
-    is hard-capped to keep the prompt within budget.
+    Pipeline:
+      1. ``query_chunks`` with the welcome message as the query — Chroma
+         surfaces chunks closest to the document's high-level framing.
+      2. Expand to full pages via ``_extract_matched_pages`` (preserves
+         structure that 1600-char chunking destroys).
+      3. Add the dominant chapter via ``_extract_chapter_context`` for
+         long-range narrative / structural context.
+      4. Hard-cap combined material at ``char_budget``.
+
+    Returns ``(material, chunk_count)`` where ``chunk_count`` is the number
+    of Chroma matches that contributed (used for logging + skip decisions).
     """
-    parts: list[str] = []
-    used = 0
-    for i, rec in enumerate(chunk_records, 1):
-        file_name = rec.get("file_name") or "unknown"
-        page = rec.get("page")
-        text = (rec.get("text") or "").strip()
+    # Local imports avoid pulling rag.py / vector_store at module import time,
+    # keeping wiki.py importable in lightweight contexts (tests, tooling).
+    from .rag import _extract_chapter_context, _extract_matched_pages
+    from .vector_store import query_chunks
+
+    try:
+        rows = query_chunks(
+            collection_name=collection_name,
+            conversation_id=conversation_id,
+            question=welcome_message[:_MAX_WELCOME_CHARS],
+            top_k=_TOP_K_CHUNKS,
+            # Wide distance gate — wiki construction wants loosely related
+            # context, not the tight retrieval used for a Q&A turn.
+            max_distance=1.5,
+        )
+    except Exception as exc:
+        logger.warning("📚 wiki: chunk query failed (conv=%s): %s", conversation_id, exc)
+        rows = []
+
+    if not rows:
+        return "(no matched material)", 0
+
+    matched_pages = _extract_matched_pages(storage_dir, rows) if storage_dir else ""
+    chapter_ctx = _extract_chapter_context(storage_dir, rows) if storage_dir else ""
+
+    sections: list[str] = []
+
+    # 1. Top-K matched chunks — terse, exact text the embedder selected.
+    chunk_block_parts: list[str] = []
+    for i, row in enumerate(rows, 1):
+        text = (row.get("text") or "").strip()
         if not text:
             continue
-        label = f"[Chunk {i} — {file_name}"
+        fname = row.get("file_name", "unknown")
+        page = row.get("page")
+        label = f"[Match {i} — {fname}"
         if page is not None:
             label += f", p.{page}"
         label += "]"
-        block = f"{label}\n{text}"
-        if used + len(block) > _MAX_CHUNK_SAMPLE_CHARS:
-            block = block[: max(0, _MAX_CHUNK_SAMPLE_CHARS - used)]
-            if block:
-                parts.append(block)
-            break
-        parts.append(block)
-        used += len(block) + 2  # +2 for separator
-    return "\n\n".join(parts) if parts else "(no chunk excerpts available)"
+        chunk_block_parts.append(f"{label}\n{text}")
+    if chunk_block_parts:
+        sections.append(
+            "== TOP MATCHES (embedding similarity to welcome message) ==\n"
+            + "\n\n".join(chunk_block_parts)
+        )
+
+    # 2. Full pages of those matches — preserves formulas, lists, dialogue
+    #    boundaries, etc. that chunking splits across boundaries.
+    if matched_pages and not matched_pages.startswith("("):
+        sections.append("== FULL PAGES OF TOP MATCHES ==\n" + matched_pages)
+
+    # 3. Dominant chapter — long-range narrative / structural context.
+    if chapter_ctx:
+        sections.append("== DOMINANT CHAPTER CONTEXT ==\n" + chapter_ctx)
+
+    combined = "\n\n--\n\n".join(sections)
+    if len(combined) > char_budget:
+        combined = (
+            combined[:char_budget].rstrip()
+            + "\n\n[... raw material trimmed to fit token budget]"
+        )
+
+    return combined, len(rows)
 
 
 def build_conversation_wiki(
     *,
     conversation_id: str,
+    collection_name: str,
     conversation_title: str,
     welcome_message: str,
-    chunk_records: list[dict],
+    storage_dir: str | None,
     language: str | None = None,
+    token_budget: int = _DEFAULT_TOKEN_BUDGET,
 ) -> str | None:
     """Build the internal wiki for a conversation.
 
-    Returns the markdown wiki string, or ``None`` if generation was skipped
-    (e.g., empty inputs) or failed. Failure is logged but never raised — the
-    wiki is a best-effort enhancement, never on the critical path.
+    Returns the markdown wiki, or ``None`` if generation was skipped (empty
+    welcome / no matched chunks) or failed. Failures are logged but never
+    raised — the wiki is best-effort and never on the critical path.
 
     Parameters
     ----------
-    conversation_id
-        For logging / telemetry only.
+    conversation_id, collection_name
+        Used for Chroma retrieval and telemetry.
     conversation_title
-        Used in the H1 heading. Falls back to ``"Conversation"`` if blank.
+        Used in the H1 heading.
     welcome_message
-        The user-facing welcome message already shown. Provides the high-level
-        framing the wiki should compress further.
-    chunk_records
-        List of dicts with at least ``file_name`` and ``text`` keys. ``page``
-        is optional. A stratified sample is taken automatically.
+        The user-facing welcome. Used both as the embedding query and as
+        high-level framing in the LLM prompt.
+    storage_dir
+        Conversation storage directory (contains ``_raw_text.json`` and
+        ``_chapters.json``). Required to expand matches to full pages.
     language
-        Optional ISO-style language hint (e.g., ``"pl"``, ``"en"``). When
-        absent, detected from the welcome message.
+        Language hint (``"pl"``, ``"en"``, ...). Detected from the welcome
+        when omitted.
+    token_budget
+        Soft cap on prompt input tokens for the raw-material section.
+        Defaults to 300k.
     """
     welcome_message = (welcome_message or "").strip()
     if not welcome_message:
-        logger.info("📚 Skipping wiki generation: empty welcome message (conv=%s)", conversation_id)
-        return None
-    if not chunk_records:
-        logger.info("📚 Skipping wiki generation: no chunks (conv=%s)", conversation_id)
+        logger.info(
+            "📚 Skipping wiki generation: empty welcome message (conv=%s)",
+            conversation_id,
+        )
         return None
 
     if language is None:
@@ -125,14 +188,37 @@ def build_conversation_wiki(
     title = (conversation_title or "").strip() or "Conversation"
     welcome_clipped = welcome_message[:_MAX_WELCOME_CHARS]
 
-    sampled_records = _sample_chunks(chunk_records)  # type: ignore[arg-type]
-    chunk_sample = _format_chunk_sample(sampled_records)
+    char_budget = _budget_chars(token_budget)
+    raw_material, chunk_count = _build_raw_material(
+        collection_name=collection_name,
+        conversation_id=conversation_id,
+        welcome_message=welcome_message,
+        storage_dir=storage_dir,
+        char_budget=char_budget,
+    )
+    if chunk_count == 0:
+        logger.info(
+            "📚 Skipping wiki generation: no matched chunks (conv=%s)",
+            conversation_id,
+        )
+        return None
 
-    from .rag import get_llm  # local import to avoid circular at module load
+    from .rag import get_llm  # local import — avoids circular at module load
 
     llm = get_llm()
     chain = WIKI_PROMPT | llm | StrOutputParser()
-    model = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    model = (
+        getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
+    )
+
+    logger.info(
+        "📚 Wiki: building (conv=%s, lang=%s, matches=%d, raw=%d chars, budget=%dk tokens)",
+        conversation_id,
+        language,
+        chunk_count,
+        len(raw_material),
+        token_budget // 1000,
+    )
 
     try:
         wiki_text, _usage = traced_llm_call(
@@ -141,29 +227,33 @@ def build_conversation_wiki(
                 "conversation_title": title,
                 "language": language,
                 "welcome_message": welcome_clipped,
-                "chunk_sample": chunk_sample,
+                "raw_material": raw_material,
             },
             operation="build_conversation_wiki",
             model=model,
             conversation_id=conversation_id,
         )
     except Exception as exc:
-        logger.warning("📚 Wiki generation failed (conv=%s): %s", conversation_id, exc)
+        logger.warning(
+            "📚 Wiki generation failed (conv=%s): %s", conversation_id, exc
+        )
         return None
 
     wiki_text = (wiki_text or "").strip()
     if not wiki_text:
-        logger.info("📚 Wiki generation produced empty output (conv=%s)", conversation_id)
+        logger.info(
+            "📚 Wiki generation produced empty output (conv=%s)", conversation_id
+        )
         return None
 
-    # Strip stray surrounding code fences if the model added them despite the
+    # Strip surrounding code fences if the model added them despite the
     # explicit instruction not to.
     if wiki_text.startswith("```"):
         first_nl = wiki_text.find("\n")
         if first_nl != -1:
             wiki_text = wiki_text[first_nl + 1 :]
         if wiki_text.endswith("```"):
-            wiki_text = wiki_text[: -3].rstrip()
+            wiki_text = wiki_text[:-3].rstrip()
 
     if len(wiki_text) > _MAX_OUTPUT_CHARS:
         logger.info(

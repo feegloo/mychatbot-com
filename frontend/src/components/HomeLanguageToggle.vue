@@ -59,7 +59,8 @@ const flag = computed(() => (homeLang.value === 'pl' ? '🇵🇱' : '🇬🇧'))
 @media (max-width: 768px) {
   .home-lang-toggle {
     top: 10px;
-    right: 10px;
+    right: auto;
+    left: 10px;
     width: 32px;
     height: 32px;
   }

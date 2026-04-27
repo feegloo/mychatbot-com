@@ -1095,21 +1095,17 @@ def _index_documents_inline(
     # artifact instead of re-deriving the document's shape every turn.
     # Failures are swallowed — wiki is a best-effort enhancement.
     try:
-        wiki_chunk_records = [
-            {"file_name": c.file_name, "page": c.page, "text": c.text}
-            for c in (all_chunks + streaming_chunks)
-            if getattr(c, "text", "")
-        ]
-        if welcome_message and wiki_chunk_records:
+        if welcome_message and collection_name:
             wiki_title = ", ".join(
                 clean_file_name(name) for name in file_name_list[:3]
             ) or "Conversation"
             with trace_step(conversation_id, "*", "build_conversation_wiki"):
                 wiki_text = build_conversation_wiki(
                     conversation_id=conversation_id,
+                    collection_name=collection_name,
                     conversation_title=wiki_title,
                     welcome_message=welcome_message,
-                    chunk_records=wiki_chunk_records,
+                    storage_dir=storage_dir,
                     language=detected_language,
                 )
             if wiki_text and on_progress:

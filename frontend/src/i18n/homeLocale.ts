@@ -60,6 +60,7 @@ export interface HomeMessages {
   dropzoneTitle: string
   dropzoneHint: string
   askPlaceholder: string
+  viewerReplyPlaceholder: string
   videoNotSupported: string
   fileTooLarge: string
   urlLoadFailed: string
@@ -79,7 +80,8 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
     dropzoneHint: 'PDF, images, .doc, other text files',
-    askPlaceholder: 'Ask a question ...',
+    askPlaceholder: 'Ask your question ...',
+    viewerReplyPlaceholder: 'Reply to start your own thread ...',
     videoNotSupported: 'Video files are not supported.',
     fileTooLarge: 'File too large. Maximum upload size is ~30 MB per file.',
     urlLoadFailed: 'Failed to load URL',
@@ -97,7 +99,8 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
     dropzoneHint: 'PDF, obrazy, .doc, inne pliki tekstowe',
-    askPlaceholder: 'Zadaj pytanie ...',
+    askPlaceholder: 'Zadaj swoje pytanie ...',
+    viewerReplyPlaceholder: 'Odpowiedz, aby rozpocząć własny wątek ...',
     videoNotSupported: 'Pliki wideo nie są obsługiwane.',
     fileTooLarge: 'Plik zbyt duży. Maksymalny rozmiar to ~30 MB na plik.',
     urlLoadFailed: 'Nie udało się wczytać URL',

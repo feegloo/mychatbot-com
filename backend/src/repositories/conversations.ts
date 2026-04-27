@@ -81,7 +81,7 @@ export async function getConversation(id: string, _role: ConversationRole = 'vie
     query<ConversationMessageRecord>(
       `SELECT id, conversation_id, role, content, citations_json, user_id, created_at
        FROM conversation_messages
-       WHERE conversation_id = $1
+       WHERE conversation_id = $1 AND is_internal = FALSE
        ORDER BY created_at ASC`,
       [id],
     ),
@@ -300,11 +300,21 @@ export async function insertConversationMessage(params: {
   content: string
   citations?: unknown
   userId?: number
+  /**
+   * When true, the message is hidden from end-user reads (chat history,
+   * shared views, thread counts). Used for the per-conversation internal
+   * wiki / "idea file" that the assistant consults but never displays.
+   */
+  isInternal?: boolean
+  /** Discriminator for internal messages (e.g., 'wiki'). */
+  internalKind?: string
 }): Promise<string> {
   const id = generateShortId()
+  const isInternal = params.isInternal === true
+  const internalKind = isInternal ? (params.internalKind ?? null) : null
   await query(
-    `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json, user_id)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
+    `INSERT INTO conversation_messages (id, conversation_id, role, content, citations_json, user_id, is_internal, internal_kind)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)`,
     [
       id,
       params.conversationId,
@@ -312,15 +322,42 @@ export async function insertConversationMessage(params: {
       params.content,
       JSON.stringify(params.citations ?? null),
       params.userId ?? 0,
+      isInternal,
+      internalKind,
     ],
   )
-  // Fan out to any SSE subscribers so clients (including other browser tabs)
-  // can refresh without the 1s polling fallback.
-  emitConversationEvent(params.conversationId, {
-    event: 'message_appended',
-    data: { messageId: id, role: params.role },
-  })
+  // Internal messages must not surface in tab-sync streams — they exist
+  // only for the answering pipeline, not for any user-visible UI.
+  if (!isInternal) {
+    emitConversationEvent(params.conversationId, {
+      event: 'message_appended',
+      data: { messageId: id, role: params.role },
+    })
+  }
   return id
+}
+
+/**
+ * Return the most recent internal wiki message for a conversation, or null.
+ * Falls back to the storage_namespace conversation when called on a thread,
+ * because threads inherit their parent's uploaded sources (and therefore the
+ * wiki built from them).
+ */
+export async function getInternalWikiMessage(conversationId: string): Promise<string | null> {
+  const namespace = await getStorageNamespace(conversationId)
+  const targets = namespace && namespace !== conversationId ? [conversationId, namespace] : [conversationId]
+  const placeholders = targets.map((_, i) => `$${i + 1}`).join(', ')
+  const result = await query<{ content: string }>(
+    `SELECT content
+     FROM conversation_messages
+     WHERE conversation_id IN (${placeholders})
+       AND is_internal = TRUE
+       AND internal_kind = 'wiki'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    targets,
+  )
+  return result.rows[0]?.content ?? null
 }
 
 /**
@@ -454,7 +491,7 @@ export async function getThreadReplyCount(messageId: string): Promise<number> {
     `SELECT COUNT(*)::text as count
      FROM conversation_messages m
      JOIN conversations c ON c.id = m.conversation_id
-     WHERE c.parent_message_id = $1`,
+     WHERE c.parent_message_id = $1 AND m.is_internal = FALSE`,
     [messageId],
   )
   return parseInt(result.rows[0]?.count || '0', 10)
@@ -509,7 +546,7 @@ export async function getConversationThreadReplyCount(conversationId: string): P
     `SELECT COUNT(m.id)::text as count
      FROM conversation_messages m
      JOIN conversations c ON c.id = m.conversation_id
-     WHERE c.parent_conversation_id = $1`,
+     WHERE c.parent_conversation_id = $1 AND m.is_internal = FALSE`,
     [conversationId],
   )
   return parseInt(result.rows[0]?.count || '0', 10)
