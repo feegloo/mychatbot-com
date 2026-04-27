@@ -1814,6 +1814,21 @@ h3 {
   .chat-textarea {
     font-size: 16px; /* prevent iOS zoom */
   }
+
+  /* Cap each cell so at least 3 columns fit side-by-side on a narrow screen.
+     overflow-wrap: anywhere (inherited) lets long words break inside the cap. */
+  .markdown-content th,
+  .markdown-content td {
+    max-width: calc(100vw / 3 - 20px);
+  }
+
+  /* Allow the first column to wrap on mobile; its desktop nowrap + overflow-wrap:normal
+     is fine for wide screens but causes the table to overflow on small viewports. */
+  .markdown-content th:first-child,
+  .markdown-content td:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 960px) {
