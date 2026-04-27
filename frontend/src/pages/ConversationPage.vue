@@ -102,7 +102,8 @@
             :key="messageRenderKey(msg, index)"
             :ref="
               (el) => {
-                if (index === 0) firstMessageRef = el as InstanceType<typeof ChatMessageItem> | null
+                if (index === firstAssistantIndex)
+                  firstMessageRef = el as InstanceType<typeof ChatMessageItem> | null
               }
             "
             :msg="msg"
@@ -368,6 +369,14 @@ const processingLoaderLabel = computed(() => {
 })
 
 const firstMessageRef = ref<InstanceType<typeof ChatMessageItem> | null>(null)
+// Index of the first assistant message in displayedMessages — used to wire
+// the [upload] inline action to a ChatMessage that actually mounts the hidden
+// <input type="file">. The very first message can be a user turn (e.g. when the
+// conversation was started by typing a question instead of uploading files),
+// in which case targeting index 0 yields a no-op click.
+const firstAssistantIndex = computed(() =>
+  displayedMessages.value.findIndex((m) => m.role === 'assistant'),
+)
 const loaded = ref(false)
 const routerInstance = useRouter()
 const route = useRoute()
