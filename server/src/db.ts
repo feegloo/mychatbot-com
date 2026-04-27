@@ -2,7 +2,7 @@ import pg from "pg"
 import type { Pool } from "pg"
 import type { MetadataEventInput, ServerConfig } from "./types.js"
 
-const { Pool } = pg
+const { Pool: PgPool } = pg
 
 /**
  * Creates PostgreSQL pool or returns null when DATABASE_URL is not configured.
@@ -12,7 +12,7 @@ export function createDatabasePool(config: ServerConfig): Pool | null {
         return null
     }
 
-    return new Pool({
+    return new PgPool({
         connectionString: config.databaseUrl,
         max: 4,
         idleTimeoutMillis: 30_000
