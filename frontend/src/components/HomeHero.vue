@@ -7,6 +7,7 @@
       <span v-html="t.subtitleP1Html"></span><br />
       <span v-html="t.subtitleP1bHtml"></span><br /><br />
       <span v-html="t.subtitleP2Html"></span><br />
+      <span v-html="t.subtitleP2bHtml"></span><br />
       <span class="home-subtitle-extra">{{ t.subtitleP3 }}</span>
     </p>
   </div>

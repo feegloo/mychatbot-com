@@ -34,6 +34,7 @@ function htmlToPlain(html) {
     .replace(/<[^>]+>/g, "")
     .replace(/\\u2019/g, "\u2019")
     .replace(/\\u00a0/g, " ")
+    .replace(/,\s+,/g, ",")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -72,6 +73,7 @@ function extractFromLocale() {
     readField("subtitleP1Html"),
     readField("subtitleP1bHtml"),
     readField("subtitleP2Html"),
+    readField("subtitleP2bHtml"),
     readField("subtitleP3"),
   ].filter(Boolean);
   if (parts.length < 2) return null;
