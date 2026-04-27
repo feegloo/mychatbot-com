@@ -81,7 +81,7 @@ export interface SplitTokens {
 
 export function splitTokens(tokens: ContentToken[], isWelcome: boolean): SplitTokens {
   const promptLimit = isWelcome ? 3 : 2
-  const actionLimit = isWelcome ? 5 : 3
+  const actionLimit = isWelcome ? 2 : 1
   const text: Array<{ type: 'text'; value: string }> = []
   const prompts: string[] = []
   const actions: ActionToken[] = []
