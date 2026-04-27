@@ -1,0 +1,98 @@
+name: Ralph Wiggum Loop
+
+# Triggered by:
+#   - manual dispatch with the task folder name
+#   - push of a `ralph/<task>` branch (so you can `git push` from your laptop
+#     and the AFK loop continues on the runner)
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task folder name under ralph/tasks/"
+        required: true
+        type: string
+      iterations:
+        description: "Max iterations"
+        required: false
+        default: "10"
+        type: string
+      provider:
+        description: "Agent provider"
+        required: false
+        default: "copilot"
+        type: choice
+        options: [copilot, claude]
+  push:
+    branches:
+      - "ralph/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ralph-${{ github.event.inputs.task || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ralph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RALPH_AGENT_PROVIDER: ${{ github.event.inputs.provider || 'copilot' }}
+      RALPH_MAX_ITERATIONS: ${{ github.event.inputs.iterations || '10' }}
+      RALPH_BASE_BRANCH: main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve task name
+        id: task
+        run: |
+          if [[ -n "${{ github.event.inputs.task }}" ]]; then
+            echo "name=${{ github.event.inputs.task }}" >> "$GITHUB_OUTPUT"
+          else
+            # On a `ralph/<task>` push, infer the task from the branch name.
+            ref="${GITHUB_REF#refs/heads/ralph/}"
+            echo "name=${ref}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install ralph deps
+        working-directory: ralph
+        run: pip install -r requirements.txt
+
+      - name: Configure git
+        run: |
+          git config user.name  "ralph-loop[bot]"
+          git config user.email "ralph-loop@users.noreply.github.com"
+
+      - name: Run loop
+        working-directory: ralph
+        run: |
+          python3.11 agent_ralph_loop.py \
+            --task "${{ steps.task.outputs.name }}" \
+            --iterations "${RALPH_MAX_ITERATIONS}" \
+            --provider "${RALPH_AGENT_PROVIDER}" \
+            --open-pr \
+            -v
+
+      - name: Upload progress
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ralph-state-${{ steps.task.outputs.name }}
+          path: ralph/state/
+          if-no-files-found: ignore

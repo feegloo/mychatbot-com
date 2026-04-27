@@ -200,6 +200,12 @@ material (top embedding matches, their full pages, and the dominant chapter)
 and produce a compact "internal wiki" — a structured idea file that the
 answering assistant will receive on every future question in this conversation.
 
+The overarching goal is to **visualize the big picture**: a single
+machine-readable map that shows how the dominant entities, structures, and
+forces in this material fit together — so the answering assistant can reason
+about the whole before zooming into any chunk. Think of the wiki as a
+zoomed-out diagram in markdown form, not a summary or an outline.
+
 This pattern is inspired by Andrej Karpathy's "LLM Wiki" idea file:
 https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f — a
 compounding, hand-curated knowledge artifact the model accumulates and reuses,

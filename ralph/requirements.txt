@@ -1,0 +1,8 @@
+# Ralph Loop deps — kept intentionally minimal so the loop boots fast in CI.
+# For richer PDF OCR / vision extraction Ralph will fall back on the chatrag
+# python/ engine if it is importable, otherwise it uses these minimal deps.
+openai>=1.40.0
+pypdf>=5.0.0
+Pillow>=10.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
