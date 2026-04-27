@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 _MATCHED_PAGES_MAX_CHARS = 40_000
 
 # Hard cap on total prompt tokens sent to the LLM.
-# OpenAI enforces a 300K token limit per request. We use 280K to leave
-# a 20K buffer for safety and account for tokenization variations.
-_MAX_PROMPT_TOKENS = 280_000
+# gpt-5.4-mini has a 272K token context limit. We use 255K to leave
+# a 17K buffer for safety and account for tokenization variations.
+_MAX_PROMPT_TOKENS = 255_000
 
 # Baseline sampling temperature for the answering LLM (OpenAI).
 # The system prompt instructs the model to self-regulate its effective
