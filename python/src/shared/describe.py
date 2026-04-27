@@ -1166,6 +1166,51 @@ def _synthesize_welcome_messages(
     return _parse_describe_response(result)
 
 
+def _detect_empty_file_names(
+    file_metadata: dict[str, dict] | None,
+    extracted: list[dict],
+    images: list[dict],
+) -> list[str]:
+    """Return display names of files that are confirmed empty (0 bytes, no content).
+
+    Only flags a file as empty when BOTH conditions hold:
+    - its ``file_size_bytes`` metadata field is explicitly 0
+    - no text was extracted and no images were produced for that upload
+    (avoids false positives when metadata extraction itself fails)
+    """
+    if not file_metadata:
+        return []
+    has_any_content = any((doc.get("text") or "").strip() for doc in extracted) or images
+    if has_any_content:
+        return []
+    return [
+        clean_file_name(fname)
+        for fname, meta in file_metadata.items()
+        if isinstance(meta, dict) and meta.get("file_size_bytes") == 0
+    ]
+
+
+def _make_empty_file_welcome(empty_names: list[str], language: str) -> str:
+    """Return a direct, helpful welcome message for an empty (0-byte) file upload."""
+    display = ", ".join(empty_names) if empty_names else "uploaded file"
+    if language == "pl":
+        body = (
+            f"# {display}\n\n"
+            f"⚠️ Przesłany plik **{display}** jest pusty (0 bajtów) — nie znaleziono żadnej treści. "
+            f"Sprawdź, czy wybrałeś właściwy plik i spróbuj ponownie z plikiem zawierającym treść."
+        )
+        actions = ["Prześlij inny plik", "Jakie formaty są obsługiwane?"]
+    else:
+        body = (
+            f"# {display}\n\n"
+            f"⚠️ The uploaded file **{display}** is empty (0 bytes) — no content was found inside. "
+            f"Please check whether you meant to upload a different file and try again."
+        )
+        actions = ["Upload a different file", "What file formats are supported?"]
+    action_line = " ".join(f"[action:{q}]" for q in actions)
+    return f"{body}\n\n{action_line}"
+
+
 def describe_documents(
     extracted: list[dict],
     images: list[dict],
@@ -1256,6 +1301,18 @@ def describe_documents(
             if sample_text:
                 break
         language = detect_language(sample_text) if sample_text else "en"
+
+    # ── Empty file: return immediate feedback, no LLM call needed ────
+    empty_names = _detect_empty_file_names(file_metadata, extracted, images)
+    if empty_names:
+        logger.info(f"📭 Empty file upload detected: {empty_names}")
+        msg = _make_empty_file_welcome(empty_names, language)
+        suggested = (
+            ["Prześlij inny plik", "Jakie formaty są obsługiwane?"]
+            if language == "pl"
+            else ["Upload a different file", "What file formats are supported?"]
+        )
+        return DescribeResult(welcome_message=msg, suggested_questions=suggested)
 
     if all_text and len(all_text.encode("utf-8")) <= _WHOLE_BOOK_MEMORY_LIMIT_BYTES:
         logger.info(

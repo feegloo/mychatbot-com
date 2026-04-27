@@ -665,3 +665,93 @@ class TestParseDescribeResponse:
         assert "## Test - Author" in result["welcome_message"]
         assert "[action:Q1?]" in result["welcome_message"]
         assert len(result["suggested_questions"]) >= 3
+
+
+# ---------------------------------------------------------------------------
+# Empty file detection
+# ---------------------------------------------------------------------------
+
+
+class TestEmptyFileDetection:
+    """Tests for detecting 0-byte file uploads and returning the correct welcome."""
+
+    def test_empty_file_returns_warning_message_without_llm_call(self):
+        """A 0-byte file must trigger the empty-file path — no LLM call."""
+        meta = {
+            "empty.txt": {
+                "file_type": "text",
+                "file_name": "empty.txt",
+                "file_size_bytes": 0,
+            }
+        }
+        extracted = [{"file_name": "empty.txt", "text": ""}]
+
+        with patch("shared.describe.get_llm") as mock_get_llm:
+            result = describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        mock_get_llm.assert_not_called()
+        assert "empty" in result["welcome_message"].lower()
+        assert "0 bytes" in result["welcome_message"]
+        assert "⚠️" in result["welcome_message"]
+        assert "[action:" in result["welcome_message"]
+
+    def test_empty_file_polish_language(self):
+        """Polish language variant should mention the file is empty in Polish."""
+        meta = {"pusty.pdf": {"file_type": "pdf", "file_name": "pusty.pdf", "file_size_bytes": 0}}
+        extracted = [{"file_name": "pusty.pdf", "text": ""}]
+
+        with patch("shared.describe.get_llm") as mock_get_llm:
+            result = describe_documents(extracted, [], language="pl", file_metadata=meta)
+
+        mock_get_llm.assert_not_called()
+        assert "pusty" in result["welcome_message"].lower() or "0 bajtów" in result["welcome_message"]
+        assert "⚠️" in result["welcome_message"]
+
+    def test_non_empty_file_does_not_trigger_empty_path(self):
+        """A file with content must NOT hit the empty-file early return."""
+        meta = {"doc.txt": {"file_type": "text", "file_name": "doc.txt", "file_size_bytes": 1024}}
+        extracted = [{"file_name": "doc.txt", "text": "Some real content here."}]
+        mock_llm = _make_mock_llm("## Doc\n\nContent.\n\n[action:Q1?]")
+
+        with patch("shared.describe.get_llm", return_value=mock_llm), \
+             patch("shared.describe.detect_language", return_value="en"):
+            describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        assert mock_llm.captured, "LLM should have been called for a non-empty file"
+
+    def test_missing_file_size_does_not_trigger_empty_path(self):
+        """If file_size_bytes is absent, the empty-file path must NOT fire."""
+        meta = {"unknown.pdf": {"file_type": "pdf", "file_name": "unknown.pdf"}}
+        extracted = [{"file_name": "unknown.pdf", "text": ""}]
+        mock_llm = _make_mock_llm("## Unknown\n\nDescription.\n\n[action:Q1?]")
+
+        with patch("shared.describe.get_llm", return_value=mock_llm), \
+             patch("shared.describe.detect_language", return_value="en"):
+            describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        # LLM should be called — the empty-file guard must not have fired
+        assert mock_llm.captured
+
+    def test_empty_file_suggested_questions_returned(self):
+        """suggested_questions must be non-empty and contain action hints."""
+        meta = {"empty.docx": {"file_type": "docx", "file_name": "empty.docx", "file_size_bytes": 0}}
+        extracted = [{"file_name": "empty.docx", "text": ""}]
+
+        with patch("shared.describe.get_llm"):
+            result = describe_documents(extracted, [], language="en", file_metadata=meta)
+
+        assert len(result["suggested_questions"]) >= 1
+
+    def test_empty_file_with_no_metadata_uses_fallback_not_empty_guard(self):
+        """Without file_metadata the empty-file guard cannot fire (no file_size_bytes=0).
+        No text + no metadata → _fallback_from_metadata is used (no LLM call)."""
+        extracted = [{"file_name": "mystery.txt", "text": ""}]
+
+        with patch("shared.describe.get_llm") as mock_get_llm, \
+             patch("shared.describe.detect_language", return_value="en"):
+            result = describe_documents(extracted, [], language="en", file_metadata=None)
+
+        # The empty-file-specific warning must NOT be shown
+        assert "0 bytes" not in result["welcome_message"]
+        # The fallback path runs without calling the LLM
+        mock_get_llm.assert_not_called()

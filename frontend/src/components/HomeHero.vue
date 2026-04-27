@@ -6,7 +6,10 @@
            homeMessages map under our control (no user input). -->
       <span v-html="t.subtitleP1Html"></span><br />
       <span v-html="t.subtitleP1bHtml"></span><br /><br />
-      <span class="desktop-subtitle" v-html="t.subtitleP2Html"></span>
+      <span class="desktop-subtitle">
+        <span v-html="t.subtitleP2Html"></span><br />
+        <span v-html="t.subtitleP2bHtml"></span>
+      </span>
       <span class="mobile-subtitle">
         <span v-html="t.subtitleP2MobileLine1Html"></span><br />
         <span v-html="t.subtitleP2MobileLine2Html"></span>

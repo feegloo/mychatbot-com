@@ -55,9 +55,11 @@ export interface HomeMessages {
   subtitleP1bHtml: string
   /** Third subtitle paragraph; contains <strong> for the AI Agent emphasis. */
   subtitleP2Html: string
-  /** Mobile-only: first line of the third subtitle paragraph (no synthesize speech). */
+  /** Fourth subtitle line (desktop); translate + synthesize speech + share answers. */
+  subtitleP2bHtml: string
+  /** Mobile-only: first line — search & RAG + translate files to your language. */
   subtitleP2MobileLine1Html: string
-  /** Mobile-only: second line of the third subtitle paragraph (synthesize speech + share). */
+  /** Mobile-only: second line — synthesize speech + share answers. */
   subtitleP2MobileLine2Html: string
   /** Comma-separated capabilities line under the subtitle. */
   subtitleP3: string
@@ -77,9 +79,11 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1Html:
       "Upload your big PDFs and files privately, securely encrypted end-to-end 🔒",
     subtitleP1bHtml:
-      'chat with files, let AI extract insights and tell you what\u2019s inside in the author\u2019s voices.',
+      'let AI extract insights, learn and tell you what\u2019s inside files in the author\u2019s voices.',
     subtitleP2Html:
-      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, synthesize speech 🔊 translate files to your language 🇵🇱🇬🇧 share answers',
+      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,',
+    subtitleP2bHtml:
+      'translate files to your language 🇵🇱🇬🇧 synthesize speech 🔊 share answers',
     subtitleP2MobileLine1Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search &amp; RAG, translate files to your language 🇵🇱🇬🇧',
     subtitleP2MobileLine2Html: 'synthesize speech 🔊 share answers',
@@ -99,12 +103,14 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1Html:
       'Wgraj swoje duże PDF-y i pliki prywatnie, bezpiecznie szyfrowane end-to-end 🔒',
     subtitleP1bHtml:
-      'rozmawiaj z plikami, pozwól AI wyciągnąć wnioski i opowiedzieć, co jest w środku, głosem autorów.',
+      'pozwól AI wyciągnąć wnioski, nauczyć się i opowiedzieć co jest w plikach, głosem autorów.',
     subtitleP2Html:
-      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, syntezuj mowę 🔊 tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 udostępniaj odpowiedzi',
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG,',
+    subtitleP2bHtml:
+      'tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP2MobileLine1Html:
       'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧',
-    subtitleP2MobileLine2Html: 'syntezuj mowę 🔊 udostępniaj odpowiedzi',
+    subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',

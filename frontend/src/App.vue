@@ -1,14 +1,16 @@
 <template>
-  <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-    <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
-    <ConversationNav
-      :class="{ open: sidebarOpen }"
-      :collapsed="sidebarCollapsed"
-      @navigate="sidebarOpen = false"
-      @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
-    />
+  <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed, 'embed-mode': isEmbed }">
+    <template v-if="!isEmbed">
+      <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
+      <ConversationNav
+        :class="{ open: sidebarOpen }"
+        :collapsed="sidebarCollapsed"
+        @navigate="sidebarOpen = false"
+        @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
+      />
+    </template>
     <main class="app-main">
-      <button class="sidebar-toggle" aria-label="Toggle menu" @click="sidebarOpen = !sidebarOpen">
+      <button v-if="!isEmbed" class="sidebar-toggle" aria-label="Toggle menu" @click="sidebarOpen = !sidebarOpen">
         <svg
           width="22"
           height="22"
@@ -33,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ConversationNav from './components/ConversationNav.vue'
 import { getBrowserFingerprint, getUserId, setUserId } from './utils/fingerprint'
@@ -41,6 +43,7 @@ import { resolveFingerprint } from './api'
 
 const sidebarOpen = ref(false)
 const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true')
+const isEmbed = computed(() => route.query.embed === '1')
 
 watch(sidebarCollapsed, (v) => localStorage.setItem('sidebarCollapsed', String(v)))
 const route = useRoute()
