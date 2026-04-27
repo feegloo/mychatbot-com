@@ -239,6 +239,61 @@ export function renderMarkdown(content: string): string {
     (_match, attrs: string | undefined) =>
       `<span class="markdown-image-scroll"><img${attrs ?? ''}></span>`,
   )
+  // Badge ingredient measurement units inside list items.
+  // Volume units (cups, tbsp, tsp, fl oz, ml) → .munit-vol (blue pill)
+  // Weight units (g, kg, mg, oz, lbs) → .munit-wt (orange pill)
+  // Uses DOMParser so nested lists are walked correctly without regex <li> parsing.
+  const withMeasureUnits = (() => {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(`<div>${withScrollableImages}</div>`, 'text/html')
+    const root = doc.body.firstElementChild as HTMLDivElement | null
+    if (!root) return withScrollableImages
+
+    // Valid number: integer, decimal, or simple fraction (e.g. 1, 2.5, 1/2)
+    const num = '\\d+(?:\\.\\d+)?(?:/\\d+)?'
+    // Volume regex runs first so "fl oz" is consumed before the bare "oz" weight pass.
+    const volumePattern = new RegExp(`\\b(${num})\\s*(cups?|tbsp|tsp|fl\\s?oz|ml)\\b`, 'gi')
+    const weightPattern = new RegExp(`\\b(${num})\\s*(kg|mg|g|oz|lbs?)\\b`, 'gi')
+
+    function decorateText(text: string): string {
+      const withVol = text.replace(
+        volumePattern,
+        '$1 <span class="munit munit-vol">$2</span>',
+      )
+      return withVol.replace(weightPattern, '$1 <span class="munit munit-wt">$2</span>')
+    }
+
+    root.querySelectorAll('li').forEach((li) => {
+      // Walk only the direct text nodes of this <li>, skipping nested <li> subtrees
+      // and <code>/<pre> blocks so we don't corrupt code or recurse into child items.
+      const walker = doc.createTreeWalker(li, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement
+          if (!parent) return NodeFilter.FILTER_REJECT
+          // Only text that belongs to this exact <li>, not a nested one
+          if (parent.closest('li') !== li) return NodeFilter.FILTER_REJECT
+          if (parent.closest('code, pre')) return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      const textNodes: Text[] = []
+      let cur = walker.nextNode()
+      while (cur) {
+        textNodes.push(cur as Text)
+        cur = walker.nextNode()
+      }
+      textNodes.forEach((textNode) => {
+        const original = textNode.textContent ?? ''
+        const decorated = decorateText(original)
+        if (decorated === original) return
+        const tpl = doc.createElement('template')
+        tpl.innerHTML = decorated
+        textNode.replaceWith(tpl.content)
+      })
+    })
+
+    return root.innerHTML
+  })()
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
@@ -246,7 +301,7 @@ export function renderMarkdown(content: string): string {
     'gi',
   )
   let insideA = 0
-  return withScrollableImages.replace(
+  return withMeasureUnits.replace(
     /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
     (m, openA: string, closeA: string, _otherTag: string, text: string) => {
       if (openA) {

@@ -1163,4 +1163,27 @@ function openFilePreview(file: FileInfo) {
 :deep(.text-color-gray) {
   color: #94a3b8;
 }
+
+/* Ingredient measurement unit badges (volume = blue, weight = orange). */
+:deep(li .munit) {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.76em;
+  font-weight: 700;
+  vertical-align: baseline;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  user-select: text;
+}
+:deep(li .munit-vol) {
+  background: rgba(147, 197, 253, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.3);
+}
+:deep(li .munit-wt) {
+  background: rgba(253, 186, 116, 0.15);
+  color: #fdba74;
+  border: 1px solid rgba(253, 186, 116, 0.3);
+}
 </style>
