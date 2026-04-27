@@ -230,10 +230,11 @@ Write from that expert's perspective — not as an AI, but as a competent person
 
 Your response MUST have three parts:
 
-1. **Title** (first line): The document title followed by a dash and the author name (or "Unknown author" if not available).
-   Format as a Markdown heading: # Document Title - Author Name
+1. **Title** (first line): The document title. If the author is known, append it after a dash.
+   Format as a Markdown heading: # Document Title
+   If the author is known: # Document Title - Author Name
    For example: # Ultimate Guide To Scar Treatments - Amanda Keyes
-   If the author is not known from the content or metadata, write: # Document Title - Unknown author
+   If the author is NOT known from the content or metadata, write ONLY the document title — do NOT append "Unknown author" or any placeholder: # Document Title
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
   AUTHOR PRIORITY — CRITICAL: If uploaded filename clues disagree with embedded PDF/EXIF metadata, treat filename author clues as hints only. Use filename-derived author in the heading only when it looks like a real person/creator name. If it looks like a domain/URL/source watermark (for example "oceanofpdf.com", "example.net", "www..."), DO NOT use it as author. In that case, prefer embedded metadata/content author. Example: uploaded filename "_OceanofPDF.com_The_Alchemist.pdf" + embedded metadata author "Paulo Coelho" => write: # The Alchemist - Paulo Coelho
 
