@@ -127,10 +127,36 @@ function pdfjsAssetsPlugin(): Plugin {
   }
 }
 
+/**
+ * Strips `woff` and `truetype` fallback `url(...)` entries from KaTeX's CSS so
+ * only the `woff2` source survives. Every browser we support ships woff2 (it
+ * has been baseline since ~2015), and dropping the fallbacks cuts the font
+ * assets emitted into the build from 42 → 14 — making `vite build` and the
+ * deploy upload step substantially faster without any visual change.
+ */
+function katexSlimFontsPlugin(): Plugin {
+  const KATEX_CSS_RE = /[\\/]katex[\\/]dist[\\/]katex(?:\.min)?\.css(?:$|\?)/
+  return {
+    name: 'chatrag:katex-slim-fonts',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!KATEX_CSS_RE.test(id)) return null
+      // Remove `,url(...woff) format("woff")` and `,url(...ttf) format("truetype")`
+      // entries from each @font-face `src:` declaration.
+      const slimmed = code.replace(
+        /,\s*url\([^)]+\.(?:woff|ttf)\)\s*format\("(?:woff|truetype)"\)/g,
+        '',
+      )
+      return { code: slimmed, map: null }
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     vue(),
     pdfjsAssetsPlugin(),
+    katexSlimFontsPlugin(),
     // Must be after all other plugins so source maps are generated correctly
     sentryVitePlugin({
       org: process.env.SENTRY_ORG,
