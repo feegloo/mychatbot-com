@@ -1,0 +1,232 @@
+/* ChatRAG Extension — Popup Styles */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #0b0f1a;
+  color: #e2e8f0;
+  min-width: 320px;
+  max-width: 360px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo svg {
+  display: block;
+  border-radius: 8px;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.2px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* ── Page info ── */
+
+.page-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.page-icon { color: #64748b; flex-shrink: 0; }
+
+.url-text {
+  font-size: 11.5px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* ── States ── */
+
+.state { display: flex; flex-direction: column; gap: 8px; }
+.state.hidden { display: none; }
+
+/* Buttons */
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #7C3AED, #5B21B6);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 16px;
+  background: rgba(255,255,255,0.07);
+  color: #cbd5e1;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 7px 16px;
+  background: transparent;
+  color: #64748b;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.btn-ghost:hover { color: #94a3b8; }
+
+/* Processing state */
+
+.loader-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 3px solid rgba(124,58,237,0.25);
+  border-top-color: #7C3AED;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#processing-step {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.loader-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.progress-bar-wrap {
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #7C3AED, #06b6d4);
+  border-radius: 2px;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+  transform-origin: left;
+}
+
+@keyframes progress-indeterminate {
+  0%   { width: 0%;   margin-left: 0%; }
+  50%  { width: 60%;  margin-left: 20%; }
+  100% { width: 0%;   margin-left: 100%; }
+}
+
+/* Ready state */
+
+.ready-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.ready-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(74,222,128,0.15);
+  border-radius: 50%;
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+/* Error state */
+
+.error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #f87171;
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.error-message svg { flex-shrink: 0; margin-top: 1px; }

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatRAG</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup">
+      <!-- Header -->
+      <div class="header">
+        <div class="logo">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="url(#popupGrad)" />
+            <text x="16" y="22" text-anchor="middle" fill="white" font-family="system-ui,Arial,sans-serif" font-weight="700" font-size="13">CR</text>
+            <defs>
+              <linearGradient id="popupGrad" x1="0" y1="0" x2="0" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#7C3AED" />
+                <stop offset="100%" stop-color="#5B21B6" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="header-text">
+          <span class="title">ChatRAG</span>
+          <span class="subtitle">AI chat for any webpage</span>
+        </div>
+      </div>
+
+      <!-- Current page info -->
+      <div class="page-info">
+        <svg class="page-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+        <span id="url-text" class="url-text">Loading…</span>
+      </div>
+
+      <!-- States -->
+
+      <div id="state-initial" class="state hidden">
+        <button id="btn-create" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          Chat about this page
+        </button>
+      </div>
+
+      <div id="state-processing" class="state hidden">
+        <div class="loader-wrap">
+          <div class="spinner"></div>
+          <div class="loader-text">
+            <span id="processing-step">Analyzing page…</span>
+            <span class="loader-sub">This usually takes 15–30 seconds</span>
+          </div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="state-ready" class="state hidden">
+        <div class="ready-message">
+          <div class="ready-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <span>Conversation ready!</span>
+        </div>
+        <button id="btn-open-widget" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          Open chat widget
+        </button>
+        <button id="btn-open-tab" class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+          Open in new tab
+        </button>
+        <button id="btn-new-chat" class="btn-ghost">Analyze again (new chat)</button>
+      </div>
+
+      <div id="state-error" class="state hidden">
+        <div class="error-message">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span id="error-text">Something went wrong</span>
+        </div>
+        <button id="btn-retry" class="btn-primary">Try again</button>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

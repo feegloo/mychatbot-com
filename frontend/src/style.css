@@ -80,6 +80,20 @@ a {
   overflow: hidden;
 }
 
+/* ── Embed mode: hide sidebar, fill full width for iframe embedding ── */
+.app-layout.embed-mode {
+  display: block;
+}
+.app-layout.embed-mode .app-main {
+  width: 100%;
+  height: 100%;
+}
+
+.page.embed-mode {
+  padding: 0;
+  max-width: none;
+}
+
 .app-main {
   flex: 1;
   min-height: 0;

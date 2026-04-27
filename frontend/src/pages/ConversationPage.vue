@@ -1,6 +1,7 @@
 <template>
-  <div class="page" :class="{ 'shared-conversation-view': isViewer }">
+  <div class="page" :class="{ 'shared-conversation-view': isViewer, 'embed-mode': isEmbed }">
     <ConversationHeader
+      v-if="!isEmbed"
       :status="status"
       :conversation-id="conversationId"
       :conversation-title="conversationTitle"
@@ -398,6 +399,7 @@ const firstAssistantIndex = computed(() =>
 const loaded = ref(false)
 const routerInstance = useRouter()
 const route = useRoute()
+const isEmbed = computed(() => route.query.embed === '1')
 
 const searchTermFromRoute = ref('')
 const searchMessageIdFromRoute = ref('')

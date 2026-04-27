@@ -75,11 +75,11 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1Html:
       "Upload your big PDFs and files privately, securely encrypted end-to-end 🔒",
     subtitleP1bHtml:
-      'chat with files, let AI extract insights and tell you what\u2019s inside in the author\u2019s voices.',
+      'let AI extract insights, learn and tell you what\u2019s inside files in the author\u2019s voices.',
     subtitleP2Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,',
     subtitleP2bHtml:
-      ', translate files to your language 🇵🇱🇬🇧 synthesize speech 🔊 share answers',
+      'translate files to your language 🇵🇱🇬🇧 synthesize speech 🔊 share answers',
     subtitleP3:
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
@@ -96,11 +96,11 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1Html:
       'Wgraj swoje duże PDF-y i pliki prywatnie, bezpiecznie szyfrowane end-to-end 🔒',
     subtitleP1bHtml:
-      'rozmawiaj z plikami, pozwól AI wyciągnąć wnioski i opowiedzieć, co jest w środku, głosem autorów.',
+      'pozwól AI wyciągnąć wnioski, nauczyć się i opowiedzieć co jest w plikach, głosem autorów.',
     subtitleP2Html:
       'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG,',
     subtitleP2bHtml:
-      ', tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
+      'tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
