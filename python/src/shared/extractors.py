@@ -436,17 +436,29 @@ _VISION_GIF_PROMPT = (
 def _extract_gif_frames(path: Path, max_frames: int = _GIF_MAX_FRAMES) -> list[bytes]:
     """Extract evenly-spaced frames from an animated GIF as PNG bytes.
 
-    Returns an empty list for single-frame (static) GIFs so callers can
-    fall back to the standard image description path.
+    Args:
+        path: Path to the GIF file.
+        max_frames: Maximum number of frames to return. Frames are sampled
+            evenly across the full animation; the first and last frames are
+            always included. Defaults to ``_GIF_MAX_FRAMES``.
+
+    Returns:
+        List of PNG-encoded frame bytes, or an empty list for single-frame
+        (static) GIFs so callers can fall back to the standard image path.
     """
     with Image.open(path) as img:
         frames = list(ImageSequence.Iterator(img))
         if len(frames) <= 1:
             return []
 
-        # Sample evenly across the animation; always include first and last
+        # Build evenly-spaced indices and always include the last frame so the
+        # LLM sees the full animation cycle (e.g. 10 frames, max_frames=6 →
+        # step=1, range gives [0..5] without this fix, missing frames 6-9).
         step = max(1, len(frames) // max_frames)
         indices = list(range(0, len(frames), step))[:max_frames]
+        last_idx = len(frames) - 1
+        if indices[-1] != last_idx:
+            indices[-1] = last_idx
 
         result: list[bytes] = []
         for idx in indices:

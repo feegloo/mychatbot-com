@@ -357,7 +357,7 @@ class TestDescribeGif:
         mock_describe.return_value = "fallback description"
 
         gif = tmp_path / "bad.gif"
-        gif.write_bytes(b"GIF89a" + b"\x00" * 10)  # corrupt but has .gif suffix
+        gif.write_bytes(b"GIF89a" + b"\x00" * 10)  # minimal corrupt GIF header (6 byte sig + padding)
 
         result = _describe_gif(gif)
 
