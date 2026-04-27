@@ -123,10 +123,14 @@ function makePlaceholder(textIndex: number, counter: number): string {
 }
 
 // Tolerant matcher used as a fallback when an exact-string replace fails.
-// Allows optional surrounding whitespace inserted by the translator.
+// The translator can strip or alter the boundary letters (`X`/`END`) when
+// crossing scripts (Arabic → Latin observed in production). Match the
+// invariant numeric core `MRK<i>X<c>` and consume any surviving boundary
+// letters/whitespace around it so the placeholder is fully replaced.
 function placeholderRegex(placeholder: string): RegExp {
-  // Placeholder is pure [A-Z0-9]; safe to embed in a regex without escaping.
-  return new RegExp(`\\s*${placeholder}\\s*`, 'i')
+  // Placeholder shape: `XMRK<i>X<c>XEND`. Extract the numeric core.
+  const core = placeholder.replace(/^XMRK/, '').replace(/XEND$/, '')
+  return new RegExp(`\\s*X?MRK${core}X?(?:END)?\\s*`, 'i')
 }
 
 type MarkerInfo = {

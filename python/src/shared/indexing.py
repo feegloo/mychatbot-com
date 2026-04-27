@@ -23,6 +23,7 @@ from .page_worker import FileProcessingResult, process_pdf_parallel, process_sta
 from .suggested_questions import suggest_questions_from_chunks
 from .telemetry import log_processing_event, trace_step
 from .vector_store import upsert_chunks
+from .wiki import build_conversation_wiki
 
 logger = logging.getLogger(__name__)
 
@@ -1086,6 +1087,43 @@ def _index_documents_inline(
         "processing_errors": all_errors if all_errors else None,
         **upsert_result,
     }
+
+    # ── Internal "idea file" / wiki (Karpathy-style) ────────────────────
+    # Generated AFTER the user-facing welcome message has been shown. Stored
+    # as an internal (hidden) message and injected into ANSWER_PROMPT on
+    # subsequent /ask calls, so the assistant has a structured, compounding
+    # artifact instead of re-deriving the document's shape every turn.
+    # Failures are swallowed — wiki is a best-effort enhancement.
+    try:
+        wiki_chunk_records = [
+            {"file_name": c.file_name, "page": c.page, "text": c.text}
+            for c in (all_chunks + streaming_chunks)
+            if getattr(c, "text", "")
+        ]
+        if welcome_message and wiki_chunk_records:
+            wiki_title = ", ".join(
+                clean_file_name(name) for name in file_name_list[:3]
+            ) or "Conversation"
+            with trace_step(conversation_id, "*", "build_conversation_wiki"):
+                wiki_text = build_conversation_wiki(
+                    conversation_id=conversation_id,
+                    conversation_title=wiki_title,
+                    welcome_message=welcome_message,
+                    chunk_records=wiki_chunk_records,
+                    language=detected_language,
+                )
+            if wiki_text and on_progress:
+                on_progress(
+                    "wiki_message",
+                    {
+                        "wiki_message": wiki_text,
+                        "internal_kind": "wiki",
+                    },
+                )
+                result["wiki_message"] = wiki_text
+    except Exception as exc:
+        # Never let wiki generation break indexing.
+        logger.warning("📚 Wiki step failed (conv=%s): %s", conversation_id, exc)
 
     if on_progress:
         on_progress("complete", result)

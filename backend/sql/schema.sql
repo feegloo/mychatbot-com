@@ -47,8 +47,16 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
   content          TEXT NOT NULL,
   citations_json   JSONB,
   user_id          INT NOT NULL DEFAULT 0,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  is_internal      BOOLEAN NOT NULL DEFAULT FALSE,
+  internal_kind    TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT conversation_messages_internal_kind_chk
+    CHECK (internal_kind IS NULL OR is_internal = TRUE)
 );
+
+CREATE INDEX IF NOT EXISTS conversation_messages_internal_idx
+  ON conversation_messages (conversation_id, internal_kind, created_at DESC)
+  WHERE is_internal = TRUE;
 
 CREATE TABLE IF NOT EXISTS suggested_questions (
   id               UUID PRIMARY KEY,
