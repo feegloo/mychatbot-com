@@ -111,6 +111,17 @@ Below is a short summary generated during file upload/indexing for each source f
 
 --
 
+== SECTION 3a: Internal Knowledge Wiki ==
+A structured "idea file" (Karpathy-style) built once at indexing time from the
+welcome message + top embedding matches against the uploaded sources. Encodes
+entities, dependency arrows (--->, <---, <--->, ===>, -.->), hierarchy, and
+expert insights that would be hard to recover from chunks alone. Treat it as a
+high-trust map of the document's structure; defer to Sections 1/4/4a when raw
+text disagrees. If empty, no wiki was generated for this conversation.
+{wiki_message}
+
+--
+
 == SECTION 4: Full Pages of Matched Sources ==
 Below is the full text of pages where matching sources were found. Each block is labeled [Full Page N of filename] so you know which uploaded file the page belongs to. Use this for additional detail beyond the matching chunks.
 {matched_pages}
@@ -983,6 +994,10 @@ def answer_with_citations(
     conversation_name: str | None = None,
     conversation_language_code: str | None = None,
     conversation_language_name: str | None = None,
+    # Per-conversation internal "idea file" generated at indexing time. When
+    # present, injected as Section 3a so the LLM has a compounding structured
+    # map of entities/relationships across questions.
+    wiki_message: str | None = None,
 ) -> dict:
     import sentry_sdk
     from sentry_sdk import logger as sentry_logger
@@ -1094,6 +1109,8 @@ def answer_with_citations(
                 "conversation_name": conv_name,
                 "conversation_id": conversation_id,
                 "no_file_context_instruction": no_file_context_instruction,
+                "wiki_message": (wiki_message or "").strip()
+                or "(no internal wiki generated for this conversation)",
             }
 
         # Trim context sections if total prompt would exceed the per-request token limit

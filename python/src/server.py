@@ -420,6 +420,7 @@ async def answer(req: AnswerRequest):
             conversation_name=req.conversation_name,
             conversation_language_code=req.conversation_language_code,
             conversation_language_name=req.conversation_language_name,
+            wiki_message=req.wiki_message,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(

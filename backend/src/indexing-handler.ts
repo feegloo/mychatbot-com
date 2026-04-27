@@ -93,6 +93,25 @@ export async function handleIndexingEvent(
       return
     }
 
+    case 'wiki_message': {
+      // Internal "idea file" — persist as a hidden message; never re-emitted
+      // over SSE because it must not surface in any user-visible UI.
+      const wikiContent = (payload.wiki_message as string) || ''
+      if (!wikiContent) return
+      try {
+        await insertConversationMessage({
+          conversationId,
+          role: 'assistant',
+          content: wikiContent,
+          isInternal: true,
+          internalKind: (payload.internal_kind as string) || 'wiki',
+        })
+      } catch (err: any) {
+        console.error('[wiki message persist error]:', err.message)
+      }
+      return
+    }
+
     case 'complete': {
       const ctx = getJobContext(payload)
       await handleComplete(conversationId, payload, ctx)
