@@ -77,7 +77,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP2Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, synthesize speech 🔊 translate files to your language 🇵🇱🇬🇧 share answers',
     subtitleP3:
-      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactiv quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
+      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
     dropzoneHint: 'PDF, images, .doc, other text files',
     askPlaceholder: 'Ask your question ...',
