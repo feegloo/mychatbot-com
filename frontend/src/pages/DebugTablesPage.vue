@@ -24,12 +24,19 @@
       <div class="controls">
         <div class="table-tabs">
           <button
-            v-for="table in tableNames"
+            v-for="table in visibleTableNames"
             :key="table"
             :class="{ active: activeTable === table }"
             @click="activeTable = table"
           >
             {{ table }} <span class="count">({{ counts[table] ?? 0 }})</span>
+          </button>
+          <button
+            v-if="isMobile"
+            class="tabs-toggle"
+            @click="tabsExpanded = !tabsExpanded"
+          >
+            {{ tabsExpanded ? '▲ Less' : `▼ +${TABLE_NAMES.length - MOBILE_VISIBLE_TABS}` }}
           </button>
           <button :class="{ active: activeTable === SQL_TAB }" @click="activeTable = SQL_TAB">
             Run SQL query
@@ -76,12 +83,12 @@
               <table>
                 <thead>
                   <tr>
-                    <th v-for="col in sqlResult.fields" :key="col">{{ col }}</th>
+                    <th v-for="col in sqlResult.fields" :key="col" :class="{ 'col-content': col === 'content' }">{{ col }}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(row, i) in sqlResult.rows" :key="i">
-                    <td v-for="col in sqlResult.fields" :key="col">
+                    <td v-for="col in sqlResult.fields" :key="col" :class="{ 'col-content': col === 'content' }">
                       <span class="cell" :title="String(row[col] ?? '')">{{
                         formatCell(row[col])
                       }}</span>
@@ -108,7 +115,7 @@
             <table>
               <thead>
                 <tr>
-                  <th v-for="col in currentColumns" :key="col">{{ col }}</th>
+                  <th v-for="col in currentColumns" :key="col" :class="{ 'col-content': col === 'content' }">{{ col }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,7 +126,7 @@
                   class="data-row"
                   @click="toggleRow(i, row)"
                 >
-                  <td v-for="col in currentColumns" :key="col">
+                  <td v-for="col in currentColumns" :key="col" :class="{ 'col-content': col === 'content' }">
                     <span
                       class="cell"
                       :class="{ expanded: isRowExpanded(i) }"
@@ -146,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   getDebugTable,
   getDebugTablesOverview,
@@ -180,6 +187,33 @@ const TABLE_NAMES: DebugTableName[] = [
   'workers',
   'jobs',
 ]
+
+const MOBILE_VISIBLE_TABS = 3
+
+const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < 768)
+const tabsExpanded = ref(false)
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+const visibleTableNames = computed(() => {
+  if (!isMobile.value || tabsExpanded.value) return TABLE_NAMES
+  const visibleNames = TABLE_NAMES.slice(0, MOBILE_VISIBLE_TABS)
+  const current = activeTable.value
+  if (current === SQL_TAB || visibleNames.includes(current as DebugTableName)) {
+    return visibleNames
+  }
+  return [...visibleNames.slice(0, MOBILE_VISIBLE_TABS - 1), current as DebugTableName]
+})
 
 const authenticated = ref(false)
 const username = ref('')
@@ -248,8 +282,6 @@ async function fetchTable(name: DebugTableName) {
     loadingTable.value = null
   }
 }
-
-const tableNames = computed(() => TABLE_NAMES)
 
 const isLoadingCurrentTable = computed(
   () => activeTable.value !== SQL_TAB && loadingTable.value === activeTable.value,
@@ -451,6 +483,12 @@ async function doLogin() {
   flex-direction: column;
   height: calc(100vh - 48px);
 }
+@media (max-width: 767px) {
+  .debug-page {
+    padding: 8px;
+    height: calc(100vh - 16px);
+  }
+}
 h1 {
   margin-bottom: 16px;
   font-size: 1.5rem;
@@ -458,10 +496,15 @@ h1 {
 .controls {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .controls {
+    margin-bottom: 6px;
+  }
 }
 .table-tabs {
   display: flex;
@@ -495,6 +538,16 @@ h1 {
 .table-tabs .count {
   opacity: 0.6;
   font-size: 0.8em;
+}
+.tabs-toggle {
+  padding: 8px 12px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #818cf8;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 .login-box {
   max-width: 320px;
@@ -567,7 +620,7 @@ h1 {
 }
 table {
   width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: 0.8rem;
 }
@@ -577,6 +630,7 @@ td {
   text-align: left;
   border-bottom: 1px solid #1e293b;
   white-space: nowrap;
+  min-width: 50px;
 }
 th {
   background: #1e293b;
@@ -588,6 +642,13 @@ th {
 }
 td {
   max-width: 300px;
+}
+.col-content {
+  min-width: 280px;
+  max-width: none;
+}
+.col-content .cell {
+  max-width: 500px;
 }
 .cell {
   display: block;
