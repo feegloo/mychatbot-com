@@ -239,6 +239,24 @@ export function renderMarkdown(content: string): string {
     (_match, attrs: string | undefined) =>
       `<span class="markdown-image-scroll"><img${attrs ?? ''}></span>`,
   )
+  // Badge ingredient measurement units inside list items.
+  // Volume units (cups, tbsp, tsp, ml) → .munit-vol (blue pill)
+  // Weight units (g, kg, mg, oz, lbs) → .munit-wt (orange pill)
+  // Scoped to <li> content so prose and code blocks are not affected.
+  const withMeasureUnits = withScrollableImages.replace(
+    /(<li\b[^>]*>)([\s\S]*?)(<\/li>)/gi,
+    (_, open: string, inner: string, close: string) => {
+      const withVol = inner.replace(
+        /\b(\d[\d./]*)\s*(cups?|tbsp|tsp|fl\s?oz|ml)\b/gi,
+        '$1 <span class="munit munit-vol">$2</span>',
+      )
+      const withWt = withVol.replace(
+        /\b(\d[\d./]*)\s*(kg|mg|g|oz|lbs?)\b/g,
+        '$1 <span class="munit munit-wt">$2</span>',
+      )
+      return `${open}${withWt}${close}`
+    },
+  )
   // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
@@ -246,7 +264,7 @@ export function renderMarkdown(content: string): string {
     'gi',
   )
   let insideA = 0
-  return withScrollableImages.replace(
+  return withMeasureUnits.replace(
     /(<a\b[^>]*>)|(<\/a>)|(<[^>]*>)|([^<]+)/gi,
     (m, openA: string, closeA: string, _otherTag: string, text: string) => {
       if (openA) {
