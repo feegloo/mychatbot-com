@@ -31,13 +31,6 @@
           >
             {{ table }} <span class="count">({{ counts[table] ?? 0 }})</span>
           </button>
-          <button
-            v-if="isMobile"
-            class="tabs-toggle"
-            @click="tabsExpanded = !tabsExpanded"
-          >
-            {{ tabsExpanded ? '▲ Less' : `▼ +${TABLE_NAMES.length - MOBILE_VISIBLE_TABS}` }}
-          </button>
           <button :class="{ active: activeTable === SQL_TAB }" @click="activeTable = SQL_TAB">
             Run SQL query
           </button>
@@ -51,6 +44,13 @@
           </button>
         </div>
       </div>
+      <button
+        v-if="isMobile"
+        class="tabs-toggle"
+        @click="tabsExpanded = !tabsExpanded"
+      >
+        {{ tabsExpanded ? '▲ Less' : `▼ More (${TABLE_NAMES.length - MOBILE_VISIBLE_TABS} tables)` }}
+      </button>
 
       <div v-if="activeTable === SQL_TAB" class="sql-panel">
         <textarea
@@ -553,7 +553,10 @@ h1 {
   font-size: 0.8em;
 }
 .tabs-toggle {
+  display: block;
+  width: 100%;
   padding: 8px 12px;
+  margin-bottom: 6px;
   border: 1px solid #334155;
   border-radius: 6px;
   background: #0f172a;
@@ -561,6 +564,7 @@ h1 {
   cursor: pointer;
   font-size: 0.82rem;
   font-weight: 600;
+  text-align: center;
 }
 .login-box {
   max-width: 320px;
