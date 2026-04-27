@@ -31,7 +31,7 @@ IMPORTANT: Randomly choose ONE quiz type (roughly 50/50 chance):
 
 Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
 
-[quiz:{{"title":"Quiz title","multiple":false,"questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[2],"explanation":"Why this is correct"}}]}}]
+[quiz:{{"title":"<quiz title>","multiple":<true|false>,"questions":[{{"q":"<question text>","options":["<option 1>","<option 2>","<option 3>","<option 4>"],"correct":[<index>],"explanation":"<why correct>"}}]}}]
 
 Rules:
 - Generate exactly 5 questions based on the content

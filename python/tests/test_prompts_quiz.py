@@ -140,6 +140,12 @@ class TestQuizPromptStructure:
         system_text = system_msg.prompt.template if hasattr(system_msg, "prompt") else str(system_msg)
         assert "em dash" in system_text or "—" in system_text
 
+    def test_correct_answer_distribution_rule_in_system(self):
+        system_msg = QUIZ_PROMPT.messages[0]
+        system_text = system_msg.prompt.template if hasattr(system_msg, "prompt") else str(system_msg)
+        assert "Distribute correct answers randomly" in system_text
+        assert "no single valid position dominates" in system_text
+
 
 class TestQuizPromptImports:
     def test_quiz_prompt_importable_from_init(self):
