@@ -246,12 +246,17 @@ export function renderMarkdown(content: string): string {
   const withMeasureUnits = withScrollableImages.replace(
     /(<li\b[^>]*>)([\s\S]*?)(<\/li>)/gi,
     (_, open: string, inner: string, close: string) => {
+      // Valid number: integer, decimal, or simple fraction (e.g. 1, 2.5, 1/2)
+      const num = '\\d+(?:\\.\\d+)?(?:/\\d+)?'
+      // Volume first so "fl oz" is consumed before the bare "oz" weight pass.
+      // After replacement the "oz" inside the munit-vol span has no leading digit
+      // so the weight regex below cannot accidentally re-match it.
       const withVol = inner.replace(
-        /\b(\d[\d./]*)\s*(cups?|tbsp|tsp|fl\s?oz|ml)\b/gi,
+        new RegExp(`\\b(${num})\\s*(cups?|tbsp|tsp|fl\\s?oz|ml)\\b`, 'gi'),
         '$1 <span class="munit munit-vol">$2</span>',
       )
       const withWt = withVol.replace(
-        /\b(\d[\d./]*)\s*(kg|mg|g|oz|lbs?)\b/g,
+        new RegExp(`\\b(${num})\\s*(kg|mg|g|oz|lbs?)\\b`, 'gi'),
         '$1 <span class="munit munit-wt">$2</span>',
       )
       return `${open}${withWt}${close}`
