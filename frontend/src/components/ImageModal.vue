@@ -2,7 +2,15 @@
   <Teleport to="body">
     <div v-if="visible" class="image-modal-overlay" @click.self="$emit('close')">
       <div class="image-modal-content">
-        <button class="image-modal-close" @click="$emit('close')">&times;</button>
+        <button
+          type="button"
+          class="image-modal-close"
+          aria-label="Close image"
+          title="Close image"
+          @click="$emit('close')"
+        >
+          &times;
+        </button>
         <Transition name="modal-img-fade" mode="out-in">
           <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
         </Transition>
