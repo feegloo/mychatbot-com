@@ -2,9 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="image-modal-overlay" @click.self="$emit('close')">
       <div class="image-modal-content">
-        <div class="image-modal-header">
-          <button class="image-modal-close" @click="$emit('close')">&times;</button>
-        </div>
+        <button class="image-modal-close" @click="$emit('close')">&times;</button>
         <Transition name="modal-img-fade" mode="out-in">
           <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
         </Transition>
@@ -50,16 +48,11 @@ defineEmits<{
   flex-direction: column;
 }
 
-/* Header row: hidden on desktop (button is absolutely positioned there) */
-.image-modal-header {
-  display: none;
-}
-
 .image-modal-close {
+  position: absolute;
   top: 2px;
   right: -33px;
   width: 30px;
-  position: absolute;
   height: 30px;
   border-radius: 50%;
   border: none;
@@ -83,20 +76,15 @@ defineEmits<{
   background: #334155;
 }
 
-/* On mobile: show in-flow header row with X aligned to the right of the image */
+/* On mobile: show button in-flow above the image, aligned right */
 @media (max-width: 768px) {
   .image-modal-content {
     max-width: 100vw;
   }
 
-  .image-modal-header {
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
-  }
-
   .image-modal-close {
     position: static;
+    align-self: flex-end;
     margin-bottom: 4px;
     flex-shrink: 0;
   }
