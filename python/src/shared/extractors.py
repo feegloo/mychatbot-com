@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ import docx2txt
 import fitz  # pymupdf – C wrapper around MuPDF, already the fastest option
 import pandas as pd
 from openai import OpenAI
+from PIL import Image, ImageSequence
 from pypdf import PdfReader
 
 from .config import get_settings
@@ -415,6 +417,110 @@ def _describe_image(
     )
 
 
+# ── Animated GIF description ───────────────────────────────────────
+
+# Number of evenly-spaced frames sampled from the animation. 6 frames
+# gives a good representation of short animations without blowing up the
+# prompt; for very short GIFs (< 6 frames) all frames are used.
+_GIF_MAX_FRAMES = 6
+
+_VISION_GIF_PROMPT = (
+    "You are analyzing an animated GIF. The frames below are shown in chronological order "
+    "(first frame → last frame) and represent the full animation cycle.\n"
+    "Describe the animation as motion or action — what is happening, what is moving or changing, "
+    "and what the overall scene depicts. Do NOT describe each frame individually.\n"
+    "Keep the description concrete and factual. 2–4 sentences."
+)
+
+
+def _extract_gif_frames(path: Path, max_frames: int = _GIF_MAX_FRAMES) -> list[bytes]:
+    """Extract evenly-spaced frames from an animated GIF as PNG bytes.
+
+    Returns an empty list for single-frame (static) GIFs so callers can
+    fall back to the standard image description path.
+    """
+    with Image.open(path) as img:
+        frames = list(ImageSequence.Iterator(img))
+        if len(frames) <= 1:
+            return []
+
+        # Sample evenly across the animation; always include first and last
+        step = max(1, len(frames) // max_frames)
+        indices = list(range(0, len(frames), step))[:max_frames]
+
+        result: list[bytes] = []
+        for idx in indices:
+            frame = frames[idx].convert("RGBA")
+            # Composite onto white background so transparent areas don't
+            # look odd when the LLM inspects the PNG
+            bg = Image.new("RGBA", frame.size, (255, 255, 255, 255))
+            bg.paste(frame, mask=frame.split()[3])
+            bg = bg.convert("RGB")
+
+            buf = io.BytesIO()
+            bg.save(buf, format="PNG")
+            result.append(buf.getvalue())
+
+        return result
+
+
+def _describe_gif(path: Path, *, conversation_id: str | None = None) -> str:
+    """Describe an animated GIF by sending sampled frames to the vision model.
+
+    Falls back to the standard single-image path when the GIF has only one frame.
+    """
+    try:
+        frames = _extract_gif_frames(path)
+    except Exception as e:
+        logger.warning(f"⚠️  Could not extract GIF frames for {path.name}: {e}")
+        frames = []
+
+    if not frames:
+        # Static GIF or extraction failed — treat like any other image
+        image_bytes = path.read_bytes()
+        return _describe_image(
+            image_bytes,
+            mime_type="image/gif",
+            conversation_id=conversation_id,
+            include_people_appearance=True,
+        )
+
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key, timeout=_VISION_OCR_TIMEOUT_SEC)
+
+    image_content = [
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{base64.b64encode(frame).decode()}",
+                "detail": "auto",
+            },
+        }
+        for frame in frames
+    ]
+
+    messages = [
+        {"role": "system", "content": _VISION_GIF_PROMPT},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": f"Animated GIF — {len(frames)} frames shown in order:"},
+                *image_content,
+            ],
+        },
+    ]
+
+    text, _usage = traced_openai_call(
+        client=client,
+        messages=messages,
+        model=settings.openai_chat_model,
+        operation="vision_gif",
+        conversation_id=conversation_id,
+        max_completion_tokens=800,
+    )
+    return text.strip()
+
+
 # Maximum chars of page text passed as context to the vision model.
 # Keeps the prompt focused without exceeding token limits.
 _IMAGE_CONTEXT_PAGE_TEXT_MAX = 800
@@ -737,15 +843,18 @@ _MIME_TYPES = {
 
 def extract_image(path: Path, *, conversation_id: str | None = None) -> str:
     """Describe a standalone image file using vision model."""
-    image_bytes = path.read_bytes()
-    mime = _MIME_TYPES.get(path.suffix.lower(), "image/png")
     try:
-        description = _describe_image(
-            image_bytes,
-            mime_type=mime,
-            conversation_id=conversation_id,
-            include_people_appearance=True,
-        )
+        if path.suffix.lower() == ".gif":
+            description = _describe_gif(path, conversation_id=conversation_id)
+        else:
+            image_bytes = path.read_bytes()
+            mime = _MIME_TYPES.get(path.suffix.lower(), "image/png")
+            description = _describe_image(
+                image_bytes,
+                mime_type=mime,
+                conversation_id=conversation_id,
+                include_people_appearance=True,
+            )
         logger.info(f"\U0001f5bc\ufe0f  Described image {path.name}: {description[:80]}...")
         return _sanitize_text(description)
     except Exception as e:
