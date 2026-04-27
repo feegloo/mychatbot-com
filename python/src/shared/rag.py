@@ -122,6 +122,15 @@ text disagrees. If empty, no wiki was generated for this conversation.
 
 --
 
+== SECTION 3b: Cross-Conversation User Knowledge Map ==
+A master wiki synthesised from the user's OTHER conversations. Use it for
+cross-topic context about this user's interests, expertise, and knowledge base.
+Defer to Sections 1 / 3a / 4 for content specific to THIS conversation.
+If empty, this is the user's first conversation or the feature is disabled.
+{user_wiki_message}
+
+--
+
 == SECTION 4: Full Pages of Matched Sources ==
 Below is the full text of pages where matching sources were found. Each block is labeled [Full Page N of filename] so you know which uploaded file the page belongs to. Use this for additional detail beyond the matching chunks.
 {matched_pages}
@@ -998,6 +1007,10 @@ def answer_with_citations(
     # present, injected as Section 3a so the LLM has a compounding structured
     # map of entities/relationships across questions.
     wiki_message: str | None = None,
+    # Cross-conversation master wiki for this user (Section 3b). Synthesised
+    # from all per-conversation wikis. Only populated when USER_WIKI_ENABLED
+    # is true and the user has previously interacted with other conversations.
+    user_wiki_message: str | None = None,
 ) -> dict:
     import sentry_sdk
     from sentry_sdk import logger as sentry_logger
@@ -1111,6 +1124,8 @@ def answer_with_citations(
                 "no_file_context_instruction": no_file_context_instruction,
                 "wiki_message": (wiki_message or "").strip()
                 or "(no internal wiki generated for this conversation)",
+                "user_wiki_message": (user_wiki_message or "").strip()
+                or "(no cross-conversation user wiki available)",
             }
 
         # Trim context sections if total prompt would exceed the per-request token limit

@@ -60,6 +60,7 @@ const DEBUG_TABLES = [
   'pdf_pages',
   'workers',
   'jobs',
+  'user_wikis',
 ] as const
 type DebugTable = (typeof DEBUG_TABLES)[number]
 
@@ -97,6 +98,10 @@ const TABLE_SELECT: Record<DebugTable, string> = {
   pdf_pages: '*',
   workers: '*',
   jobs: '*',
+  user_wikis:
+    `user_id, source_count, updated_at,
+     LEFT(content, 500) AS content,
+     LENGTH(content) AS content_chars`,
 }
 
 // Most tables have `created_at`; a few use a different timestamp column

@@ -155,6 +155,10 @@ class AnswerRequest(BaseModel):
     # Injected into ANSWER_PROMPT as Section 3a so the LLM has a structured
     # entity/relationship map without re-deriving it from chunks each turn.
     wiki_message: str | None = None
+    # Cross-conversation master wiki for this user (Section 3b).
+    # Synthesised from all per-conversation wikis; only populated when
+    # USER_WIKI_ENABLED=true on the backend.
+    user_wiki_message: str | None = None
 
 
 class IndexRequest(BaseModel):
@@ -421,6 +425,7 @@ async def answer(req: AnswerRequest):
             conversation_language_code=req.conversation_language_code,
             conversation_language_name=req.conversation_language_name,
             wiki_message=req.wiki_message,
+            user_wiki_message=req.user_wiki_message,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(
@@ -444,6 +449,39 @@ async def answer(req: AnswerRequest):
             attributes={"error": str(e)[:500]},
         )
         logger.exception("Error answering question")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class UserWikiRequest(BaseModel):
+    user_id: int
+    conversation_wikis: list[dict]  # [{conversation_id: str, content: str}]
+
+
+@app.post("/user-wiki")
+async def build_user_wiki(req: UserWikiRequest):
+    """Synthesise a cross-conversation master wiki for a user.
+
+    Called by the Node.js backend as a fire-and-forget task after each
+    answered question when USER_WIKI_ENABLED=true.  Aggregates the per-
+    conversation Section-3a "idea files" passed in *conversation_wikis*
+    into a single cross-topic master wiki (Section 3b).
+    """
+    try:
+        from shared.user_wiki import build_user_wiki as _build
+
+        content = await asyncio.to_thread(_build, user_id=req.user_id, conversation_wikis=req.conversation_wikis)
+        if not content:
+            raise HTTPException(status_code=422, detail="User wiki generation produced no output")
+        sentry_logger.info(
+            "User wiki built for user {user_id}",
+            user_id=req.user_id,
+            attributes={"source_count": len(req.conversation_wikis), "length": len(content)},
+        )
+        return {"content": content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error building user wiki (user=%d)", req.user_id)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
