@@ -31,7 +31,7 @@ IMPORTANT: Randomly choose ONE quiz type (roughly 50/50 chance):
 
 Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
 
-[quiz:{{"title":"Quiz title","multiple":false,"questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[0],"explanation":"Why this is correct"}}]}}]
+[quiz:{{"title":"Quiz title","multiple":false,"questions":[{{"q":"Question text?","options":["Option A","Option B","Option C","Option D"],"correct":[2],"explanation":"Why this is correct"}}]}}]
 
 Rules:
 - Generate exactly 5 questions based on the content
@@ -46,6 +46,7 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).
+- CRITICAL: Distribute correct answers randomly and evenly across all option positions. Do NOT place the correct answer at position A (index 0) more than once or twice across the 5 questions. Across the 5 questions, spread "correct" indices across 0, 1, 2, and 3 so that no single position dominates. The correct answer can be at any position — A, B, C, or D — and should vary from question to question.
 
 <<QUIZ_ACTIONS>>"""
 
