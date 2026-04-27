@@ -96,6 +96,8 @@ export async function handleIndexingEvent(
     case 'wiki_message': {
       // Internal "idea file" — persist as a hidden message; never re-emitted
       // over SSE because it must not surface in any user-visible UI.
+      // After a successful persist, send a lightweight `wiki_ready` event so
+      // the browser can reveal the "Wiki 🗺️" button without polling.
       const wikiContent = (payload.wiki_message as string) || ''
       if (!wikiContent) return
       try {
@@ -105,6 +107,10 @@ export async function handleIndexingEvent(
           content: wikiContent,
           isInternal: true,
           internalKind: (payload.internal_kind as string) || 'wiki',
+        })
+        emitConversationEvent(conversationId, {
+          event: 'wiki_ready',
+          data: {},
         })
       } catch (err: any) {
         console.error('[wiki message persist error]:', err.message)

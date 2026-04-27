@@ -24,6 +24,7 @@ import {
   getUploadedFilesByOriginalNames,
   getThreadsForConversation,
   getConversationThreadReplyCount,
+  getInternalWikiMessage,
 } from '../repositories/conversations.js'
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
@@ -968,4 +969,20 @@ conversationsRouter.post('/conversations/:conversationId/threads', async (ctx) =
     ownerPassword,
     url: `/c/${threadId}`,
   }
+})
+
+// GET /conversations/:conversationId/wiki — returns the internal wiki for the conversation.
+// Accessible to any role that can read the conversation (owner, editor, viewer).
+conversationsRouter.get('/conversations/:conversationId/wiki', async (ctx) => {
+  const conversationId = ctx.params.conversationId
+
+  const conv = await getConversation(conversationId, 'viewer')
+  if (!conv.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  const content = await getInternalWikiMessage(conversationId)
+  ctx.body = { content: content ?? null }
 })

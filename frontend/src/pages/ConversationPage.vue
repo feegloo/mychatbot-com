@@ -114,6 +114,7 @@
             :is-welcome="isUploadMessage(index)"
             :is-first-message="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :can-upload="canUpload"
+            :wiki-ready="wikiReady"
             :files="uploadFilesForMessage(index)"
             :max-visible-actions="index === 0 ? 5 : 3"
             :conversation-name="conversationTitle"
@@ -136,6 +137,7 @@
             @view-threads="viewThreads"
             @image-revealed="(success) => onMessageImageRevealed(index, success)"
             @message-animated="onMessageAnimated(msg.id)"
+            @show-wiki="openWikiModal"
           />
           <div
             v-if="showInlineProcessing"
@@ -183,6 +185,12 @@
       </section>
     </div>
   </div>
+  <WikiModal
+    :visible="wikiModalOpen"
+    :content="wikiContent"
+    :loading="wikiLoading"
+    @close="wikiModalOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -205,6 +213,7 @@ import {
   createConversationThread,
   saveConversationToken,
   extractError,
+  getConversationWiki,
   type ConversationStatus,
   type ChatMessage,
 } from '../api'
@@ -215,6 +224,7 @@ import { getData, setData } from '../utils/localData'
 import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
+import WikiModal from '../components/WikiModal.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import LanguageToggle from '../components/LanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
@@ -260,6 +270,11 @@ const pendingRefImageFileNames = ref<string[]>([])
 
 const currentLanguage = ref('')
 const isTranslating = ref(false)
+
+const wikiReady = ref(false)
+const wikiModalOpen = ref(false)
+const wikiContent = ref<string | null>(null)
+const wikiLoading = ref(false)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -351,6 +366,9 @@ watch(sseEvent, (evt) => {
       break
     case 'message_appended':
       loadConversation()
+      break
+    case 'wiki_ready':
+      wikiReady.value = true
       break
   }
 })
@@ -559,6 +577,15 @@ async function doLoadConversation() {
   // SSE events were missed (e.g. worker finished while the tab was closed).
   if (response.status === 'ready' || response.status === 'failed') {
     processingStep.value = ''
+    // Background-check for an existing wiki so the button shows on page load
+    // without waiting for a wiki_ready SSE (which only fires during indexing).
+    if (!wikiReady.value) {
+      getConversationWiki(conversationId)
+        .then((c) => {
+          if (c) wikiReady.value = true
+        })
+        .catch(() => {})
+    }
   } else if (response.status === 'processing' && processingStep.value === 'generating_welcome') {
     // Advance to 'indexing_pages' if a welcome message already exists in the
     // DB — this means the worker sent the welcome event before this page load.
@@ -1016,6 +1043,18 @@ watch(
   },
   { immediate: true },
 )
+
+async function openWikiModal() {
+  wikiModalOpen.value = true
+  if (!wikiContent.value) {
+    wikiLoading.value = true
+    try {
+      wikiContent.value = await getConversationWiki(conversationId)
+    } finally {
+      wikiLoading.value = false
+    }
+  }
+}
 
 onMounted(async () => {
   syncSearchFromRoute()

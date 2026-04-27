@@ -41,7 +41,7 @@ const t = homeT
 }
 
 .home-subtitle-extra {
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 12px;
   display: inline-block;
 }

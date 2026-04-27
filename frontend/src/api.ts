@@ -713,3 +713,11 @@ export async function createConversationThread(conversationId: string, userId: n
   const response = await api.post(`/conversations/${conversationId}/threads`, { userId })
   return response.data as { conversationId: string; ownerPassword: string; url: string }
 }
+
+export async function getConversationWiki(conversationId: string): Promise<string | null> {
+  const response = await api.get<{ content: string | null }>(
+    `/conversations/${conversationId}/wiki`,
+    { headers: authHeaders(conversationId) },
+  )
+  return response.data.content
+}

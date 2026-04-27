@@ -98,6 +98,77 @@ Recurrence          -.-> Transformer            (explicitly removed; ablation co
 
 ## Open Questions
 - Generalization beyond translation is implied but not measured here.
+
+## Mermaid Flowchart
+```mermaid
+flowchart LR
+  subgraph Input
+    Tokens[Input Tokens]
+    PosEnc[Positional Encoding]
+    EmbLayer[Embedding Layer]
+  end
+  subgraph Encoder
+    direction TB
+    MHSA1[Multi-Head Self-Attention]
+    Add1[Add & Norm]
+    FFN1[Position-wise FFN]
+    Add2[Add & Norm]
+    EncStack[Encoder Stack x6]
+  end
+  subgraph Decoder
+    direction TB
+    MaskedMHSA[Masked Multi-Head Self-Attention]
+    Add3[Add & Norm]
+    CrossAttn[Encoder-Decoder Attention]
+    Add4[Add & Norm]
+    FFN2[Position-wise FFN]
+    Add5[Add & Norm]
+    DecStack[Decoder Stack x6]
+  end
+  subgraph Output
+    Linear[Linear Projection]
+    Softmax[Softmax]
+    Probs[Output Probabilities]
+  end
+  subgraph Attention_Mechanism
+    Q[Query Q]
+    K[Key K]
+    V[Value V]
+    Scale[Scale div sqrt-dk]
+    SoftmaxA[Softmax]
+    DotProd[Scaled Dot-Product]
+  end
+
+  Tokens --> EmbLayer
+  EmbLayer --> PosEnc
+  PosEnc --> MHSA1
+  MHSA1 --> Add1
+  Add1 --> FFN1
+  FFN1 --> Add2
+  Add2 --> EncStack
+  EncStack --> CrossAttn
+
+  PosEnc --> MaskedMHSA
+  MaskedMHSA --> Add3
+  Add3 --> CrossAttn
+  CrossAttn --> Add4
+  Add4 --> FFN2
+  FFN2 --> Add5
+  Add5 --> DecStack
+
+  DecStack --> Linear
+  Linear --> Softmax
+  Softmax --> Probs
+
+  Q --> DotProd
+  K --> DotProd
+  DotProd --> Scale
+  Scale --> SoftmaxA
+  SoftmaxA --> V
+  V --> MHSA1
+
+  Probs -.-> Tokens
+```
 - Sinusoidal vs. learned positional encodings: paper claims parity but only on one task.
 """
 
@@ -263,10 +334,38 @@ insight, write fewer items rather than padding.
 worth flagging so the answering assistant hedges instead of hallucinating.
 If none, write a single line: "(none flagged)".
 
+## Mermaid Flowchart
+A rich, detailed "big-picture" flowchart rendering the SAME entities and
+relationships as the sections above in valid Mermaid syntax. This diagram
+is the primary visual map — favour completeness and depth over brevity.
+
+Rules:
+- First line must be: `flowchart LR`
+- Node IDs: short, alphanumeric, no spaces (e.g. TransformerModel, SelfAttn).
+- Node labels in square brackets: `A[Label text]`
+- Round brackets for process/action nodes: `A(Label)`
+- Double-square for subsystems/modules: `A[[Label]]`
+- Edge types:
+    A --> B           (plain directed)
+    A --label--> B    (labelled edge; label inside --)
+    A ==> B           (strong / blocking dependency)
+    A -.-> B          (weak / hypothesized / foreshadowed)
+    A <--> B          (bidirectional)
+- Use `subgraph GroupName ... end` to cluster related nodes (chapters,
+  modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
+- Aim for 15-35 nodes and 20-45 edges. More is better when supported by source.
+- CRITICAL SYNTAX RULES (violations break rendering):
+    * No unescaped `"` or `{` or `}` inside node labels — use single quotes
+      or rephrase: `A["label"]` is OK; `A[label with {brace}]` is NOT.
+    * No trailing pipe characters on edge lines.
+    * Node IDs must be unique.
+    * `subgraph` bodies must be indented; close every `subgraph` with `end`.
+    * Enclose the whole block in triple-backtick mermaid fence.
+
 == HARD CONSTRAINTS ==
 
-- Total length ≤ ~1500 tokens (~6000 characters). Terseness is a feature.
-- Write in the SAME LANGUAGE as the welcome message.
+- Total length ≤ ~2500 tokens (~10000 characters). Terseness in prose, richness in diagram.
+- Write in the SAME LANGUAGE as the welcome message (prose sections only; Mermaid node IDs always English alphanumeric).
 - No emojis. No [action:...] markers. No [source:N] citations. No URLs.
 - Never invent entities or relationships not supported by the welcome message
   or the chunk sample. If sources contradict, flag in Open Questions instead

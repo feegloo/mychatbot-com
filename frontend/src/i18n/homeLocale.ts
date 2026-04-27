@@ -75,9 +75,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1bHtml:
       'chat with files, let AI extract insights and tell you what\u2019s inside in the author\u2019s voices.',
     subtitleP2Html:
-      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, synthesize speech 🔊, share answers',
+      'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG, synthesize speech 🔊 translate files to your language 🇵🇱🇬🇧 share answers',
     subtitleP3:
-      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
+      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactiv quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
     dropzoneTitle: 'Click to upload or drag & drop',
     dropzoneHint: 'PDF, images, .doc, other text files',
     askPlaceholder: 'Ask your question ...',
@@ -94,9 +94,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1bHtml:
       'rozmawiaj z plikami, pozwól AI wyciągnąć wnioski i opowiedzieć, co jest w środku, głosem autorów.',
     subtitleP2Html:
-      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, syntezuj mowę 🔊, udostępniaj odpowiedzi',
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, syntezuj mowę 🔊 tłumacz pliki na polski lub angielski 🇵🇱🇬🇧 udostępniaj odpowiedzi',
     subtitleP3:
-      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
+      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 listę kontrolną ✅ i więcej!',
     dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
     dropzoneHint: 'PDF, obrazy, .doc, inne pliki tekstowe',
     askPlaceholder: 'Zadaj swoje pytanie ...',

@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 4
 _DEFAULT_TOKEN_BUDGET = 300_000
 _MAX_WELCOME_CHARS = 6_000  # welcome is concentrated framing — full clip rarely needed
-_MAX_OUTPUT_CHARS = 7_000  # ~1750 tokens; soft trim if model overshoots
+_MAX_OUTPUT_CHARS = 12_000  # ~3000 tokens; accommodates prose + rich mermaid diagram
 _TOP_K_CHUNKS = 10  # vector neighbours retrieved against the welcome message
 
 

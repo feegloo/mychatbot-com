@@ -231,6 +231,12 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
                   isInternal: true,
                   internalKind: (data.internal_kind as string) || 'wiki',
                 })
+                // Notify the browser that the wiki is ready — frontend shows
+                // the "Wiki 🗺️" button in the first-message action bar.
+                emitConversationEvent(conversationId, {
+                  event: 'wiki_ready',
+                  data: {},
+                })
               } catch (err: any) {
                 console.error('[wiki message persist error]:', err.message)
               }
@@ -554,6 +560,10 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
                   content: wikiContent,
                   isInternal: true,
                   internalKind: (data.internal_kind as string) || 'wiki',
+                })
+                emitConversationEvent(conversationId as string, {
+                  event: 'wiki_ready',
+                  data: {},
                 })
               } catch (err: any) {
                 console.error('[wiki message persist error]:', err.message)

@@ -10,6 +10,14 @@
       <!-- Action buttons (share / PDF / upload-more) — assistant messages only -->
       <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
         <AppButton
+          v-if="isFirstMessage && wikiReady"
+          class="msg-action-btn"
+          title="View Knowledge Wiki"
+          @click="$emit('show-wiki')"
+        >
+          🗺️ Wiki
+        </AppButton>
+        <AppButton
           v-if="isFirstMessage && canUpload"
           class="msg-action-btn"
           title="Upload more files"
@@ -357,6 +365,7 @@ const props = withDefaults(
     isTranslating?: boolean
     searchHighlighted?: boolean
     searchTerm?: string
+    wikiReady?: boolean
   }>(),
   { maxVisibleActions: 2 },
 )
@@ -375,6 +384,7 @@ const emit = defineEmits<{
   /** Fired once when the word-reveal animation has run so the parent can
    *  mark this message as animated and prevent replaying on re-mounts. */
   'message-animated': []
+  'show-wiki': []
 }>()
 
 // Use storageConversationId for file URLs (threads point to parent's storage).
