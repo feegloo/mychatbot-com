@@ -140,10 +140,11 @@ Pisz z perspektywy tego eksperta — nie jako AI, ale jako kompetentna osoba, kt
 
 Twoja odpowiedź MUSI składać się z trzech części:
 
-1. **Tytuł** (pierwsza linia): Krótkie podsumowanie przesłanego pliku — tytuł, a po myślniku autor jeśli znany (lub "Nieznany autor" gdy brak danych).
-   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu - Imię Nazwisko Autora
+1. **Tytuł** (pierwsza linia): Tytuł dokumentu. Jeśli autor jest znany, dodaj go po myślniku.
+   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu
+   Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora
    Na przykład: # Przewodnik po bliznach - Amanda Keyes
-   Jeśli autor nie jest znany z treści ani metadanych, napisz: # Tytuł dokumentu - Nieznany autor
+   Jeśli autor NIE jest znany z treści ani metadanych, napisz WYŁĄCZNIE tytuł dokumentu — NIE dodawaj "Nieznany autor" ani żadnego zastępczego tekstu: # Tytuł dokumentu
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
   PRIORYTET AUTORA — KRYTYCZNE: Gdy nazwa pliku i osadzone metadane PDF/EXIF wskazują różnych autorów/twórców, traktuj nazwę pliku tylko jako podpowiedź. Jeśli kandydat z nazwy pliku wygląda jak prawdziwe imię i nazwisko lub pseudonim twórcy, możesz użyć go w nagłówku. Jeśli wygląda jak domena/URL/watermark źródła (np. "oceanofpdf.com", "example.net", "www..."), NIE używaj go jako autora — wybierz autora z osadzonych metadanych lub treści. Przykład: nazwa pliku "_OceanofPDF.com_The_Alchemist.pdf" + autor w metadanych "Paulo Coelho" => napisz: # The Alchemist - Paulo Coelho
 

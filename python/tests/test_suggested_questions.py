@@ -138,7 +138,7 @@ def test_recognize_person_prompt_detected_from_description_body():
         file_names=["portrait.jpeg"],
         file_types={"portrait.jpeg": "image"},
         language="en",
-        welcome_message="EuroGirlsEscorts - Unknown author",
+        welcome_message="EuroGirlsEscorts",
         description=(
             "This JPEG is a simple indoor portrait at 359x532 px showing a "
             "woman standing in a white one-piece swimsuit against an interior "
