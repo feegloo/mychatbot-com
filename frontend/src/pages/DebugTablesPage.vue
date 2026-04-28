@@ -183,7 +183,6 @@ const TABLE_NAMES: DebugTableName[] = [
 ]
 
 const visibleTableNames = computed(() => TABLE_NAMES)
-const visibleTableNames = computed(() => TABLE_NAMES)
 
 const authenticated = ref(false)
 const username = ref('')
