@@ -1,6 +1,62 @@
 <template>
   <div class="home-hero">
-    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNDAgNjQiIGZpbGw9Im5vbmUiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkMSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNjMDg0ZmM7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICAgIDxzdG9wIG9mZnNldD0iNTAlIiBzdHlsZT0ic3RvcC1jb2xvcjojODE4Y2Y4O3N0b3Atb3BhY2l0eToxIiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMzOGJkZjg7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkMiIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojYTc4YmZhO3N0b3Atb3BhY2l0eToxIiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2MGE1ZmE7c3RvcC1vcGFjaXR5OjEiIC8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGZpbHRlciBpZD0iZ2xvdyI+CiAgICAgIDxmZUdhdXNzaWFuQmx1ciBzdGREZXZpYXRpb249IjIiIHJlc3VsdD0iY29sb3JlZEJsdXIiLz4KICAgICAgPGZlTWVyZ2U+CiAgICAgICAgPGZlTWVyZ2VOb2RlIGluPSJjb2xvcmVkQmx1ciIvPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0iU291cmNlR3JhcGhpYyIvPgogICAgICA8L2ZlTWVyZ2U+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CiAgPCEtLSBJY29uOiBzdHlsaXplZCBjaGF0IGJ1YmJsZSB3aXRoIG5vZGVzIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQsIDYpIj4KICAgIDwhLS0gQ2hhdCBidWJibGUgLS0+CiAgICA8cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNDQiIGhlaWdodD0iMzYiIHJ4PSIxMCIgcnk9IjEwIiBmaWxsPSJ1cmwoI2dyYWQxKSIgb3BhY2l0eT0iMC45Ii8+CiAgICA8cG9seWdvbiBwb2ludHM9IjE0LDM4IDIyLDQ4IDI4LDM4IiBmaWxsPSJ1cmwoI2dyYWQxKSIgb3BhY2l0eT0iMC45Ii8+CiAgICA8IS0tIFJBRyBub2RlcyBpbnNpZGUgYnViYmxlIC0tPgogICAgPGNpcmNsZSBjeD0iMTUiIGN5PSIxNiIgcj0iNCIgZmlsbD0iIzBiMGYxYSIgb3BhY2l0eT0iMC43Ii8+CiAgICA8Y2lyY2xlIGN4PSIzMyIgY3k9IjE2IiByPSI0IiBmaWxsPSIjMGIwZjFhIiBvcGFjaXR5PSIwLjciLz4KICAgIDxjaXJjbGUgY3g9IjI0IiBjeT0iMjgiIHI9IjQiIGZpbGw9IiMwYjBmMWEiIG9wYWNpdHk9IjAuNyIvPgogICAgPCEtLSBDb25uZWN0aW5nIGxpbmVzIC0tPgogICAgPGxpbmUgeDE9IjE1IiB5MT0iMTYiIHgyPSIzMyIgeTI9IjE2IiBzdHJva2U9IiMwYjBmMWEiIHN0cm9rZS13aWR0aD0iMS41IiBvcGFjaXR5PSIwLjQiLz4KICAgIDxsaW5lIHgxPSIxNSIgeTE9IjE2IiB4Mj0iMjQiIHkyPSIyOCIgc3Ryb2tlPSIjMGIwZjFhIiBzdHJva2Utd2lkdGg9IjEuNSIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMzMiIHkxPSIxNiIgeDI9IjI0IiB5Mj0iMjgiIHN0cm9rZT0iIzBiMGYxYSIgc3Ryb2tlLXdpZHRoPSIxLjUiIG9wYWNpdHk9IjAuNCIvPgogICAgPCEtLSBCcmlnaHQgY2VudGVycyAtLT4KICAgIDxjaXJjbGUgY3g9IjE1IiBjeT0iMTYiIHI9IjIiIGZpbGw9IiNlMGU3ZmYiLz4KICAgIDxjaXJjbGUgY3g9IjMzIiBjeT0iMTYiIHI9IjIiIGZpbGw9IiNlMGU3ZmYiLz4KICAgIDxjaXJjbGUgY3g9IjI0IiBjeT0iMjgiIHI9IjIiIGZpbGw9IiNlMGU3ZmYiLz4KICA8L2c+CiAgPCEtLSBUZXh0IC0tPgogIDx0ZXh0IHg9IjYyIiB5PSI0MiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgLWFwcGxlLXN5c3RlbSwgJ1NlZ29lIFVJJywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzNiIgZm9udC13ZWlnaHQ9IjcwMCIgbGV0dGVyLXNwYWNpbmc9Ii0xIiBmaWx0ZXI9InVybCgjZ2xvdykiPgogICAgPHRzcGFuIGZpbGw9InVybCgjZ3JhZDIpIj5jaGF0PC90c3Bhbj48dHNwYW4gZmlsbD0iIzM4YmRmOCI+cmFnPC90c3Bhbj48dHNwYW4gZmlsbD0iIzY0NzQ4YiIgZm9udC1zaXplPSIyOCIgZm9udC13ZWlnaHQ9IjQwMCI+LmFwcDwvdHNwYW4+CiAgPC90ZXh0Pgo8L3N2Zz4K" alt="chatrag.app" class="home-logo" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 240 64"
+      fill="none"
+      class="home-logo"
+      role="img"
+      aria-label="chatrag.app"
+    >
+      <defs>
+        <linearGradient id="logo-grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#c084fc;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#818cf8;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#38bdf8;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="logo-grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#60a5fa;stop-opacity:1" />
+        </linearGradient>
+        <filter id="logo-glow">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <!-- Icon: stylized chat bubble with nodes -->
+      <g transform="translate(4, 6)">
+        <!-- Chat bubble -->
+        <rect x="2" y="2" width="44" height="36" rx="10" ry="10" fill="url(#logo-grad1)" opacity="0.9" />
+        <polygon points="14,38 22,48 28,38" fill="url(#logo-grad1)" opacity="0.9" />
+        <!-- RAG nodes inside bubble -->
+        <circle cx="15" cy="16" r="4" fill="#0b0f1a" opacity="0.7" />
+        <circle cx="33" cy="16" r="4" fill="#0b0f1a" opacity="0.7" />
+        <circle cx="24" cy="28" r="4" fill="#0b0f1a" opacity="0.7" />
+        <!-- Connecting lines -->
+        <line x1="15" y1="16" x2="33" y2="16" stroke="#0b0f1a" stroke-width="1.5" opacity="0.4" />
+        <line x1="15" y1="16" x2="24" y2="28" stroke="#0b0f1a" stroke-width="1.5" opacity="0.4" />
+        <line x1="33" y1="16" x2="24" y2="28" stroke="#0b0f1a" stroke-width="1.5" opacity="0.4" />
+        <!-- Bright centers -->
+        <circle cx="15" cy="16" r="2" fill="#e0e7ff" />
+        <circle cx="33" cy="16" r="2" fill="#e0e7ff" />
+        <circle cx="24" cy="28" r="2" fill="#e0e7ff" />
+      </g>
+      <!-- Text -->
+      <text
+        x="62"
+        y="42"
+        font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-size="36"
+        font-weight="700"
+        letter-spacing="-1"
+        filter="url(#logo-glow)"
+      >
+        <tspan fill="url(#logo-grad2)">chat</tspan><tspan fill="#38bdf8">rag</tspan><tspan fill="#64748b" font-size="28" font-weight="400">.app</tspan>
+      </text>
+    </svg>
     <p class="home-subtitle">
       <!-- v-html is safe here: content comes exclusively from the static
            homeMessages map under our control (no user input). -->
