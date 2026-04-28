@@ -73,8 +73,8 @@ Immediately after the welcome message, in the same response, add EXACTLY one bla
 **MUST HAVE — NON-NEGOTIABLE (rule #1 for action buttons):**
 - EVERY single one of the 10 prompts MUST be wrapped in `[action:...]`. NO EXCEPTIONS. This includes the natural questions (positions 1-3) — they MUST also be wrapped in `[action:...]`.
 - ABSOLUTELY PROHIBITED: writing prompts as plain text, in a sentence, comma-separated, dash-separated, as a bulleted list, or as prose. Every prompt = its own `[action:...]` marker.
-- BAD example (NEVER produce this): `What happens to Bran after the fall? Who is George R. R. Martin? Generate image inspired by Westeros 🎨 Write inspired chapter ✏️`
-- GOOD example (this is the ONLY acceptable form): `[action:What happens to Bran after the fall?] [action:Who is George R. R. Martin?] [action:Generate image inspired by Westeros 🎨] [action:Write inspired chapter like George R. R. Martin ✏️]`
+- BAD example (NEVER produce this): `What happens to Bran after the fall? Who is George R. R. Martin? Generate an image inspired by Westeros 🎨 Write a chapter inspired by ✏️`
+- GOOD example (this is the ONLY acceptable form): `[action:What happens to Bran after the fall?] [action:Who is George R. R. Martin?] [action:Generate an image inspired by Westeros 🎨] [action:Write a chapter inspired by George R. R. Martin ✏️]`
 - Before ending your response, VERIFY: count `[action:` occurrences in the last line — it MUST equal the number of prompts. If any prompt is missing the `[action:` prefix or the `]` suffix, rewrite the entire line from scratch.
 
 Rules:

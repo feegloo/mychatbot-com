@@ -9,9 +9,9 @@ import {
 
 describe('isInspiredCreativeQuestion', () => {
   it('matches the action-button phrasings produced by the suggestion engine', () => {
-    expect(isInspiredCreativeQuestion('Write inspired chapter like Stephen King ✏️')).toBe(true)
-    expect(isInspiredCreativeQuestion('Write inspired large chapter like J. K. Rowling ✏️')).toBe(true)
-    expect(isInspiredCreativeQuestion('Write inspired poem like Paulo Coelho 📜')).toBe(true)
+    expect(isInspiredCreativeQuestion('Write a chapter inspired by Stephen King ✏️')).toBe(true)
+    expect(isInspiredCreativeQuestion('Write a large chapter inspired by J. K. Rowling ✏️')).toBe(true)
+    expect(isInspiredCreativeQuestion('Write a poem inspired by Paulo Coelho 📜')).toBe(true)
     expect(
       isInspiredCreativeQuestion('Draft a fairy tale inspired by the story of Hermione'),
     ).toBe(true)
@@ -33,7 +33,7 @@ describe('shouldAutoGenerateImage', () => {
   it('returns true when question is creative, answer is long and random < probability', () => {
     expect(
       shouldAutoGenerateImage(
-        'Write inspired chapter like Stephen King ✏️',
+        'Write a chapter inspired by Stephen King ✏️',
         longAnswer,
         0.5,
         () => 0.1,
@@ -44,7 +44,7 @@ describe('shouldAutoGenerateImage', () => {
   it('returns false when random roll exceeds probability', () => {
     expect(
       shouldAutoGenerateImage(
-        'Write inspired chapter like Stephen King ✏️',
+        'Write a chapter inspired by Stephen King ✏️',
         longAnswer,
         0.5,
         () => 0.9,
@@ -59,7 +59,7 @@ describe('shouldAutoGenerateImage', () => {
   it('returns false when the answer is too short to be a substantial chunk', () => {
     expect(
       shouldAutoGenerateImage(
-        'Write inspired poem like Rumi 📜',
+        'Write a poem inspired by Rumi 📜',
         shortAnswer,
         1,
         () => 0,
@@ -70,7 +70,7 @@ describe('shouldAutoGenerateImage', () => {
 
 describe('buildAutoImageQuestion', () => {
   it('concatenates user question with the (trimmed) assistant answer', () => {
-    const q = 'Write inspired chapter like Stephen King ✏️'
+    const q = 'Write a chapter inspired by Stephen King ✏️'
     const a = 'Once upon a midnight dreary, while I pondered, weak and weary'
     const prompt = buildAutoImageQuestion(q, a)
     expect(prompt.startsWith(q)).toBe(true)
@@ -78,7 +78,7 @@ describe('buildAutoImageQuestion', () => {
   })
 
   it('caps the answer snippet length to keep the payload bounded', () => {
-    const q = 'Write inspired poem like Rumi 📜'
+    const q = 'Write a poem inspired by Rumi 📜'
     const huge = 'y'.repeat(5000)
     const prompt = buildAutoImageQuestion(q, huge)
     // 1500 cap + question + separator, well under 5000.
@@ -86,7 +86,7 @@ describe('buildAutoImageQuestion', () => {
   })
 
   it('falls back to the question alone if the answer is empty', () => {
-    expect(buildAutoImageQuestion('Write inspired chapter', '')).toBe('Write inspired chapter')
+    expect(buildAutoImageQuestion('Write a chapter inspired by', '')).toBe('Write a chapter inspired by')
   })
 })
 

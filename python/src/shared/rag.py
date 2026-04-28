@@ -492,6 +492,31 @@ def _is_quiz_request(question: str) -> bool:
     return bool(_QUIZ_PATTERNS.search(question))
 
 
+_QUIZ_QUESTION_COUNT_RE = re.compile(
+    r"\b(\d+)\s*(?:pytań|pytania|pytanie|questions?|fragen|domande|preguntas?|questions?)\b"
+    r"|(?:pytań|pytania|pytanie|questions?|fragen|domande|preguntas?|questions?)\s*[:\-]?\s*(\d+)",
+    re.IGNORECASE,
+)
+
+_DEFAULT_QUIZ_QUESTION_COUNT = 5
+_MAX_QUIZ_QUESTION_COUNT = 20
+
+
+def _extract_quiz_question_count(question: str) -> int:
+    """Return the number of questions explicitly requested by the user.
+
+    Detects patterns like "10 pytań", "10 questions", "questions: 15", etc.
+    Falls back to _DEFAULT_QUIZ_QUESTION_COUNT (5) when no explicit count is found.
+    Caps at _MAX_QUIZ_QUESTION_COUNT to prevent unreasonably large quizzes.
+    """
+    match = _QUIZ_QUESTION_COUNT_RE.search(question)
+    if match:
+        raw = match.group(1) or match.group(2)
+        count = int(raw)
+        return min(max(count, 1), _MAX_QUIZ_QUESTION_COUNT)
+    return _DEFAULT_QUIZ_QUESTION_COUNT
+
+
 def _format_welcome_messages(welcome_messages: list[str] | None) -> str:
     """Format all welcome/upload messages into a numbered list for the prompt."""
     if not welcome_messages:
@@ -1071,6 +1096,8 @@ def answer_with_citations(
             # Quiz still uses the old raw_text + page_summaries variables
             raw_text = _load_raw_text_legacy(storage_dir)
             page_summaries = _load_page_summaries_legacy(storage_dir)
+            num_questions = _extract_quiz_question_count(question)
+            logger.info(f"🧩 Quiz question count: {num_questions}")
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
@@ -1092,6 +1119,7 @@ def answer_with_citations(
                 "welcome_messages": welcome_str,
                 "raw_text": raw_text or "(no raw text available)",
                 "page_summaries": page_summaries or "(no page summaries available)",
+                "num_questions": num_questions,
             }
         else:
             conv_name = conversation_name or "(unnamed conversation)"

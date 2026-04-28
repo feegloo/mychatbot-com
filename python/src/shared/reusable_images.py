@@ -3,7 +3,7 @@
 Every time the chat pipeline generates an image we also index its
 description (revised prompt + title) into a single global Chroma
 collection. Later, when another conversation is about to spend an
-OpenAI image-gen quota on a "write inspired chapter / poem / story"
+OpenAI image-gen quota on a "write a chapter / poem / story inspired by"
 answer, the backend can query this collection first and — on a
 threshold match — reuse the existing image instead of generating a
 fresh one.

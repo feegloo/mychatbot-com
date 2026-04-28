@@ -418,12 +418,12 @@ So positions 1-3 (the three natural questions) plus positions 4-5 (the first TWO
 == MANDATORY POSITIONS 4 & 5 FOR BOOKS / AUTHORED WORKS ==
 If the document is a book, novel, ebook, poetry collection, philosophy, or any work with a clear author, the FIRST TWO action-prompts (positions 4 and 5, i.e. the visible ones) MUST be:
   * Position 4 — a creative-writing action in the author's style, chosen by genre:
-     - Novel / fiction: "Write inspired chapter like [Author Full Name] ✏️"
-     - Poetry / aphorisms: "Write inspired poem like [Author Full Name] 📜"
-     - Book-length multi-volume work / epic: "Write inspired book like [Author Full Name] 📖"
+     - Novel / fiction: "Write a chapter inspired by [Author Full Name] ✏️"
+     - Poetry / aphorisms: "Write a poem inspired by [Author Full Name] 📜"
+     - Book-length multi-volume work / epic: "Write a book inspired by [Author Full Name] 📖"
      - Non-fiction guide / self-help: pick one of the inspired-generation variants (tips 💡, exercises 🏋️, reflection questions 🤔, scenarios 🎭, 14-day plan 📅)
   * Position 5 — a subject-specific image action referencing the actual title + author:
-     - "Generate image inspired by: [Book Title] by [Author Full Name] 🎨"
+     - "Generate an image inspired by: [Book Title] by [Author Full Name] 🎨"
 All other actions (quiz, timeline, mind map, wisdom quote, comparison table, flashcards, etc.) go to positions 6-10 inside "More ...".
 Exceptions:
   * Problem documents (official letters, demands, lab results, legal/admin) — do NOT apply this rule; keep positions 4-5 domain-appropriate (diagnosis, checklist, action plan, etc.) as defined in the content-type rules below.
@@ -433,26 +433,26 @@ Exceptions:
 These rules have the HIGHEST PRIORITY — if the content matches, you MUST include that action among the action prompts:
 
 1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
-   → MANDATORY position 4: "Write inspired chapter like [Author Full Name] ✏️"
-   → MANDATORY position 5: "Generate image inspired by: [Book Title] by [Author Full Name] 🎨"
+   → MANDATORY position 4: "Write a chapter inspired by [Author Full Name] ✏️"
+   → MANDATORY position 5: "Generate an image inspired by: [Book Title] by [Author Full Name] 🎨"
    Example pairs (position 4 + position 5, pick title matching the document):
-   • "Write inspired chapter like George R. R. Martin ✏️" + "Generate image inspired by: A Dance With Dragons by George R. R. Martin 🎨"
-   • "Write inspired chapter like George R. R. Martin ✏️" + "Generate image inspired by: A Game of Thrones by George R. R. Martin 🎨"
-   • "Write inspired chapter like Stephen King ✏️" + "Generate image inspired by: The Shining by Stephen King 🎨"
-   • "Write inspired chapter like J. R. R. Tolkien ✏️" + "Generate image inspired by: The Lord of the Rings by J. R. R. Tolkien 🎨"
-   • "Write inspired chapter like J. K. Rowling ✏️" + "Generate image inspired by: Harry Potter and the Goblet of Fire by J. K. Rowling 🎨"
-   • "Write inspired chapter like Dan Brown ✏️" + "Generate image inspired by: The Da Vinci Code by Dan Brown 🎨"
-   • "Write inspired chapter like Agatha Christie ✏️" + "Generate image inspired by: Murder on the Orient Express by Agatha Christie 🎨"
-   • "Write inspired chapter like Fyodor Dostoevsky ✏️" + "Generate image inspired by: Crime and Punishment by Fyodor Dostoevsky 🎨"
-   • "Write inspired chapter like Frank Herbert ✏️" + "Generate image inspired by: Dune by Frank Herbert 🎨"
+   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by: A Dance With Dragons by George R. R. Martin 🎨"
+   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by: A Game of Thrones by George R. R. Martin 🎨"
+   • "Write a chapter inspired by Stephen King ✏️" + "Generate an image inspired by: The Shining by Stephen King 🎨"
+   • "Write a chapter inspired by J. R. R. Tolkien ✏️" + "Generate an image inspired by: The Lord of the Rings by J. R. R. Tolkien 🎨"
+   • "Write a chapter inspired by J. K. Rowling ✏️" + "Generate an image inspired by: Harry Potter and the Goblet of Fire by J. K. Rowling 🎨"
+   • "Write a chapter inspired by Dan Brown ✏️" + "Generate an image inspired by: The Da Vinci Code by Dan Brown 🎨"
+   • "Write a chapter inspired by Agatha Christie ✏️" + "Generate an image inspired by: Murder on the Orient Express by Agatha Christie 🎨"
+   • "Write a chapter inspired by Fyodor Dostoevsky ✏️" + "Generate an image inspired by: Crime and Punishment by Fyodor Dostoevsky 🎨"
+   • "Write a chapter inspired by Frank Herbert ✏️" + "Generate an image inspired by: Dune by Frank Herbert 🎨"
 
    Natural questions (positions 1-3) MUST be content-specific — reference named characters, factions, locations from the document (e.g. for A Dance With Dragons: "What happens to Jon Snow?", "How does Daenerys rule Meereen?", "Who is George R. R. Martin?").
 
    Pick the remaining actions (positions 6-10, hidden in "More ...") RANDOMLY from the list below — varied mix: quiz, timeline, character comparison table, mind map, wisdom quote, write fairy tale, social post, etc. DO NOT repeat the same action type at different positions.
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
-   → MANDATORY: "Write inspired poem like [Author Full Name] 📜"
-   Example: "Write inspired poem like Paulo Coelho 📜"
+   → MANDATORY: "Write a poem inspired by [Author Full Name] 📜"
+   Example: "Write a poem inspired by Paulo Coelho 📜"
    Pick the remaining actions RANDOMLY from the list below.
 
 3. NON-FICTION GUIDE / SELF-HELP / TIPS LIST / WORKBOOK (productivity, confidence, habits, how-to, advice, personal growth, exercises, challenges):
@@ -479,8 +479,8 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Action prompts with emoji: "Step-by-step action plan 🚩", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents ✅", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
 
 5. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
-   → MANDATORY: as the 3rd action (right after "Generate image…" and the "Write inspired chapter/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
-   Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate image inspired by: Minibook about boundaries 🎨", 5. "Write inspired chapter like Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
+   → MANDATORY: as the 3rd action (right after "Generate an image…" and the "Write a chapter inspired by/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
+   Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate an image inspired by: Minibook about boundaries 🎨", 5. "Write a chapter inspired by Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
    Pick the remaining actions RANDOMLY from the list below.
 
 6. LANGUAGE LEARNING / TEACHING MATERIAL (English grammar book, Spanish course, German vocabulary workbook, ESL/EFL/TOEFL/IELTS prep, language-learning textbook):
@@ -498,7 +498,7 @@ PRIORITY: The list below is sorted FROM HIGHEST TO LOWEST PRIORITY.
 When selecting actions, apply two principles:
 1. Priority (primary rule): prefer actions from the beginning of the list — earlier letters have higher priority.
 2. Context fit (secondary factor): if the content strongly matches a lower-priority action, it may appear earlier in the output list.
-Example: for a children's fairy tale — a) Generate image (highest priority), b) Write inspired chapter (high), d) Fairy tale (lower priority but strong context fit) → these three should appear as the first actions.
+Example: for a children's fairy tale — a) Generate image (highest priority), b) Write a chapter inspired by (high), d) Fairy tale (lower priority but strong context fit) → these three should appear as the first actions.
 
 a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
    - content describes scenes, landscapes, characters, visual objects
@@ -507,19 +507,19 @@ a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
    - user may want to see an artistic visualization of the content
    - the action MUST end with the 🎨 emoji — that 🎨 is the exclusive signal that triggers the image-generation API (🎨 must NEVER appear on any other action)
    - for user-readability the label should also contain the phrase "generate image" AND the word "inspired" — both are required
-   - action MUST reference a specific topic/scene/character from the document (e.g. "Generate image inspired by: dark forest with Harry Potter 🎨") — do NOT use generic "current mood"
+   - action MUST reference a specific topic/scene/character from the document (e.g. "Generate an image inspired by: dark forest with Harry Potter 🎨") — do NOT use generic "current mood"
 
-b) Write inspired chapter ✏️ — suggest when:
+b) Write a chapter inspired by ✏️ — suggest when:
    - document is a fragment of a novel, story, or fiction book
-   - e.g. Stephen King book — "write an inspired chapter in the author's style"
+   - e.g. Stephen King book — "write a chapter inspired by the author's style"
    - content has a distinct narrative style to emulate
-   - action: "write an inspired chapter" (not just "write a chapter")
+   - action: "write a chapter inspired by [Author]" (not just "write a chapter")
 
-c) Write inspired poem 📜 — suggest when:
+c) Write a poem inspired by 📜 — suggest when:
    - author is a poet, writer, or content is poetry-related
    - document is a collection of quotes, aphorisms, poems
    - content has literary, artistic character
-   - action: "write an inspired poem" (not just "write a poem")
+   - action: "write a poem inspired by [Author]" (not just "write a poem")
 
 d) Fairy tale / Children's story 🧚 — suggest when:
    - content contains moral lessons, adventures, fantasy characters
@@ -562,7 +562,7 @@ j) 14-day action plan 📅 — suggest when:
    - content can be translated into daily practical tasks
    - action: "Create a 14-day action plan inspired by [Author Full Name] 📅"
 
-k) Write inspired quotes 💬 — suggest when:
+k) Write quotes inspired by 💬 — suggest when:
    - document contains inspiring, wise, funny, or deep quotes
    - content is similar to well-known quotes or aphorisms
    - for example, the book author is Paulo Coelho or Albert Einstein (known for wise sayings)
@@ -773,9 +773,10 @@ _MAN_PATTERN = re.compile(
 _INGREDIENT_PATTERN = re.compile(
     r"\b(ingredient|ingredients|składnik|składniki|skład|composition|"
     r"contains|zawiera|nutrition|wartości odżywcze|product label|etykiet|"
-    r"food|dish|dishes|meal|cuisine|buffet|restaurant|catering|cooked|fried|"
-    r"potraw|potrawa|jedzenie|posiłek|bufet|kuchni|kuchnia|danie|dania|smażon|"
-    r"placki|racuch|bielasz|jogurt|sos)\b",
+    r"food|dish|dishes|meal|cuisine|buffet|restaurant|catering|cooked|fried|baked|"
+    r"soup|salad|pastry|pastries|tray|plate|snack|snacks|cafeteria|canteen|appetizer|"
+    r"potraw|potrawa|jedzenie|posiłek|bufet|kuchni|kuchnia|danie|dania|smażon|pieczon|"
+    r"zupa|sałatk|taca|stołówk|talerz|przekąsk|placki|racuch|bielasz|jogurt|sos)\b",
     re.IGNORECASE,
 )
 
@@ -1015,8 +1016,8 @@ def _append_contextual_prompts(
     'create recipe' is added when the image description indicates ingredients,
     dishes, or other food-related context.
     
-    For fiction books with 300+ pages, occasionally suggest 'write inspired large chapter'
-    instead of or alongside 'write inspired chapter'.
+    For fiction books with 300+ pages, occasionally suggest 'write a large chapter inspired by'
+    instead of or alongside 'write a chapter inspired by'.
     """
     # Split LLM output: first 3 are questions, next prompts are actions
     normal_questions = questions[:MAX_NORMAL_QUESTIONS]
@@ -1026,7 +1027,7 @@ def _append_contextual_prompts(
     pinned_image_prompt = (
         f"Wygeneruj obraz inspirowany: {subject} 🎨"
         if language == "pl"
-        else f"Generate image inspired by: {subject} 🎨"
+        else f"Generate an image inspired by: {subject} 🎨"
     )
 
     # Build contextual action prompts (higher priority than LLM actions).
@@ -1053,9 +1054,9 @@ def _append_contextual_prompts(
             if ftype == "image":
                 if has_ingredients and len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
-                        contextual.append("Stwórz przepis 🍝")
+                        contextual.append(f"Stwórz przepis inspirowany: {subject} 🍳")
                     else:
-                        contextual.append("Create recipe 🍝")
+                        contextual.append(f"Create a recipe inspired by {subject} 🍳")
                 if len(contextual) < MAX_ACTION_PROMPTS:
                     if language == "pl":
                         contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")
@@ -1110,24 +1111,24 @@ def _append_contextual_prompts(
             pinned_creative_prompt = (
                 f"Napisz inspirowany duży rozdział w stylu {author_name} ✏️"
                 if language == "pl"
-                else f"Write inspired large chapter like {author_name} ✏️"
+                else f"Write a large chapter inspired by {author_name} ✏️"
             )
         else:
             pinned_creative_prompt = (
                 f"Napisz inspirowany rozdział w stylu {author_name} ✏️"
                 if language == "pl"
-                else f"Write inspired chapter like {author_name} ✏️"
+                else f"Write a chapter inspired by {author_name} ✏️"
             )
     elif is_poetry_quotes and author_name:
         pinned_creative_prompt = (
             f"Napisz inspirowany wiersz w stylu {author_name} 📜"
             if language == "pl"
-            else f"Write inspired poem like {author_name} 📜"
+            else f"Write a poem inspired by {author_name} 📜"
         )
         pinned_quote_prompt = (
             f"Napisz inspirowany cytat w stylu {author_name} 💬"
             if language == "pl"
-            else f"Write inspired quote like {author_name} 💬"
+            else f"Write a quote inspired by {author_name} 💬"
         )
     elif is_selfhelp and author_name:
         _selfhelp_options_pl = [
@@ -1194,7 +1195,7 @@ def _append_contextual_prompts(
         pinned_creative_prompt = (
             f"Napisz inspirowany rozdział na podstawie: {subject_for_creative} ✏️"
             if language == "pl"
-            else f"Write inspired chapter based on: {subject_for_creative} ✏️"
+            else f"Write a chapter inspired by: {subject_for_creative} ✏️"
         )
 
     if is_language_learning:

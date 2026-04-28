@@ -347,10 +347,10 @@ def _recover_bare_action_list(text: str) -> tuple[str, list[str]]:
     Some models (especially at high temperature or under long contexts)
     occasionally emit the final action row as a run of bare fragments
     like ``What happens to Bran? Who is George R. R. Martin? Generate
-    image inspired by Westeros 🎨 Write inspired chapter ✏️`` instead of
+    an image inspired by Westeros 🎨 Write a chapter inspired by ✏️`` instead of
     ``[action:What happens to Bran?] [action:Who is George R. R. Martin?]
-    [action:Generate image inspired by Westeros 🎨] [action:Write inspired
-    chapter ✏️]``. This heuristic inspects the final paragraph, splits it
+    [action:Generate an image inspired by Westeros 🎨] [action:Write a chapter inspired
+    by ✏️]``. This heuristic inspects the final paragraph, splits it
     on ``?`` / trailing-emoji boundaries, and if it finds at least three
     fragments that all look like action prompts, it strips them from the
     prose and returns them as a recovered action list.

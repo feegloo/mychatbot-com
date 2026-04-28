@@ -1,8 +1,8 @@
 """Tests for rag.py utility functions — no LLM, no DB.
 
 Covers: build_context, _strip_orphan_source_tags, _is_quiz_request,
-_is_exif_request, _is_recognize_request, _handle_exif, _build_citations,
-_limit_image_rows, _format_welcome_messages.
+_extract_quiz_question_count, _is_exif_request, _is_recognize_request,
+_handle_exif, _build_citations, _limit_image_rows, _format_welcome_messages.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import pytest
 
 from shared.rag import (
     _build_citations,
+    _extract_quiz_question_count,
     _handle_exif,
     _is_exif_request,
     _is_quiz_request,
@@ -211,6 +212,40 @@ class TestIsQuizRequest:
 
     def test_summarize_false(self):
         assert not _is_quiz_request("please summarize the chapter")
+
+
+# ---------------------------------------------------------------------------
+# _extract_quiz_question_count
+# ---------------------------------------------------------------------------
+
+
+class TestExtractQuizQuestionCount:
+    def test_polish_n_pytan(self):
+        assert _extract_quiz_question_count("Zrób quiz z 10 pytań o Stirnerze 🧠") == 10
+
+    def test_english_n_questions(self):
+        assert _extract_quiz_question_count("create a quiz with 15 questions") == 15
+
+    def test_english_singular_question(self):
+        assert _extract_quiz_question_count("give me a quiz with 1 question") == 1
+
+    def test_no_number_returns_default(self):
+        assert _extract_quiz_question_count("quiz me on this topic") == 5
+
+    def test_empty_string_returns_default(self):
+        assert _extract_quiz_question_count("") == 5
+
+    def test_number_too_large_capped(self):
+        assert _extract_quiz_question_count("make a quiz with 100 questions") == 20
+
+    def test_zero_clamped_to_one(self):
+        assert _extract_quiz_question_count("0 questions quiz") == 1
+
+    def test_polish_pytania_form(self):
+        assert _extract_quiz_question_count("zrób quiz z 3 pytania") == 3
+
+    def test_number_after_keyword(self):
+        assert _extract_quiz_question_count("questions: 7 about the book") == 7
 
 
 # ---------------------------------------------------------------------------

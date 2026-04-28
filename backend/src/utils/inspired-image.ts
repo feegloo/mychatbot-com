@@ -1,17 +1,17 @@
 /**
  * Auto-generation of companion images for "inspired" creative-writing answers.
  *
- * When the user asks the model to "write inspired chapter / poem / story / ..."
+ * When the user asks the model to "write a chapter / poem / story inspired by ..."
  * and the LLM produces a substantial piece of text, we roll a coin and — on
  * success — kick off a background image-generation call that paints a picture
  * inspired by the same prompt. The image is then appended to the assistant
  * message's content so the frontend picks it up on its next poll.
  */
 
-// Loose detector: matches phrases like "write inspired chapter",
-// "inspired poem like Paulo Coelho", "draft a fairy tale inspired by ...", etc.
+// Loose detector: matches phrases like "write a chapter inspired by",
+// "a poem inspired by Paulo Coelho", "draft a fairy tale inspired by ...", etc.
 // We keep it intentionally permissive so the model's own action labels
-// (e.g. "Write inspired chapter like Stephen King ✏️") are covered, while
+// (e.g. "Write a chapter inspired by Stephen King ✏️") are covered, while
 // still requiring the "inspired" keyword to avoid false positives on
 // ordinary Q&A traffic.
 const INSPIRED_CREATIVE_RE =

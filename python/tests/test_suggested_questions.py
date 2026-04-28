@@ -79,8 +79,8 @@ def test_pins_subject_image_prompt_with_correct_slot_math_english():
 
     assert 6 <= len(result) <= 10
     # Pinned image prompt occupies the 4th slot (after 3 questions)
-    assert result[3] == "Generate image inspired by: Machine Learning Basics 🎨"
-    assert sum(1 for q in result if "Generate image inspired by:" in q) == 1
+    assert result[3] == "Generate an image inspired by: Machine Learning Basics 🎨"
+    assert sum(1 for q in result if "Generate an image inspired by:" in q) == 1
 
 
 def test_pins_subject_image_prompt_with_correct_slot_math_polish():
@@ -118,7 +118,7 @@ def test_contextual_action_not_dropped_when_present():
     # Diagnosis contextual prompt must appear (not be dropped)
     assert any("diagnosis" in q.lower() for q in result)
     # Pinned image prompt must also appear
-    assert any("Generate image inspired by:" in q for q in result)
+    assert any("Generate an image inspired by:" in q for q in result)
 
 
 def test_recognize_person_prompt_detected_from_description_body():
@@ -149,8 +149,8 @@ def test_recognize_person_prompt_detected_from_description_body():
 
 
 def test_recipe_action_added_for_food_like_image_description_polish():
-    """Food/buffet descriptions in image analysis should inject a fixed
-    recipe action label so the UI receives a predictable [action:...] value."""
+    """Food/buffet descriptions in image analysis should inject a recipe action
+    that includes the image title, e.g. 'Stwórz przepis inspirowany: IMG_3023.jpeg 🍳'."""
     result = _append_contextual_prompts(
         questions=[
             "Co przedstawia zdjęcie?",
@@ -169,12 +169,12 @@ def test_recipe_action_added_for_food_like_image_description_polish():
         ),
     )
 
-    assert "Stwórz przepis 🍝" in result
+    assert any("Stwórz przepis inspirowany:" in q and "🍳" in q for q in result)
 
 
 def test_recipe_action_added_for_food_like_image_description_english():
-    """English food-photo descriptions should map to the fixed recipe action
-    label used by downstream action parsing."""
+    """English food-photo descriptions should inject a recipe action that includes
+    the image title, e.g. 'Create a recipe inspired by buffet.jpg 🍳'."""
     result = _append_contextual_prompts(
         questions=[
             "What does the photo show?",
@@ -190,7 +190,7 @@ def test_recipe_action_added_for_food_like_image_description_english():
         description="The image shows a buffet with several trays of fried dishes.",
     )
 
-    assert "Create recipe 🍝" in result
+    assert any("Create a recipe inspired by" in q and "🍳" in q for q in result)
 
 
 def test_generic_fallback_when_no_context():
@@ -201,7 +201,7 @@ def test_generic_fallback_when_no_context():
         language="en",
         welcome_message="",
     )
-    assert any("Generate image inspired by: this content 🎨" in q for q in result)
+    assert any("Generate an image inspired by: this content 🎨" in q for q in result)
 
 
 def test_action_cap_is_enforced_after_dedup():
@@ -231,7 +231,7 @@ def test_action_cap_is_enforced_after_dedup():
     # - max 1 deduped normal prompt here ("Repeat?")
     # - max 7 action prompts
     assert len(result) <= 8
-    assert any("Generate image inspired by:" in q for q in result)
+    assert any("Generate an image inspired by:" in q for q in result)
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +366,7 @@ def test_quiz_pinned_first_for_language_learning_book_en():
     # "material" variant is selected.
     assert result[3] == "Create a quiz from the material 🧠"
     # Image prompt follows in 5th slot
-    assert result[4].startswith("Generate image inspired by:")
+    assert result[4].startswith("Generate an image inspired by:")
 
 
 def test_quiz_pinned_first_for_language_learning_book_pl():
@@ -452,9 +452,9 @@ def test_educational_ebook_without_author_keeps_quiz_at_third_slot():
         welcome_message=welcome,
     )
     # 4th slot: image prompt
-    assert result[3].startswith("Generate image inspired by:")
-    # 5th slot: non-author creative fallback prompt (inspired chapter based on subject)
-    assert "inspired chapter based on" in result[4].lower()
+    assert result[3].startswith("Generate an image inspired by:")
+    # 5th slot: non-author creative fallback prompt (chapter inspired by subject)
+    assert "chapter inspired by" in result[4].lower()
     # 6th slot: quiz — still 3rd of the pinned actions, not 2nd
     assert result[5] == "Create a quiz from the key facts 🧠"
 
@@ -515,8 +515,8 @@ def test_quiz_not_pinned_for_fiction_novel():
 
     # Image prompt pinned in slot 4 (first action), inspired-chapter in slot 5,
     # but our new quiz pin must NOT fire for fiction.
-    assert result[3].startswith("Generate image inspired by:")
-    assert "inspired chapter" in result[4].lower()
+    assert result[3].startswith("Generate an image inspired by:")
+    assert "chapter inspired by" in result[4].lower()
     assert not any(
         q == "Create a quiz from the key facts 🧠" for q in result
     ), f"Fiction must not get the pinned quiz prompt, got: {result}"

@@ -112,7 +112,7 @@ class TestQuizPromptStructure:
 
     def test_human_message_has_all_required_variables(self):
         # These input variables must be present for the quiz chain to work
-        required = {"raw_text", "page_summaries", "welcome_messages", "chat_history", "question", "context"}
+        required = {"raw_text", "page_summaries", "welcome_messages", "chat_history", "question", "context", "num_questions"}
         input_vars = set(QUIZ_PROMPT.input_variables)
         assert required.issubset(input_vars), f"Missing: {required - input_vars}"
 
@@ -125,6 +125,9 @@ class TestQuizPromptStructure:
             chat_history="User: Tell me about Rome.",
             question="Quiz me on Roman history",
             context="Rome was founded in 753 BC according to legend.",
+            conversation_language_name="English",
+            conversation_language_code="en",
+            num_questions=5,
         )
         assert len(formatted) == 2
         human_text = formatted[1].content

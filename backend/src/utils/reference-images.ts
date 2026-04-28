@@ -5,7 +5,7 @@
  * The /generate-image route accepts an optional `referenceImageFileNames`
  * list from the caller. When the frontend does not specify any — which is
  * the common case, including suggested action buttons like
- * "Generate image inspired by: Screenshot 🎨" — we want the generation to
+ * "Generate an image inspired by: Screenshot 🎨" — we want the generation to
  * stay grounded in the files the user already uploaded instead of letting
  * the model hallucinate a new, unrelated subject. This mirrors the
  * behaviour of the standard chat flow, where uploaded images are always

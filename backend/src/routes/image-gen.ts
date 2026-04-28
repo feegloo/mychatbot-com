@@ -220,7 +220,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
 
   // If the caller did not explicitly pick reference files, auto-attach the
   // conversation's uploaded images. This keeps visual context for action
-  // buttons like "Generate image inspired by: Screenshot 🎨" where the
+  // buttons like "Generate an image inspired by: Screenshot 🎨" where the
   // original uploaded image is the intended subject. On Cloud Run the
   // file may live only in GCS on a different instance, so hydrate it.
   const canHydrateFromGcs = config.storageProvider === 'gcs' && Boolean(config.gcsBucket)

@@ -34,7 +34,7 @@ Output format: Start with a brief intro sentence, then output a quiz block using
 [quiz:{{"title":"<quiz title>","multiple":<true|false>,"questions":[{{"q":"<question text>","options":["<option 1>","<option 2>","<option 3>","<option 4>"],"correct":[<index>],"explanation":"<why correct>"}}]}}]
 
 Rules:
-- Generate exactly 5 questions based on the content
+- Generate exactly {num_questions} questions based on the content. If the user explicitly asked for a specific number of questions, honour that number exactly.
 - The top-level "multiple" field MUST be present: true for multiple choice, false for single choice
 - Each question has 3-4 options
 - For single choice ("multiple": false): "correct" must contain exactly ONE index
@@ -46,7 +46,7 @@ Rules:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
 - Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).
-- CRITICAL: Distribute correct answers randomly and evenly across the available option positions for each question. Use only valid indices from 0 to len(options)-1. If a question has 3 options, only use indices 0, 1, and 2. Use index 3 only when a question has 4 options. Do NOT place the correct answer at index 0 more than once or twice across the 5 questions. Across the 5 questions, vary correct-answer positions so no single valid position dominates.
+- CRITICAL: Distribute correct answers randomly and evenly across the available option positions for each question. Use only valid indices from 0 to len(options)-1. If a question has 3 options, only use indices 0, 1, and 2. Use index 3 only when a question has 4 options. Do NOT place the correct answer at index 0 more than once or twice across the {num_questions} questions. Across the {num_questions} questions, vary correct-answer positions so no single valid position dominates.
 
 <<QUIZ_ACTIONS>>"""
 
@@ -74,6 +74,8 @@ QUIZ_PROMPT = ChatPromptTemplate.from_messages(
 
     Conversation language:
     {conversation_language_name} (code: {conversation_language_code})
+
+    Number of questions to generate: {num_questions}
 
     Question:
     {question}

@@ -340,7 +340,7 @@ export function renderInlineMarkdown(content: string): string {
  *     natural-language triggers, with or without the emoji.
  *
  * We allow a short run of words between the verb and "image" so phrases
- * like "generate inspired image: ...", "create a new image of ...", or
+ * like "generate an image inspired by: ...", "create a new image of ...", or
  * "make another image about ..." route to image generation too. The
  * 40-char window keeps false positives low (e.g. "imagine a creative
  * scene" has no "image" token at all).
