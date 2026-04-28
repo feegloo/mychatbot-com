@@ -1374,7 +1374,7 @@ li:has(.checklist-box) {
 .markdown-content td:first-child {
   white-space: nowrap;
   width: 1%;
-  min-width: 0;
+  min-width: 100px;
   overflow-wrap: normal;
 }
 
@@ -1828,6 +1828,7 @@ h3 {
   .markdown-content td:first-child {
     white-space: normal;
     overflow-wrap: anywhere;
+    min-width: 100px;
   }
 }
 
