@@ -40,7 +40,7 @@
         <a
           :href="shareUrl"
           class="msg-action-btn"
-          :title="shareCopied ? 'Link copied!' : 'Share this answer'"
+          :title="shareCopied ? 'Skopiowano link!' : 'Udostępnij tę odpowiedź'"
           style="text-decoration: none;"
           @click.prevent="shareMessage"
         >
@@ -72,7 +72,7 @@
           >
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          {{ shareCopied ? 'Link copied!' : 'Share' }}
+          {{ shareCopied ? 'Skopiowano link!' : 'Udostępnij' }}
         </a>
         <AppButton
           v-if="canDownloadPdf"

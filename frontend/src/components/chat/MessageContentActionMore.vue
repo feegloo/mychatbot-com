@@ -12,7 +12,7 @@ const emit = defineEmits<{ select: [label: string] }>()
 
 <template>
   <VDropdown v-if="actions.length" theme="more-questions" :distance="6">
-    <button class="more-btn" type="button">More… ({{ actions.length }})</button>
+    <button class="more-btn" type="button">Więcej… ({{ actions.length }})</button>
     <template #popper="{ hide }">
       <div class="more-actions-popper">
         <MessageContentAction
