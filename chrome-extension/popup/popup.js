@@ -112,6 +112,31 @@ function renderReady(conversationId) {
     window.close()
   }
 
+  el('btn-copy-embed').onclick = async () => {
+    const snippet = `<script src="https://chatrag.app/embed.js" data-conversation="https://chatrag.app/c/${conversationId}"><\/script>`
+    try {
+      await navigator.clipboard.writeText(snippet)
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea')
+      ta.value = snippet
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      ta.remove()
+    }
+    const label = el('btn-copy-embed-label')
+    const btn = el('btn-copy-embed')
+    label.textContent = 'Copied!'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      label.textContent = 'Embed on this site'
+      btn.classList.remove('copied')
+    }, 2000)
+  }
+
   el('btn-new-chat').onclick = async () => {
     await resetState(currentTab.url)
     showState('initial')

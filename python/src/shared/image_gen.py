@@ -616,7 +616,7 @@ def build_image_announcement(
         model=settings.openai_chat_model,
         operation="image_announcement",
         max_completion_tokens=120,
-        temperature=0.7,
+        temperature=0.4,
     )
     # Normalise whitespace / stray quotes the model sometimes adds.
     cleaned = (text or "").strip().strip('"').strip("'").strip()
@@ -774,7 +774,7 @@ def build_image_prompt(
         # The structured prompt we generate is concise; 350 tokens is sufficient
         # and cuts prompt-builder latency noticeably vs the old 500-token limit.
         max_completion_tokens=350,
-        temperature=0.9,
+        temperature=0.5,
     )
     try:
         import json

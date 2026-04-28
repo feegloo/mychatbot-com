@@ -215,6 +215,25 @@ body {
   flex-shrink: 0;
 }
 
+.btn-embed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 16px;
+  background: rgba(56,189,248,0.1);
+  color: #38bdf8;
+  border: 1px solid rgba(56,189,248,0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-embed:hover { background: rgba(56,189,248,0.18); border-color: rgba(56,189,248,0.4); }
+.btn-embed.copied { background: rgba(74,222,128,0.1); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+
 /* Error state */
 
 .error-message {

@@ -37,10 +37,12 @@
           </svg>
           Upload more files
         </AppButton>
-        <AppButton
+        <a
+          :href="shareUrl"
           class="msg-action-btn"
           :title="shareCopied ? 'Link copied!' : 'Share this answer'"
-          @click="shareMessage"
+          style="text-decoration: none;"
+          @click.prevent="shareMessage"
         >
           <svg
             v-if="!shareCopied"
@@ -71,7 +73,7 @@
             <polyline points="20 6 9 17 4 12" />
           </svg>
           {{ shareCopied ? 'Link copied!' : 'Share' }}
-        </AppButton>
+        </a>
         <AppButton
           v-if="canDownloadPdf"
           class="msg-action-btn"
@@ -652,11 +654,13 @@ defineExpose({ resetUploadState, setUploading, triggerUpload })
 
 // --- Share + PDF ----------------------------------------------------------
 const shareCopied = ref(false)
-function shareMessage() {
-  const url = props.msg.id
+const shareUrl = computed(() =>
+  props.msg.id
     ? `${window.location.origin}/m/${props.msg.id}`
-    : `${window.location.origin}/c/${props.conversationId}`
-  navigator.clipboard.writeText(url)
+    : `${window.location.origin}/c/${props.conversationId}`,
+)
+function shareMessage() {
+  navigator.clipboard.writeText(shareUrl.value)
   shareCopied.value = true
   setTimeout(() => {
     shareCopied.value = false
