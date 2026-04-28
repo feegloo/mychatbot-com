@@ -1271,7 +1271,7 @@ li:has(.checklist-box) {
 }
 
 .markdown-content .markdown-table-scroll {
-  margin: 8px 0;
+  margin: 8px auto;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }

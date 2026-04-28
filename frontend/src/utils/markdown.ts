@@ -62,13 +62,16 @@ export function renderMarkdown(content: string): string {
   // Normalize to markdown-compliant "- [ ] item" so marked creates checkboxes.
   normalized = normalized.replace(/^([ \t]*[*\-+]\s+)\[\]\s+/gm, '$1[ ] ')
 
+  // Remove empty list items — lines that are just "- ", "* ", or "+ " with no content.
+  normalized = normalized.replace(/^[ \t]*[*\-+][ \t]*$/gm, '')
+
   // Convert dialogue-style "- text" lines to "– text" (en-dash) so they render
   // as plain prose instead of <li> bullets.
   // Heuristic: A block of consecutive "- " lines preceded by a paragraph of
   // narrative text (not another list item) is dialogue, not a real list.
   // Also catch isolated "- text" surrounded by blank lines.
   normalized = normalized.replace(/(?<=^|\n\n)- (.+?)(?=\n\n|$)/g, (match, body: string) =>
-    isChecklistBody(body) ? match : `– ${body}`,
+    isChecklistBody(body) || /^\[(?:action|akcja):/i.test(body) ? match : `– ${body}`,
   )
   // Catch consecutive dialogue lines: a block of "- " lines after a prose paragraph
   normalized = normalized.replace(
@@ -79,7 +82,9 @@ export function renderMarkdown(content: string): string {
         .map((line) => {
           if (!line.startsWith('- ')) return line
           const body = line.slice(2)
-          return isChecklistBody(body) ? line : `– ${body}`
+          // Preserve action/checklist list items — don't convert to prose
+          if (isChecklistBody(body) || /^\[(?:action|akcja):/i.test(body)) return line
+          return `– ${body}`
         })
         .join('\n'),
   )

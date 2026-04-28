@@ -426,15 +426,15 @@ export async function printQuizAsPdf(
 
 // Color name → RGB tuple matching HTML text-color-* CSS classes in ChatMessage.vue
 const COLOR_MAP: Record<string, [number, number, number]> = {
-  green:  [134, 239, 172],
-  red:    [252, 165, 165],
-  yellow: [253, 224,  71],
-  blue:   [147, 197, 253],
-  purple: [196, 181, 253],
-  orange: [253, 186, 116],
-  gold:   [232, 184,  75],
-  pink:   [249, 168, 212],
-  gray:   [148, 163, 184],
+  green:  [134, 239, 172],  // #86efac
+  red:    [255, 109, 109],  // #ff6d6d
+  yellow: [253, 224,  71],  // #fde047
+  blue:   [147, 197, 253],  // #93c5fd
+  purple: [196, 181, 253],  // #c4b5fd
+  orange: [230, 150,  66],  // #e69642
+  gold:   [255, 218, 135],  // #ffda87
+  pink:   [249, 168, 212],  // #f9a8d4
+  gray:   [148, 163, 184],  // #94a3b8
 }
 
 // Matches the most common emoji code-point ranges.

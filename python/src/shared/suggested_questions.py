@@ -562,7 +562,7 @@ j) 14-day action plan 📅 — suggest when:
    - content can be translated into daily practical tasks
    - action: "Create a 14-day action plan inspired by [Author Full Name] 📅"
 
-k) Write quotes inspired by 💬 — suggest when:
+k) Write quotes inspired by � — suggest when:
    - document contains inspiring, wise, funny, or deep quotes
    - content is similar to well-known quotes or aphorisms
    - for example, the book author is Paulo Coelho or Albert Einstein (known for wise sayings)
@@ -1126,9 +1126,9 @@ def _append_contextual_prompts(
             else f"Write a poem inspired by {author_name} 📜"
         )
         pinned_quote_prompt = (
-            f"Napisz inspirowany cytat w stylu {author_name} 💬"
+            f"Napisz inspirowany cytat w stylu {author_name} �"
             if language == "pl"
-            else f"Write a quote inspired by {author_name} 💬"
+            else f"Write a quote inspired by {author_name} 💡"
         )
     elif is_selfhelp and author_name:
         _selfhelp_options_pl = [

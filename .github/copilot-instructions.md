@@ -4,6 +4,16 @@
 These instructions guide AI agents (like GitHub Copilot) to be productive and consistent in the ChatRAG Hybrid RAG App workspace. They summarize architecture, conventions, and key workflows, and link to detailed docs where needed.
 ---
 
+## Direction for AI Agents
+
+1. Don’t assume. Don’t hide confusion. Surface tradeoffs.
+
+2. Minimum code that solves the problem. Nothing speculative.
+
+3. Touch only what you must. Clean up only your own mess.
+
+4. Define success criteria. Loop until verified.
+
 ## General AI model guidelines
 - take your time, code quality is most important
 - i want you to create code as "high-performer" developer, who is careful, thoughtful, and prioritizes maintainability and readability over speed or cleverness

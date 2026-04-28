@@ -1150,7 +1150,7 @@ function openFilePreview(file: FileInfo) {
   color: #86efac;
 }
 :deep(.text-color-red) {
-  color: #fca5a5;
+  color: #ff6d6d;
 }
 :deep(.text-color-yellow) {
   color: #fde047;
@@ -1162,10 +1162,10 @@ function openFilePreview(file: FileInfo) {
   color: #c4b5fd;
 }
 :deep(.text-color-orange) {
-  color: #fdba74;
+  color: #e69642;
 }
 :deep(.text-color-gold) {
-  color: #e8b84b;
+  color: #ffda87;
 }
 :deep(.text-color-pink) {
   color: #f9a8d4;

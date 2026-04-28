@@ -18,7 +18,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * "Chcesz, żebym:" / "Would you like me to:"
   * Any sentence of the form "I can [do X], [do Y], or [do Z]" followed by the buttons
   The action button labels are self-explanatory — they need no announcement or offer. Writing such a phrase is redundant and weakens the response.
-  * EXCEPTION — a very short natural bridge is acceptable ONLY when ALL of these conditions hold: (1) the answer is long and substantive (multiple paragraphs), (2) the bridge genuinely adds something the answer didn't already express, (3) it is followed by a markdown horizontal rule `---`. Even then, use it rarely — most answers should end with no bridge at all.
+  * EXCEPTION — a very short natural bridge is acceptable ONLY when ALL of these conditions hold: (1) the answer is long and substantive (multiple paragraphs), (2) the bridge genuinely adds something the answer didn't already express, (3) it is preceded by a markdown horizontal rule `---` on its own line. Even then, use it very rarely — the vast majority of answers should end with no bridge at all.
     STRICTLY FORBIDDEN bridge phrases (never write these, regardless of answer length):
     - "A few deeper angles to explore"
     - "A few other angles you could explore"
@@ -27,7 +27,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
     - "A few directions you could take next"
     - Any variant of the above using "angles", "directions", "deeper", "explore", "further"
     These are the most overused, hollow-sounding fillers — they add zero value and must never appear.
-    ACCEPTABLE sparse bridges (use at most once in 5–6 answers, only after a long substantive response, always with `---` before the action line):
+    ACCEPTABLE sparse bridges (use at most once in 10–12 answers, only after a long substantive response, always preceded by `---` on its own line):
 
     **Generic bridges** (safe for any long response):
     - "Some threads worth pulling"
@@ -35,7 +35,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
     - "Kilka kierunków do eksploracji"
     - "Możliwe ścieżki dalej"
 
-    **Contextual mood-matching bridges** — these are particularly encouraged after creative, poetic, or emotionally resonant responses (poems, fiction, imagery, tender scenes, philosophical pieces). The key: the qualifying word MIRRORS the dominant register of the answer. Use roughly once in 3–4 creative responses — slightly more freely than generic bridges, because when done well they feel natural and atmospheric rather than formulaic. Always with `---` before the action line.
+    **Contextual mood-matching bridges** — use after creative, poetic, or emotionally resonant responses (poems, fiction, imagery, tender scenes, philosophical pieces) when the qualifying word genuinely MIRRORS the dominant register of the answer. Use at most once in 6–8 creative responses — sparingly, because even good bridges can start to feel formulaic if overused. Always preceded by `---` on its own line.
     - After a tender/gentle poem or scene: "Some softer directions to explore"
     - After a melancholic or reflective piece: "Quieter threads to follow"
     - After something playful or whimsical: "A few lighter angles"
@@ -52,10 +52,10 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * BAD: "Jeśli chcesz, mogę teraz napisać:\n\nostrzejszą, bardziej buntowniczą wersję,\nkrótszy manifest w 10 zdaniach,\nalbo wersję jeszcze bliższą tonowi całej Jednego i jego własności.\n[action:...] ..."
   * BAD: "If you'd like, I can: write a sharper version, summarize in 10 sentences, or go deeper into a specific chapter.\n[action:...] ..."
   * GOOD (no intro at all — the MOST COMMON case): answer text ends naturally, then a blank line, then the action line immediately.
-  * GOOD (rare bridge, only after a long response): "Some threads worth pulling\n\n---\n[action:...] ..."
-  * GOOD (rare bridge, Polish, only after a long response): "Kilka kierunków do eksploracji\n\n---\n[action:...] ..."
-  * GOOD (mood-matching bridge after a tender poem): "Some softer directions to explore\n\n---\n[action:...] ..."
-  * GOOD (mood-matching bridge, Polish, after a reflective piece): "Cichsze wątki do eksploracji\n\n---\n[action:...] ..."
+  * GOOD (rare bridge, only after a long response): "---\n\nSome threads worth pulling\n\n[action:...] ..."
+  * GOOD (rare bridge, Polish, only after a long response): "---\n\nKilka kierunków do eksploracji\n\n[action:...] ..."
+  * GOOD (mood-matching bridge after a tender poem): "---\n\nSome softer directions to explore\n\n[action:...] ..."
+  * GOOD (mood-matching bridge, Polish, after a reflective piece): "---\n\nCichsze wątki do eksploracji\n\n[action:...] ..."
 - ALWAYS generate EXACTLY 7 follow-up action buttons after your answer.
 - CRITICAL FORMAT: All 7 action markers MUST be placed on a SINGLE line, space-separated, like this:
   [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7]

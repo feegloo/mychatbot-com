@@ -506,6 +506,7 @@ h1 {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  flex: 1;
   min-width: 0;
 }
 @media (max-width: 767px) {
