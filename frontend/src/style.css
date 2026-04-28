@@ -1368,13 +1368,14 @@ li:has(.checklist-box) {
   font-weight: 600;
 }
 
-/* First column: size to content width (don't force wrap) so the header stays
-   on a single line and the column is only as wide as its widest value. */
+/* First column: shrinks to its content width (no forced wrapping) so the header
+   stays on one line, but never collapses below 100px so text never wraps
+   character-by-character on narrow viewports. */
 .markdown-content th:first-child,
 .markdown-content td:first-child {
   white-space: nowrap;
   width: 1%;
-  min-width: 0;
+  min-width: 100px;
   overflow-wrap: normal;
 }
 
@@ -1823,11 +1824,14 @@ h3 {
   }
 
   /* Allow the first column to wrap on mobile; its desktop nowrap + overflow-wrap:normal
-     is fine for wide screens but causes the table to overflow on small viewports. */
+     is fine for wide screens but causes the table to overflow on small viewports.
+     min-width is capped by the same 1/3-viewport formula used for all cells so the
+     100px floor never widens the column beyond its share on very narrow screens. */
   .markdown-content th:first-child,
   .markdown-content td:first-child {
     white-space: normal;
     overflow-wrap: anywhere;
+    min-width: min(100px, calc(100vw / 3 - 20px));
   }
 }
 
