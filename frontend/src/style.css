@@ -1755,6 +1755,10 @@ h3 {
     display: none !important;
   }
 
+  .conv-thread-count {
+    display: none !important;
+  }
+
   .header-actions {
     flex-shrink: 0;
     align-self: flex-start;
