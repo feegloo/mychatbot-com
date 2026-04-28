@@ -378,7 +378,8 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
   fi
 
   # Public read access for CDN backend bucket origin.
-  gcloud storage buckets update "gs://${STATIC_BUCKET}" --pap=inherited || true
+  # --clear-pap resets PAP to "inherited" (org-policy default); newer gcloud removed --pap=inherited.
+  gcloud storage buckets update "gs://${STATIC_BUCKET}" --clear-pap || true
   gcloud storage buckets add-iam-policy-binding "gs://${STATIC_BUCKET}" \
     --member="allUsers" \
     --role="roles/storage.objectViewer" || true

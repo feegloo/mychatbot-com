@@ -161,6 +161,39 @@ describe('printContentAsPdf', () => {
     expect(filename).toContain('Ąćę');
     expect(filename).toMatch(/\.pdf$/);
   });
+
+  it('renders color tags as colored text', async () => {
+    await printContentAsPdf('[c:blue]wolność[/c] and [c:purple]Człowiek[/c]', 'test');
+
+    const texts = allTextStrings();
+    expect(texts.some((t) => t.includes('wolność'))).toBe(true);
+    expect(texts.some((t) => t.includes('Człowiek'))).toBe(true);
+    // Blue: [147, 197, 253] and purple: [196, 181, 253] should be set
+    const colorCalls = mockDoc.setTextColor.mock.calls;
+    expect(colorCalls.some(([r, g, b]: number[]) => r === 147 && g === 197 && b === 253)).toBe(true);
+    expect(colorCalls.some(([r, g, b]: number[]) => r === 196 && g === 181 && b === 253)).toBe(true);
+  });
+
+  it('strips color tags from text, not from content', async () => {
+    await printContentAsPdf('[c:gray]religię[/c:gray] bez Boga', 'test');
+
+    const texts = allTextStrings();
+    const allText = texts.join(' ');
+    expect(allText).toContain('religię');
+    expect(allText).not.toContain('[c:');
+    expect(allText).not.toContain('[/c');
+  });
+
+  it('falls back to black for unknown color names', async () => {
+    await printContentAsPdf('[c:unknown]rendered text[/c]', 'test');
+
+    const texts = allTextStrings();
+    // Text is split into word-level pieces, so check individual words
+    expect(texts.some((t) => t.includes('rendered') || t.includes('text'))).toBe(true);
+    // setTextColor(0, 0, 0) for black (no known color → falls back)
+    const colorCalls = mockDoc.setTextColor.mock.calls;
+    expect(colorCalls.some(([r, g, b]: number[]) => r === 0 && g === 0 && b === 0)).toBe(true);
+  });
 });
 
 describe('printContentAsPdf – mermaid blocks', () => {

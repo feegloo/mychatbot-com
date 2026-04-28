@@ -182,6 +182,44 @@ type ExportableAssistantMessage = {
   content: string
 }
 
+// Color name → RGB tuple matching HTML text-color-* CSS classes in ChatMessage.vue
+const COLOR_MAP: Record<string, [number, number, number]> = {
+  green:  [134, 239, 172],
+  red:    [252, 165, 165],
+  yellow: [253, 224,  71],
+  blue:   [147, 197, 253],
+  purple: [196, 181, 253],
+  orange: [253, 186, 116],
+  gold:   [232, 184,  75],
+  pink:   [249, 168, 212],
+  gray:   [148, 163, 184],
+}
+
+// Matches the most common emoji code-point ranges.
+const EMOJI_CHAR_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu
+
+// Cache emoji PNGs (data URLs) for the lifetime of the browser page.
+const emojiPngCache = new Map<string, string>()
+
+async function renderEmojiToPng(emoji: string): Promise<string> {
+  if (emojiPngCache.has(emoji)) return emojiPngCache.get(emoji)!
+  const size = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  let dataUrl = ''
+  if (ctx) {
+    ctx.font = `${Math.round(size * 0.8)}px serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(emoji, size / 2, size / 2 + 2)
+    dataUrl = canvas.toDataURL('image/png')
+  }
+  emojiPngCache.set(emoji, dataUrl)
+  return dataUrl
+}
+
 type InlineStyle = 'normal' | 'bold' | 'italic' | 'bolditalic'
 type InlineToken = {
   text: string
@@ -189,6 +227,8 @@ type InlineToken = {
   isCode?: boolean
   isStrike?: boolean
   isLink?: boolean
+  isEmoji?: boolean
+  color?: [number, number, number]
 }
 
 type PdfLayout = {
@@ -237,7 +277,7 @@ function combineInlineStyle(base: InlineStyle, token: InlineStyle): InlineStyle 
   return base
 }
 
-function parseInlineTokens(text: string): InlineToken[] {
+function parseInlineTokensRaw(text: string, color?: [number, number, number]): InlineToken[] {
   const tokens: InlineToken[] = []
   const re =
     /(\[([^\]]+)\]\(([^)]+)\)|\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_|~~([^~]+)~~|`([^`]+)`)/g
@@ -245,18 +285,54 @@ function parseInlineTokens(text: string): InlineToken[] {
   let match: RegExpExecArray | null
   while ((match = re.exec(text)) !== null) {
     if (match.index > cursor) {
-      tokens.push({ text: text.slice(cursor, match.index), style: 'normal' })
+      tokens.push({ text: text.slice(cursor, match.index), style: 'normal', color })
     }
-    if (match[2]) tokens.push({ text: match[2], style: 'normal', isLink: true })
-    else if (match[4]) tokens.push({ text: match[4], style: 'bolditalic' })
-    else if (match[5] || match[6]) tokens.push({ text: match[5] || match[6], style: 'bold' })
-    else if (match[7] || match[8]) tokens.push({ text: match[7] || match[8], style: 'italic' })
-    else if (match[9]) tokens.push({ text: match[9], style: 'normal', isStrike: true })
-    else if (match[10]) tokens.push({ text: match[10], style: 'normal', isCode: true })
+    if (match[2]) tokens.push({ text: match[2], style: 'normal', isLink: true, color })
+    else if (match[4]) tokens.push({ text: match[4], style: 'bolditalic', color })
+    else if (match[5] || match[6]) tokens.push({ text: match[5] || match[6], style: 'bold', color })
+    else if (match[7] || match[8]) tokens.push({ text: match[7] || match[8], style: 'italic', color })
+    else if (match[9]) tokens.push({ text: match[9], style: 'normal', isStrike: true, color })
+    else if (match[10]) tokens.push({ text: match[10], style: 'normal', isCode: true, color })
     cursor = re.lastIndex
   }
   if (cursor < text.length) {
-    tokens.push({ text: text.slice(cursor), style: 'normal' })
+    tokens.push({ text: text.slice(cursor), style: 'normal', color })
+  }
+  // Further split each token at emoji boundaries so emojis become separate pieces.
+  return tokens.filter((t) => t.text.length > 0).flatMap(splitAtEmojiChars)
+}
+
+function splitAtEmojiChars(token: InlineToken): InlineToken[] {
+  // Skip if already an emoji token or contains no emoji.
+  if (token.isEmoji) return [token]
+  const re = new RegExp(EMOJI_CHAR_RE.source, 'gu')
+  const parts: InlineToken[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(token.text)) !== null) {
+    if (m.index > last) parts.push({ ...token, text: token.text.slice(last, m.index) })
+    parts.push({ ...token, text: m[0], isEmoji: true })
+    last = re.lastIndex
+  }
+  if (last < token.text.length) parts.push({ ...token, text: token.text.slice(last) })
+  return parts.filter((p) => p.text.length > 0)
+}
+
+function parseInlineTokens(text: string): InlineToken[] {
+  const tokens: InlineToken[] = []
+  const colorTagRe = /\[c:(\w+)\]([\s\S]*?)\[\/c(?::\w+)?\]/g
+  let cursor = 0
+  let match: RegExpExecArray | null
+  while ((match = colorTagRe.exec(text)) !== null) {
+    if (match.index > cursor) {
+      tokens.push(...parseInlineTokensRaw(text.slice(cursor, match.index)))
+    }
+    const rgb = COLOR_MAP[match[1]]
+    tokens.push(...parseInlineTokensRaw(match[2], rgb))
+    cursor = colorTagRe.lastIndex
+  }
+  if (cursor < text.length) {
+    tokens.push(...parseInlineTokensRaw(text.slice(cursor)))
   }
   return tokens.filter((t) => t.text.length > 0)
 }
@@ -268,6 +344,10 @@ function splitTokenPieces(token: InlineToken): InlineToken[] {
 }
 
 function measurePiece(doc: jsPDF, piece: InlineToken, fontSize: number, baseStyle: InlineStyle): number {
+  if (piece.isEmoji) {
+    // 1pt = 0.353mm; add 20% margin so the emoji doesn't crowd adjacent text.
+    return fontSize * 0.353 * 1.2
+  }
   doc.setFont(PDF_FONT, combineInlineStyle(baseStyle, piece.style))
   doc.setFontSize(fontSize)
   return doc.getTextWidth(piece.text)
@@ -346,7 +426,7 @@ function wrapInlineTokens(
   return lines.length ? lines : [[{ text: '', style: baseStyle, width: 0 }]]
 }
 
-function drawWrappedLine(
+async function drawWrappedLine(
   doc: jsPDF,
   line: WrappedPiece[],
   x: number,
@@ -356,6 +436,19 @@ function drawWrappedLine(
 ) {
   let cx = x
   for (const piece of line) {
+    if (piece.isEmoji) {
+      const pngData = await renderEmojiToPng(piece.text)
+      if (pngData) {
+        try {
+          doc.addImage(pngData, 'PNG', cx, y - piece.width * 0.9, piece.width, piece.width)
+        } catch {
+          // Emoji image embedding failed — skip silently rather than breaking the PDF.
+        }
+      }
+      cx += piece.width
+      continue
+    }
+
     const style = combineInlineStyle(baseStyle, piece.style)
     doc.setFont(PDF_FONT, style)
     doc.setFontSize(fontSize)
@@ -367,6 +460,7 @@ function drawWrappedLine(
     }
 
     if (piece.isLink) doc.setTextColor(70, 130, 220)
+    else if (piece.color) doc.setTextColor(...piece.color)
     else doc.setTextColor(0, 0, 0)
 
     doc.text(piece.text, cx, y)
@@ -386,7 +480,7 @@ function drawWrappedLine(
   }
 }
 
-function renderInlineWrappedText(
+async function renderInlineWrappedText(
   doc: jsPDF,
   rawText: string,
   x: number,
@@ -399,7 +493,7 @@ function renderInlineWrappedText(
   const lines = wrapInlineTokens(doc, tokens, maxWidth, opts.fontSize, opts.baseStyle)
   for (const line of lines) {
     ensureNewPage(doc, yRef, layout, opts.lineHeight + 1)
-    drawWrappedLine(doc, line, x, yRef.y, opts.fontSize, opts.baseStyle)
+    await drawWrappedLine(doc, line, x, yRef.y, opts.fontSize, opts.baseStyle)
     yRef.y += opts.lineHeight
   }
 }
@@ -887,6 +981,7 @@ function stripInlineFormatting(text: string): string {
     .replace(/`([^`]+)`/g, '$1') // inline code
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links → text only
     .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1 [image]') // images
+    .replace(/\[c:\w+\]([\s\S]*?)\[\/c(?::\w+)?\]/g, '$1') // color tags → text only
     .trim()
 }
 

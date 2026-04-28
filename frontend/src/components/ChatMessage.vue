@@ -675,7 +675,7 @@ async function downloadMessagePdf() {
         .map((m) => ({ content: m.content }))
 
       if (assistantMessages.length > 0) {
-        await printAssistantMessagesAsPdf(assistantMessages, `${title} - assistant messages`, {
+        await printAssistantMessagesAsPdf(assistantMessages, title, {
           conversationId: effectiveStorageId.value,
         })
         return
