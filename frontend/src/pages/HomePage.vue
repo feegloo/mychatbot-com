@@ -453,6 +453,7 @@ function autoResize(e: Event) {
 @media (max-width: 768px) {
   .home-page {
     padding: 24px 16px;
+    justify-content: flex-start;
   }
 
   .upload-dropzone {
