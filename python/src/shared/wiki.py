@@ -52,6 +52,88 @@ def _budget_chars(token_budget: int) -> int:
     return int(token_budget * _CHARS_PER_TOKEN * 0.9)
 
 
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Cosine similarity in [-1, 1]: 1 = same direction, 0 = orthogonal, -1 = opposite."""
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _build_chunk_correlation_block(
+    collection_name: str,
+    chunk_ids: list[str],
+    chunk_labels: list[str],
+) -> str:
+    """Fetch stored embeddings for *chunk_ids* and compute all pairwise cosine
+    similarities.
+
+    Returns a formatted text block (to embed in the wiki raw-material section)
+    that maps every unique chunk pair to a correlation score in [-1, 1]:
+      •  1.0 → identical / strongly related (same semantic space)
+      •  0.0 → unrelated / orthogonal
+      • -1.0 → opposing / contrasting concepts
+
+    Only pairs whose |score| >= 0.10 are listed (below that threshold the
+    similarity is too weak to drive meaningful diagram edges).
+    """
+    try:
+        from .vector_store import get_client
+
+        client = get_client()
+        collection = client.get_or_create_collection(name=collection_name)
+        result = collection.get(ids=chunk_ids, include=["embeddings"])
+        raw_embeddings = result.get("embeddings") or []
+        returned_ids: list[str] = result.get("ids") or []
+    except Exception as exc:
+        logger.warning("📚 wiki: embedding fetch for correlation failed: %s", exc)
+        return ""
+
+    # Build id → embedding map; returned order may differ from requested order.
+    emb_by_id: dict[str, list[float]] = {
+        cid: list(emb) for cid, emb in zip(returned_ids, raw_embeddings, strict=False) if emb
+    }
+
+    # Align with the original chunk_ids / chunk_labels ordering.
+    aligned: list[tuple[str, list[float]]] = []
+    for cid, label in zip(chunk_ids, chunk_labels, strict=False):
+        emb = emb_by_id.get(cid)
+        if emb:
+            aligned.append((label, emb))
+
+    if len(aligned) < 2:
+        return ""
+
+    # Compute all pairwise cosine similarities.
+    pairs: list[tuple[float, str, str]] = []
+    for i in range(len(aligned)):
+        for j in range(i + 1, len(aligned)):
+            label_a, emb_a = aligned[i]
+            label_b, emb_b = aligned[j]
+            score = round(_cosine_similarity(emb_a, emb_b), 2)
+            if abs(score) >= 0.10:
+                pairs.append((score, label_a, label_b))
+
+    # Sort strongest first so the LLM sees the most relevant pairs early.
+    pairs.sort(key=lambda t: abs(t[0]), reverse=True)
+
+    if not pairs:
+        return ""
+
+    lines = [
+        "== CHUNK PAIRWISE COSINE CORRELATION ==",
+        "Score: 1.0 = closely related, 0.0 = unrelated, -1.0 = contrasting/opposing",
+        "Use these scores as edge-weight labels in the Mermaid diagram.",
+        "",
+    ]
+    for score, la, lb in pairs:
+        lines.append(f"{la} <-> {lb}: {score:+.2f}")
+
+    return "\n".join(lines)
+
+
 def _build_raw_material(
     *,
     collection_name: str,
@@ -69,7 +151,10 @@ def _build_raw_material(
          structure that 1600-char chunking destroys).
       3. Add the dominant chapter via ``_extract_chapter_context`` for
          long-range narrative / structural context.
-      4. Hard-cap combined material at ``char_budget``.
+      4. Compute pairwise cosine similarities between retrieved chunk
+         embeddings and append a correlation matrix section — this lets
+         the wiki LLM annotate Mermaid diagram edges with numeric scores.
+      5. Hard-cap combined material at ``char_budget``.
 
     Returns ``(material, chunk_count)`` where ``chunk_count`` is the number
     of Chroma matches that contributed (used for logging + skip decisions).
@@ -103,17 +188,22 @@ def _build_raw_material(
 
     # 1. Top-K matched chunks — terse, exact text the embedder selected.
     chunk_block_parts: list[str] = []
+    chunk_ids: list[str] = []
+    chunk_labels: list[str] = []
     for i, row in enumerate(rows, 1):
         text = (row.get("text") or "").strip()
         if not text:
             continue
         fname = row.get("file_name", "unknown")
         page = row.get("page")
-        label = f"[Match {i} — {fname}"
+        label = f"Match {i}"
+        display_label = f"[{label} — {fname}"
         if page is not None:
-            label += f", p.{page}"
-        label += "]"
-        chunk_block_parts.append(f"{label}\n{text}")
+            display_label += f", p.{page}"
+        display_label += "]"
+        chunk_block_parts.append(f"{display_label}\n{text}")
+        chunk_ids.append(row.get("chunk_id", ""))
+        chunk_labels.append(label)
     if chunk_block_parts:
         sections.append(
             "== TOP MATCHES (embedding similarity to welcome message) ==\n"
@@ -128,6 +218,15 @@ def _build_raw_material(
     # 3. Dominant chapter — long-range narrative / structural context.
     if chapter_ctx:
         sections.append("== DOMINANT CHAPTER CONTEXT ==\n" + chapter_ctx)
+
+    # 4. Pairwise cosine correlation between retrieved chunks.
+    #    Fetches stored embeddings from Chroma; failures are silently skipped.
+    valid_ids = [cid for cid, lbl in zip(chunk_ids, chunk_labels) if cid]
+    valid_labels = [lbl for cid, lbl in zip(chunk_ids, chunk_labels) if cid]
+    if len(valid_ids) >= 2:
+        corr_block = _build_chunk_correlation_block(collection_name, valid_ids, valid_labels)
+        if corr_block:
+            sections.append(corr_block)
 
     combined = "\n\n--\n\n".join(sections)
     if len(combined) > char_budget:

@@ -3,7 +3,7 @@
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <!-- Mobile close bar above content -->
       <div v-if="isMobile" class="source-modal-close-bar" @click="$emit('close')">
-        <button v-if="isPdf" class="source-modal-open-pdf" @click.stop="openFullPdf">
+        <button v-if="isPdf && isOwner" class="source-modal-open-pdf" @click.stop="openFullPdf">
           Open PDF
         </button>
         <button class="source-modal-close-bar-x">&times;</button>
@@ -39,18 +39,22 @@ import { getStorageUrl } from '../api'
 import { linkify } from '../utils/text'
 import PdfPageViewer from './PdfPageViewer.vue'
 
-const props = defineProps<{
-  visible: boolean
-  citation: {
-    fileName: string
-    chunkId: string
-    text: string
-    section?: string
-    page?: number | null
-    imageName?: string
-  }
-  conversationId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    visible: boolean
+    citation: {
+      fileName: string
+      chunkId: string
+      text: string
+      section?: string
+      page?: number | null
+      imageName?: string
+    }
+    conversationId: string
+    isOwner?: boolean
+  }>(),
+  { isOwner: true },
+)
 
 defineEmits<{
   close: []

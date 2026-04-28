@@ -1592,7 +1592,9 @@ def describe_documents(
             ]
         )
 
-    llm = get_llm()
+    # Higher temperature (0.6) produces more varied and expressive welcome messages
+    # compared to the default 0.4 used for factual Q&A.
+    llm = get_llm(temperature=0.6)
     chain = prompt | llm | StrOutputParser()
 
     # Build an OCR-in-progress note to append to the human message when the

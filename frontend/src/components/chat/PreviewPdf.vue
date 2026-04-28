@@ -81,10 +81,11 @@ watch(
 }
 .preview-pdf-obj {
   width: 100%;
-  height: 100%;
   pointer-events: none;
   padding-bottom: 10px;
-  height: 395px;
+  /* Shift the object up to hide Chrome's native 56px grey toolbar */
+  margin-top: -56px;
+  height: 451px; /* 395 + 56 to fill the container after the shift */
 }
 .preview-pdf-overlay {
   position: absolute;

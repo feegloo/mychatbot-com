@@ -182,6 +182,248 @@ type ExportableAssistantMessage = {
   content: string
 }
 
+// ── Quiz types (mirror QuizBlock.vue to avoid circular imports) ────────────
+
+type QuizQuestion = {
+  q: string
+  options: string[]
+  correct: number[]
+  explanation?: string
+}
+
+type QuizData = {
+  title: string
+  multiple?: boolean
+  questions: QuizQuestion[]
+}
+
+export type QuizPdfState = {
+  selections: Record<number, Set<number>>
+  submitted: Record<number, boolean>
+  wrongOptions: Record<number, Set<number>>
+}
+
+// ── Quiz block extraction (brace-counting, same as splitContent.ts) ────────
+
+function extractQuizBlocks(markdown: string): {
+  processed: string
+  quizData: (QuizData | null)[]
+} {
+  const quizData: (QuizData | null)[] = []
+  const marker = '[quiz:'
+  let result = ''
+  let i = 0
+
+  while (i < markdown.length) {
+    const start = markdown.indexOf(marker, i)
+    if (start === -1) {
+      result += markdown.slice(i)
+      break
+    }
+    result += markdown.slice(i, start)
+    const jsonStart = start + marker.length
+    let depth = 0
+    let found = false
+    for (let j = jsonStart; j < markdown.length; j++) {
+      if (markdown[j] === '{') depth++
+      else if (markdown[j] === '}') {
+        depth--
+        if (depth === 0) {
+          let k = j + 1
+          while (k < markdown.length && /\s/.test(markdown[k])) k++
+          if (k < markdown.length && markdown[k] === ']') {
+            const jsonStr = markdown.slice(jsonStart, j + 1).replace(/\[source:\s*\d+\]/g, '')
+            try {
+              const parsed = JSON.parse(jsonStr) as QuizData
+              if (parsed.title && Array.isArray(parsed.questions)) {
+                quizData.push(parsed)
+              } else {
+                quizData.push(null)
+              }
+            } catch {
+              quizData.push(null)
+            }
+            result += `[QUIZ_BLOCK_${quizData.length - 1}]`
+            i = k + 1
+            found = true
+          }
+          break
+        }
+      }
+    }
+    if (!found) {
+      // Malformed quiz block — keep as-is
+      result += markdown.slice(start)
+      break
+    }
+  }
+
+  return { processed: result, quizData }
+}
+
+// ── Quiz PDF rendering ─────────────────────────────────────────────────────
+
+function variantLetter(index: number): string {
+  return String.fromCharCode(65 + index)
+}
+
+function appendQuizToPdf(
+  doc: jsPDF,
+  quiz: QuizData,
+  layout: PdfLayout,
+  yRef: YRef,
+  state?: QuizPdfState,
+) {
+  const isMultiple = quiz.multiple === true
+  const { marginLeft, contentWidth } = layout
+
+  // Title
+  doc.setFont(PDF_FONT, 'bold')
+  doc.setFontSize(15)
+  doc.setTextColor(0, 0, 0)
+  const pdfCleanTitle = quiz.title.replace(/\s*-\s*quiz\s*$/i, '')
+  ensureNewPage(doc, yRef, layout, 12)
+  doc.text(`${pdfCleanTitle} - Quiz`, marginLeft, yRef.y)
+  yRef.y += 7
+
+  // Type subtitle
+  doc.setFont(PDF_FONT, 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(100, 100, 100)
+  const typeLabel = isMultiple
+    ? 'Multiple choice \u2014 select all correct answers'
+    : 'Single choice \u2014 select one correct answer'
+  doc.text(typeLabel, marginLeft, yRef.y)
+  yRef.y += 6
+
+  // Name/date line for blank worksheets
+  if (!state) {
+    doc.setFont(PDF_FONT, 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Name: ___________________________________    Date: _______________', marginLeft, yRef.y)
+    yRef.y += 9
+  }
+
+  // Questions
+  for (let qi = 0; qi < quiz.questions.length; qi++) {
+    const q = quiz.questions[qi]
+    ensureNewPage(doc, yRef, layout, 30)
+
+    doc.setFont(PDF_FONT, 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    const questionLines = doc.splitTextToSize(`${qi + 1}. ${q.q}`, contentWidth)
+    doc.text(questionLines, marginLeft, yRef.y)
+    yRef.y += questionLines.length * 4.8 + 2
+
+    doc.setFont(PDF_FONT, 'normal')
+    doc.setFontSize(9.5)
+    for (let oi = 0; oi < q.options.length; oi++) {
+      const optLines = doc.splitTextToSize(`${variantLetter(oi)}. ${q.options[oi]}`, contentWidth - 12)
+      ensureNewPage(doc, yRef, layout, optLines.length * 4.5 + 3)
+
+      const boxX = marginLeft + 2
+      const boxY = yRef.y - 2.8
+      const isChecked = state?.selections[qi]?.has(oi) ?? false
+      const isWrong = isChecked && !q.correct.includes(oi)
+
+      doc.setDrawColor(100, 100, 100)
+      doc.setLineWidth(0.4)
+      if (isMultiple) {
+        doc.rect(boxX, boxY, 3, 3)
+        if (isChecked) {
+          doc.setDrawColor(0, 0, 0)
+          doc.setLineWidth(0.6)
+          if (isWrong) {
+            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6)
+            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6)
+          } else {
+            doc.line(boxX + 0.5, boxY + 1.5, boxX + 1.2, boxY + 2.4)
+            doc.line(boxX + 1.2, boxY + 2.4, boxX + 2.5, boxY + 0.6)
+          }
+          doc.setLineWidth(0.4)
+        }
+      } else {
+        doc.circle(boxX + 1.5, boxY + 1.5, 1.5)
+        if (isChecked) {
+          if (isWrong) {
+            doc.setDrawColor(0, 0, 0)
+            doc.setLineWidth(0.6)
+            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6)
+            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6)
+            doc.setLineWidth(0.4)
+          } else {
+            doc.setFillColor(0, 0, 0)
+            doc.circle(boxX + 1.5, boxY + 1.5, 0.85, 'F')
+          }
+        }
+      }
+
+      doc.setTextColor(0, 0, 0)
+      doc.text(optLines, marginLeft + 9, yRef.y)
+      yRef.y += optLines.length * 4.5 + 1.5
+    }
+
+    // Explanation (only when state indicates the question was correctly submitted)
+    if (state?.submitted[qi] && q.explanation) {
+      const allCorrectSelected = q.correct.every((c) => state.selections[qi]?.has(c))
+      const noWrong = (state.wrongOptions[qi]?.size ?? 0) === 0
+      const showExp = isMultiple ? allCorrectSelected && noWrong : true
+      if (showExp) {
+        ensureNewPage(doc, yRef, layout, 10)
+        doc.setFont(PDF_FONT, 'italic')
+        doc.setFontSize(8.5)
+        doc.setTextColor(80, 80, 80)
+        const expLines = doc.splitTextToSize(q.explanation, contentWidth - 4)
+        doc.text(expLines, marginLeft + 2, yRef.y)
+        yRef.y += expLines.length * 3.8 + 1.5
+        doc.setTextColor(0, 0, 0)
+      }
+    }
+
+    yRef.y += 3
+  }
+
+  // Score summary (only when all submitted via state)
+  if (state) {
+    const allSubmitted = quiz.questions.every((_, i) => state.submitted[i])
+    if (allSubmitted) {
+      const correctCount = quiz.questions.filter((q, i) => {
+        const sel = state.selections[i] || new Set<number>()
+        return q.correct.length === sel.size && q.correct.every((c) => sel.has(c))
+      }).length
+      ensureNewPage(doc, yRef, layout, 12)
+      doc.setFont(PDF_FONT, 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Score: ${correctCount}/${quiz.questions.length}`, marginLeft, yRef.y)
+      yRef.y += 8
+    }
+  }
+}
+
+/**
+ * Generates a PDF for a single quiz, optionally with user selection state.
+ * Used by QuizBlock.vue's download button.
+ */
+export async function printQuizAsPdf(
+  quiz: QuizData,
+  fileName: string,
+  state?: QuizPdfState,
+) {
+  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  registerFonts(doc)
+  const layout = createLayout(doc)
+  const yRef: YRef = { y: 20 }
+
+  appendQuizToPdf(doc, quiz, layout, yRef, state)
+
+  applyWatermark(doc)
+  doc.save(fileName)
+}
+
 // Color name → RGB tuple matching HTML text-color-* CSS classes in ChatMessage.vue
 const COLOR_MAP: Record<string, [number, number, number]> = {
   green:  [134, 239, 172],
@@ -604,9 +846,13 @@ async function renderMarkdownBlock(
     return `[MERMAID_DIAGRAM_${mermaidPlaceholderIdx++}]`
   })
 
-  const cleaned = withMermaidPlaceholders
+  // Extract quiz blocks before line-based processing
+  const { processed: withQuizPlaceholders, quizData } = extractQuizBlocks(withMermaidPlaceholders)
+
+  const cleaned = withQuizPlaceholders
     .replace(/\[source:\s*\d+(?:,\s*\d+)*\]/g, '')
     .replace(/\[action:\s*[^\]]+\]/g, '')
+    .replace(/<p[^>]*class="image-caption"[^>]*>[\s\S]*?<\/p>/gi, '') // strip HTML image captions
 
   const poemBlocks: string[][] = []
   let poemIdx = 0
@@ -680,6 +926,19 @@ async function renderMarkdownBlock(
       continue
     }
 
+    const quizPlaceholder = line.trim().match(/^\[QUIZ_BLOCK_(\d+)\]$/)
+    if (quizPlaceholder) {
+      const idx = parseInt(quizPlaceholder[1], 10)
+      const quiz = quizData[idx]
+      if (quiz) {
+        yRef.y += 4
+        appendQuizToPdf(doc, quiz, layout, yRef)
+        yRef.y += 4
+      }
+      i++
+      continue
+    }
+
     const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)
     if (poemPlaceholder) {
       const idx = parseInt(poemPlaceholder[1], 10)
@@ -743,7 +1002,7 @@ async function renderMarkdownBlock(
         doc.addImage(image.dataUrl, image.format, drawX, yRef.y, drawW, drawH)
         yRef.y += drawH + 3
         if (imageLine.alt) {
-          renderInlineWrappedText(doc, imageLine.alt, layout.marginLeft, yRef, layout.contentWidth, layout, {
+          await renderInlineWrappedText(doc, imageLine.alt, layout.marginLeft, yRef, layout.contentWidth, layout, {
             fontSize: 9,
             lineHeight: 4,
             baseStyle: 'italic',
@@ -773,7 +1032,7 @@ async function renderMarkdownBlock(
 
       yRef.y += spacing
       ensureNewPage(doc, yRef, layout, lineHeight + 2)
-      renderInlineWrappedText(doc, text, layout.marginLeft, yRef, layout.contentWidth, layout, {
+      await renderInlineWrappedText(doc, text, layout.marginLeft, yRef, layout.contentWidth, layout, {
         fontSize,
         lineHeight,
         baseStyle: 'bold',
@@ -816,7 +1075,7 @@ async function renderMarkdownBlock(
         doc.setDrawColor(100, 100, 100)
         doc.rect(boxX, boxY, 3.5, 3.5)
       }
-      renderInlineWrappedText(doc, text, layout.marginLeft + 9, yRef, layout.contentWidth - 12, layout, {
+      await renderInlineWrappedText(doc, text, layout.marginLeft + 9, yRef, layout.contentWidth - 12, layout, {
         fontSize: 10.5,
         lineHeight: 4.5,
         baseStyle: 'normal',
@@ -836,7 +1095,7 @@ async function renderMarkdownBlock(
       doc.setFontSize(10.5)
       doc.setTextColor(0, 0, 0)
       doc.text('•', bulletX, yRef.y)
-      renderInlineWrappedText(doc, text, bulletX + 4, yRef, layout.contentWidth - indent * 5 - 5, layout, {
+      await renderInlineWrappedText(doc, text, bulletX + 4, yRef, layout.contentWidth - indent * 5 - 5, layout, {
         fontSize: 10.5,
         lineHeight: 4.5,
         baseStyle: 'normal',
@@ -857,7 +1116,7 @@ async function renderMarkdownBlock(
       doc.setFontSize(10.5)
       doc.setTextColor(0, 0, 0)
       doc.text(`${num}.`, numX, yRef.y)
-      renderInlineWrappedText(doc, text, numX + 6, yRef, layout.contentWidth - indent * 5 - 7, layout, {
+      await renderInlineWrappedText(doc, text, numX + 6, yRef, layout.contentWidth - indent * 5 - 7, layout, {
         fontSize: 10.5,
         lineHeight: 4.5,
         baseStyle: 'normal',
@@ -883,7 +1142,7 @@ async function renderMarkdownBlock(
       paragraph += ' ' + replaceInlineImagesWithAlt(lines[i])
     }
 
-    renderInlineWrappedText(doc, paragraph, layout.marginLeft, yRef, layout.contentWidth, layout, {
+    await renderInlineWrappedText(doc, paragraph, layout.marginLeft, yRef, layout.contentWidth, layout, {
       fontSize: 10.5,
       lineHeight: 4.5,
       baseStyle: 'normal',

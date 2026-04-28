@@ -21,8 +21,8 @@
       </button>
     </div>
 
-    <div class="quiz-type-badge">{{ isMultiple ? '☑ Multiple choice' : '○ Single choice' }}</div>
-    <button class="quiz-restart-btn" @click="restartQuiz">⟲ Restart quiz</button>
+    <div class="quiz-type-badge">{{ isMultiple ? typeBadgeMultiple : typeBadgeSingle }}</div>
+    <button class="quiz-restart-btn" @click="restartQuiz">⟲ {{ restartLabel }}</button>
 
     <div v-for="(q, qi) in quiz.questions" :key="qi" class="quiz-question">
       <div class="quiz-question-text">{{ qi + 1 }}. {{ q.q }}</div>
@@ -89,7 +89,6 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted } from 'vue'
 import { getData, setData } from '../utils/localData'
-import { ensureFontsLoaded, registerFonts, PDF_FONT } from '../utils/pdfFonts'
 
 export interface QuizQuestion {
   q: string
@@ -110,10 +109,16 @@ const props = defineProps<{
   quizIndex?: number
   conversationName?: string
   fileName?: string
+  lang?: string
 }>()
 
 const cleanTitle = computed(() => props.quiz.title.replace(/\s*-\s*quiz\s*$/i, ''))
 const isMultiple = computed(() => props.quiz.multiple === true)
+
+const isPl = computed(() => props.lang?.startsWith('pl'))
+const typeBadgeMultiple = computed(() => isPl.value ? '☑ Wielokrotny wybór' : '☑ Multiple choice')
+const typeBadgeSingle = computed(() => isPl.value ? '○ Jednokrotny wybór' : '○ Single choice')
+const restartLabel = computed(() => isPl.value ? 'Zrestartuj quiz' : 'Restart quiz')
 
 function variantLetter(index: number): string {
   return String.fromCharCode(65 + index)
@@ -270,177 +275,22 @@ function restartQuiz() {
 const correctCount = computed(() => props.quiz.questions.filter((_, i) => isCorrect(i)).length)
 
 async function downloadPdf() {
-  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  registerFonts(doc)
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const marginLeft = 20
-  const marginRight = 20
-  const contentWidth = pageWidth - marginLeft - marginRight
-  let y = 20
+  const { printQuizAsPdf } = await import('../utils/printPdf')
 
-  const checkNewPage = (needed: number) => {
-    if (y + needed > pageHeight - 20) {
-      doc.addPage()
-      y = 20
-    }
-  }
-
-  // Title
-  doc.setFont(PDF_FONT, 'bold')
-  doc.setFontSize(15)
-  doc.setTextColor(0, 0, 0)
-  const pdfCleanTitle = props.quiz.title.replace(/\s*-\s*quiz\s*$/i, '')
-  doc.text(`${pdfCleanTitle} - Quiz`, marginLeft, y)
-  y += 7
-
-  // Quiz type subtitle
-  doc.setFont(PDF_FONT, 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(100, 100, 100)
-  const typeLabel = isMultiple.value
-    ? 'Multiple choice — select all correct answers'
-    : 'Single choice — select one correct answer'
-  doc.text(typeLabel, marginLeft, y)
-  y += 6
-
-  // Name line
-  doc.setFont(PDF_FONT, 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(0, 0, 0)
-  doc.text('Name: ___________________________________    Date: _______________', marginLeft, y)
-  y += 9
-
-  // Questions
-  for (let qi = 0; qi < props.quiz.questions.length; qi++) {
-    const q = props.quiz.questions[qi]
-
-    // Estimate space needed for question header + at least one option
-    checkNewPage(30)
-
-    // Question text
-    doc.setFont(PDF_FONT, 'bold')
-    doc.setFontSize(10)
-    const questionText = `${qi + 1}. ${q.q}`
-    const questionLines = doc.splitTextToSize(questionText, contentWidth)
-    doc.text(questionLines, marginLeft, y)
-    y += questionLines.length * 4.8 + 2
-
-    // Options
-    doc.setFont(PDF_FONT, 'normal')
-    doc.setFontSize(9.5)
-    for (let oi = 0; oi < q.options.length; oi++) {
-      const letter = variantLetter(oi)
-      const optText = `${letter}. ${q.options[oi]}`
-      const optLines = doc.splitTextToSize(optText, contentWidth - 12)
-
-      checkNewPage(optLines.length * 4.5 + 3)
-
-      // Draw radio circle (single choice) or checkbox (multiple choice)
-      const boxX = marginLeft + 2
-      const boxY = y - 2.8
-      const isChecked = selections[qi]?.has(oi)
-      const isWrong = isChecked && !q.correct.includes(oi)
-      doc.setDrawColor(100, 100, 100)
-      doc.setLineWidth(0.4)
-      if (isMultiple.value) {
-        doc.rect(boxX, boxY, 3, 3)
-        if (isChecked) {
-          doc.setDrawColor(0, 0, 0)
-          doc.setLineWidth(0.6)
-          if (isWrong) {
-            // Draw X inside box for wrong answer
-            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6)
-            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6)
-          } else {
-            // Draw checkmark inside box for correct answer
-            doc.line(boxX + 0.5, boxY + 1.5, boxX + 1.2, boxY + 2.4)
-            doc.line(boxX + 1.2, boxY + 2.4, boxX + 2.5, boxY + 0.6)
-          }
-          doc.setLineWidth(0.4)
-        }
-      } else {
-        doc.circle(boxX + 1.5, boxY + 1.5, 1.5)
-        if (isChecked) {
-          if (isWrong) {
-            // Draw X inside circle for wrong answer
-            doc.setDrawColor(0, 0, 0)
-            doc.setLineWidth(0.6)
-            doc.line(boxX + 0.4, boxY + 0.4, boxX + 2.6, boxY + 2.6)
-            doc.line(boxX + 2.6, boxY + 0.4, boxX + 0.4, boxY + 2.6)
-            doc.setLineWidth(0.4)
-          } else {
-            // Draw filled inner circle for correct answer
-            doc.setFillColor(0, 0, 0)
-            doc.circle(boxX + 1.5, boxY + 1.5, 0.85, 'F')
-          }
-        }
-      }
-
-      // Option text
-      doc.text(optLines, marginLeft + 9, y)
-      y += optLines.length * 4.5 + 1.5
-    }
-
-    // Explanation (if question was submitted and has explanation)
-    if (showExplanation(qi) && q.explanation) {
-      checkNewPage(10)
-      doc.setFont(PDF_FONT, 'italic')
-      doc.setFontSize(8.5)
-      doc.setTextColor(80, 80, 80)
-      const expLines = doc.splitTextToSize(q.explanation, contentWidth - 4)
-      doc.text(expLines, marginLeft + 2, y)
-      y += expLines.length * 3.8 + 1.5
-      doc.setTextColor(0, 0, 0)
-    }
-
-    y += 3 // Space between questions
-  }
-
-  // Score summary (if all questions answered)
-  if (allSubmitted.value) {
-    checkNewPage(12)
-    doc.setFont(PDF_FONT, 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(0, 0, 0)
-    doc.text(`Score: ${correctCount.value}/${props.quiz.questions.length}`, marginLeft, y)
-    y += 8
-  }
-
-  // Build filename
   const nameParts: string[] = ['quiz']
-  if (props.fileName) {
-    nameParts.push(props.fileName.replace(/\.[^.]+$/, ''))
-  }
-  if (props.conversationName) {
-    nameParts.push(props.conversationName)
-  }
+  if (props.fileName) nameParts.push(props.fileName.replace(/\.[^.]+$/, ''))
+  if (props.conversationName) nameParts.push(props.conversationName)
   const safeName = nameParts
     .join('-')
     .replace(/[^a-zA-Z0-9_-]+/g, '_')
     .replace(/_+/g, '_')
     .slice(0, 100)
 
-  // Add watermark only on the last page
-  const totalPages = doc.getNumberOfPages()
-  doc.setPage(totalPages)
-  const pw = doc.internal.pageSize.getWidth()
-  const ph = doc.internal.pageSize.getHeight()
-  doc.setFont(PDF_FONT, 'normal')
-  doc.setFontSize(8)
-  const fullText = 'created with chatrag.app'
-  const textWidth = doc.getTextWidth(fullText)
-  const wmX = pw - 12 - textWidth
-  const wmY = ph - 8
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  doc.setGState(new (doc as any).GState({ opacity: 0.35 }))
-  doc.setTextColor(70, 130, 220)
-  doc.textWithLink(fullText, wmX, wmY, { url: 'https://chatrag.app' })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  doc.setGState(new (doc as any).GState({ opacity: 1 }))
-
-  doc.save(`${safeName}.pdf`)
+  await printQuizAsPdf(props.quiz, `${safeName}.pdf`, {
+    selections: Object.fromEntries(Object.entries(selections).map(([k, v]) => [Number(k), v])),
+    submitted: { ...submitted },
+    wrongOptions: Object.fromEntries(Object.entries(wrongOptions).map(([k, v]) => [Number(k), v])),
+  })
 }
 </script>
 

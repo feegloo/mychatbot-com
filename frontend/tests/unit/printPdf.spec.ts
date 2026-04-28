@@ -22,7 +22,7 @@ vi.mock('jspdf', () => {
   return { default: MockJsPDF, jsPDF: MockJsPDF };
 });
 
-import { printContentAsPdf } from '../../src/utils/printPdf';
+import { printContentAsPdf, printAssistantMessagesAsPdf, printQuizAsPdf } from '../../src/utils/printPdf';
 import { ensureFontsLoaded, registerFonts } from '../../src/utils/pdfFonts';
 
 beforeEach(() => {
@@ -46,8 +46,9 @@ beforeEach(() => {
     getNumberOfPages: vi.fn().mockReturnValue(1),
     getTextWidth: vi.fn().mockReturnValue(20),
     setGState: vi.fn(),
-    GState: vi.fn().mockImplementation(() => ({})),
+    GState: function GState(this: any, _opts: any) { return this },
     splitTextToSize: vi.fn().mockImplementation((text: string, _width: number) => [text]),
+    circle: vi.fn(),
   };
 });
 
@@ -204,5 +205,144 @@ describe('printContentAsPdf – mermaid blocks', () => {
     const allText = allTextStrings().join(' ');
     expect(allText).toContain('[Diagram could not be rendered]');
     expect(allText).not.toContain('graph TD');
+  });
+});
+
+// ── Image caption stripping ───────────────────────────────────────────────
+
+describe('printContentAsPdf – image caption cleanup', () => {
+  it('strips <p class="image-caption"> HTML from PDF output', async () => {
+    const md = [
+      '![Stirner](img.jpg)',
+      '',
+      '<p class="image-caption">"Stirner i rozpad widm" [1][2][3][4]</p>',
+    ].join('\n');
+
+    await printContentAsPdf(md, 'test');
+
+    const allText = allTextStrings().join(' ');
+    expect(allText).not.toContain('<p');
+    expect(allText).not.toContain('image-caption');
+    expect(allText).not.toContain('[1][2][3][4]');
+  });
+
+  it('strips <p class="image-caption"> with extra attributes', async () => {
+    const md = '<p class="image-caption" style="color:red">Caption text [1]</p>';
+    await printContentAsPdf(md, 'test');
+    const allText = allTextStrings().join(' ');
+    expect(allText).not.toContain('image-caption');
+    expect(allText).not.toContain('Caption text');
+  });
+});
+
+// ── printQuizAsPdf ────────────────────────────────────────────────────────
+
+describe('printQuizAsPdf', () => {
+  const sampleQuiz = {
+    title: 'History Quiz',
+    multiple: false,
+    questions: [
+      { q: 'Who wrote Hamlet?', options: ['Dickens', 'Shakespeare', 'Tolkien', 'Austen'], correct: [1] },
+      { q: 'Capital of France?', options: ['London', 'Berlin', 'Paris', 'Rome'], correct: [2] },
+    ],
+  };
+
+  it('renders quiz title and questions', async () => {
+    await printQuizAsPdf(sampleQuiz, 'quiz-test.pdf');
+    const allText = allTextStrings().join(' ');
+    expect(allText).toContain('History Quiz');
+    expect(allText).toContain('Who wrote Hamlet?');
+    expect(allText).toContain('Capital of France?');
+  });
+
+  it('renders name/date line when no state provided (blank worksheet)', async () => {
+    await printQuizAsPdf(sampleQuiz, 'quiz-test.pdf');
+    const allText = allTextStrings().join(' ');
+    expect(allText).toContain('Name:');
+    expect(allText).toContain('Date:');
+  });
+
+  it('does not render name/date line when state is provided', async () => {
+    await printQuizAsPdf(sampleQuiz, 'quiz-test.pdf', {
+      selections: {},
+      submitted: {},
+      wrongOptions: {},
+    });
+    const allText = allTextStrings().join(' ');
+    expect(allText).not.toContain('Name:');
+  });
+
+  it('calls doc.save with the provided filename', async () => {
+    await printQuizAsPdf(sampleQuiz, 'my-quiz.pdf');
+    expect(mockDoc.save).toHaveBeenCalledWith('my-quiz.pdf');
+  });
+
+  it('renders score summary when all questions submitted', async () => {
+    await printQuizAsPdf(sampleQuiz, 'quiz.pdf', {
+      selections: { 0: new Set([1]), 1: new Set([2]) },
+      submitted: { 0: true, 1: true },
+      wrongOptions: { 0: new Set(), 1: new Set() },
+    });
+    const allText = allTextStrings().join(' ');
+    expect(allText).toContain('Score:');
+  });
+
+  it('does not render score when not all submitted', async () => {
+    await printQuizAsPdf(sampleQuiz, 'quiz.pdf', {
+      selections: { 0: new Set([1]) },
+      submitted: { 0: true },
+      wrongOptions: {},
+    });
+    const allText = allTextStrings().join(' ');
+    expect(allText).not.toContain('Score:');
+  });
+});
+
+// ── Quiz blocks in conversation PDF ──────────────────────────────────────
+
+describe('printContentAsPdf – quiz blocks inline', () => {
+  const quizJson = JSON.stringify({
+    title: 'Inline Quiz',
+    multiple: true,
+    questions: [
+      { q: 'What is 2+2?', options: ['3', '4', '5', '6'], correct: [1] },
+    ],
+  });
+
+  it('renders quiz title when content contains [quiz:{...}]', async () => {
+    const md = `Here is a quiz:\n\n[quiz:${quizJson}]`;
+    await printContentAsPdf(md, 'test');
+    const allText = allTextStrings().join(' ');
+    expect(allText).toContain('Inline Quiz');
+    expect(allText).toContain('What is 2+2?');
+  });
+
+  it('does not print raw [quiz: marker as plain text', async () => {
+    const md = `[quiz:${quizJson}]`;
+    await printContentAsPdf(md, 'test');
+    const allText = allTextStrings().join(' ');
+    expect(allText).not.toContain('[quiz:');
+    expect(allText).not.toContain('[QUIZ_BLOCK_');
+  });
+});
+
+// ── printAssistantMessagesAsPdf includes quiz messages ────────────────────
+
+describe('printAssistantMessagesAsPdf – includes quiz messages', () => {
+  const quizJson = JSON.stringify({
+    title: 'Full Conversation Quiz',
+    multiple: false,
+    questions: [{ q: 'Question?', options: ['A', 'B', 'C', 'D'], correct: [0] }],
+  });
+
+  it('does not skip messages containing [quiz:]', async () => {
+    const messages = [
+      { content: 'Normal answer' },
+      { content: `[quiz:${quizJson}]` },
+    ];
+    await printAssistantMessagesAsPdf(messages, 'conversation');
+    const allText = allTextStrings().join(' ');
+    expect(allText).toMatch(/Normal\s+answer/);
+    expect(allText).toContain('Full Conversation Quiz');
   });
 });

@@ -144,7 +144,8 @@ debugRouter.get('/debug/tables-overview', async (ctx) => {
         'indexing_events', (SELECT COUNT(*) FROM public.indexing_events),
         'pdf_pages', (SELECT COUNT(*) FROM public.pdf_pages),
         'workers', (SELECT COUNT(*) FROM public.workers),
-        'jobs', (SELECT COUNT(*) FROM public.jobs)
+        'jobs', (SELECT COUNT(*) FROM public.jobs),
+        'user_wikis', (SELECT COUNT(*) FROM public.user_wikis)
       ),
       'conversations', COALESCE(
         (SELECT json_agg(row_to_json(c))

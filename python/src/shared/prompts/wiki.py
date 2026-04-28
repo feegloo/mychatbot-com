@@ -141,33 +141,33 @@ flowchart LR
 
   Tokens --> EmbLayer
   EmbLayer --> PosEnc
-  PosEnc --> MHSA1
-  MHSA1 --> Add1
-  Add1 --> FFN1
-  FFN1 --> Add2
-  Add2 --> EncStack
-  EncStack --> CrossAttn
+  PosEnc ==>|+0.91| MHSA1
+  MHSA1 -->|+0.83| Add1
+  Add1 -->|+0.78| FFN1
+  FFN1 -->|+0.76| Add2
+  Add2 ==>|+0.88| EncStack
+  EncStack ==>|+0.85| CrossAttn
 
-  PosEnc --> MaskedMHSA
-  MaskedMHSA --> Add3
-  Add3 --> CrossAttn
-  CrossAttn --> Add4
-  Add4 --> FFN2
-  FFN2 --> Add5
-  Add5 --> DecStack
+  PosEnc -->|+0.80| MaskedMHSA
+  MaskedMHSA -->|+0.77| Add3
+  Add3 -->|+0.82| CrossAttn
+  CrossAttn -->|+0.79| Add4
+  Add4 -->|+0.75| FFN2
+  FFN2 -->|+0.73| Add5
+  Add5 ==>|+0.86| DecStack
 
-  DecStack --> Linear
-  Linear --> Softmax
-  Softmax --> Probs
+  DecStack -->|+0.90| Linear
+  Linear -->|+0.95| Softmax
+  Softmax -->|+0.97| Probs
 
-  Q --> DotProd
-  K --> DotProd
-  DotProd --> Scale
-  Scale --> SoftmaxA
-  SoftmaxA --> V
-  V --> MHSA1
+  Q ==>|+0.93| DotProd
+  K ==>|+0.93| DotProd
+  DotProd -->|+0.88| Scale
+  Scale -->|+0.91| SoftmaxA
+  SoftmaxA ==>|+0.89| V
+  V ==>|+0.87| MHSA1
 
-  Probs -.-> Tokens
+  Probs -.->|-0.05| Tokens
 ```
 - Sinusoidal vs. learned positional encodings: paper claims parity but only on one task.
 """
@@ -216,6 +216,40 @@ Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnien
 ## Open Questions
 - Brak zapisu o RODO/powierzeniu danych — czy dane osobowe występują w projekcie?
 - Czy 50 000 PLN kary za NDA jest egzekwowalne w świetle art. 484 §2 KC (możliwość miarkowania)?
+
+## Mermaid Flowchart
+```mermaid
+flowchart LR
+  subgraph Strony
+    Acme[Acme Sp. z o.o.]
+    Kowalski[J. Kowalski - JDG]
+  end
+  subgraph Rozliczenie
+    Faktura[Faktura VAT]
+    Wynagrodzenie[Wynagrodzenie 18k PLN]
+    Odsetki[Roszczenie odsetkowe]
+  end
+  subgraph Prawa
+    IP[Prawa autorskie - IP]
+    NDA[NDA 3 lata]
+  end
+  subgraph Sankcje
+    Kara[Kara 50k PLN]
+    Wypowiedzenie[Wypowiedzenie 30 dni]
+    Rozwiazanie[Rozwiazanie umowy]
+  end
+
+  Kowalski ==>|+0.88| Faktura
+  Faktura ==>|+0.92| Wynagrodzenie
+  Wynagrodzenie ==>|+0.85| IP
+  Acme -->|+0.76| Wynagrodzenie
+  Brak_zaplaty[Brak zaplaty] -.->|+0.41| Odsetki
+  NDA <-->|+0.69| Acme
+  NDA <-->|+0.67| Kowalski
+  Naruszenie_NDA[Naruszenie NDA] ==>|+0.83| Kara
+  Wypowiedzenie -->|+0.79| Rozwiazanie
+  IP -.->|-0.08| NDA
+```
 """
 
 _EXAMPLE_FICTION = """\
@@ -259,6 +293,40 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 ## Open Questions
 - The deserter's claim about "the Others" is dismissed by Ned — is it played as
   delusion or as ignored truth? (Ambiguity is intentional in this chapter.)
+
+## Mermaid Flowchart
+```mermaid
+flowchart LR
+  subgraph StarkHousehold
+    Ned[Ned Stark]
+    Bran[Bran Stark]
+    Robb[Robb Stark]
+    Jon[Jon Snow - bastard]
+    Theon[Theon Greyjoy - ward]
+  end
+  subgraph Symbolism
+    Direwolves[Direwolf Pups x6]
+    StarkChildren[Stark Children x5]
+    AlbinoRunt[Albino Runt - Jon]
+  end
+  subgraph NightWatch
+    Deserter[The Deserter]
+    Others[White Walkers - off-page]
+  end
+
+  Ned ==>|+0.89| Bran
+  Ned ==>|+0.84| Justice(Justice - execution scene)
+  Bran -->|+0.72| Direwolves
+  Robb -->|+0.68| Direwolves
+  Jon -.->|+0.31| StarkHousehold
+  Jon -->|+0.58| AlbinoRunt
+  Direwolves <-->|+0.91| StarkChildren
+  AlbinoRunt -.->|+0.35| Jon
+  Theon -.->|-0.18| StarkHonor(Stark Honor)
+  Deserter ==>|+0.77| Others
+  Ned -->|+0.65| Deserter
+  Others -.->|-0.12| Ned
+```
 """
 
 # ---------------------------------------------------------------------------
@@ -339,18 +407,36 @@ A rich, detailed "big-picture" flowchart rendering the SAME entities and
 relationships as the sections above in valid Mermaid syntax. This diagram
 is the primary visual map — favour completeness and depth over brevity.
 
+== CORRELATION SCORES ON EDGES ==
+The raw material contains a "CHUNK PAIRWISE COSINE CORRELATION" section with
+numeric similarity scores between the retrieved text chunks, computed via
+HNSW cosine similarity. Use these scores to annotate every edge:
+
+  • Score ≥ 0.70  → strong correlation  → use  `==>|score|`   (e.g. `==>|+0.87|`)
+  • 0.40 – 0.69   → moderate relation   → use  `-->|score|`   (e.g. `-->|+0.55|`)
+  • 0.10 – 0.39   → weak / indirect     → use  `-.->|score|`  (e.g. `-.->|+0.22|`)
+  • Score < 0      → contrasting        → use  `-.->|score|`  (e.g. `-.->|-0.14|`)
+
+Workflow:
+1. Map each diagram entity to the chunk(s) it appears in most.
+2. For an edge A → B, find the highest pairwise cosine score between any
+   chunk associated with A and any chunk associated with B.
+3. Use that score as the edge label. If no chunk pair covers both entities,
+   estimate based on proximity in the narrative/material.
+4. Every edge in the diagram MUST carry a `|score|` label.
+
 Rules:
 - First line must be: `flowchart LR`
 - Node IDs: short, alphanumeric, no spaces (e.g. TransformerModel, SelfAttn).
 - Node labels in square brackets: `A[Label text]`
 - Round brackets for process/action nodes: `A(Label)`
 - Double-square for subsystems/modules: `A[[Label]]`
-- Edge types:
-    A --> B           (plain directed)
-    A --label--> B    (labelled edge; label inside --)
-    A ==> B           (strong / blocking dependency)
-    A -.-> B          (weak / hypothesized / foreshadowed)
-    A <--> B          (bidirectional)
+- Edge types (always include score label):
+    A ==>|+0.87| B    (strong dependency, high cosine similarity)
+    A -->|+0.55| B    (moderate relation)
+    A -.->|+0.22| B   (weak / hypothesized / indirect link)
+    A -.->|-0.14| B   (contrasting / opposing concepts)
+    A <-->|+0.63| B   (bidirectional, moderate correlation)
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
 - Aim for 15-35 nodes and 20-45 edges. More is better when supported by source.

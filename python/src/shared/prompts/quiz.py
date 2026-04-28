@@ -25,9 +25,10 @@ Bad: `[quiz:{{"tytuł":"Quiz","wielokrotny":false,"pytania":[]}}]` or `[akcja:St
 
 If neither the retrieved context nor the chat history contain enough information, respond with: "I could not find enough evidence in the uploaded files to create a quiz on this topic."
 
-IMPORTANT: Randomly choose ONE quiz type (roughly 50/50 chance):
-- **Single choice** ("multiple": false) — each question has exactly ONE correct answer.
-- **Multiple choice** ("multiple": true) — each question can have 1-4 correct answers (but never 0).
+IMPORTANT — Quiz type selection (read the user's question carefully FIRST):
+1. If the user's question explicitly requests **multiple choice** (e.g. "multiple choice quiz", "wielokrotnego wyboru", "wielokrotny wybór", "multi-choice", "mehrere richtige", "choix multiple", "опрос с несколькими ответами", or any translation meaning "more than one correct answer"), you MUST set "multiple": true.
+2. If the user's question explicitly requests **single choice** (e.g. "single choice quiz", "jednokrotnego wyboru", "jednokrotny wybór", "one correct answer", "nur eine richtige", "choix unique", "один правильный ответ", or any translation meaning "exactly one correct answer"), you MUST set "multiple": false.
+3. Only when the user gives NO hint about quiz type: randomly choose 50/50 — Single choice ("multiple": false, one correct answer per question) or Multiple choice ("multiple": true, 1–3 correct answers per question).
 
 Output format: Start with a brief intro sentence, then output a quiz block using EXACTLY this format:
 
@@ -38,15 +39,15 @@ Rules:
 - The top-level "multiple" field MUST be present: true for multiple choice, false for single choice
 - Each question has 3-4 options
 - For single choice ("multiple": false): "correct" must contain exactly ONE index
-- For multiple choice ("multiple": true): "correct" contains 1-4 indices (never 0)
+- For multiple choice ("multiple": true): "correct" contains 1-3 indices (never 0, never 4 or more)
 - Include a brief explanation for each correct answer
 - Questions should test understanding, not just recall
 - CRITICAL: NEVER include [source:N], [source:1], [source:2] or any source citations anywhere in the quiz JSON. No citations in questions, options, explanations, or title. Source references break the JSON rendering and must be completely omitted from the entire [quiz:...] block.
 - The quiz JSON must be valid JSON on a single line after [quiz:
 - Write the quiz in the same language as the retrieved context
 - Never use em dash (—) or en dash (–). Use a regular hyphen (-) instead.
-- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question).
-- CRITICAL: Distribute correct answers randomly and evenly across the available option positions for each question. Use only valid indices from 0 to len(options)-1. If a question has 3 options, only use indices 0, 1, and 2. Use index 3 only when a question has 4 options. Do NOT place the correct answer at index 0 more than once or twice across the {num_questions} questions. Across the {num_questions} questions, vary correct-answer positions so no single valid position dominates.
+- Before the [quiz:...] block, write 1-2 intro sentences about the quiz topic. Explicitly mention whether this is a single choice quiz (one correct answer per question) or a multiple choice quiz (one or more correct answers per question). If the user explicitly requested a quiz type, acknowledge it (e.g. "As you requested, this is a multiple choice quiz…").
+- CRITICAL — ANSWER POSITION RANDOMIZATION: Shuffle option order for every question so correct answers land unpredictably. Specifically: (1) Never put the wrong option(s) always at the same index — wrong answers must be spread across all positions. (2) The correct index set must vary per question; do NOT let index 2 (3rd position) be the wrong outlier on most questions. (3) Across all {num_questions} questions each available position (0,1,2 and 3 when 4 options) should appear as a correct answer roughly equally. (4) For multiple choice, vary the count of correct answers across questions — use 1 correct on some, 2 on others, 3 on others; never repeat the same count on every question.
 
 <<QUIZ_ACTIONS>>"""
 

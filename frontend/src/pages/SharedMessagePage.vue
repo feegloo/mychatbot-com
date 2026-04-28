@@ -19,6 +19,7 @@
           :is-welcome="sharedIsWelcome"
           :files="sharedFiles"
           :no-animation="true"
+          :is-owner="isOwner"
           @select-question="
             replyText = $event;
             startThread();

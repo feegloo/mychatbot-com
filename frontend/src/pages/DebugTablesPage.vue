@@ -44,16 +44,6 @@
           </button>
         </div>
       </div>
-      <button
-        v-if="isMobile"
-        type="button"
-        class="tabs-toggle"
-        :aria-expanded="tabsExpanded"
-        aria-controls="table-tabs-list"
-        @click="tabsExpanded = !tabsExpanded"
-      >
-        {{ tabsExpanded ? '▲ Less' : `▼ More (${TABLE_NAMES.length - MOBILE_VISIBLE_TABS} tables)` }}
-      </button>
 
       <div v-if="activeTable === SQL_TAB" class="sql-panel">
         <textarea
@@ -156,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   getDebugTable,
   getDebugTablesOverview,
@@ -189,34 +179,11 @@ const TABLE_NAMES: DebugTableName[] = [
   'pdf_pages',
   'workers',
   'jobs',
+  'user_wikis',
 ]
 
-const MOBILE_VISIBLE_TABS = 3
-
-const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < 768)
-const tabsExpanded = ref(false)
-
-const handleResize = () => {
-  isMobile.value = window.innerWidth < 768
-}
-
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-})
-
-const visibleTableNames = computed(() => {
-  if (!isMobile.value || tabsExpanded.value) return TABLE_NAMES
-  const visibleNames = TABLE_NAMES.slice(0, MOBILE_VISIBLE_TABS)
-  const current = activeTable.value
-  if (current === SQL_TAB || visibleNames.includes(current as DebugTableName)) {
-    return visibleNames
-  }
-  return [...visibleNames.slice(0, MOBILE_VISIBLE_TABS - 1), current as DebugTableName]
-})
+const visibleTableNames = computed(() => TABLE_NAMES)
+const visibleTableNames = computed(() => TABLE_NAMES)
 
 const authenticated = ref(false)
 const username = ref('')
@@ -299,10 +266,36 @@ const currentColumns = computed(() => {
   return columns(activeTable.value as DebugTableName)
 })
 
+// Defines the preferred left-to-right column order for each table.
+// Columns not listed appear after in their original DB order.
+const COLUMN_PRIORITY: Partial<Record<DebugTableName, string[]>> = {
+  conversations: ['id', 'display_name', 'created_at', 'status', 'storage_namespace', 'vector_collection_name'],
+  conversation_messages: ['conversation_id', 'created_at', 'role', 'content', 'id', 'user_id'],
+  suggested_questions: ['conversation_id', 'created_at', 'questions', 'id'],
+  uploaded_files: ['conversation_id', 'created_at', 'file_name', 'id'],
+  user_fingerprints: ['fingerprint', 'created_at', 'conversation_id', 'id'],
+  conversation_access_tokens: ['conversation_id', 'created_at', 'token', 'id'],
+  access_requests: ['conversation_id', 'created_at', 'id'],
+  users: ['fingerprint', 'user_id', 'created_at'],
+  processing_jobs: ['conversation_id', 'created_at', 'status', 'file_name', 'id'],
+  processing_jobs_errors: ['conversation_id', 'created_at', 'content', 'error_message', 'file_name', 'id'],
+  prompt_history: ['conversation_id', 'created_at', 'operation', 'model', 'prompt_text', 'response_text', 'id'],
+  generated_images: ['conversation_id', 'created_at', 'id'],
+  indexing_events: ['conversation_id', 'created_at', 'event_type', 'id'],
+  pdf_pages: ['conversation_id', 'created_at', 'content', 'page_number', 'id'],
+  workers: ['id', 'started_at', 'status'],
+  jobs: ['id', 'created_at', 'status'],
+  user_wikis: ['user_id', 'updated_at', 'content', 'source_count'],
+}
+
 function columns(table: DebugTableName) {
   const rows = data.value[table]
   if (!rows.length) return []
-  return Object.keys(rows[0])
+  const all = Object.keys(rows[0])
+  const priority = COLUMN_PRIORITY[table] ?? []
+  const prioritySet = new Set(priority)
+  const rest = all.filter((c) => !prioritySet.has(c))
+  return [...priority.filter((c) => all.includes(c)), ...rest]
 }
 
 function isRowExpanded(rowIdx: number) {
@@ -554,20 +547,6 @@ h1 {
 .table-tabs .count {
   opacity: 0.6;
   font-size: 0.8em;
-}
-.tabs-toggle {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  margin-bottom: 6px;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  background: #0f172a;
-  color: #818cf8;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-align: center;
 }
 .login-box {
   max-width: 320px;

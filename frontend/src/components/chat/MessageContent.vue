@@ -35,6 +35,7 @@ const props = defineProps<{
   messageId?: string
   conversationName?: string
   fileName?: string
+  lang?: string
   /** When provided, hovering `[source:N]` buttons shows the citation text as
    *  a floating-vue tooltip (restored from the pre-refactor ChatMessage). */
   citations?: ChatMessage['citations']
@@ -111,7 +112,7 @@ function onContentClick(e: MouseEvent) {
       // textContent, so the title doesn't include "↑1↑2" etc.
       const clone = captionEl.cloneNode(true) as HTMLElement
       clone.querySelectorAll('.inline-source-btn').forEach((btn) => btn.remove())
-      return clone.textContent?.replace(/^"|"$/g, '').trim() || undefined
+      return clone.textContent?.trim().replace(/^"|"$/g, '').trim() || undefined
     })()
     emit('image-click', img.src, captionTitle || img.alt || 'Image')
     return
@@ -254,6 +255,7 @@ onBeforeUnmount(() => {
         :quiz-index="part.quizIndex"
         :conversation-name="conversationName"
         :file-name="fileName"
+        :lang="lang"
       />
       <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
     </template>

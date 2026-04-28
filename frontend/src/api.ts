@@ -574,6 +574,7 @@ export type DebugTableName =
   | 'pdf_pages'
   | 'workers'
   | 'jobs'
+  | 'user_wikis'
 
 export async function getDebugTablesOverview(username: string, password: string) {
   const response = await api.get('/debug/tables-overview', {

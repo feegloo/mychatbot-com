@@ -120,12 +120,14 @@
             :max-visible-actions="index === 0 ? 5 : 3"
             :conversation-name="conversationTitle"
             :file-name="primaryFileName"
+            :lang="currentLanguage"
             :is-thread="isThread"
             :no-animation="index < initialMessageCount"
             :animate="index >= initialMessageCount && !!msg.id && !animatedMessageIds.has(msg.id)"
             :is-translating="isTranslating"
             :search-highlighted="isSearchHit(msg, index)"
             :search-term="searchTermFromRoute"
+            :is-owner="status.role === 'owner' || status.role === 'editor'"
             @select-question="
               (q: string) => {
                 question = q

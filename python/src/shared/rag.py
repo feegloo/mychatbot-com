@@ -215,8 +215,14 @@ def build_context(rows: list[dict]) -> str:
     return "\n\n--\n\n".join(parts)
 
 
-def get_llm() -> Any:
+def get_llm(temperature: float | None = None) -> Any:
     """Get OpenAI LLM instance (cached).
+
+    Args:
+        temperature: Optional sampling temperature override. When provided,
+            the returned instance is bound with this temperature instead of
+            the default (_DEFAULT_LLM_TEMPERATURE). Useful for tasks that
+            benefit from higher creativity, such as welcome message generation.
 
     Raises ValueError if OPENAI_API_KEY is missing.
     """
@@ -226,7 +232,10 @@ def get_llm() -> Any:
     cache_key = f"openai:{settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
         seed = random.choice(_SEED_OPTIONS)
-        return _llm_instance.bind(seed=seed)
+        bind_kwargs: dict = {"seed": seed}
+        if temperature is not None:
+            bind_kwargs["temperature"] = temperature
+        return _llm_instance.bind(**bind_kwargs)
 
     if not settings.openai_api_key:
         raise ValueError("OpenAI API key not configured. Set OPENAI_API_KEY environment variable")
@@ -248,7 +257,10 @@ def get_llm() -> Any:
     # Bind a random seed to vary responses for repeated prompts
     seed = random.choice(_SEED_OPTIONS)
     logger.info(f"🎲 Selected random seed: {seed}")
-    return _llm_instance.bind(seed=seed)
+    bind_kwargs = {"seed": seed}
+    if temperature is not None:
+        bind_kwargs["temperature"] = temperature
+    return _llm_instance.bind(**bind_kwargs)
 
 
 _MAX_IMAGE_CITATIONS = 3

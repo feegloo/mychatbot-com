@@ -160,6 +160,7 @@
                 :message-id="msg.id"
                 :conversation-name="conversationName"
                 :file-name="fileName"
+                :lang="lang"
                 :citations="msg.citations"
                 :animate="false"
                 @select="$emit('select-question', $event)"
@@ -205,6 +206,7 @@
               :message-id="msg.id"
               :conversation-name="conversationName"
               :file-name="fileName"
+              :lang="lang"
               :citations="msg.citations"
               :animate="false"
               @select="$emit('select-question', $event)"
@@ -305,6 +307,7 @@
         :visible="previewOpen"
         :citation="previewCitation"
         :conversation-id="effectiveStorageId"
+        :is-owner="isOwner"
         @close="previewOpen = false"
       />
     </div>
@@ -353,6 +356,7 @@ const props = withDefaults(
     maxVisibleActions?: number
     conversationName?: string
     fileName?: string
+    lang?: string
     isThread?: boolean
     noAnimation?: boolean
     /** When true, triggers the one-shot word-reveal animation for this message.
@@ -362,8 +366,9 @@ const props = withDefaults(
     searchHighlighted?: boolean
     searchTerm?: string
     wikiReady?: boolean
+    isOwner?: boolean
   }>(),
-  { maxVisibleActions: 2 },
+  { maxVisibleActions: 2, isOwner: true },
 )
 
 const emit = defineEmits<{
@@ -659,8 +664,7 @@ function shareMessage() {
 }
 
 const canDownloadPdf = computed(
-  () =>
-    props.msg.role === 'assistant' && !!props.msg.content && !props.msg.content.includes('[quiz:'),
+  () => props.msg.role === 'assistant' && !!props.msg.content,
 )
 
 async function downloadMessagePdf() {
@@ -671,7 +675,7 @@ async function downloadMessagePdf() {
     // Welcome-message PDF should export all assistant answers in the conversation.
     if (props.isWelcome) {
       const assistantMessages = (props.allMessages || [])
-        .filter((m) => m.role === 'assistant' && !!m.content?.trim() && !m.content.includes('[quiz:'))
+        .filter((m) => m.role === 'assistant' && !!m.content?.trim())
         .map((m) => ({ content: m.content }))
 
       if (assistantMessages.length > 0) {
