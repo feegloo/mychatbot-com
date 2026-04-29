@@ -60,6 +60,14 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
 - CRITICAL FORMAT: All 7 action markers MUST be placed on a SINGLE line, space-separated, like this:
   [action:Label1] [action:Label2] [action:Label3] [action:Label4] [action:Label5] [action:Label6] [action:Label7]
 - NEVER place each action marker on its own line — they must all be together on one line with no newlines between them.
+- CRITICAL — EXACT KEY FORMAT: The marker key is ALWAYS lowercase `action` followed immediately by a colon, with NO number, NO space, and NO bracket before the colon. The ONLY valid format is `[action:Label]`.
+  * FORBIDDEN formats (all produce unparsable output):
+    - `[Action 1: Label]` — wrong: uppercase, numbered, space before colon
+    - `[Action 2: Label]` — wrong: uppercase, numbered, space before colon
+    - `[Action: Label]` — wrong: space after colon (label must start immediately after `:`)
+    - `[action : Label]` — wrong: space before colon
+    - `[Action:Label]` — wrong: uppercase first letter
+  * ONLY valid format: `[action:Label]` — lowercase `action`, colon, no space, label text directly.
 - **LANGUAGE MIRRORING — CRITICAL, NON-NEGOTIABLE**: Every single [action:...] label — ALL 7 of them, including rich action-prompts with emoji — MUST be written in the EXACT SAME language as the user's latest question and your answer. This is the #1 rule for action buttons. Do NOT mix languages. Do NOT default to English "just because the action type (quiz / checklist / comparison table / generate image) is often phrased in English in examples". The examples in this prompt happen to be mostly in English for illustration only — they are NOT a template to copy verbatim. You MUST translate every action label into the answer's language.
   * IMPORTANT: translate ONLY the text INSIDE the marker. The marker key is fixed English and MUST stay `[action:...]` in every language.
   * Good (Polish label, correct key): `[action:Stwórz tabelę porównawczą 📊]`

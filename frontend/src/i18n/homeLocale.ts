@@ -77,9 +77,9 @@ export interface HomeMessages {
 export const homeMessages: Record<HomeLang, HomeMessages> = {
   en: {
     subtitleP1Html:
-      "Upload your big PDFs and files privately, securely encrypted end-to-end 🔒",
+      "Upload your big PDFs and files privately 🔒",
     subtitleP1bHtml:
-      'let AI extract insights, learn and tell you what\u2019s inside files in the author\u2019s voices.',
+      'let AI present expert insights and learn to tell you what\u2019s inside files in the author\u2019s voices.',
     subtitleP2Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,',
     subtitleP2bHtml:
@@ -101,9 +101,9 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
   },
   pl: {
     subtitleP1Html:
-      'Wgraj swoje duże PDF-y i pliki prywatnie, bezpiecznie szyfrowane end-to-end 🔒',
+      'Wgraj swoje duże PDF-y i pliki bezpiecznie 🔒',
     subtitleP1bHtml:
-      'pozwól AI wyciągnąć wnioski, nauczyć się i opowiedzieć co jest w plikach, głosem autorów.',
+      'pozwól AI przedstawić eksperckie wnioski i nauczyć się opowiadać co jest w plikach, głosem autorów.',
     subtitleP2Html:
       'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG,',
     subtitleP2bHtml:

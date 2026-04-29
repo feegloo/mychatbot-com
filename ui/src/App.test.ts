@@ -20,7 +20,7 @@ describe('App shell', () => {
 
     expect(wrapper.find('.menu').exists()).toBe(true)
     expect(wrapper.find('.content').exists()).toBe(true)
-    expect(wrapper.text()).toContain('securely encrypted')
+    expect(wrapper.text()).toContain('securely')
     expect(wrapper.find('img.home-logo').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cloud-function-file-input"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="cloud-function-upload-button"]').exists()).toBe(true)
