@@ -18,6 +18,7 @@ import {
 } from 'vue'
 import { createTooltip, destroyTooltip } from 'floating-vue'
 import type { ChatMessage } from '../../api'
+import { getData, setData } from '../../utils/localData'
 import { applyWordReveal } from '../../composables/wordReveal'
 import { parseMessageContent, splitTokens, type ActionToken } from './parseContent'
 import { splitContent } from './splitContent'
@@ -130,16 +131,46 @@ function onContentClick(e: MouseEvent) {
     emit('upload-trigger')
     return
   }
-  // Checklist boxes: toggle in place. (LS persistence dropped in Phase 2 rewrite.)
+  // Checklist boxes: toggle in place and persist to localStorage.
   const checkBox = target.closest('.checklist-box') as HTMLElement | null
   if (checkBox) {
     checkBox.classList.toggle('checked')
+    saveChecklistState()
     return
   }
   const li = target.closest('li') as HTMLElement | null
   if (li && li.querySelector('.checklist-box')) {
     li.querySelector('.checklist-box')!.classList.toggle('checked')
+    saveChecklistState()
   }
+}
+
+// --- Checklist localStorage persistence ----------------------------------
+function checklistStorageKey(): string | null {
+  return props.messageId ? `checklist:${props.messageId}` : null
+}
+
+function saveChecklistState() {
+  const key = checklistStorageKey()
+  if (!key || !rootEl.value) return
+  const boxes = rootEl.value.querySelectorAll<HTMLElement>('.checklist-box')
+  const checkedIndices: number[] = []
+  boxes.forEach((box, i) => {
+    if (box.classList.contains('checked')) checkedIndices.push(i)
+  })
+  setData(key, checkedIndices)
+}
+
+function restoreChecklistState() {
+  const key = checklistStorageKey()
+  if (!key || !rootEl.value) return
+  const checkedIndices = getData<number[]>(key)
+  if (!checkedIndices?.length) return
+  const boxes = rootEl.value.querySelectorAll<HTMLElement>('.checklist-box')
+  const indexSet = new Set(checkedIndices)
+  boxes.forEach((box, i) => {
+    if (indexSet.has(i)) box.classList.add('checked')
+  })
 }
 
 // --- Inline source citation tooltips --------------------------------------
@@ -200,7 +231,10 @@ function setupTooltips() {
 watch(
   () => [props.content, props.citations] as const,
   () => {
-    nextTick(setupTooltips)
+    nextTick(() => {
+      setupTooltips()
+      restoreChecklistState()
+    })
   },
   { immediate: true, flush: 'post' },
 )

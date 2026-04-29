@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-show="visible" class="source-modal-overlay" @click.self="$emit('close')">
+    <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <!-- Mobile close bar above content -->
       <div v-if="isMobile" class="source-modal-close-bar" @click="$emit('close')">
         <button v-if="isPdf && isOwner" class="source-modal-open-pdf" @click.stop="openFullPdf">
