@@ -37,7 +37,9 @@ export function useTextSelectionSpeech(
   messages?: Ref<{ role: string; content: string }[]>,
 ) {
   const browserLang = navigator.language.split('-')[0]
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  // True only for coarse-pointer devices (phones/tablets). Hybrid touchscreen laptops
+  // that also have a mouse remain on the mouse/click path.
+  const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches
   let tooltip: HTMLDivElement | null = null
   let selectionTimer: ReturnType<typeof setTimeout> | null = null
   let currentAudio: HTMLAudioElement | null = null
@@ -671,6 +673,13 @@ export function useTextSelectionSpeech(
   // ── Long-press (touch devices) ──
 
   function onTouchStart(e: TouchEvent) {
+    // Cancel any in-flight long-press (e.g. second finger placed = pinch/zoom)
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    touchStartPos = null
+
     if (!isSpeechActive()) return
     if (e.touches.length !== 1) return
 
@@ -678,8 +687,9 @@ export function useTextSelectionSpeech(
     const container = containerRef.value
     if (!target || !container || !container.contains(target)) return
     if (!isInContent(target)) return
-    // Don't interfere with interactive elements
+    // Don't interfere with interactive elements or checklist items
     if (target.closest('button, a, .inline-source-btn, .action-btn, .checklist-box')) return
+    if (isInChecklistItem(target)) return
 
     const touch = e.touches[0]
     touchStartPos = { x: touch.clientX, y: touch.clientY }
@@ -803,37 +813,7 @@ export function useTextSelectionSpeech(
     const sel = window.getSelection()
     if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) return
 
-    const wordRange = getWordRangeAtPoint(e.clientX, e.clientY)
-    if (!wordRange) {
-      if (isPinned) unpinWord()
-      return
-    }
-
-    const word = wordRange.toString().trim()
-    if (word.length < 2) {
-      if (isPinned) unpinWord()
-      return
-    }
-
-    const rect = wordRange.getBoundingClientRect()
-    if (rect.width === 0 && rect.height === 0) return
-
-    // If clicking the same pinned word, toggle off
-    if (
-      isPinned &&
-      pinnedRange &&
-      pinnedRange.startContainer === wordRange.startContainer &&
-      pinnedRange.startOffset === wordRange.startOffset &&
-      pinnedRange.endOffset === wordRange.endOffset
-    ) {
-      unpinWord()
-      return
-    }
-
-    // Pin the clicked word
-    isPinned = true
-    pinnedRange = wordRange
-    showTooltip(rect, word, wordRange)
+    pinWordAt(e.clientX, e.clientY)
   }
 
   // ── Text selection ──
