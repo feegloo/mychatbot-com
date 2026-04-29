@@ -34,7 +34,6 @@ const emit = defineEmits<{
 
 <style scoped>
 .generated-image-frame {
-  border-radius: 12px;
   overflow: hidden;
 }
 

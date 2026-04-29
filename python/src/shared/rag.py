@@ -293,10 +293,29 @@ def _strip_orphan_source_tags(answer: str, citation_count: int) -> str:
     return re.sub(r"\[source:\s*(\d+(?:,\s*\d+)*)\]", _replace, answer)
 
 
+# Matches source tags that have a trailing letter suffix the LLM sometimes appends
+# (e.g. [source:3a], [source:2b]) — we strip the letter and keep the number.
+_SOURCE_TAG_LETTER_SUFFIX_RE = re.compile(
+    r"\[(?:source|zrodlo|źródło):\s*(\d+)[a-zA-Z]+\]",
+    re.IGNORECASE,
+)
+
 _SOURCE_TAG_RE = re.compile(
     r"\[(?:source|zrodlo|źródło):\s*(\d+(?:,\s*\d+)*)\]",
     re.IGNORECASE,
 )
+
+
+def _normalize_source_tags(answer: str) -> str:
+    """Strip trailing alpha characters from source tag numbers.
+
+    LLMs occasionally output [source:3a] instead of [source:3].  Normalize
+    these before any further processing so they are picked up by the regular
+    _SOURCE_TAG_RE pattern.
+    """
+    return _SOURCE_TAG_LETTER_SUFFIX_RE.sub(
+        lambda m: f"[source:{m.group(1)}]", answer
+    )
 
 
 def _renumber_citations_globally(
@@ -345,6 +364,7 @@ def _renumber_citations_globally(
                 global_nums.append(str(local_to_global[local_n]))
         return "[source:" + ",".join(global_nums) + "]" if global_nums else ""
 
+    answer = _normalize_source_tags(answer)
     renumbered = _SOURCE_TAG_RE.sub(_replace_tag, answer)
 
     citations: list[dict] = []

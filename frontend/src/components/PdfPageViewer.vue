@@ -800,6 +800,8 @@ watch(
 
 // Navigate to a different target page when the citation page changes
 // without destroying the already-loaded document.
+// flush:'post' ensures the overlay is visible (v-show resolved) before we read
+// offsetTop, so the scroll lands on the correct pixel position.
 watch(
   () => props.page,
   async (newPage) => {
@@ -808,8 +810,14 @@ watch(
     if (clamped === currentPage.value) return
     currentPage.value = clamped
     highlightDone = false
+    // Scroll to the target page (mirrors the initial-page scroll in loadPdf).
+    const el = pageRefs.get(clamped)
+    if (el && pagesContainer.value) {
+      pagesContainer.value.scrollTop = el.offsetTop
+    }
     await renderPage(clamped)
   },
+  { flush: 'post' },
 )
 </script>
 

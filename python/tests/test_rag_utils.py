@@ -17,6 +17,7 @@ from shared.rag import (
     _is_quiz_request,
     _is_recognize_request,
     _limit_image_rows,
+    _normalize_source_tags,
     _strip_orphan_source_tags,
     build_context,
 )
@@ -115,6 +116,37 @@ class TestBuildContext:
         rows = [self._row(distance=0.4)]
         result = build_context(rows)
         assert "Similarity: 0.80" in result
+
+
+# ---------------------------------------------------------------------------
+# _normalize_source_tags
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeSourceTags:
+    def test_strips_trailing_letter(self):
+        assert _normalize_source_tags("[source:3a]") == "[source:3]"
+
+    def test_strips_lowercase_and_uppercase_suffix(self):
+        assert _normalize_source_tags("[source:2B]") == "[source:2]"
+
+    def test_no_suffix_unchanged(self):
+        assert _normalize_source_tags("[source:5]") == "[source:5]"
+
+    def test_multiple_tags_mixed(self):
+        result = _normalize_source_tags("See [source:1a] and [source:2] here [source:3b].")
+        assert "[source:1]" in result
+        assert "[source:2]" in result
+        assert "[source:3]" in result
+        assert "a" not in result.split("[source:1]")[1].split("[")[0]
+
+    def test_comma_separated_not_affected(self):
+        # Comma-separated tags have no letter suffix; should pass through unchanged
+        assert _normalize_source_tags("[source:1,2]") == "[source:1,2]"
+
+    def test_no_source_tags_unchanged(self):
+        text = "No citations here."
+        assert _normalize_source_tags(text) == text
 
 
 # ---------------------------------------------------------------------------

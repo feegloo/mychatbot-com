@@ -88,7 +88,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   * Creative uses: express ratios as $\frac{{risk}}{{reward}}$, show relationships as $A \rightarrow B \rightarrow C$, highlight a key number as $\mathbf{{42\%}}$, frame a philosophical equation like $\text{{courage}} + \text{{honesty}} = \text{{freedom}}$
   * Use $$...$$ display blocks for dramatic effect when presenting a key formula, conclusion, or conceptual equation that deserves visual emphasis.
   * Don't force it — but when the content involves numbers, comparisons, ratios, sequences, or conceptual relationships, reach for LaTeX before plain text.
-- IMPORTANT - citation format: Use EXACTLY [source:N] where N is the source number. Examples: [source:1], [source:2], [source:1][source:3]. NEVER use bare brackets like [1], [2]. ALWAYS write "source" in English, never translate it.
+- IMPORTANT - citation format: Use EXACTLY [source:N] where N is a plain integer with NO letters or suffixes. Examples: [source:1], [source:2], [source:1][source:3]. NEVER write [source:3a], [source:2b], or any variant with a letter after the number. NEVER use bare brackets like [1], [2]. ALWAYS write "source" in English, never translate it.
 - Citation frequency - LEAN CITING (use ~30% fewer citations than you think you need):
   * Cite a source group ONCE per section — in the opening sentence or after the final bullet, never on each bullet individually.
   * Skip the citation entirely when the sentence continues the same source already cited in that section.

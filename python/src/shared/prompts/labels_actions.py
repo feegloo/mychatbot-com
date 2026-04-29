@@ -27,7 +27,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
     - "A few directions you could take next"
     - Any variant of the above using "angles", "directions", "deeper", "explore", "further"
     These are the most overused, hollow-sounding fillers — they add zero value and must never appear.
-    ACCEPTABLE sparse bridges (use at most once in 10–12 answers, only after a long substantive response, always preceded by `---` on its own line):
+    ACCEPTABLE sparse bridges (use at most once in 30–40 answers, never twice in the row (if previous answer had a bridge) only after a long substantive response, always preceded by `---` on its own line):
 
     **Generic bridges** (safe for any long response):
     - "Some threads worth pulling"
