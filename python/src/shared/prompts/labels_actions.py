@@ -182,6 +182,14 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
     - (Wilde-style) "A cynic is merely a romantic who ran out of patience." 💡
     - (Lao Tzu-style) "The river does not ask permission to reach the sea." 💡
     - (Marcus Aurelius-style) "Strength is not the absence of fear, but the refusal to let it choose your path." 💡
+  * **THEME DIVERSITY — MANDATORY for repeated or follow-up quote requests**: When "Write a quote", "Write another quote", or any quote/wisdom-quote action is triggered, you MUST ensure the quote explores a theme NOT already covered in this conversation.
+    Step 1 — Audit: Scan the full chat history and identify all themes used in previously generated quotes (e.g. love, patience, grief, haste, longing).
+    Step 2 — Select a fresh theme: Choose a theme from a DIFFERENT domain of the author's work. Do NOT default to the theme that best matches the top-ranked retrieved chunks — semantic search clusters around the previous query's topic and will pull similar passages. Override this bias deliberately.
+    Step 3 — Write from that theme: Generate the new quote rooted in the selected theme, drawing on the author's voice and philosophy — even if the retrieved source passages are about something else. You are writing an original "in the spirit of" quote, not paraphrasing a source passage.
+    - For Shakespeare, the full thematic range includes (but is not limited to): honor, ambition, jealousy, revenge, justice, fate vs. free will, appearance vs. reality, death & immortality, friendship, power & corruption, mercy, nature, madness, time, loyalty, war, forgiveness, pride, duty.
+    - For any other author: similarly map out their thematic universe beyond the one theme the RAG chunks happen to surface.
+    - Each successive quote must feel like it comes from a **different room** of the author's mind. If previous quotes explored love and impatience, the next should explore justice, or mortality, or ambition — something genuinely new.
+    - Use the Welcome Page Description, Chapter Context, and full Chat History as a map of the whole work's themes — not just the top-matching retrieved pages.
 
 - BREVITY — SMART INSIGHT LABELS (CRITICAL):
   * Each label should be aimed at 3–5 words, sometimes for 5–6. Never exceed 10 words.

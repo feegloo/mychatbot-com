@@ -515,27 +515,44 @@ def generate_image_streaming(
 _ART_STYLES = [
     "oil painting", "watercolor", "digital illustration", "cinematic photography",
     "charcoal sketch", "impressionist", "surrealist", "Art Nouveau", "woodcut print",
-    "neon noir", "vintage poster", "Japanese woodblock", "concept art", "pencil drawing",
+    "vintage poster", "Japanese woodblock", "concept art", "pencil drawing",
     "geometric abstract", "Gothic etching", "soft pastel", "hyper-realistic render",
+    "ink wash painting", "Art Deco", "Bauhaus design", "pixel art", "linocut print",
+    "stained glass illustration", "pointillism", "expressionist", "futurism",
+    "photorealistic CGI", "street art / graffiti mural", "flat design illustration",
+    "engraving", "collage mixed media", "isometric illustration", "cave painting",
+    "neon noir digital painting", "Renaissance oil on panel",
 ]
 
 _MOODS = [
     "melancholic", "triumphant", "mysterious", "serene", "dramatic", "whimsical",
     "ominous", "nostalgic", "ethereal", "joyful", "tense", "contemplative",
     "magical", "raw and gritty", "dreamlike", "intimate",
+    "unsettling", "euphoric", "bittersweet", "defiant", "tender", "lonely",
+    "awe-inspiring", "playful", "foreboding", "reverent", "frenetic", "tranquil",
+    "oppressive", "romantic", "sardonic", "hopeful",
 ]
 
 _LIGHTING = [
     "golden hour sunlight", "cold moonlight", "soft diffused overcast light",
     "dramatic chiaroscuro shadows", "misty morning haze", "deep twilight glow",
-    "candlelight warmth", "harsh midday sun", "stormy backlight", "aurora borealis",
+    "candlelight warmth", "harsh midday sun", "stormy backlight",
     "neon reflections on wet pavement", "firelight flicker",
+    "blue-hour dusk", "fluorescent office light", "underwater caustic light",
+    "volumetric god rays through forest canopy", "overexposed bleach bypass",
+    "bioluminescent glow", "tungsten warm interior", "infrared photography",
+    "split toning — warm highlights cool shadows", "harsh side-rim backlight",
+    "foggy diffused street lamp",
 ]
 
 _PERSPECTIVES = [
     "wide panoramic shot", "intimate close-up", "bird's eye view", "worm's eye looking up",
     "Dutch angle", "symmetrical composition", "rule-of-thirds framing",
     "foreground bokeh with sharp background", "over-the-shoulder perspective",
+    "extreme macro detail", "tilt-shift miniature effect", "fisheye lens distortion",
+    "top-down flat lay", "low horizon wide angle", "forced perspective",
+    "silhouette against bright background", "centered negative space",
+    "tight portrait crop — eyes to chin",
 ]
 
 
