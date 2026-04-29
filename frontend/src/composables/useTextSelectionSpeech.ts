@@ -14,6 +14,8 @@ import {
 
 const TTS_INSTRUCTIONS_MAX = 4096
 const SELECTION_TTS_TEXT_MAX = 4096
+const LONG_PRESS_DELAY_MS = 500
+const TOUCH_MOVE_THRESHOLD_PX = 5
 
 /**
  * Composable that enables text-to-speech on message content when the
@@ -35,6 +37,9 @@ export function useTextSelectionSpeech(
   messages?: Ref<{ role: string; content: string }[]>,
 ) {
   const browserLang = navigator.language.split('-')[0]
+  // True only for coarse-pointer devices (phones/tablets). Hybrid touchscreen laptops
+  // that also have a mouse remain on the mouse/click path.
+  const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches
   let tooltip: HTMLDivElement | null = null
   let selectionTimer: ReturnType<typeof setTimeout> | null = null
   let currentAudio: HTMLAudioElement | null = null
@@ -47,6 +52,12 @@ export function useTextSelectionSpeech(
   let mouseDownPos: { x: number; y: number } | null = null
   let isPinned = false
   let pinnedRange: Range | null = null
+
+  // ── Long-press state (touch devices only) ──
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null
+  let touchStartPos: { x: number; y: number } | null = null
+  /** Set when a long-press successfully pins a word, so the subsequent click event is ignored. */
+  let longPressHandled = false
 
   // ── Caption playback state ──
   let speechRange: Range | null = null
@@ -659,8 +670,114 @@ export function useTextSelectionSpeech(
     removeHighlight()
   }
 
+  // ── Long-press (touch devices) ──
+
+  function onTouchStart(e: TouchEvent) {
+    // Cancel any in-flight long-press (e.g. second finger placed = pinch/zoom)
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    touchStartPos = null
+
+    if (!isSpeechActive()) return
+    if (e.touches.length !== 1) return
+
+    const target = e.target as HTMLElement | null
+    const container = containerRef.value
+    if (!target || !container || !container.contains(target)) return
+    if (!isInContent(target)) return
+    // Don't interfere with interactive elements or checklist items
+    if (target.closest('button, a, .inline-source-btn, .action-btn, .checklist-box')) return
+    if (isInChecklistItem(target)) return
+
+    const touch = e.touches[0]
+    touchStartPos = { x: touch.clientX, y: touch.clientY }
+    longPressHandled = false
+
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null
+      if (!touchStartPos) return
+
+      const { x, y } = touchStartPos
+      pinWordAt(x, y)
+      if (isPinned) {
+        // Prevent the subsequent click from immediately un-pinning the word
+        longPressHandled = true
+      }
+    }, LONG_PRESS_DELAY_MS)
+  }
+
+  function onTouchMove(e: TouchEvent) {
+    if (!longPressTimer) return
+    const touch = e.touches[0]
+    if (!touchStartPos) return
+    const dx = Math.abs(touch.clientX - touchStartPos.x)
+    const dy = Math.abs(touch.clientY - touchStartPos.y)
+    if (dx > TOUCH_MOVE_THRESHOLD_PX || dy > TOUCH_MOVE_THRESHOLD_PX) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+  }
+
+  function onTouchEnd() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+    touchStartPos = null
+  }
+
+  /**
+   * Pin the word at the given viewport coordinates.
+   * Shared by long-press (touch) and click (mouse) paths.
+   */
+  function pinWordAt(x: number, y: number) {
+    const container = containerRef.value
+    if (!container) return
+
+    const wordRange = getWordRangeAtPoint(x, y)
+    if (!wordRange) {
+      if (isPinned) unpinWord()
+      return
+    }
+
+    const word = wordRange.toString().trim()
+    if (word.length < 2) {
+      if (isPinned) unpinWord()
+      return
+    }
+
+    const rect = wordRange.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) return
+
+    // If tapping the same pinned word, toggle off
+    if (
+      isPinned &&
+      pinnedRange &&
+      pinnedRange.startContainer === wordRange.startContainer &&
+      pinnedRange.startOffset === wordRange.startOffset &&
+      pinnedRange.endOffset === wordRange.endOffset
+    ) {
+      unpinWord()
+      return
+    }
+
+    isPinned = true
+    pinnedRange = wordRange
+    showTooltip(rect, word, wordRange)
+  }
+
   function onClickWord(e: MouseEvent) {
     if (!isSpeechActive()) return
+
+    // On touch devices the speaker is shown via long-press, not single tap.
+    if (isTouchDevice) {
+      if (longPressHandled) {
+        longPressHandled = false
+      }
+      return
+    }
 
     // If clicking the tooltip, ignore
     if (tooltip && tooltip.contains(e.target as Node)) return
@@ -696,37 +813,7 @@ export function useTextSelectionSpeech(
     const sel = window.getSelection()
     if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) return
 
-    const wordRange = getWordRangeAtPoint(e.clientX, e.clientY)
-    if (!wordRange) {
-      if (isPinned) unpinWord()
-      return
-    }
-
-    const word = wordRange.toString().trim()
-    if (word.length < 2) {
-      if (isPinned) unpinWord()
-      return
-    }
-
-    const rect = wordRange.getBoundingClientRect()
-    if (rect.width === 0 && rect.height === 0) return
-
-    // If clicking the same pinned word, toggle off
-    if (
-      isPinned &&
-      pinnedRange &&
-      pinnedRange.startContainer === wordRange.startContainer &&
-      pinnedRange.startOffset === wordRange.startOffset &&
-      pinnedRange.endOffset === wordRange.endOffset
-    ) {
-      unpinWord()
-      return
-    }
-
-    // Pin the clicked word
-    isPinned = true
-    pinnedRange = wordRange
-    showTooltip(rect, word, wordRange)
+    pinWordAt(e.clientX, e.clientY)
   }
 
   // ── Text selection ──
@@ -801,16 +888,29 @@ export function useTextSelectionSpeech(
     document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('scroll', onScroll, true)
     containerRef.value?.addEventListener('mouseleave', onMouseLeave)
+    if (isTouchDevice) {
+      document.addEventListener('touchstart', onTouchStart, { passive: true })
+      document.addEventListener('touchmove', onTouchMove, { passive: true })
+      document.addEventListener('touchend', onTouchEnd)
+      document.addEventListener('touchcancel', onTouchEnd)
+    }
   })
 
   onBeforeUnmount(() => {
     if (selectionTimer) clearTimeout(selectionTimer)
+    if (longPressTimer) clearTimeout(longPressTimer)
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousedown', onMouseDown)
     document.removeEventListener('click', onClickWord)
     document.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('scroll', onScroll, true)
     containerRef.value?.removeEventListener('mouseleave', onMouseLeave)
+    if (isTouchDevice) {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchcancel', onTouchEnd)
+    }
     stopCaptionPlayback()
     stopCurrentAudio()
     removeHighlight()
