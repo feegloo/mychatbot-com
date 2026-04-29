@@ -18,6 +18,14 @@
           🗺️ Wiki
         </AppButton>
         <AppButton
+          v-if="isFirstMessage && c4Ready"
+          class="msg-action-btn"
+          title="View C4 Diagram"
+          @click="$emit('show-c4')"
+        >
+          🧩 Map
+        </AppButton>
+        <AppButton
           v-if="isFirstMessage && canUpload"
           class="msg-action-btn"
           title="Upload more files"
@@ -368,6 +376,7 @@ const props = withDefaults(
     searchHighlighted?: boolean
     searchTerm?: string
     wikiReady?: boolean
+    c4Ready?: boolean
     isOwner?: boolean
   }>(),
   { maxVisibleActions: 2, isOwner: true },
@@ -388,6 +397,7 @@ const emit = defineEmits<{
    *  mark this message as animated and prevent replaying on re-mounts. */
   'message-animated': []
   'show-wiki': []
+  'show-c4': []
 }>()
 
 // Use storageConversationId for file URLs (threads point to parent's storage).

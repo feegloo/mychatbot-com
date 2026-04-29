@@ -116,6 +116,7 @@
             :is-first-message="index === 0 && msg.role === 'assistant' && !msg.isParentMessage"
             :can-upload="canUpload"
             :wiki-ready="wikiReady"
+            :c4-ready="c4Ready"
             :files="uploadFilesForMessage(index)"
             :max-visible-actions="index === 0 ? 5 : 3"
             :conversation-name="conversationTitle"
@@ -141,6 +142,7 @@
             @image-revealed="(success) => onMessageImageRevealed(index, success)"
             @message-animated="onMessageAnimated(msg.id)"
             @show-wiki="openWikiModal"
+            @show-c4="openC4Modal"
           />
           <div
             v-if="showInlineProcessing"
@@ -194,6 +196,13 @@
     :loading="wikiLoading"
     @close="wikiModalOpen = false"
   />
+  <WikiModal
+    title="🧩 C4 Diagram"
+    :visible="c4ModalOpen"
+    :content="c4Content"
+    :loading="c4Loading"
+    @close="c4ModalOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -217,6 +226,7 @@ import {
   saveConversationToken,
   extractError,
   getConversationWiki,
+  getConversationC4,
   type ConversationStatus,
   type ChatMessage,
 } from '../api'
@@ -278,6 +288,11 @@ const wikiReady = ref(false)
 const wikiModalOpen = ref(false)
 const wikiContent = ref<string | null>(null)
 const wikiLoading = ref(false)
+
+const c4Ready = ref(false)
+const c4ModalOpen = ref(false)
+const c4Content = ref<string | null>(null)
+const c4Loading = ref(false)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -387,6 +402,9 @@ watch(sseEvent, (evt) => {
       break
     case 'wiki_ready':
       wikiReady.value = true
+      break
+    case 'c4_ready':
+      c4Ready.value = true
       break
   }
 })
@@ -606,6 +624,13 @@ async function doLoadConversation() {
       getConversationWiki(conversationId)
         .then((c) => {
           if (c) wikiReady.value = true
+        })
+        .catch(() => {})
+    }
+    if (!c4Ready.value) {
+      getConversationC4(conversationId)
+        .then((c) => {
+          if (c) c4Ready.value = true
         })
         .catch(() => {})
     }
@@ -1077,6 +1102,18 @@ async function openWikiModal() {
       wikiContent.value = await getConversationWiki(conversationId)
     } finally {
       wikiLoading.value = false
+    }
+  }
+}
+
+async function openC4Modal() {
+  c4ModalOpen.value = true
+  if (!c4Content.value) {
+    c4Loading.value = true
+    try {
+      c4Content.value = await getConversationC4(conversationId)
+    } finally {
+      c4Loading.value = false
     }
   }
 }

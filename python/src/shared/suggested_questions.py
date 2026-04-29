@@ -126,7 +126,11 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
 
    Naturalne pytania (pozycje 1-3) MUSZĄ odwoływać się do konkretnej treści — użyj imion bohaterów, frakcji, miejsc z dokumentu (np. dla Tańca ze smokami: "Co dzieje się z Jonem Snow?", "Jak Daenerys rządzi Meereen?", "Kim jest George R. R. Martin?").
 
-   Pozostałe akcje (pozycje 6-10, ukryte w "More ...") dobierz LOSOWO z listy poniżej — zróżnicuj: quiz, oś czasu, tabela porównania bohaterów, mapa myśli, złota myśl, bajka, post social media itp. NIE powtarzaj tego samego typu akcji na różnych pozycjach.
+   Pozostałe akcje dobierz LOSOWO z listy poniżej — zróżnicuj: quiz, tabela porównania bohaterów, mapa myśli, złota myśl, bajka, post social media itp. NIE powtarzaj tego samego typu akcji na różnych pozycjach.
+   → OBOWIĄZKOWO akcja "Zrób oś czasu wydarzeń 📅" dla KAŻDEJ powieści / thrillera / kryminału / romansu / fantasy / sagi. Pozycja zależy od trafności:
+     - Pozycja 4 (WIDOCZNA) — gdy oś czasu jest KLUCZOWA dla zrozumienia książki: dużo dat, skomplikowana chronologia, wiele wątków równolegle, rozciągnięta w czasie (np. saga, kryminalna chronologia zbrodni, powieść historyczna, thriller sądowy). Wtedą oś czasu zastępuje akcję twórczego pisania na pozycji 4, a "Napisz inspirowany rozdział..." przesuwa się na pozycję 5.
+     - Pozycja 5 (WIDOCZNA) — gdy sekwencja wydarzeń jest ważna, ale niekoniecznie dominująca (np. thriller z kilkoma zwrotami akcji, romans z wyraźną chronologią).
+     - Pozycja 6 (pierwsza w "More ...") — gdy fabuła jest prosta lub timeline mniej istotny (np. zbiór opowiadań, prosta historia).
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
    → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
@@ -269,7 +273,8 @@ o) Podsumowanie 📝 — sugeruj gdy:
 p) Oś czasu / timeline 📅 — sugeruj gdy:
    - treść opisuje wydarzenia historyczne, biografię, kamienie milowe projektu
    - dokument zawiera daty i sekwencję wydarzeń w czasie
-   - akcja: "stwórz oś czasu wydarzeń"
+   - POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, saga itp.) — ZAWSZE sugeruj oś czasu jako pozycję 6 (pierwsza w "More ..."), ponieważ narracyjna sekwencja wydarzeń jest kluczową wartością dla czytelnika
+   - akcja: "Zrób oś czasu wydarzeń 📅" (po polsku) lub "create a timeline of events" (po angielsku)
 
 q) Mapa myśli 🧩 — sugeruj gdy:
    - treść przedstawia wiele powiązanych koncepcji lub tematów
@@ -454,7 +459,11 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
 
    Natural questions (positions 1-3) MUST be content-specific — reference named characters, factions, locations from the document (e.g. for A Dance With Dragons: "What happens to Jon Snow?", "How does Daenerys rule Meereen?", "Who is George R. R. Martin?").
 
-   Pick the remaining actions (positions 6-10, hidden in "More ...") RANDOMLY from the list below — varied mix: quiz, timeline, character comparison table, mind map, wisdom quote, write fairy tale, social post, etc. DO NOT repeat the same action type at different positions.
+   Pick the remaining actions RANDOMLY from the list below — varied mix: quiz, character comparison table, mind map, wisdom quote, write fairy tale, social post, etc. DO NOT repeat the same action type at different positions.
+   → MANDATORY action "Zrób oś czasu wydarzeń 📅" (Polish) / "Create a timeline of events 📅" (English) for ANY novel / thriller / crime / romance / fantasy / saga. Position depends on relevance:
+     - Position 4 (VISIBLE) — when the timeline is CRITICAL for understanding the book: many dates, complex chronology, multiple parallel storylines, events spanning many years (e.g. saga, crime with court timeline, historical novel, legal thriller). In this case the timeline replaces the creative-writing action at position 4, and "Write a chapter inspired by…" shifts to position 5.
+     - Position 5 (VISIBLE) — when the sequence of events is important but not dominant (e.g. thriller with several plot twists, romance with clear chronology).
+     - Position 6 (first in "More ...") — when the plot is simple or the timeline is less critical (e.g. short story collection, simple linear story).
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
    → MANDATORY: "Write a poem inspired by [Author Full Name] 📜"
@@ -596,7 +605,8 @@ o) Summary 📝 — suggest when:
 p) Timeline 📅 — suggest when:
    - content describes historical events, biography, project milestones
    - document contains dates and sequence of events over time
-   - action: "create a timeline of events"
+   - NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, saga, etc.) — ALWAYS suggest a timeline at position 6 (first in "More ..."), because the narrative sequence of events is key value for the reader
+   - action: "Zrób oś czasu wydarzeń 📅" (Polish) / "Create a timeline of events 📅" (English)
 
 q) Mind map 🧩 — suggest when:
    - content presents many related concepts or topics

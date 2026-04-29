@@ -361,6 +361,27 @@ export async function getInternalWikiMessage(conversationId: string): Promise<st
 }
 
 /**
+ * Return the most recent internal C4 diagram message for a conversation, or null.
+ * Falls back to the storage_namespace conversation when called on a thread.
+ */
+export async function getInternalC4Message(conversationId: string): Promise<string | null> {
+  const namespace = await getStorageNamespace(conversationId)
+  const targets = namespace && namespace !== conversationId ? [conversationId, namespace] : [conversationId]
+  const placeholders = targets.map((_, i) => `$${i + 1}`).join(', ')
+  const result = await query<{ content: string }>(
+    `SELECT content
+     FROM conversation_messages
+     WHERE conversation_id IN (${placeholders})
+       AND is_internal = TRUE
+       AND internal_kind = 'c4'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    targets,
+  )
+  return result.rows[0]?.content ?? null
+}
+
+/**
  * Append text to an existing assistant message's content and replace its
  * citations payload. Used by the auto-image background job that augments a
  * just-returned answer with a companion image.

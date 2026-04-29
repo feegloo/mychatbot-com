@@ -25,6 +25,7 @@ import {
   getThreadsForConversation,
   getConversationThreadReplyCount,
   getInternalWikiMessage,
+  getInternalC4Message,
 } from '../repositories/conversations.js'
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
@@ -984,5 +985,21 @@ conversationsRouter.get('/conversations/:conversationId/wiki', async (ctx) => {
   }
 
   const content = await getInternalWikiMessage(conversationId)
+  ctx.body = { content: content ?? null }
+})
+
+// GET /conversations/:conversationId/c4 — returns the C4 context diagram for the conversation.
+// Accessible to any role that can read the conversation (owner, editor, viewer).
+conversationsRouter.get('/conversations/:conversationId/c4', async (ctx) => {
+  const conversationId = ctx.params.conversationId
+
+  const conv = await getConversation(conversationId, 'viewer')
+  if (!conv.conversation) {
+    ctx.status = 404
+    ctx.body = { error: 'Conversation not found' }
+    return
+  }
+
+  const content = await getInternalC4Message(conversationId)
   ctx.body = { content: content ?? null }
 })

@@ -3,7 +3,7 @@
     <div v-if="visible" class="wiki-modal-overlay" @click.self="$emit('close')">
       <div class="wiki-modal-content">
         <div class="wiki-modal-header">
-          <span class="wiki-modal-title">🗺️ Knowledge Wiki</span>
+          <span class="wiki-modal-title">{{ title || '🗺️ Knowledge Wiki' }}</span>
           <button class="wiki-modal-close" title="Close" @click="$emit('close')">&times;</button>
         </div>
         <div class="wiki-modal-body">
@@ -32,6 +32,7 @@ const props = defineProps<{
   visible: boolean
   content: string | null
   loading?: boolean
+  title?: string
 }>()
 
 defineEmits<{

@@ -569,6 +569,25 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
                 console.error('[wiki message persist error]:', err.message)
               }
             }
+          } else if (event === 'c4_message') {
+            const c4Content = (data.c4_message as string) || ''
+            if (c4Content) {
+              try {
+                await insertConversationMessage({
+                  conversationId: conversationId as string,
+                  role: 'assistant',
+                  content: c4Content,
+                  isInternal: true,
+                  internalKind: 'c4',
+                })
+                emitConversationEvent(conversationId as string, {
+                  event: 'c4_ready',
+                  data: {},
+                })
+              } catch (err: any) {
+                console.error('[c4 message persist error]:', err.message)
+              }
+            }
           } else if (event === 'complete') {
             const suggestedQuestions = (data.suggested_questions as string[]) || []
             const finalWelcomeMessage = (data.welcome_message as string) || ''

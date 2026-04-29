@@ -19,6 +19,7 @@ from .describe import DescribeResult, describe_documents
 from .extractors import clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
+from .c4 import build_welcome_c4
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
 from .suggested_questions import suggest_questions_from_chunks
 from .telemetry import log_processing_event, trace_step
@@ -1120,6 +1121,29 @@ def _index_documents_inline(
     except Exception as exc:
         # Never let wiki generation break indexing.
         logger.warning("📚 Wiki step failed (conv=%s): %s", conversation_id, exc)
+
+    # ── C4 diagram (welcome message → system context) ────────────────────
+    # Generated from the welcome message alone — fast, no chunk retrieval.
+    # Stored as a separate internal message (internalKind='c4').
+    # Failures are swallowed — c4 diagram is best-effort.
+    try:
+        if welcome_message:
+            with trace_step(conversation_id, "*", "build_welcome_c4"):
+                c4_text = build_welcome_c4(
+                    conversation_id=conversation_id,
+                    welcome_message=welcome_message,
+                )
+            if c4_text and on_progress:
+                on_progress(
+                    "c4_message",
+                    {
+                        "c4_message": c4_text,
+                        "internal_kind": "c4",
+                    },
+                )
+                result["c4_message"] = c4_text
+    except Exception as exc:
+        logger.warning("🧩 C4 step failed (conv=%s): %s", conversation_id, exc)
 
     if on_progress:
         on_progress("complete", result)

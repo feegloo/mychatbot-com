@@ -725,3 +725,11 @@ export async function getConversationWiki(conversationId: string): Promise<strin
   )
   return response.data.content
 }
+
+export async function getConversationC4(conversationId: string): Promise<string | null> {
+  const response = await api.get<{ content: string | null }>(
+    `/conversations/${conversationId}/c4`,
+    { headers: authHeaders(conversationId) },
+  )
+  return response.data.content
+}
