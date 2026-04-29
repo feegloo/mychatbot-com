@@ -613,7 +613,9 @@ h1 {
 .table-wrapper {
   flex: 1;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   min-height: 0;
+  max-width: 100%;
   border: 1px solid #334155;
   border-radius: 8px;
 }
