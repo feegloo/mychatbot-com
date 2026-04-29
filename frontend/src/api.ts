@@ -102,6 +102,9 @@ export type ChatMessage = {
     section?: string
     page?: number | null
     imageName?: string
+    /** Global citation number assigned across the conversation. When present,
+     *  the frontend uses this for tooltip/modal lookup instead of array index. */
+    citationNumber?: number
   }>
   uploadedFileNames?: string[]
   userId?: number

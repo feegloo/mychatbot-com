@@ -298,6 +298,21 @@ const hasLocalError = ref(false)
 // animation played. Cleared only on full page navigation. Using IDs (not
 // indices) so the set stays correct after array replacements on reload.
 const animatedMessageIds = ref(new Set<string>())
+// Suppresses image-load-triggered auto-scroll briefly after translation is
+// applied. When translation updates message content, TextFade remounts
+// MessageContent (key change), causing images inside to reload. These image
+// load events can trigger scrollToBottom for messages added after initial page
+// load. We suppress that scroll for a short window after translation.
+let suppressImageScrollTimer: ReturnType<typeof setTimeout> | null = null
+let suppressImageScrollAfterTranslation = false
+
+function markTranslationApplied() {
+  suppressImageScrollAfterTranslation = true
+  if (suppressImageScrollTimer) clearTimeout(suppressImageScrollTimer)
+  suppressImageScrollTimer = setTimeout(() => {
+    suppressImageScrollAfterTranslation = false
+  }, 2000)
+}
 
 function onMessageAnimated(msgId: string | undefined) {
   if (msgId) animatedMessageIds.value.add(msgId)
@@ -446,6 +461,8 @@ function onTranslated(translations: Map<number, string>) {
   translations.forEach((text, i) => {
     messages.value[i].content = text
   })
+  // Prevent image reloads (caused by TextFade remount) from triggering auto-scroll
+  markTranslationApplied()
 }
 
 function onTitleTranslated(translated: string) {
@@ -459,6 +476,8 @@ function onTitleTranslated(translated: string) {
 }
 
 function onRestored(newTranslations: Map<number, string>) {
+  // Prevent image reloads triggered by restoring content from triggering auto-scroll
+  markTranslationApplied()
   // Restore originally translated messages
   originalMessages.value.forEach((text, i) => {
     if (messages.value[i]) {
@@ -803,8 +822,10 @@ function scrollToSearchHit() {
 function onMessageImageRevealed(index: number, success: boolean) {
   if (!success) return
   // Only auto-follow images for newly-arrived messages.
-  // Historical messages can emit image load events during initial render.
+  // Historical messages can emit image load events during initial render or
+  // after translation remounts their content.
   if (index < initialMessageCount.value) return
+  if (suppressImageScrollAfterTranslation) return
   scrollToBottom(true, true)
 }
 
@@ -1103,6 +1124,7 @@ onMounted(async () => {
 onUnmounted(() => {
   chatContainer.value?.removeEventListener('scroll', onChatScroll)
   if (scrollSaveTimer) clearTimeout(scrollSaveTimer)
+  if (suppressImageScrollTimer) clearTimeout(suppressImageScrollTimer)
   if (statusPollingInterval) clearInterval(statusPollingInterval)
   cleanupAutoRead()
 })

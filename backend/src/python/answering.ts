@@ -26,6 +26,13 @@ export async function answerQuestion(options: {
    * Injected after Section 3a — only present when USER_WIKI_ENABLED=true.
    */
   userWikiMessage?: string
+  /**
+   * Chunks already cited in previous messages with their globally-assigned
+   * citation numbers.  Passed to Python so that source numbering stays
+   * consistent across turns: same chunk keeps its number, new chunks
+   * continue from the highest number assigned so far.
+   */
+  previousCitations?: { chunkId: string; globalNumber: number }[]
   requestId?: string
 }) {
   const response = await fetch(`${config.pythonServerUrl}/answer`, {
@@ -49,6 +56,7 @@ export async function answerQuestion(options: {
       conversation_language_name: options.conversationLanguageName || null,
       wiki_message: options.wikiMessage || null,
       user_wiki_message: options.userWikiMessage || null,
+      previous_citations: options.previousCitations?.length ? options.previousCitations : null,
     }),
   })
 

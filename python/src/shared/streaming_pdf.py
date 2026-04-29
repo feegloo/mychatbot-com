@@ -45,6 +45,45 @@ PageSource = Literal["raw", "ocr", "failed"]
 # 611-page worst case.
 _OCR_WORKERS = 8
 
+# If a page passes the basic page_needs_ocr check (has some text) but still has
+# fewer than this many content chars AND the page contains large rendered images,
+# force a full-page OCR pass. This catches PDFs where the majority of the page
+# content is embedded as inline bitmaps or drawn graphics — visible when rendered
+# but missing from native text extraction (e.g. scanned newspaper pages that mix
+# image-rendered article text with a small vector-text caption box).
+_MIN_TEXT_CHARS_WITH_IMAGES = 500
+
+# Minimum rendered image area in PDF points² to consider an image "significant".
+# ~70×70 pts ≈ 100×100 px at 100 DPI — larger than decorative icons or rule lines.
+_MIN_RENDERED_IMAGE_AREA_PTS2 = 5_000
+
+
+def _page_has_significant_images(page: fitz.Page) -> bool:
+    """Return True when the page has at least one large visually-rendered image.
+
+    Skips soft-mask (smask) images, which are alpha channels for other images
+    and are never rendered independently. Uses get_image_rects to confirm the
+    image is actually drawn on this specific page rather than merely inherited
+    from a parent resource dictionary.
+    """
+    # Collect xrefs that serve as soft masks for other images so we can skip them.
+    smask_xrefs: set[int] = {
+        img[1] for img in page.get_images(full=True) if img[1] != 0
+    }
+    for img_info in page.get_images(full=True):
+        xref = img_info[0]
+        if xref in smask_xrefs:
+            continue
+        try:
+            rects = page.get_image_rects(xref)
+        except Exception:
+            continue
+        for rect in rects:
+            area = abs(rect.x1 - rect.x0) * abs(rect.y1 - rect.y0)
+            if area >= _MIN_RENDERED_IMAGE_AREA_PTS2:
+                return True
+    return False
+
 
 @dataclass
 class PageOutcome:
@@ -179,8 +218,21 @@ def process_pdf_streaming(
                 native_text = ""
 
             if native_text and not page_needs_ocr(native_text):
-                _emit(PageOutcome(page_nr=page_nr, text=native_text, source="raw"))
-                continue
+                # Secondary check: the page may have passed the basic sparse-text
+                # threshold but still contain significant image content whose
+                # surrounding text was not captured by native extraction (e.g. a
+                # scanned article where only a small caption box has vector text).
+                # In that case render the full page via GPT-Vision OCR.
+                stripped_len = len(native_text.split("\n\n", 1)[-1].strip())
+                if stripped_len < _MIN_TEXT_CHARS_WITH_IMAGES and _page_has_significant_images(page):
+                    logger.info(
+                        "🔍 p.%d: %d text chars with large images → forcing full-page OCR",
+                        page_nr,
+                        stripped_len,
+                    )
+                else:
+                    _emit(PageOutcome(page_nr=page_nr, text=native_text, source="raw"))
+                    continue
 
             # Queue OCR; keep native_text as fallback if OCR fails.
             future = pool.submit(

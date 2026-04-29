@@ -103,6 +103,18 @@ export function renderMarkdown(content: string): string {
     mathPlaceholders.push({ tex, display: true })
     return mathToken(i)
   })
+  // Display math \[...\] alternative notation (common model output)
+  normalized = normalized.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => {
+    const i = mathPlaceholders.length
+    mathPlaceholders.push({ tex: tex.trim(), display: true })
+    return mathToken(i)
+  })
+  // Inline math \(...\) alternative notation
+  normalized = normalized.replace(/\\\((.+?)\\\)/gs, (_, tex) => {
+    const i = mathPlaceholders.length
+    mathPlaceholders.push({ tex, display: false })
+    return mathToken(i)
+  })
   // Inline math $...$ (not preceded/followed by word chars, not currency like $10)
   normalized = normalized.replace(/(?<!\w)\$([^\s$][^$\n]*?[^\s$])\$(?!\w)/g, (_, tex) => {
     const i = mathPlaceholders.length

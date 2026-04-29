@@ -165,19 +165,12 @@ Use this full history to:
 - Build on insights and analysis from previous exchanges
 - Maintain consistent terminology and style throughout the conversation
 
-{chat_history}
-
---
-
-== SECTION 5c: Previously Suggested Prompts (with conversation flow) ==
-Below is a log of ALL suggested prompts already shown to the user, grouped by the Q&A exchange they appeared after. Prompts use the [action:Label] syntax — the same format you must output.
-
-Rules:
-- NEVER repeat or closely rephrase ANY prompt listed here.
+Rules for suggested prompts:
+- NEVER repeat or closely rephrase ANY [action:] prompt already shown in the chat history below.
 - Study which angles were already explored and generate FRESH directions that go deeper.
 - Each new [action:] must open a genuinely unexplored angle — not a synonym or restatement.
 
-{previous_suggested_questions}
+{chat_history}
 
 --
 
@@ -208,9 +201,9 @@ def build_context(rows: list[dict]) -> str:
             label += f" ({ch_label})"
         if row.get("section"):
             label += f" | Section: {row['section']}"
-        label += f" | HNSW (Hierarchical Navigable Small World Graph): {hnsw_score:.2f}"
+        label += f" | HNSW: {hnsw_score:.2f}"
         if row.get("cosine_similarity") is not None:
-            label += f" - Cosine Similarity: {row['cosine_similarity']:.2f}"
+            label += f" | Cosine Similarity: {row['cosine_similarity']:.2f}"
         parts.append(f'{label}\n"{row["text"]}"')
     return "\n\n--\n\n".join(parts)
 
@@ -298,6 +291,78 @@ def _strip_orphan_source_tags(answer: str, citation_count: int) -> str:
         return "[source:" + ",".join(valid) + "]"
 
     return re.sub(r"\[source:\s*(\d+(?:,\s*\d+)*)\]", _replace, answer)
+
+
+_SOURCE_TAG_RE = re.compile(
+    r"\[(?:source|zrodlo|źródło):\s*(\d+(?:,\s*\d+)*)\]",
+    re.IGNORECASE,
+)
+
+
+def _renumber_citations_globally(
+    answer: str,
+    rows: list[dict],
+    prev_chunk_id_to_global: dict[str, int],
+    next_global: int,
+) -> tuple[str, list[dict]]:
+    """Renumber [source:N] tags in the answer to use globally-consistent numbers.
+
+    Rules:
+    - Scan the answer left-to-right; the first unique source cited gets the
+      lowest available global number, the next gets the next, etc.
+    - If a retrieved chunk was already cited in a previous message
+      (tracked via ``prev_chunk_id_to_global``), it keeps that number.
+    - New chunks are assigned ``next_global``, ``next_global+1``, etc.
+
+    Returns ``(renumbered_answer, dense_citations)`` where each citation dict
+    carries a ``citationNumber`` field encoding its globally-assigned number.
+    The array is compact (no nulls); the frontend looks up citations by
+    ``citationNumber`` rather than by array index.
+    """
+    local_to_global: dict[int, int] = {}
+    working_map = dict(prev_chunk_id_to_global)
+
+    for match in _SOURCE_TAG_RE.finditer(answer):
+        for n_str in match.group(1).split(","):
+            local_n = int(n_str.strip())
+            if local_n in local_to_global:
+                continue
+            if local_n < 1 or local_n > len(rows):
+                continue
+            chunk_id = rows[local_n - 1]["chunk_id"]
+            if chunk_id in working_map:
+                local_to_global[local_n] = working_map[chunk_id]
+            else:
+                local_to_global[local_n] = next_global
+                working_map[chunk_id] = next_global
+                next_global += 1
+
+    def _replace_tag(m: re.Match) -> str:
+        global_nums = []
+        for n_str in m.group(1).split(","):
+            local_n = int(n_str.strip())
+            if local_n in local_to_global:
+                global_nums.append(str(local_to_global[local_n]))
+        return "[source:" + ",".join(global_nums) + "]" if global_nums else ""
+
+    renumbered = _SOURCE_TAG_RE.sub(_replace_tag, answer)
+
+    citations: list[dict] = []
+    for local_n, global_n in sorted(local_to_global.items(), key=lambda kv: kv[1]):
+        row = rows[local_n - 1]
+        citation: dict = {
+            "fileName": row["file_name"],
+            "chunkId": row["chunk_id"],
+            "text": row["text"],
+            "section": row.get("section"),
+            "page": row.get("page"),
+            "citationNumber": global_n,
+        }
+        if row.get("image_name"):
+            citation["imageName"] = row["image_name"]
+        citations.append(citation)
+
+    return renumbered, citations
 
 
 # Patterns that trigger EXIF metadata display
@@ -914,7 +979,6 @@ def _trim_prompt_to_budget(
         "matched_pages": len(vars_copy.get("matched_pages", "")),
         "chapter_context": len(vars_copy.get("chapter_context", "")),
         "welcome_messages": len(vars_copy.get("welcome_messages", "")),
-        "previous_suggested_questions": len(vars_copy.get("previous_suggested_questions", "")),
     }
     
     for attempt in range(12):
@@ -1036,6 +1100,10 @@ def answer_with_citations(
     # from all per-conversation wikis. Only populated when USER_WIKI_ENABLED
     # is true and the user has previously interacted with other conversations.
     user_wiki_message: str | None = None,
+    # Citations already assigned in previous messages: [{chunkId, globalNumber}].
+    # Used to ensure citation numbers are globally consistent across messages:
+    # same source keeps its number, new sources continue from the max seen so far.
+    previous_citations: list[dict] | None = None,
 ) -> dict:
     import sentry_sdk
     from sentry_sdk import logger as sentry_logger
@@ -1101,9 +1169,6 @@ def answer_with_citations(
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
-        prev_questions_str = _format_previous_suggested_questions(
-            previous_suggested_questions, chat_history
-        )
 
         prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
         chain = prompt | llm
@@ -1146,7 +1211,6 @@ def answer_with_citations(
                 "matched_pages": matched_pages,
                 "chapter_context": chapter_context or "(no chapter structure detected)",
                 "exif_metadata": exif_str,
-                "previous_suggested_questions": prev_questions_str,
                 "conversation_name": conv_name,
                 "conversation_id": conversation_id,
                 "no_file_context_instruction": no_file_context_instruction,
@@ -1243,8 +1307,19 @@ def answer_with_citations(
 
         logger.info(f"✅ Generated answer: {answer[:100]}...")
 
-        citations = _build_citations(rows)
-        answer = _strip_orphan_source_tags(answer, len(citations))
+        # Build global citation map from previously cited chunks so citation
+        # numbers are consistent across messages in the same conversation.
+        prev_map: dict[str, int] = {}
+        next_global = 1
+        if previous_citations:
+            for pc in previous_citations:
+                chunk_id = pc.get("chunkId")
+                global_num = pc.get("globalNumber")
+                if chunk_id and isinstance(global_num, int):
+                    prev_map[chunk_id] = global_num
+                    next_global = max(next_global, global_num + 1)
+
+        answer, citations = _renumber_citations_globally(answer, rows, prev_map, next_global)
 
         return {
             "answer": answer,

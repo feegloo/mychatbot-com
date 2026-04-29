@@ -26,7 +26,7 @@ _openai_client = None
 
 EMBED_BATCH_SIZE = 2048  # OpenAI API max items per request
 EMBED_MAX_TOKENS_PER_BATCH = 200_000  # Stay well under OpenAI's 300K limit; 200K gives room for non-English text
-EMBED_CHARS_PER_TOKEN = 2  # Conservative estimate for non-English text (Polish, CJK, etc.)
+EMBED_CHARS_PER_TOKEN = 2  # OpenAI rule of thumb: ~4 chars/token for English; non-English (Polish, CJK) uses fewer chars/token so this may underestimate — batches stay safely under 200K limit anyway
 EMBED_MAX_WORKERS = 4  # Parallel embedding requests for very large batches
 CHROMA_BATCH_SIZE = 5000  # Chroma add() limit is ~5461
 
@@ -300,20 +300,22 @@ def _query_chunks_l2(
     result = collection.query(
         query_embeddings=[query_vector],
         n_results=top_k,
-        include=["documents", "metadatas", "distances"],
+        include=["documents", "metadatas", "distances", "embeddings"],
     )
 
     ids = result.get("ids", [[]])[0]
     documents = result.get("documents", [[]])[0]
     metadatas = result.get("metadatas", [[]])[0]
     distances = result.get("distances", [[]])[0]
+    embeddings = result.get("embeddings", [[]])[0]
 
     rows = []
-    for chunk_id, document, metadata, distance in zip(
-        ids, documents, metadatas, distances, strict=False
+    for chunk_id, document, metadata, distance, doc_emb in zip(
+        ids, documents, metadatas, distances, embeddings, strict=False
     ):
         if distance > max_distance:
             continue
+        cosine = _cosine_similarity(query_vector, list(doc_emb)) if doc_emb is not None else None
         rows.append(
             {
                 "chunk_id": chunk_id,
@@ -324,6 +326,7 @@ def _query_chunks_l2(
                 "chapter_number": metadata.get("chapter_number") or None,
                 "chapter_name": metadata.get("chapter_name") or None,
                 "distance": distance,
+                "cosine_similarity": cosine,
                 "metadata": metadata,
                 "image_name": metadata.get("image_name") or None,
             }

@@ -96,8 +96,8 @@ Jeśli dokument to książka, powieść, ebook, zbiór poezji, filozofia — lub
      - Poezja / aforyzmy: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
      - Cykl / długa saga: "Napisz inspirowaną książkę w stylu [Imię Nazwisko autora] 📖"
      - Poradnik / samorozwój: jeden z wariantów inspirowanego generowania (wskazówki 💡, ćwiczenia 🏋️, pytania refleksyjne 🤔, scenariusze 🎭, plan 14-dniowy 📅)
-  * Pozycja 5 — obraz nawiązujący do konkretnego tytułu i autora:
-     - "Wygeneruj obraz inspirowany: [Tytuł książki] [Imię Nazwisko autora] 🎨"
+  * Pozycja 5 — DRUGI obraz, ale BARDZIEJ SZCZEGÓŁOWY niż przypięty obraz (który już odwołuje się do tytułu). Użyj kluczowego pojęcia, motywu, ikonicznej sceny lub głównego bohatera zamiast samego tytułu:
+     - "Wygeneruj obraz inspirowany [konkretne pojęcie/scena/postać] 🎨"
 Pozostałe akcje (quiz, oś czasu, mapa myśli, złota myśl, tabela porównawcza, fiszki itd.) idą na pozycje 6-10 pod "More ...".
 Wyjątki:
   * Dokumenty problemowe (pisma urzędowe, wezwania, wyniki badań, dokumenty prawne/administracyjne) — NIE stosuj tej reguły; pozostaw pozycje 4-5 domenowe (diagnoza, checklista, plan działania itd.).
@@ -108,18 +108,21 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
 
 1. POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, horror itp.):
    → OBOWIĄZKOWO pozycja 4: "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
-   → OBOWIĄZKOWO pozycja 5: "Wygeneruj obraz inspirowany: [Tytuł książki] [Imię Nazwisko autora] 🎨"
-   Przykładowe pary (pozycja 4 + pozycja 5, wybierz tytuł pasujący do dokumentu):
-   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany: Taniec ze smokami George R. R. Martin 🎨"
-   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany: Gra o tron George R. R. Martin 🎨"
-   • "Napisz inspirowany rozdział w stylu Remigiusza Mroza ✏️" + "Wygeneruj obraz inspirowany: Testament Remigiusz Mróz 🎨"
-   • "Napisz inspirowany rozdział w stylu Stephena Kinga ✏️" + "Wygeneruj obraz inspirowany: Lśnienie Stephen King 🎨"
-   • "Napisz inspirowany rozdział w stylu J. R. R. Tolkiena ✏️" + "Wygeneruj obraz inspirowany: Władca Pierścieni J. R. R. Tolkien 🎨"
-   • "Napisz inspirowany rozdział w stylu J. K. Rowling ✏️" + "Wygeneruj obraz inspirowany: Harry Potter i Czara Ognia J. K. Rowling 🎨"
-   • "Napisz inspirowany rozdział w stylu Dana Browna ✏️" + "Wygeneruj obraz inspirowany: Kod Leonarda da Vinci Dan Brown 🎨"
-   • "Napisz inspirowany rozdział w stylu Agathy Christie ✏️" + "Wygeneruj obraz inspirowany: Morderstwo w Orient Expressie Agatha Christie 🎨"
-   • "Napisz inspirowany rozdział w stylu Fiodora Dostojewskiego ✏️" + "Wygeneruj obraz inspirowany: Zbrodnia i kara Fiodor Dostojewski 🎨"
-   • "Napisz inspirowany rozdział w stylu Andrzeja Sapkowskiego ✏️" + "Wygeneruj obraz inspirowany: Wiedźmin Andrzej Sapkowski 🎨"
+   → OBOWIĄZKOWO pozycja 5: DRUGI obraz — ale MUSI być BARDZIEJ SZCZEGÓŁOWY niż przypięty obraz (który już odwołuje się do tytułu książki). Użyj KLUCZOWEGO POJĘCIA, GŁÓWNEGO MOTYWU, IKONICZNEJ SCENY lub GŁÓWNEGO BOHATERA zamiast samego tytułu.
+   Przypięty obraz zawsze odwołuje się do tytułu książki, więc pozycja 5 powinna wejść głębiej: wybierz najbardziej wyrazisty, pamiętny lub tematycznie bogaty element dokumentu.
+   Format: "Wygeneruj obraz inspirowany [konkretne pojęcie/scena/postać] 🎨"
+   Przykładowe pary (pozycja 4 + pozycja 5):
+   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Czerwonym Weselem 🎨"
+   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Żelaznym Tronem 🎨"
+   • "Napisz inspirowany rozdział w stylu Remigiusza Mroza ✏️" + "Wygeneruj obraz inspirowany mrocznym śledztwem i tajemnicą 🎨"
+   • "Napisz inspirowany rozdział w stylu Stephena Kinga ✏️" + "Wygeneruj obraz inspirowany nawiedzonym hotelem Overlook 🎨"
+   • "Napisz inspirowany rozdział w stylu J. R. R. Tolkiena ✏️" + "Wygeneruj obraz inspirowany Jedynym Pierścieniem i Górą Przeznaczenia 🎨"
+   • "Napisz inspirowany rozdział w stylu J. K. Rowling ✏️" + "Wygeneruj obraz inspirowany Turniejem Trójmagicznym 🎨"
+   • "Napisz inspirowany rozdział w stylu Dana Browna ✏️" + "Wygeneruj obraz inspirowany tajemnicą Świętego Graala 🎨"
+   • "Napisz inspirowany rozdział w stylu Agathy Christie ✏️" + "Wygeneruj obraz inspirowany sceną morderstwa w Orient Expressie 🎨"
+   • "Napisz inspirowany rozdział w stylu Fiodora Dostojewskiego ✏️" + "Wygeneruj obraz inspirowany winą i spowiedzią Raskolnikowa 🎨"
+   • "Napisz inspirowany rozdział w stylu Andrzeja Sapkowskiego ✏️" + "Wygeneruj obraz inspirowany wiedźmińską ścieżką między dobrem a złem 🎨"
+   • "Napisz inspirowany rozdział w stylu Paulo Coelho ✏️" + "Wygeneruj obraz inspirowany Osobistą Legendą 🎨"
 
    Naturalne pytania (pozycje 1-3) MUSZĄ odwoływać się do konkretnej treści — użyj imion bohaterów, frakcji, miejsc z dokumentu (np. dla Tańca ze smokami: "Co dzieje się z Jonem Snow?", "Jak Daenerys rządzi Meereen?", "Kim jest George R. R. Martin?").
 
@@ -422,8 +425,8 @@ If the document is a book, novel, ebook, poetry collection, philosophy, or any w
      - Poetry / aphorisms: "Write a poem inspired by [Author Full Name] 📜"
      - Book-length multi-volume work / epic: "Write a book inspired by [Author Full Name] 📖"
      - Non-fiction guide / self-help: pick one of the inspired-generation variants (tips 💡, exercises 🏋️, reflection questions 🤔, scenarios 🎭, 14-day plan 📅)
-  * Position 5 — a subject-specific image action referencing the actual title + author:
-     - "Generate an image inspired by: [Book Title] by [Author Full Name] 🎨"
+  * Position 5 — a SECOND image action, but MORE SPECIFIC than the pinned image (which already references the book title). Use the book's central concept, key theme, iconic scene, or main character instead:
+     - "Generate an image inspired by [specific concept/scene/character] 🎨"
 All other actions (quiz, timeline, mind map, wisdom quote, comparison table, flashcards, etc.) go to positions 6-10 inside "More ...".
 Exceptions:
   * Problem documents (official letters, demands, lab results, legal/admin) — do NOT apply this rule; keep positions 4-5 domain-appropriate (diagnosis, checklist, action plan, etc.) as defined in the content-type rules below.
@@ -434,17 +437,20 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
 
 1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
    → MANDATORY position 4: "Write a chapter inspired by [Author Full Name] ✏️"
-   → MANDATORY position 5: "Generate an image inspired by: [Book Title] by [Author Full Name] 🎨"
-   Example pairs (position 4 + position 5, pick title matching the document):
-   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by: A Dance With Dragons by George R. R. Martin 🎨"
-   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by: A Game of Thrones by George R. R. Martin 🎨"
-   • "Write a chapter inspired by Stephen King ✏️" + "Generate an image inspired by: The Shining by Stephen King 🎨"
-   • "Write a chapter inspired by J. R. R. Tolkien ✏️" + "Generate an image inspired by: The Lord of the Rings by J. R. R. Tolkien 🎨"
-   • "Write a chapter inspired by J. K. Rowling ✏️" + "Generate an image inspired by: Harry Potter and the Goblet of Fire by J. K. Rowling 🎨"
-   • "Write a chapter inspired by Dan Brown ✏️" + "Generate an image inspired by: The Da Vinci Code by Dan Brown 🎨"
-   • "Write a chapter inspired by Agatha Christie ✏️" + "Generate an image inspired by: Murder on the Orient Express by Agatha Christie 🎨"
-   • "Write a chapter inspired by Fyodor Dostoevsky ✏️" + "Generate an image inspired by: Crime and Punishment by Fyodor Dostoevsky 🎨"
-   • "Write a chapter inspired by Frank Herbert ✏️" + "Generate an image inspired by: Dune by Frank Herbert 🎨"
+   → MANDATORY position 5: a SECOND image action — but it MUST be more specific than the pinned image (which already references the book title). Use the book's CENTRAL CONCEPT, KEY THEME, ICONIC SCENE, or MAIN CHARACTER instead of the title.
+   The pinned image always covers the book title, so position 5 should dive deeper: pick the most vivid, memorable, or thematically rich element from the document.
+   Format: "Generate an image inspired by [specific concept/scene/character] 🎨"
+   Example pairs (position 4 + position 5):
+   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Red Wedding 🎨"
+   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Iron Throne 🎨"
+   • "Write a chapter inspired by Stephen King ✏️" + "Generate an image inspired by the haunted Overlook Hotel 🎨"
+   • "Write a chapter inspired by J. R. R. Tolkien ✏️" + "Generate an image inspired by the One Ring and Mount Doom 🎨"
+   • "Write a chapter inspired by J. K. Rowling ✏️" + "Generate an image inspired by the Triwizard Tournament 🎨"
+   • "Write a chapter inspired by Dan Brown ✏️" + "Generate an image inspired by the secret of the Holy Grail 🎨"
+   • "Write a chapter inspired by Agatha Christie ✏️" + "Generate an image inspired by the Orient Express murder scene 🎨"
+   • "Write a chapter inspired by Fyodor Dostoevsky ✏️" + "Generate an image inspired by Raskolnikov's guilt and confession 🎨"
+   • "Write a chapter inspired by Frank Herbert ✏️" + "Generate an image inspired by the spice fields of Arrakis 🎨"
+   • "Write a chapter inspired by Paulo Coelho ✏️" + "Generate an image inspired by Personal Legend 🎨"
 
    Natural questions (positions 1-3) MUST be content-specific — reference named characters, factions, locations from the document (e.g. for A Dance With Dragons: "What happens to Jon Snow?", "How does Daenerys rule Meereen?", "Who is George R. R. Martin?").
 

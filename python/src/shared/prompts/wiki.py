@@ -441,8 +441,8 @@ Rules:
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
 - Aim for 15-35 nodes and 20-45 edges. More is better when supported by source.
 - CRITICAL SYNTAX RULES (violations break rendering):
-    * No unescaped `"` or `{` or `}` inside node labels — use single quotes
-      or rephrase: `A["label"]` is OK; `A[label with {brace}]` is NOT.
+    * No unescaped `"` or `{{` or `}}` inside node labels — use single quotes
+      or rephrase: `A["label"]` is OK; `A[label with {{brace}}]` is NOT.
     * No trailing pipe characters on edge lines.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.

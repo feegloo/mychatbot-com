@@ -752,7 +752,12 @@ const previewOpen = ref(false)
 const previewCitation = ref<NonNullable<ChatMessage['citations']>[number]>()
 
 function openCitation(idx: number) {
-  const citation = props.msg.citations?.[idx]
+  const globalN = idx + 1
+  // Prefer lookup by citationNumber (set for messages after global-numbering was introduced);
+  // fall back to array-index for older messages that lack citationNumber.
+  const citation =
+    props.msg.citations?.find((c) => c.citationNumber === globalN) ??
+    props.msg.citations?.[idx]
   if (citation) {
     previewCitation.value = citation
     previewOpen.value = true

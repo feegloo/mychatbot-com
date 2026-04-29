@@ -169,6 +169,34 @@ askRouter.post('/ask', async (ctx) => {
     }
   }
 
+  // Build global citation map from all previous assistant messages so the
+  // Python side can assign consistent numbers across turns (same source keeps
+  // its number, new sources continue from the highest assigned so far).
+  const previousCitations: { chunkId: string; globalNumber: number }[] = []
+  {
+    const seenChunkIds = new Set<string>()
+    for (const msg of data.messages) {
+      if (msg.role !== 'assistant') continue
+      const raw = msg.citations_json
+      // Skip welcome/upload messages
+      if (raw && !Array.isArray(raw) && raw._uploadedFileNames) continue
+      const citationsArray: any[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.citations)
+          ? raw.citations
+          : []
+      citationsArray.forEach((c, i) => {
+        if (!c?.chunkId) return
+        if (seenChunkIds.has(c.chunkId)) return
+        seenChunkIds.add(c.chunkId)
+        // citationNumber is set by the renumber post-processing for new messages;
+        // fall back to array index + 1 for messages stored before this feature.
+        const globalNumber: number = typeof c.citationNumber === 'number' ? c.citationNumber : i + 1
+        previousCitations.push({ chunkId: c.chunkId, globalNumber })
+      })
+    }
+  }
+
   const requestId = getRequestId(ctx)
   const stopHeartbeat = startHeartbeat('python.answer', { conversationId, requestId })
   let result
@@ -197,6 +225,7 @@ askRouter.post('/ask', async (ctx) => {
           conversationLanguageName: conversationLanguage.nativeName || undefined,
           wikiMessage: wikiMessage || undefined,
           userWikiMessage: userWikiMessage || undefined,
+          previousCitations: previousCitations.length ? previousCitations : undefined,
           requestId: requestId || undefined,
         }),
     )

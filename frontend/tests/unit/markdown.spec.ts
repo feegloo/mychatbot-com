@@ -120,6 +120,44 @@ describe('renderMarkdown measurement unit badges', () => {
   })
 })
 
+describe('renderMarkdown LaTeX math delimiters', () => {
+  it('renders $$...$$ display math via KaTeX', () => {
+    const html = renderMarkdown('$$c^3 = 0.001729$$')
+
+    expect(html).toContain('katex')
+    expect(html).not.toContain('$$c^3')
+  })
+
+  it('renders \\[...\\] display math via KaTeX', () => {
+    const html = renderMarkdown('\\[c^3 = 0.001729\\]')
+
+    expect(html).toContain('katex')
+    expect(html).not.toContain('\\[c^3')
+  })
+
+  it('renders multi-line \\[...\\] display math via KaTeX', () => {
+    const input = '\\[\nc^3 - \\left(\\frac{31.72}{26}\\times 0.14\\right)\\div 100 = 0.000020\n\\]'
+    const html = renderMarkdown(input)
+
+    expect(html).toContain('katex')
+    expect(html).not.toContain('\\[')
+  })
+
+  it('renders \\(...\\) inline math via KaTeX', () => {
+    const html = renderMarkdown('The result is \\(c = 0.12\\) as expected.')
+
+    expect(html).toContain('katex')
+    expect(html).not.toContain('\\(c')
+  })
+
+  it('renders $...$ inline math via KaTeX', () => {
+    const html = renderMarkdown('The value of $x = 5$ is positive.')
+
+    expect(html).toContain('katex')
+    expect(html).not.toContain('$x')
+  })
+})
+
 describe('renderInlineMarkdown', () => {
   it('renders italic and bold markdown', () => {
     const html = renderInlineMarkdown('What made _The Alchemist_ **famous**?')

@@ -159,6 +159,10 @@ class AnswerRequest(BaseModel):
     # Synthesised from all per-conversation wikis; only populated when
     # USER_WIKI_ENABLED=true on the backend.
     user_wiki_message: str | None = None
+    # Previously cited chunks with their assigned global citation numbers.
+    # Enables consistent numbering across messages: same source keeps its
+    # number, new sources continue from the highest number seen so far.
+    previous_citations: list[dict] | None = None
 
 
 class IndexRequest(BaseModel):
@@ -426,6 +430,7 @@ async def answer(req: AnswerRequest):
             conversation_language_name=req.conversation_language_name,
             wiki_message=req.wiki_message,
             user_wiki_message=req.user_wiki_message,
+            previous_citations=req.previous_citations,
         )
         answer_preview = (result.get("answer", "") or "")[:200]
         logger.info(

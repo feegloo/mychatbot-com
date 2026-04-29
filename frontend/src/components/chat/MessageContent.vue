@@ -174,7 +174,12 @@ function setupTooltips() {
   const buttons = rootEl.value.querySelectorAll<HTMLElement>('.inline-source-btn')
   buttons.forEach((btn) => {
     const idx = parseInt(btn.dataset.sourceIdx || '0', 10) - 1
-    const text = citations[idx]?.text
+    const globalN = idx + 1
+    // Prefer lookup by citationNumber for messages with global numbering;
+    // fall back to array index for older messages without citationNumber.
+    const citation =
+      citations.find((c) => c.citationNumber === globalN) ?? citations[idx]
+    const text = citation?.text
     if (!text) return
     createTooltip(
       btn,
