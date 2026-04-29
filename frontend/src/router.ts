@@ -20,7 +20,25 @@ if (import.meta.env.DEV) {
   })
 }
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+
+// Keep canonical / OG / Twitter URL meta tags in sync with the current route
+// so that iOS Safari's native share sheet copies the actual page URL instead
+// of the hardcoded root from index.html.
+router.afterEach(() => {
+  const url = window.location.href
+
+  const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+  if (canonical) canonical.href = url
+
+  const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]')
+  if (ogUrl) ogUrl.content = url
+
+  const twitterUrl = document.querySelector<HTMLMetaElement>('meta[property="twitter:url"]')
+  if (twitterUrl) twitterUrl.content = url
+})
+
+export default router
