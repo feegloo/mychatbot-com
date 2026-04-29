@@ -1273,6 +1273,9 @@ li:has(.checklist-box) {
 .markdown-content .markdown-table-scroll {
   margin: 8px auto;
   overflow-x: auto;
+  /* clip (not hidden) keeps this a scroll-container only in x, so position:sticky
+     on th still sticks relative to the page scroll rather than being trapped here */
+  overflow-y: clip;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1363,8 +1366,14 @@ li:has(.checklist-box) {
 }
 
 .markdown-content th {
-  background: rgba(255, 255, 255, 0.05);
+  /* Solid bg so scrolled-under content doesn't bleed through the sticky header.
+     Value is the visual equivalent of body(#0b0f1a) + message-overlay(rgba(255,255,255,0.06))
+     + th-overlay(rgba(255,255,255,0.05)) composited together. */
+  background: #252833;
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 /* First column: shrinks to its content width (no forced wrapping) so the header
