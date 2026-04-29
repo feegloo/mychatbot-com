@@ -1273,10 +1273,16 @@ li:has(.checklist-box) {
 .markdown-content .markdown-table-scroll {
   margin: 8px auto;
   overflow-x: auto;
-  /* clip (not hidden) keeps this a scroll-container only in x, so position:sticky
-     on th still sticks relative to the page scroll rather than being trapped here */
-  overflow-y: clip;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+@supports (overflow: clip) {
+  .markdown-content .markdown-table-scroll {
+    /* clip (not hidden) keeps this a scroll-container only in x, so position: sticky
+       on th still sticks relative to the page scroll rather than being trapped here */
+    overflow-y: clip;
+  }
 }
 
 .markdown-content .markdown-table-scroll table {
