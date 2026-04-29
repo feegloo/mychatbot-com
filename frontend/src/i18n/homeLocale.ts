@@ -105,11 +105,11 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1bHtml:
       'pozwól AI przedstawić eksperckie wnioski i nauczyć się opowiadać co jest w plikach, głosem autorów.',
     subtitleP2Html:
-      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG,',
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, rób research, używając wyszukiwania semantycznego i RAG,',
     subtitleP2bHtml:
       'tłumacz pliki na polski lub angielski 🇵🇱🇬🇧🌍 syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP2MobileLine1Html:
-      'Zadaj pytanie <strong> chatbotowi AI</strong>, prowadź badania, używaj wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧🌍',
+      'Zadaj pytanie <strong> chatbotowi AI</strong>, rób research, używając wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧🌍',
     subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 czeklistę ✅ i więcej!',

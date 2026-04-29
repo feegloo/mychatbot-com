@@ -366,7 +366,7 @@ askRouter.post('/ask', async (ctx) => {
         const autoResult = {
           fileName: result.file_name,
           imageUrl,
-          imageTitle: result.image_title || 'Generated Image',
+          imageTitle: result.image_title || 'Illustration',
           imagePrompt: result.image_prompt,
           imageSources,
         }

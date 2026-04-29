@@ -734,7 +734,10 @@ def build_image_prompt(
         "─────────────────────────────────────────────\n"
         "OUTPUT 2 — TITLE  (max 8 words)\n"
         "─────────────────────────────────────────────\n"
-        "An evocative title reflecting the specific creative angle — NOT a generic description. "
+        "An evocative, specific title describing what is actually depicted in this particular image — "
+        "NEVER use generic placeholders such as 'Generated Image', 'AI Image', 'Image', or 'Untitled'. "
+        "The title must name the concrete subject or scene (e.g. 'Joanna Chyłka w sali sądowej', "
+        "'Mglisty świt nad Wisłą', 'The Cosmic Web of Dark Matter'). "
         "Write in the SAME LANGUAGE AND SCRIPT as the user's request and document sources "
         "(Arabic → Arabic script, Polish → Polish, Chinese → Chinese). Use English only when "
         "source material is in English.\n"
@@ -797,11 +800,18 @@ def build_image_prompt(
         import json
 
         parsed = json.loads(raw)
+        title = parsed.get("title", "").strip()
+        # Reject generic/placeholder titles; fall back to a question-derived label
+        _generic = {"generated image", "ai image", "image", "untitled", ""}
+        if title.lower() in _generic:
+            title = question[:60].strip() if question else "Illustration"
         return {
             "prompt": parsed["prompt"],
-            "title": parsed.get("title", "Generated Image"),
+            "title": title,
             "source_indices": parsed.get("source_indices", []),
             "aspect": aspect,
         }
     except (json.JSONDecodeError, KeyError):
-        return {"prompt": raw, "title": "Generated Image", "source_indices": [], "aspect": aspect}
+        # Derive a minimal title from the user's question rather than a generic placeholder
+        fallback_title = question[:60].strip() if question else "Illustration"
+        return {"prompt": raw, "title": fallback_title, "source_indices": [], "aspect": aspect}

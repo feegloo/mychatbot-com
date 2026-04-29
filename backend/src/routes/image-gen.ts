@@ -107,7 +107,7 @@ async function finalizeGeneratedImage(params: {
   }
 
   const imageUrl = `/api/storage/${conversationId}/${result.file_name}`
-  const title = result.image_title || 'Generated Image'
+  const title = result.image_title || 'Illustration'
   const citations = (result.rag_sources || []).map((s) => ({
     fileName: s.file_name,
     chunkId: s.chunk_id,
