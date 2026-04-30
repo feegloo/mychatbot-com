@@ -199,8 +199,9 @@
   <WikiModal
     title="🧩 Mapa Myśli"
     :visible="c4ModalOpen"
-    :content="c4Content"
-    :loading="c4Loading"
+    :content="null"
+    :svg-content="c4SvgCache"
+    :loading="c4ModalOpen && !c4SvgCache"
     @close="c4ModalOpen = false"
   />
 </template>
@@ -291,8 +292,8 @@ const wikiLoading = ref(false)
 
 const c4Ready = ref(false)
 const c4ModalOpen = ref(false)
-const c4Content = ref<string | null>(null)
-const c4Loading = ref(false)
+// Cached SVG string: rendered once on first open, reused on subsequent opens.
+const c4SvgCache = ref<string | null>(null)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -403,11 +404,20 @@ watch(sseEvent, (evt) => {
     case 'wiki_ready':
       wikiReady.value = true
       break
-    case 'c4_ready':
-      c4Ready.value = true
-      break
   }
 })
+
+// Set c4Ready as soon as the welcome message contains an embedded [mindmap].
+// This fires immediately when the welcome SSE lands — no extra round-trip needed.
+watch(
+  welcomeMessageContent,
+  (content) => {
+    if (!c4Ready.value && content && /\[mindmap\][\s\S]*?\[\/mindmap\]/.test(content)) {
+      c4Ready.value = true
+    }
+  },
+  { immediate: true },
+)
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
@@ -624,13 +634,6 @@ async function doLoadConversation() {
       getConversationWiki(conversationId)
         .then((c) => {
           if (c) wikiReady.value = true
-        })
-        .catch(() => {})
-    }
-    if (!c4Ready.value) {
-      getConversationC4(conversationId)
-        .then((c) => {
-          if (c) c4Ready.value = true
         })
         .catch(() => {})
     }
@@ -1108,28 +1111,42 @@ async function openWikiModal() {
 
 async function openC4Modal() {
   c4ModalOpen.value = true
-  if (!c4Content.value) {
-    c4Loading.value = true
-    try {
-      // Try dedicated C4 message first (generated during indexing)
-      const stored = await getConversationC4(conversationId)
-      if (stored) {
-        c4Content.value = stored
-      } else {
-        // Fallback: extract the mermaid flowchart block from the wiki.
-        // Covers conversations indexed before the C4 feature was added.
-        const wiki = wikiContent.value ?? (await getConversationWiki(conversationId))
-        if (wiki) {
-          wikiContent.value = wiki
-          const match = wiki.match(/```mermaid([\s\S]*?)```/)
-          c4Content.value = match
-            ? '```mermaid' + match[1] + '```'
-            : wiki
-        }
-      }
-    } finally {
-      c4Loading.value = false
-    }
+  if (c4SvgCache.value) return  // already rendered, reuse cache
+
+  const match = welcomeMessageContent.value.match(/\[mindmap\]([\s\S]*?)\[\/mindmap\]/)
+  if (!match) return
+
+  // Strip ```mermaid fences if the LLM wrapped the code block
+  const mermaidCode = match[1].trim().replace(/^```mermaid\n?/, '').replace(/\n?```$/, '').trim()
+  if (!mermaidCode) return
+
+  try {
+    const mod = await import('mermaid')
+    const m = mod.default
+    m.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: false,
+        background: '#f8fafc',
+        primaryColor: '#ede9fe',
+        primaryTextColor: '#000000',
+        primaryBorderColor: '#7c3aed',
+        secondaryColor: '#e2e8f0',
+        secondaryTextColor: '#000000',
+        tertiaryColor: '#f1f5f9',
+        tertiaryTextColor: '#000000',
+        lineColor: '#475569',
+        textColor: '#000000',
+        nodeTextColor: '#000000',
+        labelTextColor: '#000000',
+      },
+      securityLevel: 'loose',
+    })
+    const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
+    c4SvgCache.value = svg
+  } catch (e) {
+    console.error('[Mapa Myśli] Failed to render mindmap SVG:', e)
   }
 }
 

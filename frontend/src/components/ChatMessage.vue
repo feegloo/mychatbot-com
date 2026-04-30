@@ -18,7 +18,7 @@
           🗺️ Wiki
         </AppButton>
         <AppButton
-          v-if="isFirstMessage && wikiReady"
+          v-if="isFirstMessage && c4Ready"
           class="msg-action-btn"
           title="Mapa Myśli"
           @click="$emit('show-c4')"
@@ -165,7 +165,7 @@
           <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
             <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
               <MessageContent
-                :content="msg.content"
+                :content="renderedContent"
                 :is-welcome="isWelcome"
                 :message-id="msg.id"
                 :conversation-name="conversationName"
@@ -211,7 +211,7 @@
         <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
           <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
             <MessageContent
-              :content="msg.content"
+              :content="renderedContent"
               :is-welcome="isWelcome"
               :message-id="msg.id"
               :conversation-name="conversationName"
@@ -438,6 +438,16 @@ const finalGeneratedImageUrl = computed(() => {
   }
   return target.split(/\s+/)[0] || ''
 })
+
+// Strip the hidden [mindmap]...[/mindmap] section from welcome message content before rendering.
+// The [mindmap] block is embedded by the LLM so the frontend can extract it for
+// the "Mapa Myśli" modal without a separate API call. It must never appear in chat.
+const MINDMAP_BLOCK_RE = /\[mindmap\][\s\S]*?\[\/mindmap\]/g
+const renderedContent = computed(() =>
+  props.isWelcome
+    ? (props.msg.content || '').replace(MINDMAP_BLOCK_RE, '').trim()
+    : props.msg.content || '',
+)
 
 const finalGeneratedImageTitle = computed(() => {
   const content = props.msg.content || ''

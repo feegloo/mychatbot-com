@@ -119,27 +119,8 @@ export async function handleIndexingEvent(
     }
 
     case 'c4_message': {
-      // C4 context diagram derived from the welcome message. Stored as an
-      // internal message (internalKind='c4') and surfaced via a dedicated
-      // button on the welcome message. Fires `c4_ready` so the browser can
-      // show the button immediately after indexing without polling.
-      const c4Content = (payload.c4_message as string) || ''
-      if (!c4Content) return
-      try {
-        await insertConversationMessage({
-          conversationId,
-          role: 'assistant',
-          content: c4Content,
-          isInternal: true,
-          internalKind: 'c4',
-        })
-        emitConversationEvent(conversationId, {
-          event: 'c4_ready',
-          data: {},
-        })
-      } catch (err: any) {
-        console.error('[c4 message persist error]:', err.message)
-      }
+      // C4 is now embedded in the welcome message and extracted client-side.
+      // This case handles legacy events from old Python workers — ignore silently.
       return
     }
 

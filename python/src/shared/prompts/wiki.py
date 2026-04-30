@@ -439,6 +439,10 @@ Rules:
 - CRITICAL SYNTAX RULES (violations break rendering):
     * No unescaped `"` or `{{` or `}}` inside node labels — use single quotes
       or rephrase: `A["label"]` is OK; `A[label with {{brace}}]` is NOT.
+    * Node labels containing parentheses MUST be wrapped in double quotes:
+      `RJ45["2x RJ45 10/100/1000BaseT(X)"]` is correct;
+      `RJ45[2x RJ45 10/100/1000BaseT(X)]` is WRONG — Mermaid interprets the
+      trailing `(X)` as a stadium-shape suffix and breaks parsing.
     * No trailing pipe characters on edge lines.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.
