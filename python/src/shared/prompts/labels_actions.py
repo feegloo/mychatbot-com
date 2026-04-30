@@ -221,6 +221,34 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * Prefer "why" and "how" questions over "what" questions. Prefer questions that reveal hidden patterns, surprising contrasts, or actionable takeaways.
   * NEVER rephrase or rehash information already covered in the current answer or previous conversation. Each suggestion must open a genuinely NEW angle — not a synonym or restatement.
 
+- **WIKI FLOWCHART GRAPH NAVIGATION — BRANCH FROM CONNECTED NODES**:
+  Section 3a (Internal Knowledge Wiki) contains a `## Mermaid Flowchart` that encodes relationships between the key concepts/entities in this document as a directed graph. Use this graph to SELECT the plain follow-up questions (positions 1–2 and deeper content branches in positions 4–7):
+
+  **Step-by-step algorithm**:
+  1. **Map the question to graph nodes**: Identify which flowchart node(s) most closely match the user's current question — the node whose label best describes what was just asked about. Call this the "anchor node".
+  2. **Collect adjacent nodes**: From the anchor node, collect all nodes it connects TO (outgoing edges `==>`, `-->`, `-.->`) and all nodes that connect TO it (incoming edges). These are the "branch candidates".
+  3. **Exclude already-explored nodes**: Scan Section 5b (full chat history) for topics already discussed. Remove any branch candidate whose concept was already the subject of a previous question or answer exchange.
+  4. **Pick 1–2 branch candidates** for positions 1–2 (the plain follow-up questions): Choose the adjacent nodes with the STRONGEST edge weight (prefer `==>` over `-->` over `-.->`) that have NOT been explored yet. Frame them as sharp "why" or "how" questions about that adjacent concept and its relationship to the anchor.
+  5. **Avoid loops**: Never suggest returning to a concept that was the anchor in a previous exchange. The user is navigating the graph — help them move FORWARD through it, not circle back.
+
+  **Why this matters**: Semantic search clusters around the last query's embedding, which pulls adjacent chunks about the SAME concept. The flowchart graph gives you a structural map that semantic similarity can't provide — it shows what is ADJACENT but DIFFERENT. Following edges in the graph guarantees the next question genuinely moves to a new part of the document's concept space.
+
+  **Example** (wiki has: `Encoder ==>|+0.88| CrossAttn`, `CrossAttn -->|+0.77| Decoder`, user asked about Encoder):
+  - Anchor = Encoder node
+  - Adjacent candidates = CrossAttn (outgoing, strong), Decoder (2 hops)
+  - Position 1: "How does cross-attention bridge encoder and decoder?"  ← direct edge from anchor
+  - Position 2: "What makes masked self-attention different from cross-attention?"  ← the next hop
+
+  **Example** (wiki has: `NDA <---> ObaStrony`, `Wynagrodzenie ===> IP`, user asked about NDA):
+  - Anchor = NDA node  
+  - Adjacent candidates = ObaStrony (bidirectional), Kara (from NDA), Wynagrodzenie (separate cluster)
+  - Position 1: "What triggers the 50k PLN NDA penalty in practice?"  ← outgoing NDA edge
+  - Position 2: "Does the IP clause interact with NDA breach timing?"  ← cross-cluster connection
+
+  **Fallback**: If the wiki is empty, the question maps to no flowchart node, or all adjacent nodes are already explored — fall back to the standard BRANCHES rule above and generate fresh topical questions.
+
+
+
 - PREVIOUS SUGGESTIONS: SECTION 5c below lists ALL previously shown suggested prompts grouped by the Q&A exchange they followed. Study the full list carefully. You MUST NOT repeat, rephrase, or closely mirror ANY of them. Generate fresh, progressively deeper questions that explore territory none of the previous prompts touched.
 
 - Example — general knowledge topic, image at position 3 (strong visual scene): [action:What were Socrates' main teachings?] [action:How did Socrates influence Plato?] [action:Generate image inspired by: Socrates debating in the agora at dusk 🎨] [action:Create a Socrates quiz 🧠] [action:Draft a Socratic dialogue 🎬] [action:Build a timeline of his life 📅] [action:Create a mind map of ideas 🧩]

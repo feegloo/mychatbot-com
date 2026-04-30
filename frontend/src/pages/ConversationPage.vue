@@ -197,7 +197,7 @@
     @close="wikiModalOpen = false"
   />
   <WikiModal
-    title="🧩 C4 Diagram"
+    title="🧩 Mapa Myśli"
     :visible="c4ModalOpen"
     :content="c4Content"
     :loading="c4Loading"
@@ -1111,7 +1111,22 @@ async function openC4Modal() {
   if (!c4Content.value) {
     c4Loading.value = true
     try {
-      c4Content.value = await getConversationC4(conversationId)
+      // Try dedicated C4 message first (generated during indexing)
+      const stored = await getConversationC4(conversationId)
+      if (stored) {
+        c4Content.value = stored
+      } else {
+        // Fallback: extract the mermaid flowchart block from the wiki.
+        // Covers conversations indexed before the C4 feature was added.
+        const wiki = wikiContent.value ?? (await getConversationWiki(conversationId))
+        if (wiki) {
+          wikiContent.value = wiki
+          const match = wiki.match(/```mermaid([\s\S]*?)```/)
+          c4Content.value = match
+            ? '```mermaid' + match[1] + '```'
+            : wiki
+        }
+      }
     } finally {
       c4Loading.value = false
     }

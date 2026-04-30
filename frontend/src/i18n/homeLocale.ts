@@ -89,7 +89,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP2MobileLine2Html: 'synthesize speech 🔊 share answers',
     subtitleP3:
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
-    dropzoneTitle: 'Click to upload or drag & drop',
+    dropzoneTitle: 'Click or drag & drop to upload',
     dropzoneHint: 'PDF, images, .doc, other text files',
     askPlaceholder: 'Ask your question ...',
     viewerReplyPlaceholder: 'Reply to start your own thread ...',
@@ -113,7 +113,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 czeklistę ✅ i więcej!',
-    dropzoneTitle: 'Kliknij, aby wgrać lub przeciągnij i upuść',
+    dropzoneTitle: 'Kliknij lub przeciągnij i upuść, aby przesłać',
     dropzoneHint: 'PDF, obrazy, .doc, inne pliki tekstowe',
     askPlaceholder: 'Zadaj swoje pytanie ...',
     viewerReplyPlaceholder: 'Odpowiedz, aby rozpocząć własny wątek ...',

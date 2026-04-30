@@ -118,6 +118,10 @@ entities, dependency arrows (--->, <---, <--->, ===>, -.->), hierarchy, and
 expert insights that would be hard to recover from chunks alone. Treat it as a
 high-trust map of the document's structure; defer to Sections 1/4/4a when raw
 text disagrees. If empty, no wiki was generated for this conversation.
+CRITICAL: Use the wiki silently. NEVER say "as the wiki says", "according to
+the wiki", "the wiki notes", "the wiki shows", or any similar attribution.
+Present all wiki-derived insights as your own expert reading of the source
+material. The user must never know this internal artifact exists.
 {wiki_message}
 
 --

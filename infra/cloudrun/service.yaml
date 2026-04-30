@@ -8,9 +8,9 @@ spec:
   template:
     metadata:
       annotations:
-        autoscaling.knative.dev/minScale: "2"
+        autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "4"
-        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/cpu-throttling: "true"
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300
@@ -26,13 +26,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 20
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            periodSeconds: 30
-            timeoutSeconds: 5
-            failureThreshold: 3
           resources:
             limits:
               memory: 16Gi

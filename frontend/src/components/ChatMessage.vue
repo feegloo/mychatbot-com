@@ -18,12 +18,12 @@
           🗺️ Wiki
         </AppButton>
         <AppButton
-          v-if="isFirstMessage && c4Ready"
+          v-if="isFirstMessage && wikiReady"
           class="msg-action-btn"
-          title="View C4 Diagram"
+          title="Mapa Myśli"
           @click="$emit('show-c4')"
         >
-          🧩 Map
+          🧩 Mapa Myśli
         </AppButton>
         <AppButton
           v-if="isFirstMessage && canUpload"

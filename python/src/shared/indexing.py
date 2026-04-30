@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -27,6 +28,11 @@ from .vector_store import upsert_chunks
 from .wiki import build_conversation_wiki
 
 logger = logging.getLogger(__name__)
+
+# Regex to extract [c4]...[/c4] blocks embedded in welcome messages.
+# The welcome LLM is instructed to output the C4 diagram here so it can be
+# generated in a single call rather than a separate round-trip.
+_C4_BLOCK_RE = re.compile(r"\[c4\](.*?)\[/c4\]", re.DOTALL)
 
 # Thread pool for background welcome message generation (started early via callback)
 _describe_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="early-describe")
@@ -271,6 +277,15 @@ def _maybe_regenerate_heavy_ocr_welcome(
     if not new_welcome or new_welcome == current_welcome.strip():
         return None
 
+    # Strip any embedded [c4]...[/c4] block from the regenerated welcome before
+    # showing it to the user. (A regenerated welcome with a new, fuller C4 is
+    # emitted as a separate c4_message so the button stays current.)
+    regen_c4: str | None = None
+    c4_match = _C4_BLOCK_RE.search(new_welcome)
+    if c4_match:
+        regen_c4 = c4_match.group(1).strip() or None
+        new_welcome = _C4_BLOCK_RE.sub("", new_welcome).strip()
+
     # Emit as a follow-up welcome_message event so the frontend can replace
     # the provisional description. Reuses the SSE channel already wired for
     # initial welcome delivery.
@@ -285,6 +300,8 @@ def _maybe_regenerate_heavy_ocr_welcome(
                     "regenerated": True,
                 },
             )
+            if regen_c4:
+                on_progress("c4_message", {"c4_message": regen_c4, "internal_kind": "c4"})
         except Exception as e:
             logger.warning(f"⚠️ Failed to emit regenerated welcome event: {e}")
 
@@ -531,20 +548,34 @@ def _index_documents_inline(
     file_results: list[FileProcessingResult] = []
     early_describe_future: Future | None = None
     welcome_emitted = False
+    embedded_c4: str | None = None  # C4 extracted from welcome message (if embedded)
 
     def _emit_welcome(result: DescribeResult | None) -> None:
-        nonlocal welcome_emitted
+        nonlocal welcome_emitted, embedded_c4
         if welcome_emitted or not on_progress or not result:
             return
-        welcome_message = result.get("welcome_message") or ""
-        if not welcome_message:
+        welcome_text = result.get("welcome_message") or ""
+        if not welcome_text:
             return
+
+        # Strip the embedded [c4]...[/c4] block before showing to the user.
+        # Emit it as a separate c4_message event so the button appears right away
+        # without needing a second LLM round-trip.
+        c4_match = _C4_BLOCK_RE.search(welcome_text)
+        if c4_match:
+            embedded_c4 = c4_match.group(1).strip() or None
+            welcome_text = _C4_BLOCK_RE.sub("", welcome_text).strip()
+            result["welcome_message"] = welcome_text  # type: ignore[assignment]
+
         on_progress("welcome_message", {
-            "welcome_message": welcome_message,
+            "welcome_message": welcome_text,
             "suggested_questions": result.get("suggested_questions") or [],
             "file_metadata": file_metadata or {},
         })
         welcome_emitted = True
+
+        if embedded_c4:
+            on_progress("c4_message", {"c4_message": embedded_c4, "internal_kind": "c4"})
 
     def _set_early_describe_future(future: Future) -> None:
         nonlocal early_describe_future
@@ -998,6 +1029,8 @@ def _index_documents_inline(
 
         # Emit welcome_message event immediately so the frontend can show it
         _emit_welcome(describe_result)
+        # Refresh: _emit_welcome may have stripped an embedded [c4] block in-place.
+        welcome_message = describe_result.get("welcome_message") or welcome_message
 
         upsert_result = upsert_future.result()
 
@@ -1123,11 +1156,13 @@ def _index_documents_inline(
         logger.warning("📚 Wiki step failed (conv=%s): %s", conversation_id, exc)
 
     # ── C4 diagram (welcome message → system context) ────────────────────
-    # Generated from the welcome message alone — fast, no chunk retrieval.
-    # Stored as a separate internal message (internalKind='c4').
-    # Failures are swallowed — c4 diagram is best-effort.
+    # If the welcome message contained an embedded [c4]...[/c4] block it was
+    # already extracted and emitted by _emit_welcome above — skip the extra LLM
+    # call. Only fall back to build_welcome_c4() when no block was embedded
+    # (e.g. model didn't follow instructions, or old prompt still in use).
     try:
-        if welcome_message:
+        c4_text = embedded_c4  # set by _emit_welcome if [c4] block was found
+        if not c4_text and welcome_message:
             with trace_step(conversation_id, "*", "build_welcome_c4"):
                 c4_text = build_welcome_c4(
                     conversation_id=conversation_id,
@@ -1141,7 +1176,8 @@ def _index_documents_inline(
                         "internal_kind": "c4",
                     },
                 )
-                result["c4_message"] = c4_text
+        if c4_text:
+            result["c4_message"] = c4_text
     except Exception as exc:
         logger.warning("🧩 C4 step failed (conv=%s): %s", conversation_id, exc)
 

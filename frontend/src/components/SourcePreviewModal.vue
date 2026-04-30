@@ -25,8 +25,11 @@
         <!-- Source text quote (non-PDF only) -->
         <div v-if="!isPdf" class="source-modal-quote">
           <div class="source-modal-quote-label">Source text</div>
+          <div v-if="fetchLoading" class="source-modal-quote-text" style="opacity: 0.5">
+            Loading…
+          </div>
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <div class="source-modal-quote-text" v-html="linkify(citation.text)" />
+          <div v-else class="source-modal-quote-text" v-html="linkify(displayText)" />
         </div>
       </div>
     </div>
@@ -34,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getStorageUrl } from '../api'
 import { linkify } from '../utils/text'
 import PdfPageViewer from './PdfPageViewer.vue'
@@ -69,6 +72,32 @@ const pdfBaseUrl = computed(() => getStorageUrl(props.conversationId, props.cita
 function openFullPdf() {
   window.open(pdfBaseUrl.value, '_blank', 'noopener')
 }
+
+// When opened for a text file (non-PDF) with no pre-fetched citation text,
+// fetch the raw file content from storage so the modal is not empty.
+const fetchedText = ref('')
+const fetchLoading = ref(false)
+
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open || isPdf.value || props.citation.text) {
+      fetchedText.value = ''
+      return
+    }
+    fetchLoading.value = true
+    try {
+      const res = await fetch(pdfBaseUrl.value)
+      fetchedText.value = res.ok ? await res.text() : ''
+    } catch {
+      fetchedText.value = ''
+    } finally {
+      fetchLoading.value = false
+    }
+  },
+)
+
+const displayText = computed(() => props.citation.text || fetchedText.value)
 </script>
 
 <style scoped>
@@ -196,7 +225,7 @@ function openFullPdf() {
 .source-modal-content--text {
   width: min(600px, 80vw);
   height: auto;
-  max-height: 50vh;
+  max-height: 80vh;
   background: #1e1033;
   border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 12px;

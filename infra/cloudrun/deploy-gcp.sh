@@ -277,11 +277,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --cpu 4 \
   --cpu-boost \
   --timeout=3600 \
-  --min-instances 1 \
+  --min-instances 0 \
   --max-instances 1 \
   --timeout 300 \
   --startup-probe "httpGet.path=/health,httpGet.port=8080,initialDelaySeconds=10,periodSeconds=10,timeoutSeconds=5,failureThreshold=20" \
-  --liveness-probe "httpGet.path=/health,httpGet.port=8080,periodSeconds=30,timeoutSeconds=5,failureThreshold=3" \
   --set-env-vars "\
 NODE_ENV=production,\
 DATABASE_URL=${DATABASE_URL},\
