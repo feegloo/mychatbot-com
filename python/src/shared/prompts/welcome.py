@@ -142,18 +142,21 @@ Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych
 
 [mindmap]
 ```mermaid
+---
+config:
+  layout: tidy-tree
+---
 mindmap
   root((Główny Temat))
     Pojęcie 1
       Szczegół A
+        Podszegół A1
+        Podszegół A2
       Szczegół B
       Szczegół C
+        Podszegół C1
       Szczegół D
     Pojęcie 2
-      Szczegół E
-      Szczegół F
-      Szczegół G
-      Szczegół H
     Pojęcie 3
       Szczegół I
       Szczegół J
@@ -163,8 +166,9 @@ mindmap
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
 - root((...)) — centralny temat dokumentu, max 4 słowa
-- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee
-- 4-5 gałęzi drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, wartości, przykłady
+- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji (wymienionych wcześniej w [system]) ale tylko dla drugiego poziomu
+- 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
@@ -279,18 +283,21 @@ wrapped in [mindmap]...[/mindmap] tags:
 
 [mindmap]
 ```mermaid
+---
+config:
+  layout: tidy-tree
+---
 mindmap
   root((Main Topic))
     Concept 1
       Detail A
+        Subdetail A1
+        Subdetail A2
       Detail B
       Detail C
+        Subdetail C1        
       Detail D
     Concept 2
-      Detail E
-      Detail F
-      Detail G
-      Detail H
     Concept 3
       Detail I
       Detail J
@@ -301,7 +308,8 @@ mindmap
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
 - root((...)) — the central topic of the document, max 4 words
 - 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
-- 4-5 second-level branches under each main concept: specific details, values, examples
+- 0-4 second-level branches under each main concept: specific details, use emoji (from the earlier [system]) before the text but only for second-level
+- 0-2 third-level branches: very specific details, only if important and valuable (e.g. specific dates, numbers, names related to the second-level branch)
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
