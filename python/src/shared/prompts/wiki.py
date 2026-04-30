@@ -129,9 +129,9 @@ flowchart LR
     Q[Query Q]
     K[Key K]
     V[Value V]
-    Scale[Scale div sqrt-dk]
+    Scale["Scale / sqrt(d_k)"]
     SoftmaxA[Softmax]
-    DotProd[Scaled Dot-Product]
+    DotProd["Scaled Dot-Product (QKV)"]
   end
 
   Tokens --> EmbLayer

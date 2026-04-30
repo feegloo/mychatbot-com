@@ -925,6 +925,7 @@ function openFilePreview(file: FileInfo) {
 :deep(.inline-source-btn) {
   display: inline-flex;
   align-items: center;
+  user-select: none;
   gap: 1px;
   background: #7c3aed33;
   color: #c4b5fd;

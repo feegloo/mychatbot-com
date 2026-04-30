@@ -12,7 +12,7 @@
           &times;
         </button>
         <Transition name="modal-img-fade" mode="out-in">
-          <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
+          <img :key="src" :src="src" :alt="alt" class="image-modal-img" :class="{ 'image-modal-img--stretch': stretch }" />
         </Transition>
         <Transition name="modal-title-fade">
           <div v-if="title" :key="title" class="image-modal-title">"{{ title }}"</div>
@@ -28,6 +28,8 @@ defineProps<{
   src: string
   alt?: string
   title?: string
+  /** When true: mobile fills full width, desktop fills full height (for SVG/diagrams) */
+  stretch?: boolean
 }>()
 
 defineEmits<{
@@ -108,6 +110,23 @@ defineEmits<{
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   object-fit: contain;
   display: block;
+}
+
+/* Stretch mode: SVG/diagrams — mobile fills full width, desktop fills full height */
+.image-modal-img--stretch {
+  width: 100vw;
+  max-width: 100vw;
+  height: auto;
+  max-height: 95vh;
+}
+
+@media (min-width: 769px) {
+  .image-modal-img--stretch {
+    width: auto;
+    max-width: 95vw;
+    height: 95vh;
+    max-height: 95vh;
+  }
 }
 
 /* Fade transition when src changes (morph progression) */

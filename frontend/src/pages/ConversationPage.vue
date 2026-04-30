@@ -196,12 +196,11 @@
     :loading="wikiLoading"
     @close="wikiModalOpen = false"
   />
-  <WikiModal
-    title="🧩 Mapa Myśli"
+  <ImageModal
     :visible="c4ModalOpen"
-    :content="null"
-    :svg-content="c4SvgCache"
-    :loading="c4ModalOpen && !c4SvgCache"
+    :src="c4SvgUrl ?? ''"
+    alt="Mapa Myśli"
+    :stretch="true"
     @close="c4ModalOpen = false"
   />
 </template>
@@ -239,6 +238,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import WikiModal from '../components/WikiModal.vue'
+import ImageModal from '../components/ImageModal.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import LanguageToggle from '../components/LanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
@@ -294,6 +294,8 @@ const c4Ready = ref(false)
 const c4ModalOpen = ref(false)
 // Cached SVG string: rendered once on first open, reused on subsequent opens.
 const c4SvgCache = ref<string | null>(null)
+// Blob URL for ImageModal lightbox — created from c4SvgCache, revoked on close.
+const c4SvgUrl = ref<string | null>(null)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -1145,6 +1147,15 @@ async function openC4Modal() {
     })
     const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
     c4SvgCache.value = svg
+    // Strip fixed width/height from the SVG root so CSS controls sizing.
+    // Mermaid outputs absolute pixel values; without this the <img> uses those
+    // intrinsic dimensions and appears tiny on narrow screens.
+    const scalableSvg = svg.replace(/<svg([^>]*)>/, (_m, attrs: string) =>
+      '<svg' + attrs.replace(/\s+(width|height)="[^"]*"/g, '') + '>',
+    )
+    // Revoke previous blob URL before creating a new one
+    if (c4SvgUrl.value) URL.revokeObjectURL(c4SvgUrl.value)
+    c4SvgUrl.value = URL.createObjectURL(new Blob([scalableSvg], { type: 'image/svg+xml' }))
   } catch (e) {
     console.error('[Mapa Myśli] Failed to render mindmap SVG:', e)
   }
