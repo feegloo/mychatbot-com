@@ -371,7 +371,6 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 560px;
   position: relative;
-  margin-bottom: 24px;
   flex-shrink: 0;
 }
 
@@ -389,7 +388,7 @@ function autoResize(e: Event) {
 }
 
 .upload-dropzone {
-  padding: 48px 36px;
+  padding: 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
