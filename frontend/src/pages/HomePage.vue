@@ -436,6 +436,7 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 700px;
   flex-shrink: 0;
+  margin-top: 80px;
 }
 
 /* Fade transition for upload section */
@@ -467,16 +468,25 @@ function autoResize(e: Event) {
   }
 
   .dropzone-title {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .home-chat-input {
     position: fixed;
-    bottom: 30px;
+    bottom: calc(30px + env(safe-area-inset-bottom, 0px));
     left: 16px;
     right: 16px;
     width: auto;
     max-width: none;
+    margin-top: 0;
     z-index: 10;
   }
 }
