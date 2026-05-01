@@ -291,7 +291,6 @@ OPENAI_API_KEY=${OPENAI_API_KEY},\
 REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN},\
 STORAGE_PROVIDER=gcs,
 GCS_BUCKET=${GCS_BUCKET},
-FRONTEND_DIST_PATH=/app/frontend/dist,\
 PYTHON_BIN=/app/python/.venv/bin/python3,\
 PYTHON_PROJECT_ROOT=/app/python,\
 PYTHON_SERVER_URL=http://localhost:8321,\
@@ -376,8 +375,16 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
   fi
 
   # Public read access for CDN backend bucket origin.
-  # --clear-pap resets PAP to "inherited" (org-policy default); newer gcloud removed --pap=inherited.
-  gcloud storage buckets update "gs://${STATIC_BUCKET}" --clear-pap || true
+  #
+  # WHY gsutil instead of gcloud:
+  #   GCS buckets created in some projects default to `public_access_prevention: enforced`,
+  #   which blocks allUsers IAM bindings even when explicitly granted — causing 403
+  #   "AccessDenied" from the CDN backend bucket regardless of IAM policy.
+  #   `gcloud storage buckets update --clear-pap` silently failed to lift this in
+  #   practice (2026-05-01 incident: chatrag.app returned 403 after CDN migration).
+  #   `gsutil pap set unspecified` correctly sets PAP to "inherited" (= no restriction)
+  #   without requiring the Organization Policy API to be enabled on the project.
+  gsutil pap set unspecified "gs://${STATIC_BUCKET}" || true
   gcloud storage buckets add-iam-policy-binding "gs://${STATIC_BUCKET}" \
     --member="allUsers" \
     --role="roles/storage.objectViewer" || true

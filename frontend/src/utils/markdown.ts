@@ -311,7 +311,9 @@ export function renderMarkdown(content: string): string {
 
     return root.innerHTML
   })()
-  // Linkify bare domain URLs in text nodes (not inside existing <a> tags)
+  // Linkify phone numbers and bare domain URLs in text nodes (not inside existing <a> tags)
+  // Phone: international format starting with + country-code, e.g. +48 791 421 067
+  const phoneRe = /\+\d{1,3}(?:[\s\-]\d{2,4}){2,4}/g
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
     `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"'\u201C\u201D\u2018\u2019\u00AB\u00BB.,;:!?)\\]]*)?`,
@@ -330,7 +332,10 @@ export function renderMarkdown(content: string): string {
         return m
       }
       if (text && insideA === 0) {
-        return text.replace(bareDomain, (url: string, domain: string, path: string) => {
+        const withPhones = text.replace(phoneRe, (phone: string) => {
+          return `<a href="tel:${phone}" style="color: #60a5fa;">${phone}</a>`
+        })
+        return withPhones.replace(bareDomain, (url: string, domain: string, path: string) => {
           const href = `https://${domain}${path || ''}`
           return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">${url}</a>`
         })

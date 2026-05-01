@@ -414,7 +414,7 @@ watch(sseEvent, (evt) => {
 watch(
   welcomeMessageContent,
   (content) => {
-    if (!c4Ready.value && content && /\[mindmap\][\s\S]*?\[\/mindmap\]/.test(content)) {
+    if (!c4Ready.value && content && /\[(?:mindmap|mapa myśli)\][\s\S]*?\[\/(?:mindmap|mapa myśli)\]/.test(content)) {
       c4Ready.value = true
     }
   },
@@ -1115,7 +1115,7 @@ async function openC4Modal() {
   c4ModalOpen.value = true
   if (c4SvgCache.value) return  // already rendered, reuse cache
 
-  const match = welcomeMessageContent.value.match(/\[mindmap\]([\s\S]*?)\[\/mindmap\]/)
+  const match = welcomeMessageContent.value.match(/\[(?:mindmap|mapa myśli)\]([\s\S]*?)\[\/(?:mindmap|mapa myśli)\]/)
   if (!match) return
 
   // Strip ```mermaid fences if the LLM wrapped the code block

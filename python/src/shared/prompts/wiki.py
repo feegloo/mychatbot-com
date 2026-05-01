@@ -42,6 +42,8 @@ from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate
 
+from .key_facts import KEY_ENTITIES_BULLETS_RULES
+
 # ---------------------------------------------------------------------------
 # Few-shot examples
 # ---------------------------------------------------------------------------
@@ -359,15 +361,7 @@ Pure markdown. No surrounding code fences. Sections in this exact order:
 One sentence characterizing the field, register, and stakes of the material.
 
 ## Key Entities
-8-18 bullets (aim for the upper end for information-rich documents). Each bullet:
-- **Name** — terse definition (≤ 20 words). Include SPECIFIC DETAILS: exact
-  amounts, dates, roles, section/page references, or numeric values wherever
-  they add precision. Example: **§7-NDA** — 3-year confidentiality, 50k PLN
-  penalty (§7). Example: **Encoder Stack** — 6 identical layers, each with
-  multi-head self-attention + position-wise FFN.
-Pick entities by salience: things mentioned often AND things load-bearing for
-meaning (a once-mentioned threshold, deadline, or definition can outrank a
-frequently-mentioned filler word). Specificity > brevity here.
+{key_entities_bullets_rules}
 
 ## Relationships
 ASCII arrow graph. One relationship per line. Use ONLY these arrows:
@@ -511,6 +505,7 @@ WIKI_PROMPT = ChatPromptTemplate.from_messages(
     example_technical=_EXAMPLE_TECHNICAL,
     example_legal=_EXAMPLE_LEGAL,
     example_fiction=_EXAMPLE_FICTION,
+    key_entities_bullets_rules=KEY_ENTITIES_BULLETS_RULES,
 )
 
 

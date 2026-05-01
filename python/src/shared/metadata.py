@@ -203,6 +203,41 @@ def extract_image_metadata(file_path: str, web_search: bool = False) -> dict:
     return metadata
 
 
+def _extract_pdf_hyperlinks(file_path: str) -> dict[str, str]:
+    """Extract clickable hyperlink annotations from a PDF using PyMuPDF.
+
+    Returns a dict of {display_text: url} for every URI link annotation found.
+    When the link rectangle contains no extractable text, the URL itself is used
+    as the key so the LLM still sees the URL.
+    """
+    import fitz  # pymupdf
+
+    links: dict[str, str] = {}
+    try:
+        doc = fitz.open(file_path)
+        for page in doc:
+            for link in page.get_links():
+                # kind 2 == LINK_URI in PyMuPDF
+                if link.get("kind") != 2:
+                    continue
+                uri = link.get("uri", "").strip()
+                if not uri or not uri.startswith(("http://", "https://")):
+                    continue
+                # Try to find the display text inside the link rectangle
+                rect = link.get("from")
+                display = ""
+                if rect:
+                    words = page.get_text("words", clip=rect)
+                    display = " ".join(w[4] for w in words).strip()
+                key = display if display else uri
+                # Keep the first URL for a given display text (avoid duplicates)
+                links.setdefault(key, uri)
+        doc.close()
+    except Exception as e:
+        logger.warning(f"⚠️  Could not extract PDF hyperlinks from {file_path}: {e}")
+    return links
+
+
 def extract_pdf_metadata(file_path: str) -> dict:
     """Extract metadata from a PDF file."""
     from pypdf import PdfReader
@@ -238,6 +273,10 @@ def extract_pdf_metadata(file_path: str) -> dict:
                 metadata["modification_date"] = info.modification_date.isoformat()
     except Exception as e:
         logger.warning(f"Failed to extract PDF metadata for {file_path}: {e}")
+
+    hyperlinks = _extract_pdf_hyperlinks(file_path)
+    if hyperlinks:
+        metadata["pdf_hyperlinks"] = hyperlinks
 
     return metadata
 

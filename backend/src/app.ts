@@ -3,7 +3,6 @@ import cors from '@koa/cors'
 import bodyParser from 'koa-bodyparser'
 import path from 'node:path'
 import fs from 'node:fs'
-import serve from 'koa-static'
 import send from 'koa-send'
 import * as Sentry from '@sentry/node'
 import { uploadRouter } from './routes/upload.js'
@@ -38,11 +37,26 @@ export function createApp() {
     .use(askRouter.routes())
     .use(healthRouter.routes())
     .use(storageRouter.routes())
-    .use(debugRouter.routes())
     .use(translateRouter.routes())
     .use(synthesizeRouter.routes())
     .use(donateRouter.routes())
     .use(imageGenRouter.routes())
+
+  // Debug routes are mounted directly at /api/debug/* — no /api prefix stripping.
+  // This keeps the externally-visible path explicit and avoids conflicting with
+  // the stripping middleware below.
+  app.use(debugRouter.routes())
+  app.use(debugRouter.allowedMethods())
+
+  // Direct health check — Cloud Run startup/liveness probes hit the container
+  // at /health bypassing the LB (which only routes /api/* to Cloud Run).
+  app.use(async (ctx, next) => {
+    if (ctx.path === '/health') {
+      ctx.body = { ok: true }
+      return
+    }
+    return next()
+  })
 
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith('/api2')) {
@@ -56,7 +70,7 @@ export function createApp() {
   })
 
   app.use(async (ctx, next) => {
-    if (ctx.path.startsWith('/api')) {
+    if (ctx.path.startsWith('/api') && !ctx.path.startsWith('/api/debug')) {
       ctx.path = ctx.path.replace(/^\/api/, '') || '/'
       const start = Date.now()
       const sentryTrace = ctx.get('sentry-trace') || undefined
@@ -149,54 +163,6 @@ export function createApp() {
     await send(ctx, 'index.html', { root: uiRoot })
     ctx.set('Cache-Control', 'public, max-age=0, must-revalidate')
   })
-
-  if (config.frontendDistPath && fs.existsSync(config.frontendDistPath)) {
-    // Vite emits content-hashed files under /assets/* — safe to cache immutably.
-    // Everything else (index.html, favicon, robots.txt) should revalidate.
-    app.use(
-      serve(config.frontendDistPath, {
-        setHeaders: (res, filePath) => {
-          const rel = path.relative(path.resolve(config.frontendDistPath), filePath)
-          if (rel.startsWith('assets' + path.sep)) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-          } else {
-            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-          }
-        },
-      }),
-    )
-
-    // Serve .well-known files explicitly (extensionless files need content-type set)
-    app.use(async (ctx, next) => {
-      if (ctx.path.startsWith('/.well-known/')) {
-        const distRoot = path.resolve(config.frontendDistPath)
-        // Try exact path first, then without .txt extension
-        const candidates = [ctx.path, ctx.path.replace(/\.txt$/, '')]
-        for (const candidate of candidates) {
-          const resolved = path.resolve(path.join(distRoot, candidate))
-          if (!resolved.startsWith(distRoot)) continue
-          if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
-            ctx.type = 'text/plain'
-            ctx.body = fs.createReadStream(resolved)
-            return
-          }
-        }
-      }
-      return next()
-    })
-
-    app.use(async (ctx) => {
-      if (ctx.path.startsWith('/api')) return
-      // Don't serve index.html for missing static assets — return 404 instead
-      const ext = path.extname(ctx.path)
-      if (ext && ext !== '.html') {
-        ctx.status = 404
-        return
-      }
-      await send(ctx, 'index.html', { root: path.resolve(config.frontendDistPath) })
-      ctx.set('Cache-Control', 'public, max-age=0, must-revalidate')
-    })
-  }
 
   return app
 }

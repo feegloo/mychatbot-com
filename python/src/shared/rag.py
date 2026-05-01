@@ -15,6 +15,7 @@ from .config import get_settings
 from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
 from .prompts.labels_actions import LABELS_ACTIONS_RULES
+from .prompts.key_facts import KEY_FACTS_PROMPT
 from .prompts.quiz import QUIZ_PROMPT
 from .prompts.response_formats import RESPONSE_FORMATS_RULES
 from .prompts.voice_tone import VOICE_TONE_RULES
@@ -50,6 +51,9 @@ _QUIZ_PATTERNS = re.compile(
     r"\b(quiz|kwiz|test|egzamin)\b",
     re.IGNORECASE,
 )
+
+# Pattern that triggers key-facts list mode — the ☝️ emoji is the reserved trigger.
+_KEY_FACTS_PATTERNS = re.compile(r"☝️")
 
 _ANSWER_SYSTEM_TEMPLATE = """You answer questions about the user's uploaded files (books in PDF, images, text, etc.). The context sections below are your PRIMARY source of truth.  You can "fill the information holes" with "common knownledge" and admit it, but don't hallucinate, keep close to source material
 
@@ -579,6 +583,10 @@ def _handle_recognize(
 
 def _is_quiz_request(question: str) -> bool:
     return bool(_QUIZ_PATTERNS.search(question))
+
+
+def _is_key_facts_request(question: str) -> bool:
+    return bool(_KEY_FACTS_PATTERNS.search(question))
 
 
 _QUIZ_QUESTION_COUNT_RE = re.compile(
@@ -1181,8 +1189,9 @@ def answer_with_citations(
 
         llm = get_llm()
 
-        # Choose prompt based on whether this is a quiz request
+        # Choose prompt based on request type
         is_quiz = _is_quiz_request(question)
+        is_key_facts = not is_quiz and _is_key_facts_request(question)
         if is_quiz:
             logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
             # Quiz still uses the old raw_text + page_summaries variables
@@ -1190,11 +1199,18 @@ def answer_with_citations(
             page_summaries = _load_page_summaries_legacy(storage_dir)
             num_questions = _extract_quiz_question_count(question)
             logger.info(f"🧩 Quiz question count: {num_questions}")
+        elif is_key_facts:
+            logger.info("☝️ Key facts mode detected, using KEY_FACTS_PROMPT")
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
 
-        prompt = QUIZ_PROMPT if is_quiz else ANSWER_PROMPT
+        if is_quiz:
+            prompt = QUIZ_PROMPT
+        elif is_key_facts:
+            prompt = KEY_FACTS_PROMPT
+        else:
+            prompt = ANSWER_PROMPT
         chain = prompt | llm
 
         # Build the template variables for this invocation
@@ -1211,6 +1227,7 @@ def answer_with_citations(
                 "num_questions": num_questions,
             }
         else:
+            # Both ANSWER_PROMPT and KEY_FACTS_PROMPT share the same variable set
             conv_name = conversation_name or "(unnamed conversation)"
             is_first_message = not chat_history or len(chat_history) == 0
             has_no_files = not welcome_messages or len(welcome_messages) == 0
@@ -1255,7 +1272,6 @@ def answer_with_citations(
         logger.info(
             f"📋 [FULL PROMPT] conversation={conversation_id} length={len(rendered_prompt)} chars"
         )
-        logger.info(f"📋 [FULL PROMPT]\n{rendered_prompt}")
 
         # Send the rendered prompt to Sentry with full text as attachment
         # (breadcrumbs get [Filtered] by data scrubbing, attachments don't)
@@ -1263,7 +1279,7 @@ def answer_with_citations(
             scope.set_extra("conversation_id", conversation_id)
             scope.set_extra("question", question)
             scope.set_extra("prompt_length", len(rendered_prompt))
-            scope.set_extra("mode", "quiz" if is_quiz else "answer")
+            scope.set_extra("mode", "quiz" if is_quiz else ("key_facts" if is_key_facts else "answer"))
             scope.add_attachment(
                 bytes=rendered_prompt.encode("utf-8"),
                 filename=f"prompt_{conversation_id}.txt",

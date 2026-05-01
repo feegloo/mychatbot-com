@@ -442,7 +442,8 @@ const finalGeneratedImageUrl = computed(() => {
 // Strip the hidden [mindmap]...[/mindmap] section from welcome message content before rendering.
 // The [mindmap] block is embedded by the LLM so the frontend can extract it for
 // the "Mapa Myśli" modal without a separate API call. It must never appear in chat.
-const MINDMAP_BLOCK_RE = /\[mindmap\][\s\S]*?\[\/mindmap\]/g
+// Also handles the translated Polish variant [mapa myśli]...[/mapa myśli] as a fallback.
+const MINDMAP_BLOCK_RE = /\[(?:mindmap|mapa myśli)\][\s\S]*?\[\/(?:mindmap|mapa myśli)\]/g
 const renderedContent = computed(() =>
   props.isWelcome
     ? (props.msg.content || '').replace(MINDMAP_BLOCK_RE, '').trim()

@@ -78,6 +78,9 @@ Zasady:
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Często sugeruj akcję generowania obrazu powiązaną z konkretnym tematem dokumentu (np. "Wygeneruj obraz inspirowany [temat/bohater/scena] 🎨") — dopasuj temat do treści, nie używaj ogólnikowego "aktualnego nastroju"
 - KRYTYCZNE: emoji 🎨 jest ZAREZERWOWANE WYŁĄCZNIE dla akcji generowania obrazu. Nigdy nie dodawaj 🎨 do innej akcji. Każda akcja generowania obrazu MUSI kończyć się 🎨 — to 🎨 (a nie konkretne słowa) uruchamia API generowania obrazu. Dla czytelności akcja powinna też zawierać frazę "wygeneruj obraz".
+- KRYTYCZNE: emoji ✅ jest ZAREZERWOWANE WYŁĄCZNIE dla akcji tworzenia list kontrolnych/checklist (np. "Stwórz checklistę wymaganych kroków ✅"). NIGDY nie używaj ✅ jako ogólnego "zatwierdzone", "poprawione", "ulepszone" ani żadnego innego znaczenia. Przykłady zabronionych użyć: ❌ "Wyostrz opis pod rekrutera ✅" (użyj 🎯 lub 💪), ❌ "Dopracuj CV ✅" (użyj ✏️ lub 💼). Emoji ✅ (a nie słowa) uruchamia interfejs checklista — błędne użycie psuje UI.
+- KRYTYCZNE: emoji ☝️ jest ZAREZERWOWANE WYŁĄCZNIE dla akcji "lista kluczowych faktów" (np. "Napisz listę kluczowych faktów ☝️"). NIGDY nie używaj ☝️ jako zwykłego wskazania czy akcentowania. Emoji ☝️ (a nie konkretne słowa) uruchamia tryb listy kluczowych faktów.
+- KRYTYCZNE: akcje tłumaczenia treści MUSZĄ kończyć się flagą docelowego języka, NIE globusem 🌍. Przykłady: "Przetłumacz na angielski 🇬🇧", "Przetłumacz na polski 🇵🇱", "Przetłumacz na niemiecki 🇩🇪", "Przetłumacz na francuski 🇫🇷". Użyj flagi kraju, w którym mówi się docelowym językiem.
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
@@ -369,10 +372,10 @@ ai) Piosenka / Tekst muzyczny 🎵 — sugeruj gdy:
    - dokument dotyczy muzyki, tekstów piosenek, lub ma potencjał liryczny
    - akcja: "napisz inspirowaną piosenkę / tekst muzyczny"
 
-aj) Przetłumacz treść 🌍 — sugeruj gdy:
+aj) Przetłumacz treść [flaga języka] — sugeruj gdy:
    - treść jest w języku obcym dla użytkownika (np. dokument po angielsku dla polskiego użytkownika)
    - dokument zawiera fragmenty w różnych językach
-   - akcja: "przetłumacz na [język]"
+   - akcja: "Przetłumacz na [język] [flaga docelowego języka]" — użyj FLAGI docelowego języka, NIE globusa 🌍. Przykłady: "Przetłumacz na angielski 🇬🇧", "Przetłumacz na polski 🇵🇱", "Przetłumacz na niemiecki 🇩🇪"
 
 ak) Metadane EXIF 📷 — sugeruj TYLKO gdy:
    - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
@@ -412,6 +415,9 @@ Rules:
   Each action-prompt MUST end with a relevant emoji
 - Frequently suggest a subject-specific image generation action tied to the document's concrete topic/character/scene (e.g. "Generate image inspired by: dark forest with Hermione 🎨") — do NOT use the generic phrase "current mood"; make it relevant to what the document is actually about. The word "inspired" (or Polish "inspirowany"/"inspirowana") is MANDATORY in every image-generation label — OpenAI's content filter blocks verbatim copyrighted character/scene prompts, but the "inspired by" framing passes.
 - CRITICAL: the 🎨 emoji is RESERVED EXCLUSIVELY for image-generation actions. Never attach 🎨 to any other action. Every image-generation action MUST end with 🎨 — the 🎨 emoji (not any specific word) is what triggers the image-generation API. For clarity the label must also contain the phrase "generate image" AND the word "inspired" (English) or "inspirowany"/"inspirowana" (Polish). Labels without "inspired" will be blocked by OpenAI's content filter.
+- CRITICAL: the ✅ emoji is RESERVED EXCLUSIVELY for checklist-generation actions (e.g., "Create a checklist of required steps ✅"). NEVER use ✅ as a general "approved", "done", "improved", or "sharpened" emoji. Forbidden examples: ❌ "Sharpen profile for recruiter ✅" (use 🎯 or 💪), ❌ "Polish CV ✅" (use ✏️ or 💼). The ✅ emoji (not any word) triggers the checklist UI — misuse breaks the interface.
+- CRITICAL: the ☝️ emoji is RESERVED EXCLUSIVELY for "list of key facts" actions (e.g., "Write a list of key facts ☝️"). NEVER use ☝️ as a general pointing or emphasis emoji. The ☝️ emoji (not any word) triggers the key-facts response mode.
+- CRITICAL: translation actions MUST end with the TARGET LANGUAGE FLAG emoji, NOT the globe 🌍. Examples: "Translate to English 🇬🇧", "Translate to Polish 🇵🇱", "Translate to German 🇩🇪", "Translate to French 🇫🇷". Use the flag of the country where the target language is spoken.
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
@@ -701,10 +707,10 @@ ai) Song / Lyrics 🎵 — suggest when:
    - document is about music, song lyrics, or has lyrical potential
    - action: "write an inspired song / lyrics"
 
-aj) Translate content 🌍 — suggest when:
+aj) Translate content [language flag] — suggest when:
    - content is in a foreign language for the user (e.g. English document for a Polish user)
    - document contains fragments in different languages
-   - action: "translate to [language]"
+   - action: "Translate to [language] [target language flag]" — use the TARGET LANGUAGE FLAG, NOT the globe 🌍. Examples: "Translate to English 🇬🇧", "Translate to Polish 🇵🇱", "Translate to German 🇩🇪", "Translate to French 🇫🇷"
 
 ak) EXIF metadata 📷 — suggest ONLY when:
    - file is a photo (image) — never for PDF or text
@@ -1245,7 +1251,15 @@ def _append_contextual_prompts(
 
         llm_actions = [a for a in llm_actions if not _is_quiz_action(a)]
 
-    actions = pinned + contextual + llm_actions
+    # Key facts: include for all text content; skip for image-only conversations
+    has_text_content = not file_types or any(v != "image" for v in file_types.values())
+    key_facts_prompt: str | None = (
+        ("Napisz listę kluczowych faktów ☝️" if language == "pl" else "Write a list of key facts ☝️")
+        if has_text_content
+        else None
+    )
+
+    actions = pinned + ([key_facts_prompt] if key_facts_prompt else []) + contextual + llm_actions
 
     # Build the final list with explicit caps per group:
     # - max 3 normal questions
