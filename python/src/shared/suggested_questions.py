@@ -74,10 +74,13 @@ Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji
 - KRYTYCZNE: Pytania formułuj jako intencję użytkownika — NIE jako pytanie modelu do użytkownika. Zamiast "Chcesz X?" pisz po prostu "X". NIGDY nie używaj zwrotów "Chcesz…?", "Czy chcesz…?", "Czy mogę…?", "Powinienem…?". Przykłady: ❌ "Chcesz krótki opis finału bez spoilerów?" → ✅ "Krótki opis finału bez spoilerów". ❌ "Chcesz pełne streszczenie procesu Szlezyngierów?" → ✅ "Pełne streszczenie procesu Szlezyngierów".
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby (pisarz, naukowiec, polityk, artysta itp.), JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli osoba nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje). Użyj pełnego imienia i nazwiska.
-- Kolejne (do 7) to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz wiersz inspirowany treścią 📜")
+- Kolejne (do 7) to kreatywne prompty-akcje sformułowane jako naturalne zdania/polecenia (np. "Stwórz quiz z najważniejszych faktów 🧠", "Napisz nowy wiersz inspirowany treścią 📜")
   Każdy prompt-akcja MUSI kończyć się odpowiednim emoji
 - Często sugeruj akcję generowania obrazu powiązaną z konkretnym tematem dokumentu (np. "Wygeneruj obraz inspirowany [temat/bohater/scena] 🎨") — dopasuj temat do treści, nie używaj ogólnikowego "aktualnego nastroju"
 - KRYTYCZNE: emoji 🎨 jest ZAREZERWOWANE WYŁĄCZNIE dla akcji generowania obrazu. Nigdy nie dodawaj 🎨 do innej akcji. Każda akcja generowania obrazu MUSI kończyć się 🎨 — to 🎨 (a nie konkretne słowa) uruchamia API generowania obrazu. Dla czytelności akcja powinna też zawierać frazę "wygeneruj obraz".
+- KRYTYCZNE: emoji ✅ jest ZAREZERWOWANE WYŁĄCZNIE dla akcji tworzenia list kontrolnych/checklist (np. "Stwórz checklistę wymaganych kroków ✅"). NIGDY nie używaj ✅ jako ogólnego "zatwierdzone", "poprawione", "ulepszone" ani żadnego innego znaczenia. Przykłady zabronionych użyć: ❌ "Wyostrz opis pod rekrutera ✅" (użyj 🎯 lub 💪), ❌ "Dopracuj CV ✅" (użyj ✏️ lub 💼). Emoji ✅ (a nie słowa) uruchamia interfejs checklista — błędne użycie psuje UI.
+- KRYTYCZNE: emoji ☝️ jest ZAREZERWOWANE WYŁĄCZNIE dla akcji "lista kluczowych faktów" (np. "Napisz listę kluczowych faktów ☝️"). NIGDY nie używaj ☝️ jako zwykłego wskazania czy akcentowania. Emoji ☝️ (a nie konkretne słowa) uruchamia tryb listy kluczowych faktów.
+- KRYTYCZNE: akcje tłumaczenia treści MUSZĄ kończyć się flagą docelowego języka, NIE globusem 🌍. Przykłady: "Przetłumacz na angielski 🇬🇧", "Przetłumacz na polski 🇵🇱", "Przetłumacz na niemiecki 🇩🇪", "Przetłumacz na francuski 🇫🇷". Użyj flagi kraju, w którym mówi się docelowym językiem.
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
@@ -92,8 +95,8 @@ Czyli pozycje 1-3 (trzy naturalne pytania) plus pozycje 4-5 (pierwsze DWIE akcje
 == OBOWIĄZKOWE POZYCJE 4 i 5 DLA KSIĄŻEK / DZIEŁ Z AUTOREM ==
 Jeśli dokument to książka, powieść, ebook, zbiór poezji, filozofia — lub dowolne dzieło z wyraźnym autorem — PIERWSZE DWIE akcje (pozycje 4 i 5, czyli widoczne) MUSZĄ brzmieć:
   * Pozycja 4 — akcja twórcza w stylu autora, dobrana do gatunku:
-     - Powieść / beletrystyka: "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
-     - Poezja / aforyzmy: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
+     - Powieść / beletrystyka: "Napisz nowy inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
+     - Poezja / aforyzmy: "Napisz nowy inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
      - Cykl / długa saga: "Napisz inspirowaną książkę w stylu [Imię Nazwisko autora] 📖"
      - Poradnik / samorozwój: jeden z wariantów inspirowanego generowania (wskazówki 💡, ćwiczenia 🏋️, pytania refleksyjne 🤔, scenariusze 🎭, plan 14-dniowy 📅)
   * Pozycja 5 — DRUGI obraz, ale BARDZIEJ SZCZEGÓŁOWY niż przypięty obraz (który już odwołuje się do tytułu). Użyj kluczowego pojęcia, motywu, ikonicznej sceny lub głównego bohatera zamiast samego tytułu:
@@ -107,35 +110,35 @@ Wyjątki:
 Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć danej akcji wśród promptów-akcji:
 
 1. POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, horror itp.):
-   → OBOWIĄZKOWO pozycja 4: "Napisz inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
+   → OBOWIĄZKOWO pozycja 4: "Napisz nowy inspirowany rozdział w stylu [Imię Nazwisko autora] ✏️"
    → OBOWIĄZKOWO pozycja 5: DRUGI obraz — ale MUSI być BARDZIEJ SZCZEGÓŁOWY niż przypięty obraz (który już odwołuje się do tytułu książki). Użyj KLUCZOWEGO POJĘCIA, GŁÓWNEGO MOTYWU, IKONICZNEJ SCENY lub GŁÓWNEGO BOHATERA zamiast samego tytułu.
    Przypięty obraz zawsze odwołuje się do tytułu książki, więc pozycja 5 powinna wejść głębiej: wybierz najbardziej wyrazisty, pamiętny lub tematycznie bogaty element dokumentu.
    Format: "Wygeneruj obraz inspirowany [konkretne pojęcie/scena/postać] 🎨"
    Przykładowe pary (pozycja 4 + pozycja 5):
-   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Czerwonym Weselem 🎨"
-   • "Napisz inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Żelaznym Tronem 🎨"
-   • "Napisz inspirowany rozdział w stylu Remigiusza Mroza ✏️" + "Wygeneruj obraz inspirowany mrocznym śledztwem i tajemnicą 🎨"
-   • "Napisz inspirowany rozdział w stylu Stephena Kinga ✏️" + "Wygeneruj obraz inspirowany nawiedzonym hotelem Overlook 🎨"
-   • "Napisz inspirowany rozdział w stylu J. R. R. Tolkiena ✏️" + "Wygeneruj obraz inspirowany Jedynym Pierścieniem i Górą Przeznaczenia 🎨"
-   • "Napisz inspirowany rozdział w stylu J. K. Rowling ✏️" + "Wygeneruj obraz inspirowany Turniejem Trójmagicznym 🎨"
-   • "Napisz inspirowany rozdział w stylu Dana Browna ✏️" + "Wygeneruj obraz inspirowany tajemnicą Świętego Graala 🎨"
-   • "Napisz inspirowany rozdział w stylu Agathy Christie ✏️" + "Wygeneruj obraz inspirowany sceną morderstwa w Orient Expressie 🎨"
-   • "Napisz inspirowany rozdział w stylu Fiodora Dostojewskiego ✏️" + "Wygeneruj obraz inspirowany winą i spowiedzią Raskolnikowa 🎨"
-   • "Napisz inspirowany rozdział w stylu Andrzeja Sapkowskiego ✏️" + "Wygeneruj obraz inspirowany wiedźmińską ścieżką między dobrem a złem 🎨"
-   • "Napisz inspirowany rozdział w stylu Paulo Coelho ✏️" + "Wygeneruj obraz inspirowany Osobistą Legendą 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Czerwonym Weselem 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu George'a R. R. Martina ✏️" + "Wygeneruj obraz inspirowany Żelaznym Tronem 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Remigiusza Mroza ✏️" + "Wygeneruj obraz inspirowany mrocznym śledztwem i tajemnicą 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Stephena Kinga ✏️" + "Wygeneruj obraz inspirowany nawiedzonym hotelem Overlook 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu J. R. R. Tolkiena ✏️" + "Wygeneruj obraz inspirowany Jedynym Pierścieniem i Górą Przeznaczenia 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu J. K. Rowling ✏️" + "Wygeneruj obraz inspirowany Turniejem Trójmagicznym 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Dana Browna ✏️" + "Wygeneruj obraz inspirowany tajemnicą Świętego Graala 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Agathy Christie ✏️" + "Wygeneruj obraz inspirowany sceną morderstwa w Orient Expressie 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Fiodora Dostojewskiego ✏️" + "Wygeneruj obraz inspirowany winą i spowiedzią Raskolnikowa 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Andrzeja Sapkowskiego ✏️" + "Wygeneruj obraz inspirowany wiedźmińską ścieżką między dobrem a złem 🎨"
+   • "Napisz nowy inspirowany rozdział w stylu Paulo Coelho ✏️" + "Wygeneruj obraz inspirowany Osobistą Legendą 🎨"
 
    Naturalne pytania (pozycje 1-3) MUSZĄ odwoływać się do konkretnej treści — użyj imion bohaterów, frakcji, miejsc z dokumentu (np. dla Tańca ze smokami: "Co dzieje się z Jonem Snow?", "Jak Daenerys rządzi Meereen?", "Kim jest George R. R. Martin?").
 
    Pozostałe akcje dobierz LOSOWO z listy poniżej — zróżnicuj: quiz, tabela porównania bohaterów, mapa myśli, złota myśl, bajka, post social media itp. NIE powtarzaj tego samego typu akcji na różnych pozycjach.
    → OBOWIĄZKOWO akcja "Zrób oś czasu wydarzeń 📅" dla KAŻDEJ powieści / thrillera / kryminału / romansu / fantasy / sagi. Pozycja zależy od trafności:
-     - Pozycja 4 (WIDOCZNA) — gdy oś czasu jest KLUCZOWA dla zrozumienia książki: dużo dat, skomplikowana chronologia, wiele wątków równolegle, rozciągnięta w czasie (np. saga, kryminalna chronologia zbrodni, powieść historyczna, thriller sądowy). Wtedą oś czasu zastępuje akcję twórczego pisania na pozycji 4, a "Napisz inspirowany rozdział..." przesuwa się na pozycję 5.
+     - Pozycja 4 (WIDOCZNA) — gdy oś czasu jest KLUCZOWA dla zrozumienia książki: dużo dat, skomplikowana chronologia, wiele wątków równolegle, rozciągnięta w czasie (np. saga, kryminalna chronologia zbrodni, powieść historyczna, thriller sądowy). Wtedą oś czasu zastępuje akcję twórczego pisania na pozycji 4, a "Napisz nowy inspirowany rozdział..." przesuwa się na pozycję 5.
      - Pozycja 5 (WIDOCZNA) — gdy sekwencja wydarzeń jest ważna, ale niekoniecznie dominująca (np. thriller z kilkoma zwrotami akcji, romans z wyraźną chronologią).
      - Pozycja 6 (pierwsza w "More ...") — gdy fabuła jest prosta lub timeline mniej istotny (np. zbiór opowiadań, prosta historia).
 
 2. POEZJA / FILOZOFIA / CYTATY / AFORYZMY (poeta, filozof, zbiór cytatów):
-   → OBOWIĄZKOWO: "Napisz inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
-    → DODATKOWO: dodaj akcję "Napisz inspirowany cytat w stylu [Imię Nazwisko autora] 💬" (najlepiej w pozycjach 6-10, czyli pod "More ...")
-   Przykład: "Napisz inspirowany wiersz w stylu Paulo Coelho 📜"
+   → OBOWIĄZKOWO: "Napisz nowy inspirowany wiersz w stylu [Imię Nazwisko autora] 📜"
+    → DODATKOWO: dodaj akcję "Napisz nowy inspirowany cytat w stylu [Imię Nazwisko autora] 💬" (najlepiej w pozycjach 6-10, czyli pod "More ...")
+   Przykład: "Napisz nowy inspirowany wiersz w stylu Paulo Coelho 📜"
    Pozostałe akcje dobierz losowo z poniższej listy.
 
 3. PORADNIK / SAMOROZWÓJ / LISTA WSKAZÓWEK / WORKBOOK (produktywność, pewność siebie, nawyki, wskazówki, ćwiczenia, wyzwania, jak zrobić, samodoskonalenie):
@@ -162,8 +165,8 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Akcje z emoji: "Lista kroków do rozwiązania problemu 🚩", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów ✅", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
 
 5. EBOOK / MINIBOOK / PODRĘCZNIK / PRZEWODNIK O KONKRETNYM TEMACIE (np. minibook o granicach, ebook o żywieniu, podręcznik psychologii, przewodnik po ogrodnictwie — książka, która uczy czegoś o danym temacie):
-   → OBOWIĄZKOWO jako 3. akcja (zaraz po "Wygeneruj obraz…" i po akcji "Napisz inspirowany rozdział/wskazówki…") DODAJ: "Stwórz quiz z najważniejszych faktów 🧠".
-   Przykład dla "Minibook o granicach" Matyldy Kozakiewicz: 4. "Wygeneruj obraz inspirowany: Minibook o granicach 🎨", 5. "Napisz inspirowany rozdział w stylu Matyldy Kozakiewicz ✏️", 6. "Stwórz quiz z najważniejszych faktów 🧠".
+   → OBOWIĄZKOWO jako 3. akcja (zaraz po "Wygeneruj obraz…" i po akcji "Napisz nowy inspirowany rozdział/wskazówki…") DODAJ: "Stwórz quiz z najważniejszych faktów 🧠".
+   Przykład dla "Minibook o granicach" Matyldy Kozakiewicz: 4. "Wygeneruj obraz inspirowany: Minibook o granicach 🎨", 5. "Napisz nowy inspirowany rozdział w stylu Matyldy Kozakiewicz ✏️", 6. "Stwórz quiz z najważniejszych faktów 🧠".
    Pozostałe akcje dobierz losowo z listy poniżej.
 
 6. NAUKA JĘZYKA / PODRĘCZNIK JĘZYKOWY / MATERIAŁ DO NAUCZANIA JĘZYKA (podręcznik do angielskiego, kurs niemieckiego, gramatyka hiszpańska, słownictwo, ESL/EFL, TOEFL/IELTS, zeszyt ćwiczeń językowych):
@@ -181,7 +184,7 @@ PRIORYTET: Lista poniżej jest posortowana OD NAJWYŻSZEGO DO NAJNIŻSZEGO PRIOR
 Przy wyborze akcji stosuj dwie zasady:
 1. Priorytet (główna zasada): preferuj akcje z początku listy — wcześniejsze litery mają wyższy priorytet.
 2. Dopasowanie kontekstowe (czynnik dodatkowy): jeśli treść silnie pasuje do akcji o niższym priorytecie, może pojawić się wcześniej na liście wynikowej.
-Przykład: dla bajki dla dzieci — a) Wygeneruj obraz (najwyższy priorytet), b) Napisz inspirowany rozdział (wysoki), d) Bajka (niższy priorytet, ale silne dopasowanie kontekstu) → te trzy powinny pojawić się jako pierwsze akcje.
+Przykład: dla bajki dla dzieci — a) Wygeneruj obraz (najwyższy priorytet), b) Napisz nowy inspirowany rozdział (wysoki), d) Bajka (niższy priorytet, ale silne dopasowanie kontekstu) → te trzy powinny pojawić się jako pierwsze akcje.
 
 a) Wygeneruj obraz 🎨 — NAJWYŻSZY PRIORYTET — sugeruj gdy:
    - treść opisuje sceny, krajobrazy, postacie, przedmioty wizualne
@@ -192,17 +195,17 @@ a) Wygeneruj obraz 🎨 — NAJWYŻSZY PRIORYTET — sugeruj gdy:
    - dla czytelności dla użytkownika akcja powinna też zawierać frazę "wygeneruj obraz"
    - akcja MUSI nawiązywać do konkretnego tematu/sceny/bohatera dokumentu (np. "Wygeneruj obraz: mroczny las z Joanną Chyłką 🎨") — NIE używaj ogólnikowego "aktualnego nastroju"
 
-b) Napisz inspirowany rozdział ✏️ — sugeruj gdy:
+b) Napisz nowy inspirowany rozdział ✏️ — sugeruj gdy:
    - dokument to fragment powieści, opowiadania, książki beletrystycznej
-   - np. książka Stephena Kinga — "napisz inspirowany rozdział w stylu autora"
+   - np. książka Stephena Kinga — "napisz nowy inspirowany rozdział w stylu autora"
    - treść ma wyraźny styl narracyjny do naśladowania
-   - akcja: "napisz inspirowany rozdział" (nie samo "napisz rozdział")
+   - akcja: "napisz nowy inspirowany rozdział" (nie samo "napisz rozdział")
 
-c) Napisz inspirowany wiersz 📜 — sugeruj gdy:
+c) Napisz nowy inspirowany wiersz 📜 — sugeruj gdy:
    - autor to poeta, pisarz, lub treść związana z poezją
    - dokument to zbiór cytatów, aforyzmów, wierszy
    - treść ma literacki, artystyczny charakter
-   - akcja: "napisz inspirowany wiersz" (nie samo "wiersz")
+   - akcja: "napisz nowy inspirowany wiersz" (nie samo "wiersz")
 
 d) Bajka / Opowiadanie dla dzieci 🧚 — sugeruj gdy:
    - treść zawiera moralne lekcje, przygody, postacie fantastyczne
@@ -369,10 +372,10 @@ ai) Piosenka / Tekst muzyczny 🎵 — sugeruj gdy:
    - dokument dotyczy muzyki, tekstów piosenek, lub ma potencjał liryczny
    - akcja: "napisz inspirowaną piosenkę / tekst muzyczny"
 
-aj) Przetłumacz treść 🌍 — sugeruj gdy:
+aj) Przetłumacz treść [flaga języka] — sugeruj gdy:
    - treść jest w języku obcym dla użytkownika (np. dokument po angielsku dla polskiego użytkownika)
    - dokument zawiera fragmenty w różnych językach
-   - akcja: "przetłumacz na [język]"
+   - akcja: "Przetłumacz na [język] [flaga docelowego języka]" — użyj FLAGI docelowego języka, NIE globusa 🌍. Przykłady: "Przetłumacz na angielski 🇬🇧", "Przetłumacz na polski 🇵🇱", "Przetłumacz na niemiecki 🇩🇪"
 
 ak) Metadane EXIF 📷 — sugeruj TYLKO gdy:
    - plik to zdjęcie (image) — nigdy dla PDF lub tekstu
@@ -408,10 +411,13 @@ Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji
 - CRITICAL: Questions must be phrased as user intents — NOT as the assistant asking the user. Instead of "Do you want X?" write simply "X". NEVER use phrasing like "Do you want…?", "Would you like…?", "Should I…?", "Can I…?". Examples: ❌ "Do you want a short spoiler-free finale summary?" → ✅ "Short spoiler-free finale summary". ❌ "Would you like a full summary of the trial?" → ✅ "Full summary of the trial".
 - If the document is by or about a well-known person (author, scientist, politician, artist, etc.), ONE of the first 3 questions MUST be "Who is [Full Name]?" (if the person is currently alive) or "Who was [Full Name]?" (ONLY if the person is confirmed deceased). Use the person's full name. CRITICAL: Default to "Who is" (present tense) unless you are certain the person has died. Living authors/figures (e.g. Stephen King, Paulo Coelho, George R. R. Martin, Dan Brown, Stephen Hawking died 2018 so "was", but Noam Chomsky is alive so "is") MUST use "Who is". Never use "Who was" for a living person.
-- The next prompts (up to 7) are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a poem inspired by this 📜")
+- The next prompts (up to 7) are creative action-prompts phrased as natural sentences/commands (e.g., "Create a quiz from the key facts 🧠", "Write a new poem inspired by this 📜")
   Each action-prompt MUST end with a relevant emoji
 - Frequently suggest a subject-specific image generation action tied to the document's concrete topic/character/scene (e.g. "Generate image inspired by: dark forest with Hermione 🎨") — do NOT use the generic phrase "current mood"; make it relevant to what the document is actually about. The word "inspired" (or Polish "inspirowany"/"inspirowana") is MANDATORY in every image-generation label — OpenAI's content filter blocks verbatim copyrighted character/scene prompts, but the "inspired by" framing passes.
 - CRITICAL: the 🎨 emoji is RESERVED EXCLUSIVELY for image-generation actions. Never attach 🎨 to any other action. Every image-generation action MUST end with 🎨 — the 🎨 emoji (not any specific word) is what triggers the image-generation API. For clarity the label must also contain the phrase "generate image" AND the word "inspired" (English) or "inspirowany"/"inspirowana" (Polish). Labels without "inspired" will be blocked by OpenAI's content filter.
+- CRITICAL: the ✅ emoji is RESERVED EXCLUSIVELY for checklist-generation actions (e.g., "Create a checklist of required steps ✅"). NEVER use ✅ as a general "approved", "done", "improved", or "sharpened" emoji. Forbidden examples: ❌ "Sharpen profile for recruiter ✅" (use 🎯 or 💪), ❌ "Polish CV ✅" (use ✏️ or 💼). The ✅ emoji (not any word) triggers the checklist UI — misuse breaks the interface.
+- CRITICAL: the ☝️ emoji is RESERVED EXCLUSIVELY for "list of key facts" actions (e.g., "Write a list of key facts ☝️"). NEVER use ☝️ as a general pointing or emphasis emoji. The ☝️ emoji (not any word) triggers the key-facts response mode.
+- CRITICAL: translation actions MUST end with the TARGET LANGUAGE FLAG emoji, NOT the globe 🌍. Examples: "Translate to English 🇬🇧", "Translate to Polish 🇵🇱", "Translate to German 🇩🇪", "Translate to French 🇫🇷". Use the flag of the country where the target language is spoken.
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
@@ -426,8 +432,8 @@ So positions 1-3 (the three natural questions) plus positions 4-5 (the first TWO
 == MANDATORY POSITIONS 4 & 5 FOR BOOKS / AUTHORED WORKS ==
 If the document is a book, novel, ebook, poetry collection, philosophy, or any work with a clear author, the FIRST TWO action-prompts (positions 4 and 5, i.e. the visible ones) MUST be:
   * Position 4 — a creative-writing action in the author's style, chosen by genre:
-     - Novel / fiction: "Write a chapter inspired by [Author Full Name] ✏️"
-     - Poetry / aphorisms: "Write a poem inspired by [Author Full Name] 📜"
+     - Novel / fiction: "Write a new chapter inspired by [Author Full Name] ✏️"
+     - Poetry / aphorisms: "Write a new poem inspired by [Author Full Name] 📜"
      - Book-length multi-volume work / epic: "Write a book inspired by [Author Full Name] 📖"
      - Non-fiction guide / self-help: pick one of the inspired-generation variants (tips 💡, exercises 🏋️, reflection questions 🤔, scenarios 🎭, 14-day plan 📅)
   * Position 5 — a SECOND image action, but MORE SPECIFIC than the pinned image (which already references the book title). Use the book's central concept, key theme, iconic scene, or main character instead:
@@ -441,33 +447,33 @@ Exceptions:
 These rules have the HIGHEST PRIORITY — if the content matches, you MUST include that action among the action prompts:
 
 1. NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, horror, etc.):
-   → MANDATORY position 4: "Write a chapter inspired by [Author Full Name] ✏️"
+   → MANDATORY position 4: "Write a new chapter inspired by [Author Full Name] ✏️"
    → MANDATORY position 5: a SECOND image action — but it MUST be more specific than the pinned image (which already references the book title). Use the book's CENTRAL CONCEPT, KEY THEME, ICONIC SCENE, or MAIN CHARACTER instead of the title.
    The pinned image always covers the book title, so position 5 should dive deeper: pick the most vivid, memorable, or thematically rich element from the document.
    Format: "Generate an image inspired by [specific concept/scene/character] 🎨"
    Example pairs (position 4 + position 5):
-   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Red Wedding 🎨"
-   • "Write a chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Iron Throne 🎨"
-   • "Write a chapter inspired by Stephen King ✏️" + "Generate an image inspired by the haunted Overlook Hotel 🎨"
-   • "Write a chapter inspired by J. R. R. Tolkien ✏️" + "Generate an image inspired by the One Ring and Mount Doom 🎨"
-   • "Write a chapter inspired by J. K. Rowling ✏️" + "Generate an image inspired by the Triwizard Tournament 🎨"
-   • "Write a chapter inspired by Dan Brown ✏️" + "Generate an image inspired by the secret of the Holy Grail 🎨"
-   • "Write a chapter inspired by Agatha Christie ✏️" + "Generate an image inspired by the Orient Express murder scene 🎨"
-   • "Write a chapter inspired by Fyodor Dostoevsky ✏️" + "Generate an image inspired by Raskolnikov's guilt and confession 🎨"
-   • "Write a chapter inspired by Frank Herbert ✏️" + "Generate an image inspired by the spice fields of Arrakis 🎨"
-   • "Write a chapter inspired by Paulo Coelho ✏️" + "Generate an image inspired by Personal Legend 🎨"
+   • "Write a new chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Red Wedding 🎨"
+   • "Write a new chapter inspired by George R. R. Martin ✏️" + "Generate an image inspired by the Iron Throne 🎨"
+   • "Write a new chapter inspired by Stephen King ✏️" + "Generate an image inspired by the haunted Overlook Hotel 🎨"
+   • "Write a new chapter inspired by J. R. R. Tolkien ✏️" + "Generate an image inspired by the One Ring and Mount Doom 🎨"
+   • "Write a new chapter inspired by J. K. Rowling ✏️" + "Generate an image inspired by the Triwizard Tournament 🎨"
+   • "Write a new chapter inspired by Dan Brown ✏️" + "Generate an image inspired by the secret of the Holy Grail 🎨"
+   • "Write a new chapter inspired by Agatha Christie ✏️" + "Generate an image inspired by the Orient Express murder scene 🎨"
+   • "Write a new chapter inspired by Fyodor Dostoevsky ✏️" + "Generate an image inspired by Raskolnikov's guilt and confession 🎨"
+   • "Write a new chapter inspired by Frank Herbert ✏️" + "Generate an image inspired by the spice fields of Arrakis 🎨"
+   • "Write a new chapter inspired by Paulo Coelho ✏️" + "Generate an image inspired by Personal Legend 🎨"
 
    Natural questions (positions 1-3) MUST be content-specific — reference named characters, factions, locations from the document (e.g. for A Dance With Dragons: "What happens to Jon Snow?", "How does Daenerys rule Meereen?", "Who is George R. R. Martin?").
 
    Pick the remaining actions RANDOMLY from the list below — varied mix: quiz, character comparison table, mind map, wisdom quote, write fairy tale, social post, etc. DO NOT repeat the same action type at different positions.
    → MANDATORY action "Zrób oś czasu wydarzeń 📅" (Polish) / "Create a timeline of events 📅" (English) for ANY novel / thriller / crime / romance / fantasy / saga. Position depends on relevance:
-     - Position 4 (VISIBLE) — when the timeline is CRITICAL for understanding the book: many dates, complex chronology, multiple parallel storylines, events spanning many years (e.g. saga, crime with court timeline, historical novel, legal thriller). In this case the timeline replaces the creative-writing action at position 4, and "Write a chapter inspired by…" shifts to position 5.
+     - Position 4 (VISIBLE) — when the timeline is CRITICAL for understanding the book: many dates, complex chronology, multiple parallel storylines, events spanning many years (e.g. saga, crime with court timeline, historical novel, legal thriller). In this case the timeline replaces the creative-writing action at position 4, and "Write a new chapter inspired by…" shifts to position 5.
      - Position 5 (VISIBLE) — when the sequence of events is important but not dominant (e.g. thriller with several plot twists, romance with clear chronology).
      - Position 6 (first in "More ...") — when the plot is simple or the timeline is less critical (e.g. short story collection, simple linear story).
 
 2. POETRY / PHILOSOPHY / QUOTES / APHORISMS (poet, philosopher, quote collection):
-   → MANDATORY: "Write a poem inspired by [Author Full Name] 📜"
-   Example: "Write a poem inspired by Paulo Coelho 📜"
+   → MANDATORY: "Write a new poem inspired by [Author Full Name] 📜"
+   Example: "Write a new poem inspired by Paulo Coelho 📜"
    Pick the remaining actions RANDOMLY from the list below.
 
 3. NON-FICTION GUIDE / SELF-HELP / TIPS LIST / WORKBOOK (productivity, confidence, habits, how-to, advice, personal growth, exercises, challenges):
@@ -494,8 +500,8 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Action prompts with emoji: "Step-by-step action plan 🚩", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents ✅", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
 
 5. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
-   → MANDATORY: as the 3rd action (right after "Generate an image…" and the "Write a chapter inspired by/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
-   Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate an image inspired by: Minibook about boundaries 🎨", 5. "Write a chapter inspired by Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
+   → MANDATORY: as the 3rd action (right after "Generate an image…" and the "Write a new chapter inspired by/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
+   Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate an image inspired by: Minibook about boundaries 🎨", 5. "Write a new chapter inspired by Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
    Pick the remaining actions RANDOMLY from the list below.
 
 6. LANGUAGE LEARNING / TEACHING MATERIAL (English grammar book, Spanish course, German vocabulary workbook, ESL/EFL/TOEFL/IELTS prep, language-learning textbook):
@@ -513,7 +519,7 @@ PRIORITY: The list below is sorted FROM HIGHEST TO LOWEST PRIORITY.
 When selecting actions, apply two principles:
 1. Priority (primary rule): prefer actions from the beginning of the list — earlier letters have higher priority.
 2. Context fit (secondary factor): if the content strongly matches a lower-priority action, it may appear earlier in the output list.
-Example: for a children's fairy tale — a) Generate image (highest priority), b) Write a chapter inspired by (high), d) Fairy tale (lower priority but strong context fit) → these three should appear as the first actions.
+Example: for a children's fairy tale — a) Generate image (highest priority), b) Write a new chapter inspired by (high), d) Fairy tale (lower priority but strong context fit) → these three should appear as the first actions.
 
 a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
    - content describes scenes, landscapes, characters, visual objects
@@ -524,17 +530,17 @@ a) Generate image 🎨 — HIGHEST PRIORITY — suggest when:
    - for user-readability the label should also contain the phrase "generate image" AND the word "inspired" — both are required
    - action MUST reference a specific topic/scene/character from the document (e.g. "Generate an image inspired by: dark forest with Harry Potter 🎨") — do NOT use generic "current mood"
 
-b) Write a chapter inspired by ✏️ — suggest when:
+b) Write a new chapter inspired by ✏️ — suggest when:
    - document is a fragment of a novel, story, or fiction book
-   - e.g. Stephen King book — "write a chapter inspired by the author's style"
+   - e.g. Stephen King book — "write a new chapter inspired by the author's style"
    - content has a distinct narrative style to emulate
-   - action: "write a chapter inspired by [Author]" (not just "write a chapter")
+   - action: "write a new chapter inspired by [Author]" (not just "write a chapter")
 
-c) Write a poem inspired by 📜 — suggest when:
+c) Write a new poem inspired by 📜 — suggest when:
    - author is a poet, writer, or content is poetry-related
    - document is a collection of quotes, aphorisms, poems
    - content has literary, artistic character
-   - action: "write a poem inspired by [Author]" (not just "write a poem")
+   - action: "write a new poem inspired by [Author]" (not just "write a poem")
 
 d) Fairy tale / Children's story 🧚 — suggest when:
    - content contains moral lessons, adventures, fantasy characters
@@ -701,10 +707,10 @@ ai) Song / Lyrics 🎵 — suggest when:
    - document is about music, song lyrics, or has lyrical potential
    - action: "write an inspired song / lyrics"
 
-aj) Translate content 🌍 — suggest when:
+aj) Translate content [language flag] — suggest when:
    - content is in a foreign language for the user (e.g. English document for a Polish user)
    - document contains fragments in different languages
-   - action: "translate to [language]"
+   - action: "Translate to [language] [target language flag]" — use the TARGET LANGUAGE FLAG, NOT the globe 🌍. Examples: "Translate to English 🇬🇧", "Translate to Polish 🇵🇱", "Translate to German 🇩🇪", "Translate to French 🇫🇷"
 
 ak) EXIF metadata 📷 — suggest ONLY when:
    - file is a photo (image) — never for PDF or text
@@ -1125,26 +1131,26 @@ def _append_contextual_prompts(
         if _IS_LARGE_BOOK:
             # For large books, occasionally suggest "large chapter" to match the epic scope
             pinned_creative_prompt = (
-                f"Napisz inspirowany duży rozdział w stylu {author_name} ✏️"
+                f"Napisz nowy inspirowany duży rozdział w stylu {author_name} ✏️"
                 if language == "pl"
-                else f"Write a large chapter inspired by {author_name} ✏️"
+                else f"Write a new large chapter inspired by {author_name} ✏️"
             )
         else:
             pinned_creative_prompt = (
-                f"Napisz inspirowany rozdział w stylu {author_name} ✏️"
+                f"Napisz nowy inspirowany rozdział w stylu {author_name} ✏️"
                 if language == "pl"
-                else f"Write a chapter inspired by {author_name} ✏️"
+                else f"Write a new chapter inspired by {author_name} ✏️"
             )
     elif is_poetry_quotes and author_name:
         pinned_creative_prompt = (
-            f"Napisz inspirowany wiersz w stylu {author_name} 📜"
+            f"Napisz nowy inspirowany wiersz w stylu {author_name} 📜"
             if language == "pl"
-            else f"Write a poem inspired by {author_name} 📜"
+            else f"Write a new poem inspired by {author_name} 📜"
         )
         pinned_quote_prompt = (
-            f"Napisz inspirowany cytat w stylu {author_name} �"
+            f"Napisz nowy inspirowany cytat w stylu {author_name} �"
             if language == "pl"
-            else f"Write a quote inspired by {author_name} 💡"
+            else f"Write a new quote inspired by {author_name} 💡"
         )
     elif is_selfhelp and author_name:
         _selfhelp_options_pl = [
@@ -1209,9 +1215,9 @@ def _append_contextual_prompts(
     ):
         subject_for_creative = subject if len(subject) <= 45 else subject[:42] + "..."
         pinned_creative_prompt = (
-            f"Napisz inspirowany rozdział na podstawie: {subject_for_creative} ✏️"
+            f"Napisz nowy inspirowany rozdział na podstawie: {subject_for_creative} ✏️"
             if language == "pl"
-            else f"Write a chapter inspired by: {subject_for_creative} ✏️"
+            else f"Write a new chapter inspired by: {subject_for_creative} ✏️"
         )
 
     if is_language_learning:
@@ -1245,7 +1251,15 @@ def _append_contextual_prompts(
 
         llm_actions = [a for a in llm_actions if not _is_quiz_action(a)]
 
-    actions = pinned + contextual + llm_actions
+    # Key facts: include for all text content; skip for image-only conversations
+    has_text_content = not file_types or any(v != "image" for v in file_types.values())
+    key_facts_prompt: str | None = (
+        ("Napisz listę kluczowych faktów ☝️" if language == "pl" else "Write a list of key facts ☝️")
+        if has_text_content
+        else None
+    )
+
+    actions = pinned + ([key_facts_prompt] if key_facts_prompt else []) + contextual + llm_actions
 
     # Build the final list with explicit caps per group:
     # - max 3 normal questions

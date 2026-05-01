@@ -196,11 +196,11 @@
     :loading="wikiLoading"
     @close="wikiModalOpen = false"
   />
-  <WikiModal
-    title="🧩 C4 Diagram"
+  <ImageModal
     :visible="c4ModalOpen"
-    :content="c4Content"
-    :loading="c4Loading"
+    :src="c4SvgUrl ?? ''"
+    alt="Mapa Myśli"
+    :stretch="true"
     @close="c4ModalOpen = false"
   />
 </template>
@@ -238,6 +238,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
 import ChatMessageItem from '../components/ChatMessage.vue'
 import WikiModal from '../components/WikiModal.vue'
+import ImageModal from '../components/ImageModal.vue'
 import ErrorDetail from '../components/ErrorDetail.vue'
 import LanguageToggle from '../components/LanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
@@ -291,8 +292,10 @@ const wikiLoading = ref(false)
 
 const c4Ready = ref(false)
 const c4ModalOpen = ref(false)
-const c4Content = ref<string | null>(null)
-const c4Loading = ref(false)
+// Cached SVG string: rendered once on first open, reused on subsequent opens.
+const c4SvgCache = ref<string | null>(null)
+// Blob URL for ImageModal lightbox — created from c4SvgCache, revoked on close.
+const c4SvgUrl = ref<string | null>(null)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -403,11 +406,20 @@ watch(sseEvent, (evt) => {
     case 'wiki_ready':
       wikiReady.value = true
       break
-    case 'c4_ready':
-      c4Ready.value = true
-      break
   }
 })
+
+// Set c4Ready as soon as the welcome message contains an embedded [mindmap].
+// This fires immediately when the welcome SSE lands — no extra round-trip needed.
+watch(
+  welcomeMessageContent,
+  (content) => {
+    if (!c4Ready.value && content && /\[(?:mindmap|mapa myśli)\][\s\S]*?\[\/(?:mindmap|mapa myśli)\]/.test(content)) {
+      c4Ready.value = true
+    }
+  },
+  { immediate: true },
+)
 
 const processingStepLabel = computed(() => stepLabel(processingStep.value))
 
@@ -624,13 +636,6 @@ async function doLoadConversation() {
       getConversationWiki(conversationId)
         .then((c) => {
           if (c) wikiReady.value = true
-        })
-        .catch(() => {})
-    }
-    if (!c4Ready.value) {
-      getConversationC4(conversationId)
-        .then((c) => {
-          if (c) c4Ready.value = true
         })
         .catch(() => {})
     }
@@ -1108,13 +1113,51 @@ async function openWikiModal() {
 
 async function openC4Modal() {
   c4ModalOpen.value = true
-  if (!c4Content.value) {
-    c4Loading.value = true
-    try {
-      c4Content.value = await getConversationC4(conversationId)
-    } finally {
-      c4Loading.value = false
-    }
+  if (c4SvgCache.value) return  // already rendered, reuse cache
+
+  const match = welcomeMessageContent.value.match(/\[(?:mindmap|mapa myśli)\]([\s\S]*?)\[\/(?:mindmap|mapa myśli)\]/)
+  if (!match) return
+
+  // Strip ```mermaid fences if the LLM wrapped the code block
+  const mermaidCode = match[1].trim().replace(/^```mermaid\n?/, '').replace(/\n?```$/, '').trim()
+  if (!mermaidCode) return
+
+  try {
+    const mod = await import('mermaid')
+    const m = mod.default
+    m.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: false,
+        background: '#f8fafc',
+        primaryColor: '#ede9fe',
+        primaryTextColor: '#000000',
+        primaryBorderColor: '#7c3aed',
+        secondaryColor: '#e2e8f0',
+        secondaryTextColor: '#000000',
+        tertiaryColor: '#f1f5f9',
+        tertiaryTextColor: '#000000',
+        lineColor: '#475569',
+        textColor: '#000000',
+        nodeTextColor: '#000000',
+        labelTextColor: '#000000',
+      },
+      securityLevel: 'loose',
+    })
+    const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
+    c4SvgCache.value = svg
+    // Strip fixed width/height from the SVG root so CSS controls sizing.
+    // Mermaid outputs absolute pixel values; without this the <img> uses those
+    // intrinsic dimensions and appears tiny on narrow screens.
+    const scalableSvg = svg.replace(/<svg([^>]*)>/, (_m, attrs: string) =>
+      '<svg' + attrs.replace(/\s+(width|height)="[^"]*"/g, '') + '>',
+    )
+    // Revoke previous blob URL before creating a new one
+    if (c4SvgUrl.value) URL.revokeObjectURL(c4SvgUrl.value)
+    c4SvgUrl.value = URL.createObjectURL(new Blob([scalableSvg], { type: 'image/svg+xml' }))
+  } catch (e) {
+    console.error('[Mapa Myśli] Failed to render mindmap SVG:', e)
   }
 }
 

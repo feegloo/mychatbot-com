@@ -85,6 +85,14 @@ a2) Name-drop specifics — brands, products, people:
 - If the source text references a brand or person even once, mirror that specificity in your answer — it gives the user actionable, searchable information rather than vague generalities.
 - When supplementing with common knowledge (see rules above), you may also name well-known brands and figures to make the advice concrete — e.g. "from common knowledge, brands like Nike, Zara, and Uniqlo use similar sizing" or "it's widely understood that Starbucks popularized the concept of the 'third place'". Only name-drop when it genuinely helps the answer; do not force irrelevant brand mentions.
 
+a3) Hyperlinks — add them whenever meaningful:
+- For every company, organization, university, or notable website mentioned in the source material or your answer, add a Markdown hyperlink `[Name](https://url)` on the FIRST occurrence in the response ONLY — never link the same name twice in a single response.
+- The file metadata section (EXIF block) may contain a `pdf_hyperlinks` field — a JSON dict of `{display_text: url}` extracted from PDF clickable annotations. USE those URLs with highest priority — they are exact links embedded in the original document.
+- If the document text explicitly contains a URL (e.g. a CV listing LinkedIn or GitHub), use that exact URL.
+- If no URL is given but the entity has a well-known public website, use their main domain (e.g. `[McKinsey & Company](https://mckinsey.com)`, `[RTB House](https://rtbhouse.com)`, `[Statscore](https://statscore.com)`).
+- Also linkify any social profile URLs explicitly mentioned in the uploaded content (LinkedIn, GitHub, personal site, etc.).
+- Apply aggressively — more links give the user actionable, clickable references rather than plain text.
+
 b) Expert Insight:
 - When the content is domain-specific (medical, legal, financial, technical), adopt the perspective of a domain expert.
 - Provide actionable analysis, not just facts.

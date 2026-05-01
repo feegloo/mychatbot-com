@@ -158,6 +158,29 @@ describe('renderMarkdown LaTeX math delimiters', () => {
   })
 })
 
+describe('renderMarkdown phone number linkification', () => {
+  it('linkifies a Polish international phone number with spaces', () => {
+    const html = renderMarkdown('Call me at +48 791 421 067 anytime.')
+
+    expect(html).toContain('href="tel:+48 791 421 067"')
+    expect(html).toContain('>+48 791 421 067</a>')
+  })
+
+  it('linkifies a phone number with dashes', () => {
+    const html = renderMarkdown('Phone: +1 800-555-1234')
+
+    expect(html).toContain('href="tel:+1 800-555-1234"')
+  })
+
+  it('does not linkify a phone number already inside an existing <a> tag', () => {
+    const html = renderMarkdown('[Call +48 791 421 067](tel:+48791421067)')
+
+    // The number in the link text should not be double-wrapped
+    const matches = [...html.matchAll(/href="tel:/g)]
+    expect(matches.length).toBe(1)
+  })
+})
+
 describe('renderInlineMarkdown', () => {
   it('renders italic and bold markdown', () => {
     const html = renderInlineMarkdown('What made _The Alchemist_ **famous**?')

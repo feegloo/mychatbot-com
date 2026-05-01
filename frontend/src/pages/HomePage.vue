@@ -35,6 +35,7 @@
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
           </div>
+          <p class="dropzone-heading">{{ t.dropzoneHeading }}</p>
           <p>
             <strong>{{ t.dropzoneTitle }}</strong>
           </p>
@@ -370,7 +371,6 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 560px;
   position: relative;
-  margin-bottom: 24px;
   flex-shrink: 0;
 }
 
@@ -388,7 +388,7 @@ function autoResize(e: Event) {
 }
 
 .upload-dropzone {
-  padding: 48px 36px;
+  padding: 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -406,6 +406,13 @@ function autoResize(e: Event) {
 
 .upload-dropzone p {
   margin: 4px 0;
+}
+
+.dropzone-heading {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
 }
 
 .dropzone-hint {

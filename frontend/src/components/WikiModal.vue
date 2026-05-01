@@ -7,7 +7,10 @@
           <button class="wiki-modal-close" title="Close" @click="$emit('close')">&times;</button>
         </div>
         <div class="wiki-modal-body">
-          <div v-if="loading" class="wiki-modal-loading">Loading wiki…</div>
+          <div v-if="loading" class="wiki-modal-loading">Loading…</div>
+          <!-- Pre-rendered SVG (e.g. mindmap): display directly, no mermaid re-render -->
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-else-if="svgContent" class="mindmap-svg-container" v-html="svgContent" />
           <div v-else-if="!content" class="wiki-modal-empty">No wiki available yet.</div>
           <template v-else>
             <template v-for="(part, i) in parts" :key="i">
@@ -31,6 +34,7 @@ const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
 const props = defineProps<{
   visible: boolean
   content: string | null
+  svgContent?: string | null
   loading?: boolean
   title?: string
 }>()
@@ -157,5 +161,23 @@ const parts = computed(() => (props.content ? splitContent(props.content) : []))
   padding: 12px;
   overflow-x: auto;
   margin-bottom: 1em;
+}
+
+.mindmap-svg-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.mindmap-svg-container :deep(svg) {
+  width: 100%;
+  height: auto;
+  max-height: 68vh;
 }
 </style>

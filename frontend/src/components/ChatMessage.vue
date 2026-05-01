@@ -20,10 +20,10 @@
         <AppButton
           v-if="isFirstMessage && c4Ready"
           class="msg-action-btn"
-          title="View C4 Diagram"
+          title="Mapa Myśli"
           @click="$emit('show-c4')"
         >
-          🧩 Map
+          🧩 Mapa Myśli
         </AppButton>
         <AppButton
           v-if="isFirstMessage && canUpload"
@@ -165,7 +165,7 @@
           <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
             <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
               <MessageContent
-                :content="msg.content"
+                :content="renderedContent"
                 :is-welcome="isWelcome"
                 :message-id="msg.id"
                 :conversation-name="conversationName"
@@ -211,7 +211,7 @@
         <div class="message-content-wrap" :class="{ 'is-translating': isTranslating }">
           <TextFade :trigger="assistantFadeTrigger" :disabled="noAnimation">
             <MessageContent
-              :content="msg.content"
+              :content="renderedContent"
               :is-welcome="isWelcome"
               :message-id="msg.id"
               :conversation-name="conversationName"
@@ -438,6 +438,17 @@ const finalGeneratedImageUrl = computed(() => {
   }
   return target.split(/\s+/)[0] || ''
 })
+
+// Strip the hidden [mindmap]...[/mindmap] section from welcome message content before rendering.
+// The [mindmap] block is embedded by the LLM so the frontend can extract it for
+// the "Mapa Myśli" modal without a separate API call. It must never appear in chat.
+// Also handles the translated Polish variant [mapa myśli]...[/mapa myśli] as a fallback.
+const MINDMAP_BLOCK_RE = /\[(?:mindmap|mapa myśli)\][\s\S]*?\[\/(?:mindmap|mapa myśli)\]/g
+const renderedContent = computed(() =>
+  props.isWelcome
+    ? (props.msg.content || '').replace(MINDMAP_BLOCK_RE, '').trim()
+    : props.msg.content || '',
+)
 
 const finalGeneratedImageTitle = computed(() => {
   const content = props.msg.content || ''
@@ -915,6 +926,7 @@ function openFilePreview(file: FileInfo) {
 :deep(.inline-source-btn) {
   display: inline-flex;
   align-items: center;
+  user-select: none;
   gap: 1px;
   background: #7c3aed33;
   color: #c4b5fd;

@@ -18,8 +18,6 @@ asynchronously build a *short, structured idea file* — a per-conversation
 3. Surfaces 2-5 *expert insights* — synthesized observations that span
    multiple sources, the kind of thing a domain expert would notice that
    a per-chunk RAG retrieval would miss.
-4. Flags open questions / contradictions so the assistant can hedge or
-   probe rather than hallucinate certainty.
 
 The wiki is stored as an internal message (``is_internal=true``) — it is
 NEVER shown to the user. It is injected into the answer prompt as a
@@ -43,6 +41,8 @@ Output contract
 from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate
+
+from .key_facts import KEY_ENTITIES_BULLETS_RULES
 
 # ---------------------------------------------------------------------------
 # Few-shot examples
@@ -96,9 +96,6 @@ Recurrence          -.-> Transformer            (explicitly removed; ablation co
 3. The sqrt(d_k) scaling is non-cosmetic: without it softmax saturates for large
    d_k, killing gradients — a frequently overlooked detail when re-implementing.
 
-## Open Questions
-- Generalization beyond translation is implied but not measured here.
-
 ## Mermaid Flowchart
 ```mermaid
 flowchart LR
@@ -134,9 +131,9 @@ flowchart LR
     Q[Query Q]
     K[Key K]
     V[Value V]
-    Scale[Scale div sqrt-dk]
+    Scale["Scale / sqrt(d_k)"]
     SoftmaxA[Softmax]
-    DotProd[Scaled Dot-Product]
+    DotProd["Scaled Dot-Product (QKV)"]
   end
 
   Tokens --> EmbLayer
@@ -169,7 +166,6 @@ flowchart LR
 
   Probs -.->|-0.05| Tokens
 ```
-- Sinusoidal vs. learned positional encodings: paper claims parity but only on one task.
 """
 
 _EXAMPLE_LEGAL = """\
@@ -212,10 +208,6 @@ Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnien
    czy ostatnią fakturę; potencjalna luka interpretacyjna.
 3. Brak klauzuli zakazu konkurencji — zleceniobiorca może świadczyć usługi konkurencji
    równolegle, co przy modelu B2B bywa nieoczywiste dla zamawiającego.
-
-## Open Questions
-- Brak zapisu o RODO/powierzeniu danych — czy dane osobowe występują w projekcie?
-- Czy 50 000 PLN kary za NDA jest egzekwowalne w świetle art. 484 §2 KC (możliwość miarkowania)?
 
 ## Mermaid Flowchart
 ```mermaid
@@ -290,10 +282,6 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 3. Theon's casual cruelty toward the deserter's head is a quiet seed: his later
    betrayal is not a swerve, it is consistent with how he is introduced here.
 
-## Open Questions
-- The deserter's claim about "the Others" is dismissed by Ned — is it played as
-  delusion or as ignored truth? (Ambiguity is intentional in this chapter.)
-
 ## Mermaid Flowchart
 ```mermaid
 flowchart LR
@@ -354,6 +342,15 @@ This document is NEVER shown to the end user. It is the assistant's private
 scratchpad. Optimize for *machine readability* and *high-density signal*, not
 for prose pleasantness.
 
+== CRITICAL: INTERNAL USE ONLY ==
+The answering assistant that receives this wiki MUST NEVER:
+- Mention or attribute information to the wiki — never say "as the wiki says",
+  "according to the wiki", "the wiki notes", "the wiki shows", or similar.
+- Reveal that an internal knowledge artifact, idea file, or entity map exists.
+- Reference flowcharts, entity maps, or internal notes when responding.
+All wiki-derived understanding MUST be presented as the assistant's own expert
+reading of the uploaded source material. The user must never know this exists.
+
 == OUTPUT FORMAT (STRICT) ==
 
 Pure markdown. No surrounding code fences. Sections in this exact order:
@@ -364,12 +361,7 @@ Pure markdown. No surrounding code fences. Sections in this exact order:
 One sentence characterizing the field, register, and stakes of the material.
 
 ## Key Entities
-3-12 bullets. Each bullet:
-- **Name** — terse definition (≤ 15 words). Add a parenthetical locator only
-  if it disambiguates (e.g., page reference, section, role).
-Pick entities by salience: things mentioned often AND things load-bearing for
-meaning (a once-mentioned threshold, deadline, or definition can outrank a
-frequently-mentioned filler word).
+{key_entities_bullets_rules}
 
 ## Relationships
 ASCII arrow graph. One relationship per line. Use ONLY these arrows:
@@ -396,11 +388,6 @@ exists, write a single line: "(flat — no nested hierarchy)".
 - Be ≤ 3 sentences.
 Do NOT restate surface facts. If you cannot produce a real cross-cutting
 insight, write fewer items rather than padding.
-
-## Open Questions
-0-4 bullets. Genuine ambiguities, contradictions across sources, or gaps
-worth flagging so the answering assistant hedges instead of hallucinating.
-If none, write a single line: "(none flagged)".
 
 ## Mermaid Flowchart
 A rich, detailed "big-picture" flowchart rendering the SAME entities and
@@ -439,10 +426,17 @@ Rules:
     A <-->|+0.63| B   (bidirectional, moderate correlation)
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
-- Aim for 15-35 nodes and 20-45 edges. More is better when supported by source.
+- Aim for 25-45 nodes and 30-55 edges. More is always better when supported
+  by source material — prefer completeness over brevity. Include specific
+  details in node labels (exact names, amounts, dates, section refs) when
+  they disambiguate or add meaning.
 - CRITICAL SYNTAX RULES (violations break rendering):
     * No unescaped `"` or `{{` or `}}` inside node labels — use single quotes
       or rephrase: `A["label"]` is OK; `A[label with {{brace}}]` is NOT.
+    * Node labels containing parentheses MUST be wrapped in double quotes:
+      `RJ45["2x RJ45 10/100/1000BaseT(X)"]` is correct;
+      `RJ45[2x RJ45 10/100/1000BaseT(X)]` is WRONG — Mermaid interprets the
+      trailing `(X)` as a stadium-shape suffix and breaks parsing.
     * No trailing pipe characters on edge lines.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.
@@ -454,7 +448,7 @@ Rules:
 - Write in the SAME LANGUAGE as the welcome message (prose sections only; Mermaid node IDs always English alphanumeric).
 - No emojis. No [action:...] markers. No [source:N] citations. No URLs.
 - Never invent entities or relationships not supported by the welcome message
-  or the chunk sample. If sources contradict, flag in Open Questions instead
+  or the chunk sample. If sources contradict, note this in Expert Insights instead
   of picking a side.
 - Do NOT address the user. Do NOT include meta-commentary about your task.
 - Do NOT wrap the document in ```markdown fences. Output the markdown directly.
@@ -511,6 +505,7 @@ WIKI_PROMPT = ChatPromptTemplate.from_messages(
     example_technical=_EXAMPLE_TECHNICAL,
     example_legal=_EXAMPLE_LEGAL,
     example_fiction=_EXAMPLE_FICTION,
+    key_entities_bullets_rules=KEY_ENTITIES_BULLETS_RULES,
 )
 
 

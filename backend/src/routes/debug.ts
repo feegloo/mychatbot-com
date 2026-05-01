@@ -118,7 +118,7 @@ const TABLE_ORDER_BY: Partial<Record<DebugTable, string>> = {
  * page of the `conversations` table (the default active tab) in ONE SQL
  * statement via a CTE with json_build_object. Lazy-loads everything else.
  */
-debugRouter.get('/debug/tables-overview', async (ctx) => {
+debugRouter.get('/api/debug/tables-overview', async (ctx) => {
   if (!isAuthorized(ctx)) {
     ctx.status = 401
     ctx.body = { error: 'Invalid credentials' }
@@ -166,7 +166,7 @@ debugRouter.get('/debug/tables-overview', async (ctx) => {
  * Supports offset pagination (LIMIT 1000). Unknown table names are rejected
  * so this endpoint cannot be abused as a generic SQL runner.
  */
-debugRouter.get('/debug/tables/:name', async (ctx) => {
+debugRouter.get('/api/debug/tables/:name', async (ctx) => {
   if (!isAuthorized(ctx)) {
     ctx.status = 401
     ctx.body = { error: 'Invalid credentials' }
@@ -208,7 +208,7 @@ debugRouter.get('/debug/tables/:name', async (ctx) => {
  * Simpler alternative to the /conversationId/:promptId/full endpoint — used by the
  * debug table UI when expanding a row to show the raw strings.
  */
-debugRouter.get('/debug/prompt-full/:promptId', async (ctx) => {
+debugRouter.get('/api/debug/prompt-full/:promptId', async (ctx) => {
   const auth = ctx.headers.authorization
   if (!auth || !auth.startsWith('Basic ')) {
     ctx.status = 401
@@ -250,7 +250,7 @@ debugRouter.get('/debug/prompt-full/:promptId', async (ctx) => {
  * Protected by basic auth; intended for admin-only ad-hoc inspection.
  * Enforces a per-statement timeout and row cap to keep the UI responsive.
  */
-debugRouter.post('/debug/sql', async (ctx) => {
+debugRouter.post('/api/debug/sql', async (ctx) => {
   if (!isAuthorized(ctx)) {
     ctx.status = 401
     ctx.body = { error: 'Invalid credentials' }

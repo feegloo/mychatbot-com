@@ -12,7 +12,12 @@
           &times;
         </button>
         <Transition name="modal-img-fade" mode="out-in">
-          <img :key="src" :src="src" :alt="alt" class="image-modal-img" />
+          <img v-if="src" :key="src" :src="src" :alt="alt" class="image-modal-img" :class="{ 'image-modal-img--stretch': stretch }" />
+          <div v-else class="image-modal-loading">
+            <span class="image-modal-loading-dot"></span>
+            <span class="image-modal-loading-dot"></span>
+            <span class="image-modal-loading-dot"></span>
+          </div>
         </Transition>
         <Transition name="modal-title-fade">
           <div v-if="title" :key="title" class="image-modal-title">"{{ title }}"</div>
@@ -28,6 +33,8 @@ defineProps<{
   src: string
   alt?: string
   title?: string
+  /** When true: mobile fills full width, desktop fills full height (for SVG/diagrams) */
+  stretch?: boolean
 }>()
 
 defineEmits<{
@@ -110,6 +117,23 @@ defineEmits<{
   display: block;
 }
 
+/* Stretch mode: SVG/diagrams — mobile fills full width, desktop fills full height */
+.image-modal-img--stretch {
+  width: 100vw;
+  max-width: 100vw;
+  height: auto;
+  max-height: 95vh;
+}
+
+@media (min-width: 769px) {
+  .image-modal-img--stretch {
+    width: auto;
+    max-width: 95vw;
+    height: 95vh;
+    max-height: 95vh;
+  }
+}
+
 /* Fade transition when src changes (morph progression) */
 .modal-img-fade-enter-active,
 .modal-img-fade-leave-active {
@@ -118,6 +142,35 @@ defineEmits<{
 .modal-img-fade-enter-from,
 .modal-img-fade-leave-to {
   opacity: 0;
+}
+
+.image-modal-loading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+}
+
+.image-modal-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: modal-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.image-modal-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.image-modal-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes modal-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
 }
 
 /* Title overlay at bottom of image */

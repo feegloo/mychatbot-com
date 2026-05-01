@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
-        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf }">
+        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg }">
           <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
           <PdfPageViewer
             v-if="isPdf"
@@ -15,11 +15,19 @@
             @open-pdf="openFullPdf"
           />
 
-          <!-- Source text quote (non-PDF only) -->
-          <div v-if="!isPdf" class="source-modal-quote">
+          <!-- SVG image preview -->
+          <div v-else-if="isSvg" class="source-modal-svg">
+            <img :src="pdfBaseUrl" :alt="citation.fileName" class="source-modal-svg-img" />
+          </div>
+
+          <!-- Source text quote (non-PDF, non-SVG only) -->
+          <div v-if="!isPdf && !isSvg" class="source-modal-quote">
             <div class="source-modal-quote-label">Source text</div>
+            <div v-if="fetchLoading" class="source-modal-quote-text" style="opacity: 0.5">
+              Loading…
+            </div>
             <!-- eslint-disable-next-line vue/no-v-html -->
-            <div class="source-modal-quote-text" v-html="linkify(citation.text)" />
+            <div v-else class="source-modal-quote-text" v-html="linkify(displayText)" />
           </div>
         </div>
 
@@ -43,9 +51,9 @@
           </svg>
         </button>
 
-        <!-- Non-PDF mobile close (text quote modal) -->
+        <!-- Non-PDF, non-SVG mobile close (text quote modal) -->
         <button
-          v-if="isMobile && !isPdf"
+          v-if="isMobile && !isPdf && !isSvg"
           class="source-modal-close-mobile-text"
           aria-label="Close"
           @click="$emit('close')"
@@ -58,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getStorageUrl } from '../api'
 import { linkify } from '../utils/text'
 import PdfPageViewer from './PdfPageViewer.vue'
@@ -85,6 +93,7 @@ defineEmits<{
 }>()
 
 const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
+const isSvg = computed(() => props.citation.fileName.toLowerCase().endsWith('.svg'))
 
 const isMobile = computed(() => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
 
@@ -93,9 +102,53 @@ const pdfBaseUrl = computed(() => getStorageUrl(props.conversationId, props.cita
 function openFullPdf() {
   window.open(pdfBaseUrl.value, '_blank', 'noopener')
 }
+
+// When opened for a text file (non-PDF) with no pre-fetched citation text,
+// fetch the raw file content from storage so the modal is not empty.
+const fetchedText = ref('')
+const fetchLoading = ref(false)
+
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open || isPdf.value || isSvg.value || props.citation.text) {
+      fetchedText.value = ''
+      return
+    }
+    fetchLoading.value = true
+    try {
+      const res = await fetch(pdfBaseUrl.value)
+      fetchedText.value = res.ok ? await res.text() : ''
+    } catch {
+      fetchedText.value = ''
+    } finally {
+      fetchLoading.value = false
+    }
+  },
+)
+
+const displayText = computed(() => props.citation.text || fetchedText.value)
 </script>
 
 <style scoped>
+.source-modal-svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.source-modal-svg-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  background: white;
+}
+
 .source-modal-overlay {
   position: fixed;
   inset: 0;
@@ -204,7 +257,7 @@ function openFullPdf() {
 .source-modal-content--text {
   width: min(600px, 80vw);
   height: auto;
-  max-height: 50vh;
+  max-height: 80vh;
   background: #1e1033;
   border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 12px;

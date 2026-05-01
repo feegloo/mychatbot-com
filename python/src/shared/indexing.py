@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -19,7 +20,6 @@ from .describe import DescribeResult, describe_documents
 from .extractors import clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
-from .c4 import build_welcome_c4
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
 from .suggested_questions import suggest_questions_from_chunks
 from .telemetry import log_processing_event, trace_step
@@ -271,9 +271,9 @@ def _maybe_regenerate_heavy_ocr_welcome(
     if not new_welcome or new_welcome == current_welcome.strip():
         return None
 
+    # The [mindmap]...[/mindmap] block is kept embedded in the welcome message.
     # Emit as a follow-up welcome_message event so the frontend can replace
-    # the provisional description. Reuses the SSE channel already wired for
-    # initial welcome delivery.
+    # the provisional description.
     if on_progress is not None:
         try:
             on_progress(
@@ -536,11 +536,15 @@ def _index_documents_inline(
         nonlocal welcome_emitted
         if welcome_emitted or not on_progress or not result:
             return
-        welcome_message = result.get("welcome_message") or ""
-        if not welcome_message:
+        welcome_text = result.get("welcome_message") or ""
+        if not welcome_text:
             return
+
+        # The [mindmap]...[/mindmap] block is kept embedded in the welcome message.
+        # The frontend extracts it when the user clicks "Mapa Myśli" and
+        # hides it from the main chat view during rendering.
         on_progress("welcome_message", {
-            "welcome_message": welcome_message,
+            "welcome_message": welcome_text,
             "suggested_questions": result.get("suggested_questions") or [],
             "file_metadata": file_metadata or {},
         })
@@ -998,6 +1002,8 @@ def _index_documents_inline(
 
         # Emit welcome_message event immediately so the frontend can show it
         _emit_welcome(describe_result)
+        # Refresh: _emit_welcome may have stripped an embedded [mindmap] block in-place.
+        welcome_message = describe_result.get("welcome_message") or welcome_message
 
         upsert_result = upsert_future.result()
 
@@ -1121,29 +1127,6 @@ def _index_documents_inline(
     except Exception as exc:
         # Never let wiki generation break indexing.
         logger.warning("📚 Wiki step failed (conv=%s): %s", conversation_id, exc)
-
-    # ── C4 diagram (welcome message → system context) ────────────────────
-    # Generated from the welcome message alone — fast, no chunk retrieval.
-    # Stored as a separate internal message (internalKind='c4').
-    # Failures are swallowed — c4 diagram is best-effort.
-    try:
-        if welcome_message:
-            with trace_step(conversation_id, "*", "build_welcome_c4"):
-                c4_text = build_welcome_c4(
-                    conversation_id=conversation_id,
-                    welcome_message=welcome_message,
-                )
-            if c4_text and on_progress:
-                on_progress(
-                    "c4_message",
-                    {
-                        "c4_message": c4_text,
-                        "internal_kind": "c4",
-                    },
-                )
-                result["c4_message"] = c4_text
-    except Exception as exc:
-        logger.warning("🧩 C4 step failed (conv=%s): %s", conversation_id, exc)
 
     if on_progress:
         on_progress("complete", result)

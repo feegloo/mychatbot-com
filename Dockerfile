@@ -1,43 +1,4 @@
 # check=skip=SecretsUsedInArgOrEnv
-# ── Stage 1: Build frontend ──────────────────────────────────────────────────
-FROM node:22-alpine AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN set -eux; \
-        npm config set fetch-retries 5; \
-        npm config set fetch-retry-mintimeout 20000; \
-        npm config set fetch-retry-maxtimeout 120000; \
-        for attempt in 1 2 3; do \
-            npm ci && break; \
-            if [ "$attempt" -eq 3 ]; then \
-                exit 1; \
-            fi; \
-            echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
-            sleep 10; \
-        done
-COPY frontend/ ./
-# Stripe publishable key is a public client-side key, not a secret
-ARG VITE_STRIPE_PUBLISHABLE_KEY
-ENV VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-ARG VITE_SENTRY_DSN
-ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
-ARG VITE_COMMIT_HASH
-ENV VITE_COMMIT_HASH=${VITE_COMMIT_HASH}
-# Sentry source map upload (build-time only, not embedded in client bundle)
-ARG SENTRY_AUTH_TOKEN
-ARG SENTRY_ORG
-ARG SENTRY_PROJECT
-ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
-ENV SENTRY_ORG=${SENTRY_ORG}
-ENV SENTRY_PROJECT=${SENTRY_PROJECT}
-ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-RUN echo "=== vue-tsc type-check ===" && npx vue-tsc --noEmit 2>&1 || echo "=== vue-tsc had errors (non-fatal) ==="
-RUN echo "=== vite build ===" && npx vite build 2>&1 && echo "=== frontend build OK ===" || (echo "=== FRONTEND BUILD FAILED ===" && exit 1)
-RUN ls -la /app/frontend/dist/ || (echo "=== ERROR: dist/ not found after build ===" && exit 1)
-
 # ── Stage 1b: Build ui (new SPA, served under /v2/) ──────────────────────────
 FROM node:22-alpine AS ui-build
 WORKDIR /app/ui
@@ -116,9 +77,6 @@ RUN set -eux; \
 # -- Backend compiled code --
 COPY --from=backend-build /app/backend/dist /app/backend/dist
 
-# -- Frontend static files --
-COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
-
 # -- New ui SPA (served under /v2/) --
 COPY --from=ui-build /app/ui/dist /app/ui/dist
 
@@ -134,7 +92,6 @@ RUN chmod +x /app/backend/entrypoint.sh
 
 ENV NODE_ENV=production
 ENV PORT=8080
-ENV FRONTEND_DIST_PATH=/app/frontend/dist
 ENV UI_DIST_PATH=/app/ui/dist
 ENV PYTHON_BIN=/app/python/.venv/bin/python3
 ENV PYTHON_PROJECT_ROOT=/app/python
