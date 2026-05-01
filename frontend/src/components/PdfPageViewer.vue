@@ -24,61 +24,57 @@
       </div>
     </div>
     <div class="pdf-toolbar" aria-label="PDF controls">
-      <div class="pdf-toolbar-group" aria-label="Page navigation">
-        <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
+      <button
+        v-if="showOpenPdf"
+        class="pdf-tool-btn pdf-tool-btn--text"
+        @click="emit('openPdf')"
+      >
+        Open PDF
+      </button>
+      <span v-if="showOpenPdf" class="pdf-toolbar-divider" />
+
+      <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+      <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
+      <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+
+      <template v-if="showClose">
+        <span class="pdf-toolbar-divider" />
+        <button class="pdf-tool-btn" aria-label="Close" @click="emit('close')">
           <svg
             width="14"
             height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
           >
-            <polyline points="15 18 9 12 15 6" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
-        <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
-        <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
-      <div class="pdf-toolbar-group" aria-label="Zoom controls">
-        <button class="pdf-tool-btn" :disabled="scale <= 0.5" @click="zoomOut">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-        <span class="pdf-zoom-info">{{ Math.round(scale * 100) }}%</span>
-        <button class="pdf-tool-btn" :disabled="scale >= 3" @click="zoomIn">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -115,9 +111,16 @@ const props = withDefaults(
     url: string
     page?: number
     highlightText?: string
+    showClose?: boolean
+    showOpenPdf?: boolean
   }>(),
-  { page: 1, highlightText: '' },
+  { page: 1, highlightText: '', showClose: false, showOpenPdf: false },
 )
+
+const emit = defineEmits<{
+  close: []
+  openPdf: []
+}>()
 
 const rootEl = ref<HTMLElement | null>(null)
 const pagesContainer = ref<HTMLElement | null>(null)
@@ -912,7 +915,7 @@ watch(
   font-size: 14px;
 }
 
-/* Toolbar */
+/* Toolbar — Apple Liquid Glass */
 .pdf-toolbar {
   position: absolute;
   left: 50%;
@@ -921,24 +924,26 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 6px;
-  background: rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 14px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.45);
+  gap: 2px;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50px;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
   z-index: 5;
+  white-space: nowrap;
 }
 
-.pdf-toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  padding: 2px;
+.pdf-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.3);
+  margin: 0 6px;
+  flex-shrink: 0;
 }
 
 .pdf-tool-btn {
@@ -948,21 +953,30 @@ watch(
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
+  border-radius: 50%;
   background: transparent;
-  color: #e2e8f0;
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s;
+}
+
+.pdf-tool-btn--text {
+  width: auto;
+  padding: 0 10px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 @media (hover: hover) {
   .pdf-tool-btn:hover:not(:disabled) {
-    background: rgba(148, 163, 184, 0.22);
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
 .pdf-tool-btn:active:not(:disabled) {
-  background: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .pdf-tool-btn:disabled {
@@ -970,11 +984,10 @@ watch(
   cursor: default;
 }
 
-.pdf-page-info,
-.pdf-zoom-info {
+.pdf-page-info {
   font-size: 12px;
-  color: #cbd5e1;
-  min-width: 56px;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 48px;
   text-align: center;
   user-select: none;
   line-height: 1;
@@ -983,13 +996,11 @@ watch(
 
 @media (max-width: 768px) {
   .pdf-toolbar {
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    gap: 6px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 
-  .pdf-page-info,
-  .pdf-zoom-info {
-    min-width: 52px;
+  .pdf-page-info {
+    min-width: 44px;
   }
 }
 </style>
