@@ -178,11 +178,6 @@ function openFullPdf() {
   justify-content: center;
 }
 
-.source-modal-pdf {
-  flex: 1;
-  min-height: 0;
-}
-
 .source-modal-quote {
   padding: 16px 20px 20px;
   flex: 1;

@@ -31,9 +31,9 @@
       >
         Open PDF
       </button>
-      <span v-if="showOpenPdf" class="pdf-toolbar-divider" />
+      <span v-if="showOpenPdf" class="pdf-toolbar-divider" aria-hidden="true" />
 
-      <button class="pdf-tool-btn" :disabled="currentPage <= 1" @click="goToPrevPage">
+      <button class="pdf-tool-btn" aria-label="Previous page" :disabled="currentPage <= 1" @click="goToPrevPage">
         <svg
           width="14"
           height="14"
@@ -45,8 +45,8 @@
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </button>
-      <span class="pdf-page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button class="pdf-tool-btn" :disabled="currentPage >= totalPages" @click="goToNextPage">
+      <span class="pdf-page-info" aria-live="polite" aria-atomic="true">{{ currentPage }} / {{ totalPages }}</span>
+      <button class="pdf-tool-btn" aria-label="Next page" :disabled="currentPage >= totalPages" @click="goToNextPage">
         <svg
           width="14"
           height="14"
@@ -60,7 +60,7 @@
       </button>
 
       <template v-if="showClose">
-        <span class="pdf-toolbar-divider" />
+        <span class="pdf-toolbar-divider" aria-hidden="true" />
         <button class="pdf-tool-btn" aria-label="Close" @click="emit('close')">
           <svg
             width="14"
