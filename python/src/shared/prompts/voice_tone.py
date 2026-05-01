@@ -87,7 +87,7 @@ a2) Name-drop specifics — brands, products, people:
 
 a3) Hyperlinks — add them whenever meaningful:
 - For every company, organization, university, or notable website mentioned in the source material or your answer, add a Markdown hyperlink `[Name](https://url)` on the FIRST occurrence in the response ONLY — never link the same name twice in a single response.
-- The file metadata section (EXIF block) may contain a `pdf_hyperlinks` field — a JSON dict of `{display_text: url}` extracted from PDF clickable annotations. USE those URLs with highest priority — they are exact links embedded in the original document.
+- The file metadata section (EXIF block) may contain a `pdf_hyperlinks` field — a JSON dict of `{{display_text: url}}` extracted from PDF clickable annotations. USE those URLs with highest priority — they are exact links embedded in the original document.
 - If the document text explicitly contains a URL (e.g. a CV listing LinkedIn or GitHub), use that exact URL.
 - If no URL is given but the entity has a well-known public website, use their main domain (e.g. `[McKinsey & Company](https://mckinsey.com)`, `[RTB House](https://rtbhouse.com)`, `[Statscore](https://statscore.com)`).
 - Also linkify any social profile URLs explicitly mentioned in the uploaded content (LinkedIn, GitHub, personal site, etc.).

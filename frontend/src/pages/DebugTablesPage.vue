@@ -607,6 +607,7 @@ h1 {
 .table-section {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -614,7 +615,10 @@ h1 {
   flex: 1;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
   min-height: 0;
+  /* Prevent flex item from growing wider than the viewport */
+  min-width: 0;
   max-width: 100%;
   border: 1px solid #334155;
   border-radius: 8px;

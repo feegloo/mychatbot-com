@@ -436,7 +436,7 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 700px;
   flex-shrink: 0;
-  margin-top: 80px;
+  margin-top: 100px;
 }
 
 /* Fade transition for upload section */

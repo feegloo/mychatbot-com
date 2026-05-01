@@ -116,6 +116,9 @@ def _render_pdf_page_to_png(pdf_path: str, page_idx: int, *, dpi: int = 200) -> 
     zoom = dpi / 72  # 72 is the default PDF DPI
     mat = fitz.Matrix(zoom, zoom)
     pix = page.get_pixmap(matrix=mat, alpha=False)
+    # CMYK pages (colorspace.n=4) can't be exported to PNG directly; convert to RGB.
+    if pix.colorspace and pix.colorspace.n > 3:
+        pix = fitz.Pixmap(fitz.csRGB, pix)
     png_bytes = pix.tobytes("png")
     doc.close()
     return png_bytes
@@ -739,9 +742,11 @@ def _extract_and_save_images(pdf_path: Path, output_dir: Path) -> list[dict]:
             if img_ext == "png":
                 image_path.write_bytes(image_bytes)
             else:
-                # Convert non-PNG formats to PNG via Pixmap
+                # Convert non-PNG formats to PNG via Pixmap.
+                # CMYK (colorspace.n=4) and other non-RGB colorspaces can't be
+                # saved as PNG directly; convert to RGB first.
                 pix = fitz.Pixmap(image_bytes)
-                if pix.n > 4:  # CMYK → RGB
+                if pix.colorspace and pix.colorspace.n > 3:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
                 pix.save(str(image_path))
 

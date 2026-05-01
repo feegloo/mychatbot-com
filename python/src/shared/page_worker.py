@@ -189,7 +189,9 @@ def _extract_page_images(
             image_path.write_bytes(image_bytes)
         else:
             pix = fitz.Pixmap(image_bytes)
-            if pix.n > 4:
+            # CMYK (colorspace.n=4) and other non-RGB colorspaces can't be saved
+            # as PNG directly; convert to RGB first.
+            if pix.colorspace and pix.colorspace.n > 3:
                 pix = fitz.Pixmap(fitz.csRGB, pix)
             pix.save(str(image_path))
 

@@ -5,11 +5,14 @@ Uses the real test PDF: test-files/Nikki-Butler-Ultimate-Guide-To-Scar-Treatment
 
 from __future__ import annotations
 
+import io
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import fitz
 import pytest
+from PIL import Image
 
 from shared.extractors import (
     _NUM_THREADS,
@@ -17,9 +20,11 @@ from shared.extractors import (
     _describe_image,
     _describe_one,
     _extract_and_save_images,
+    _render_pdf_page_to_png,
     claim_xref_if_drawn_on_page,
     extract_pdf_images,
 )
+from shared.page_worker import _extract_page_images
 
 TEST_PDF = (
     Path(__file__).resolve().parent.parent.parent
@@ -366,3 +371,147 @@ class TestPromptQuality:
         assert "OCR-first" in prompt_text
         assert "Never translate" in prompt_text
         assert "right-to-left" in prompt_text
+
+
+# ── CMYK colorspace regression (ValueError: unsupported colorspace for 'png') ──
+
+
+def _make_cmyk_jpeg(width: int = 50, height: int = 50) -> bytes:
+    """Return JPEG bytes in CMYK colorspace (common in print-quality PDFs)."""
+    img = Image.new("CMYK", (width, height), (80, 60, 40, 10))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def _make_pdf_with_cmyk_jpeg(pdf_path: Path, jpeg_bytes: bytes) -> None:
+    """Create a minimal PDF that embeds a CMYK JPEG as a native image stream.
+
+    PyMuPDF's page.insert_image() preserves the original JPEG colorspace when
+    the stream is a valid CMYK JPEG, so doc.extract_image() later returns
+    ext='jpeg' and the original CMYK bytes.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=200, height=200)
+    page.insert_image(fitz.Rect(10, 10, 190, 190), stream=jpeg_bytes)
+    doc.save(str(pdf_path))
+    doc.close()
+
+
+class TestCmykPixmapBehavior:
+    """Document PyMuPDF's CMYK Pixmap semantics — the root cause of the bug."""
+
+    def test_cmyk_jpeg_creates_pixmap_with_colorspace_n4(self):
+        """fitz.Pixmap from a CMYK JPEG has colorspace.n == 4, not 3."""
+        pix = fitz.Pixmap(_make_cmyk_jpeg())
+        assert pix.colorspace is not None
+        assert pix.colorspace.n == 4
+
+    def test_old_guard_pix_n_gt_4_is_false_for_cmyk(self):
+        """The pre-fix guard (pix.n > 4) evaluates False for CMYK without alpha.
+
+        CMYK without alpha: pix.n == 4, so pix.n > 4 is False and no conversion
+        happened, causing ValueError when saving as PNG.
+        """
+        pix = fitz.Pixmap(_make_cmyk_jpeg())
+        assert not (pix.n > 4), (
+            "pix.n > 4 should be False for CMYK-no-alpha, documenting the old bug"
+        )
+
+    def test_new_guard_colorspace_n_gt_3_is_true_for_cmyk(self):
+        """The fixed guard (pix.colorspace.n > 3) is True for CMYK."""
+        pix = fitz.Pixmap(_make_cmyk_jpeg())
+        assert pix.colorspace and pix.colorspace.n > 3
+
+    def test_cmyk_to_rgb_conversion_succeeds(self):
+        """Converting a CMYK Pixmap to RGB should not raise."""
+        pix = fitz.Pixmap(_make_cmyk_jpeg())
+        rgb_pix = fitz.Pixmap(fitz.csRGB, pix)
+        assert rgb_pix.colorspace.n == 3
+
+    def test_rgb_pixmap_tobytes_png_succeeds(self):
+        """After CMYK→RGB, tobytes('png') must not raise ValueError."""
+        pix = fitz.Pixmap(_make_cmyk_jpeg())
+        rgb_pix = fitz.Pixmap(fitz.csRGB, pix)
+        png_bytes = rgb_pix.tobytes("png")
+        assert png_bytes[:4] == b"\x89PNG"
+
+
+class TestCmykImageExtractionRegression:
+    """Regression: CMYK JPEG images in PDFs must not crash image extraction."""
+
+    KSIAZKA_BAT_PDF = (
+        Path(__file__).resolve().parent.parent.parent / "test-files" / "ksiazkaBAT.pdf"
+    )
+
+    def test_extract_and_save_images_handles_cmyk_jpeg(self, tmp_path, output_dir):
+        """_extract_and_save_images must not raise for a PDF with a CMYK JPEG."""
+        jpeg_cmyk = _make_cmyk_jpeg(100, 100)
+        pdf_path = tmp_path / "cmyk_test.pdf"
+        _make_pdf_with_cmyk_jpeg(pdf_path, jpeg_cmyk)
+
+        # Before the fix this raised: ValueError: unsupported colorspace for 'png'
+        results = _extract_and_save_images(pdf_path, output_dir)
+        # The image may be small enough to be filtered out, but no exception raised
+        for item in results:
+            assert Path(item["image_path"]).read_bytes()[:4] == b"\x89PNG"
+
+    def test_extract_page_images_handles_cmyk_jpeg(self, tmp_path, output_dir):
+        """_extract_page_images in page_worker must not raise for CMYK JPEG."""
+        import threading
+
+        jpeg_cmyk = _make_cmyk_jpeg(200, 200)
+        pdf_path = tmp_path / "cmyk_page_worker.pdf"
+        _make_pdf_with_cmyk_jpeg(pdf_path, jpeg_cmyk)
+
+        doc = fitz.open(str(pdf_path))
+        seen: set[int] = set()
+        # Must not raise ValueError
+        results = _extract_page_images(
+            doc, 0, output_dir, pdf_path.stem, seen, threading.Lock()
+        )
+        doc.close()
+
+        for item in results:
+            assert Path(item["image_path"]).read_bytes()[:4] == b"\x89PNG"
+
+    def test_render_pdf_page_to_png_handles_cmyk_page(self, tmp_path):
+        """_render_pdf_page_to_png must not raise on a CMYK-coloured page."""
+        # Build a PDF whose content stream uses CMYK colour operators so PyMuPDF
+        # may render the page pixmap in CMYK.
+        doc = fitz.open()
+        page = doc.new_page(width=100, height=100)
+        # Fill the page with a CMYK rectangle via raw content stream.
+        page.set_mediabox(fitz.Rect(0, 0, 100, 100))
+        # Insert a CMYK JPEG on the page to force CMYK rendering context.
+        jpeg_cmyk = _make_cmyk_jpeg(80, 80)
+        page.insert_image(fitz.Rect(10, 10, 90, 90), stream=jpeg_cmyk)
+        pdf_path = tmp_path / "cmyk_page.pdf"
+        doc.save(str(pdf_path))
+        doc.close()
+
+        # Must not raise ValueError: unsupported colorspace for 'png'
+        png_bytes = _render_pdf_page_to_png(str(pdf_path), 0)
+        assert png_bytes[:4] == b"\x89PNG"
+
+    @pytest.mark.skipif(
+        not (
+            Path(__file__).resolve().parent.parent.parent / "test-files" / "ksiazkaBAT.pdf"
+        ).exists(),
+        reason="ksiazkaBAT.pdf not present in test-files/",
+    )
+    def test_ksiazka_bat_first_page_extracts_without_error(self, output_dir):
+        """Regression: processing the first page of ksiazkaBAT.pdf must not raise.
+
+        This is the actual PDF from the bug report where 225 pages all failed with
+        ValueError: unsupported colorspace for 'png' due to embedded CMYK JPEGs.
+        """
+        import threading
+
+        doc = fitz.open(str(self.KSIAZKA_BAT_PDF))
+        seen: set[int] = set()
+        # Must not raise — before fix every page threw ValueError
+        _extract_page_images(
+            doc, 0, output_dir, self.KSIAZKA_BAT_PDF.stem, seen, threading.Lock()
+        )
+        doc.close()
