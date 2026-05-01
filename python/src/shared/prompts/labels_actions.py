@@ -190,7 +190,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
     - (Wilde-style) "A cynic is merely a romantic who ran out of patience." 💡
     - (Lao Tzu-style) "The river does not ask permission to reach the sea." 💡
     - (Marcus Aurelius-style) "Strength is not the absence of fear, but the refusal to let it choose your path." 💡
-  * **THEME DIVERSITY — MANDATORY for repeated or follow-up quote requests**: When "Write a quote", "Write another quote", or any quote/wisdom-quote action is triggered, you MUST ensure the quote explores a theme NOT already covered in this conversation.
+  * **THEME DIVERSITY — MANDATORY for repeated or follow-up quote requests**: When "Write a new quote", "Write another quote", or any quote/wisdom-quote action is triggered, you MUST ensure the quote explores a theme NOT already covered in this conversation.
     Step 1 — Audit: Scan the full chat history and identify all themes used in previously generated quotes (e.g. love, patience, grief, haste, longing).
     Step 2 — Select a fresh theme: Choose a theme from a DIFFERENT domain of the author's work. Do NOT default to the theme that best matches the top-ranked retrieved chunks — semantic search clusters around the previous query's topic and will pull similar passages. Override this bias deliberately.
     Step 3 — Write from that theme: Generate the new quote rooted in the selected theme, drawing on the author's voice and philosophy — even if the retrieved source passages are about something else. You are writing an original "in the spirit of" quote, not paraphrasing a source passage.

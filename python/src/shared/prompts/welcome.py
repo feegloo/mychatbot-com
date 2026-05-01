@@ -20,8 +20,8 @@ Zaraz po wiadomości powitalnej, w tej samej odpowiedzi, dodaj DOKŁADNIE jedną
 **MUST HAVE — NIENEGOCJOWALNE (reguła nr 1 dla przycisków akcji):**
 - KAŻDY z 10 promptów MUSI być opakowany w `[action:...]`. BEZ WYJĄTKÓW. Dotyczy to również naturalnych pytań (pozycje 1-3) — one też MUSZĄ być w `[action:...]`.
 - ABSOLUTNIE ZABRONIONE: pisanie promptów jako zwykły tekst, w zdaniu, po przecinku, z myślnikami, w listach wypunktowanych albo jako akapit prozy. Każdy prompt = własny `[action:...]`.
-- ZŁY przykład (NIGDY nie generuj): `Co dzieje się z Branem? Kim jest George R. R. Martin? Wygeneruj obraz inspirowany Westeros 🎨 Napisz inspirowany rozdział ✏️`
-- DOBRY przykład (TAK musi wyglądać): `[action:Co dzieje się z Branem?] [action:Kim jest George R. R. Martin?] [action:Wygeneruj obraz inspirowany Westeros 🎨] [action:Napisz inspirowany rozdział ✏️]`
+- ZŁY przykład (NIGDY nie generuj): `Co dzieje się z Branem? Kim jest George R. R. Martin? Wygeneruj obraz inspirowany Westeros 🎨 Napisz nowy inspirowany rozdział ✏️`
+- DOBRY przykład (TAK musi wyglądać): `[action:Co dzieje się z Branem?] [action:Kim jest George R. R. Martin?] [action:Wygeneruj obraz inspirowany Westeros 🎨] [action:Napisz nowy inspirowany rozdział ✏️]`
 - Zanim zakończysz odpowiedź, ZWERYFIKUJ: policz `[action:` w ostatniej linii — musi być dokładnie tyle, ile promptów. Jeśli którykolwiek prompt nie ma prefiksu `[action:` i sufiksu `]`, przepisz linię od zera.
 
 Zasady:
@@ -32,7 +32,7 @@ Zasady:
 - Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji, ALE NADAL w `[action:...]`
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
-- Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz inspirowany wiersz 📜")
+- Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz nowy inspirowany wiersz 📜")
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
 - WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
 - ŻADNYCH nawiasów kwadratowych w treści etykiety (znaczniki już używają `[` i `]`) — jeśli musisz zacytować coś w nawiasach, użyj nawiasów okrągłych lub cudzysłowów
@@ -73,8 +73,8 @@ Immediately after the welcome message, in the same response, add EXACTLY one bla
 **MUST HAVE — NON-NEGOTIABLE (rule #1 for action buttons):**
 - EVERY single one of the 10 prompts MUST be wrapped in `[action:...]`. NO EXCEPTIONS. This includes the natural questions (positions 1-3) — they MUST also be wrapped in `[action:...]`.
 - ABSOLUTELY PROHIBITED: writing prompts as plain text, in a sentence, comma-separated, dash-separated, as a bulleted list, or as prose. Every prompt = its own `[action:...]` marker.
-- BAD example (NEVER produce this): `What happens to Bran after the fall? Who is George R. R. Martin? Generate an image inspired by Westeros 🎨 Write a chapter inspired by ✏️`
-- GOOD example (this is the ONLY acceptable form): `[action:What happens to Bran after the fall?] [action:Who is George R. R. Martin?] [action:Generate an image inspired by Westeros 🎨] [action:Write a chapter inspired by George R. R. Martin ✏️]`
+- BAD example (NEVER produce this): `What happens to Bran after the fall? Who is George R. R. Martin? Generate an image inspired by Westeros 🎨 Write a new chapter inspired by ✏️`
+- GOOD example (this is the ONLY acceptable form): `[action:What happens to Bran after the fall?] [action:Who is George R. R. Martin?] [action:Generate an image inspired by Westeros 🎨] [action:Write a new chapter inspired by George R. R. Martin ✏️]`
 - Before ending your response, VERIFY: count `[action:` occurrences in the last line — it MUST equal the number of prompts. If any prompt is missing the `[action:` prefix or the `]` suffix, rewrite the entire line from scratch.
 
 Rules:
@@ -169,6 +169,7 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
 - 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji (wymienionych wcześniej w [system]) ale tylko dla drugiego poziomu
 - 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
+- wazne: każda gałąź pierwszego poziomu jest niezależna, czyli moze mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu. To samo dotyczy gałęzi trzeciego poziomu.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
@@ -310,6 +311,7 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
 - 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
 - 0-4 second-level branches under each main concept: specific details, use emoji (from the earlier [system]) before the text but only for second-level
 - 0-2 third-level branches: very specific details, only if important and valuable (e.g. specific dates, numbers, names related to the second-level branch)
+- important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches. Same for third-level branches.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
