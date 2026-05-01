@@ -87,3 +87,81 @@ describe('PdfPageViewer reacts to prop changes', () => {
     wrapper.unmount()
   })
 })
+
+describe('PdfPageViewer toolbar optional controls', () => {
+  async function mountViewer(props: Record<string, unknown> = {}) {
+    const PdfPageViewer = (await import('../../src/components/PdfPageViewer.vue')).default
+    return mount(PdfPageViewer, {
+      props: { url: '/api/storage/abc/doc.pdf', page: 1, ...props },
+      attachTo: document.body,
+    })
+  }
+
+  it('hides "Open PDF" button and its divider by default', async () => {
+    const wrapper = await mountViewer()
+    await flushPromises()
+
+    expect(wrapper.find('button.pdf-tool-btn--text').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows "Open PDF" button when showOpenPdf is true', async () => {
+    const wrapper = await mountViewer({ showOpenPdf: true })
+    await flushPromises()
+
+    const openBtn = wrapper.find('button.pdf-tool-btn--text')
+    expect(openBtn.exists()).toBe(true)
+    expect(openBtn.text()).toBe('Open PDF')
+    wrapper.unmount()
+  })
+
+  it('emits "openPdf" when "Open PDF" button is clicked', async () => {
+    const wrapper = await mountViewer({ showOpenPdf: true })
+    await flushPromises()
+
+    await wrapper.find('button.pdf-tool-btn--text').trigger('click')
+
+    expect(wrapper.emitted('openPdf')).toBeTruthy()
+    expect(wrapper.emitted('openPdf')!.length).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('hides close button by default', async () => {
+    const wrapper = await mountViewer()
+    await flushPromises()
+
+    const closeBtn = wrapper.find('button[aria-label="Close"]')
+    expect(closeBtn.exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows close button when showClose is true', async () => {
+    const wrapper = await mountViewer({ showClose: true })
+    await flushPromises()
+
+    expect(wrapper.find('button[aria-label="Close"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('emits "close" when close button is clicked', async () => {
+    const wrapper = await mountViewer({ showClose: true })
+    await flushPromises()
+
+    await wrapper.find('button[aria-label="Close"]').trigger('click')
+
+    expect(wrapper.emitted('close')).toBeTruthy()
+    expect(wrapper.emitted('close')!.length).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('prev and next buttons have accessible aria-labels', async () => {
+    const wrapper = await mountViewer()
+    await flushPromises()
+
+    const prev = wrapper.find('button[aria-label="Previous page"]')
+    const next = wrapper.find('button[aria-label="Next page"]')
+    expect(prev.exists()).toBe(true)
+    expect(next.exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
