@@ -138,33 +138,33 @@ flowchart LR
 
   Tokens --> EmbLayer
   EmbLayer --> PosEnc
-  PosEnc ==>|+0.91| MHSA1
-  MHSA1 -->|+0.83| Add1
-  Add1 -->|+0.78| FFN1
-  FFN1 -->|+0.76| Add2
-  Add2 ==>|+0.88| EncStack
-  EncStack ==>|+0.85| CrossAttn
+  PosEnc ==>|injects order +0.91| MHSA1
+  MHSA1 -->|feeds +0.83| Add1
+  Add1 -->|normalizes +0.78| FFN1
+  FFN1 -->|feeds +0.76| Add2
+  Add2 ==>|stacks into +0.88| EncStack
+  EncStack ==>|conditions +0.85| CrossAttn
 
-  PosEnc -->|+0.80| MaskedMHSA
-  MaskedMHSA -->|+0.77| Add3
-  Add3 -->|+0.82| CrossAttn
-  CrossAttn -->|+0.79| Add4
-  Add4 -->|+0.75| FFN2
-  FFN2 -->|+0.73| Add5
-  Add5 ==>|+0.86| DecStack
+  PosEnc -->|feeds +0.80| MaskedMHSA
+  MaskedMHSA -->|feeds +0.77| Add3
+  Add3 -->|feeds +0.82| CrossAttn
+  CrossAttn -->|feeds +0.79| Add4
+  Add4 -->|feeds +0.75| FFN2
+  FFN2 -->|feeds +0.73| Add5
+  Add5 ==>|stacks into +0.86| DecStack
 
-  DecStack -->|+0.90| Linear
-  Linear -->|+0.95| Softmax
-  Softmax -->|+0.97| Probs
+  DecStack -->|projects +0.90| Linear
+  Linear -->|normalizes +0.95| Softmax
+  Softmax -->|produces +0.97| Probs
 
-  Q ==>|+0.93| DotProd
-  K ==>|+0.93| DotProd
-  DotProd -->|+0.88| Scale
-  Scale -->|+0.91| SoftmaxA
-  SoftmaxA ==>|+0.89| V
-  V ==>|+0.87| MHSA1
+  Q ==>|queries +0.93| DotProd
+  K ==>|keys +0.93| DotProd
+  DotProd -->|scales +0.88| Scale
+  Scale -->|weights +0.91| SoftmaxA
+  SoftmaxA ==>|weights +0.89| V
+  V ==>|outputs to +0.87| MHSA1
 
-  Probs -.->|-0.05| Tokens
+  Probs -.->|no recurrence -0.05| Tokens
 ```
 """
 
@@ -231,16 +231,16 @@ flowchart LR
     Rozwiazanie[Rozwiazanie umowy]
   end
 
-  Kowalski ==>|+0.88| Faktura
-  Faktura ==>|+0.92| Wynagrodzenie
-  Wynagrodzenie ==>|+0.85| IP
-  Acme -->|+0.76| Wynagrodzenie
-  Brak_zaplaty[Brak zaplaty] -.->|+0.41| Odsetki
-  NDA <-->|+0.69| Acme
-  NDA <-->|+0.67| Kowalski
-  Naruszenie_NDA[Naruszenie NDA] ==>|+0.83| Kara
-  Wypowiedzenie -->|+0.79| Rozwiazanie
-  IP -.->|-0.08| NDA
+  Kowalski ==>|wystawia +0.88| Faktura
+  Faktura ==>|rozlicza +0.92| Wynagrodzenie
+  Wynagrodzenie ==>|warunkuje +0.85| IP
+  Acme -->|zatwierdza +0.76| Wynagrodzenie
+  Brak_zaplaty[Brak zaplaty] -.->|generuje +0.41| Odsetki
+  NDA <-->|wiaze +0.69| Acme
+  NDA <-->|wiaze +0.67| Kowalski
+  Naruszenie_NDA[Naruszenie NDA] ==>|aktywuje +0.83| Kara
+  Wypowiedzenie -->|skutkuje +0.79| Rozwiazanie
+  IP -.->|niezalezne od -0.08| NDA
 ```
 """
 
@@ -302,18 +302,18 @@ flowchart LR
     Others[White Walkers - off-page]
   end
 
-  Ned ==>|+0.89| Bran
-  Ned ==>|+0.84| Justice(Justice - execution scene)
-  Bran -->|+0.72| Direwolves
-  Robb -->|+0.68| Direwolves
-  Jon -.->|+0.31| StarkHousehold
-  Jon -->|+0.58| AlbinoRunt
-  Direwolves <-->|+0.91| StarkChildren
-  AlbinoRunt -.->|+0.35| Jon
-  Theon -.->|-0.18| StarkHonor(Stark Honor)
-  Deserter ==>|+0.77| Others
-  Ned -->|+0.65| Deserter
-  Others -.->|-0.12| Ned
+  Ned ==>|mentors +0.89| Bran
+  Ned ==>|executes +0.84| Justice(Justice - execution scene)
+  Bran -->|discovers +0.72| Direwolves
+  Robb -->|discovers +0.68| Direwolves
+  Jon -.->|marginal in +0.31| StarkHousehold
+  Jon -->|claims +0.58| AlbinoRunt
+  Direwolves <-->|bonds with +0.91| StarkChildren
+  AlbinoRunt -.->|mirrors +0.35| Jon
+  Theon -.->|mocks -0.18| StarkHonor(Stark Honor)
+  Deserter ==>|fled from +0.77| Others
+  Ned -->|executes +0.65| Deserter
+  Others -.->|dismissed by -0.12| Ned
 ```
 """
 
@@ -399,10 +399,10 @@ The raw material contains a "CHUNK PAIRWISE COSINE CORRELATION" section with
 numeric similarity scores between the retrieved text chunks, computed via
 HNSW cosine similarity. Use these scores to annotate every edge:
 
-  • Score ≥ 0.70  → strong correlation  → use  `==>|score|`   (e.g. `==>|+0.87|`)
-  • 0.40 – 0.69   → moderate relation   → use  `-->|score|`   (e.g. `-->|+0.55|`)
-  • 0.10 – 0.39   → weak / indirect     → use  `-.->|score|`  (e.g. `-.->|+0.22|`)
-  • Score < 0      → contrasting        → use  `-.->|score|`  (e.g. `-.->|-0.14|`)
+  • Score ≥ 0.70  → strong correlation  → use  `==>|relation score|`   (e.g. `==>|produces +0.87|`)
+  • 0.40 – 0.69   → moderate relation   → use  `-->|relation score|`   (e.g. `-->|uses +0.55|`)
+  • 0.10 – 0.39   → weak / indirect     → use  `-.->|relation score|`  (e.g. `-.->|hints +0.22|`)
+  • Score < 0      → contrasting        → use  `-.->|relation score|`  (e.g. `-.->|opposes -0.14|`)
 
 Workflow:
 1. Map each diagram entity to the chunk(s) it appears in most.
@@ -410,7 +410,11 @@ Workflow:
    chunk associated with A and any chunk associated with B.
 3. Use that score as the edge label. If no chunk pair covers both entities,
    estimate based on proximity in the narrative/material.
-4. Every edge in the diagram MUST carry a `|score|` label.
+4. Every edge in the diagram MUST carry a `|relation score|` label — a short
+   verb or noun phrase (≤ 3 words) describing the relationship, followed by
+   the numeric score (e.g. `|produces +0.87|`, `|depends on +0.55|`,
+   `|contradicts -0.14|`). Choose the label from the content — do NOT use
+   generic placeholders like "related" or "linked".
 
 Rules:
 - First line must be: `flowchart LR`
@@ -418,12 +422,12 @@ Rules:
 - Node labels in square brackets: `A[Label text]`
 - Round brackets for process/action nodes: `A(Label)`
 - Double-square for subsystems/modules: `A[[Label]]`
-- Edge types (always include score label):
-    A ==>|+0.87| B    (strong dependency, high cosine similarity)
-    A -->|+0.55| B    (moderate relation)
-    A -.->|+0.22| B   (weak / hypothesized / indirect link)
-    A -.->|-0.14| B   (contrasting / opposing concepts)
-    A <-->|+0.63| B   (bidirectional, moderate correlation)
+- Edge types (always include `|relation score|` label — verb/noun ≤ 3 words then score):
+    A ==>|drives +0.87| B    (strong dependency, high cosine similarity)
+    A -->|uses +0.55| B      (moderate relation)
+    A -.->|hints +0.22| B    (weak / hypothesized / indirect link)
+    A -.->|opposes -0.14| B  (contrasting / opposing concepts)
+    A <-->|syncs +0.63| B    (bidirectional, moderate correlation)
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
 - Aim for 25-45 nodes and 30-55 edges. More is always better when supported
