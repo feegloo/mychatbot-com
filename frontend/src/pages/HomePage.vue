@@ -36,7 +36,7 @@
             </svg>
           </div>
           <p class="dropzone-heading">{{ t.dropzoneHeading }}</p>
-          <p>
+          <p class="dropzone-title">
             <strong>{{ t.dropzoneTitle }}</strong>
           </p>
           <p class="dropzone-hint">{{ t.dropzoneHint }}</p>
@@ -436,7 +436,6 @@ function autoResize(e: Event) {
   width: 100%;
   max-width: 700px;
   flex-shrink: 0;
-  margin-top: 80px;
 }
 
 /* Fade transition for upload section */
@@ -459,12 +458,26 @@ function autoResize(e: Event) {
 
 @media (max-width: 768px) {
   .home-page {
-    padding: 24px 16px;
+    padding: 24px 16px 120px;
     justify-content: flex-start;
   }
 
   .upload-dropzone {
     padding: 32px 20px;
+  }
+
+  .dropzone-title {
+    display: none;
+  }
+
+  .home-chat-input {
+    position: fixed;
+    bottom: 30px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    z-index: 10;
   }
 }
 </style>
