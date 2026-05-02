@@ -93,7 +93,7 @@ const t = homeT
   height: 52px;
   width: auto;
   display: block;
-  margin: -10px auto 16px;
+  margin: 0px auto 16px;
   filter: drop-shadow(0 0 24px rgba(167, 139, 250, 0.3));
 }
 

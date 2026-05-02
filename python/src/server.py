@@ -708,6 +708,21 @@ async def generate_image_endpoint(req: GenerateImageRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _build_error_data(exc: BaseException) -> dict:
+    """Build an error event payload, extracting the human-readable OpenAI
+    message when the exception is a BadRequestError (e.g. moderation block)."""
+    data: dict = {"error": str(exc)}
+    try:
+        from openai import BadRequestError
+        if isinstance(exc, BadRequestError) and exc.body:
+            openai_msg = (exc.body.get("error") or {}).get("message")
+            if openai_msg:
+                data["openai_message"] = openai_msg
+    except Exception:
+        pass
+    return data
+
+
 @app.post("/generate-image-stream")
 async def generate_image_stream_endpoint(req: GenerateImageRequest):
     """Streaming variant of /generate-image.
@@ -798,10 +813,19 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         task = asyncio.ensure_future(asyncio.to_thread(_run))
         try:
             while True:
-                try:
-                    item = await asyncio.wait_for(event_queue.get(), timeout=60.0)
+                # Use asyncio.wait so task failure is detected immediately
+                # instead of waiting up to 60 s for the queue timeout.
+                queue_get = asyncio.ensure_future(event_queue.get())
+                done, _ = await asyncio.wait(
+                    {queue_get, task},
+                    timeout=60.0,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if queue_get in done:
+                    item = queue_get.result()
                     yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
-                except TimeoutError:
+                else:
+                    queue_get.cancel()
                     if task.done():
                         break
                     yield "\n"  # keepalive
@@ -809,12 +833,12 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
                     break
             exc = task.exception()
             if exc:
-                yield json.dumps({"event": "error", "data": {"error": str(exc)}}) + "\n"
+                yield json.dumps({"event": "error", "data": _build_error_data(exc)}) + "\n"
             else:
                 yield json.dumps({"event": "complete", "data": task.result()}, ensure_ascii=False, default=str) + "\n"
         except Exception as e:
             logger.exception("Error in generate-image-stream generator")
-            yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
+            yield json.dumps({"event": "error", "data": _build_error_data(e)}) + "\n"
             if not task.done():
                 with contextlib.suppress(Exception):
                     await task

@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import type mermaidType from 'mermaid'
+import { sanitizeMermaidCode } from '../utils/mermaidSanitize'
 
 const props = defineProps<{ code: string }>()
 
@@ -323,7 +324,7 @@ async function renderDiagram() {
   try {
     const m = await getMermaid()
     const id = `mermaid-${Date.now()}-${renderCounter++}`
-    const { svg } = await m.render(id, props.code)
+    const { svg } = await m.render(id, sanitizeMermaidCode(props.code))
     diagramEl.value.innerHTML = svg
     renderedSvg.value = svg
     // Auto-zoom to fit width before revealing

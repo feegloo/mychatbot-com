@@ -107,7 +107,7 @@ conversationsRouter.get('/events', async (ctx) => {
     return
   }
 
-  ctx.req.socket.setTimeout(1800)
+  ctx.req.socket.setTimeout(0)
   ctx.req.socket.setNoDelay(true)
   ctx.req.socket.setKeepAlive(true)
   ctx.status = 200
@@ -176,7 +176,7 @@ conversationsRouter.get('/events', async (ctx) => {
   keepalive = setInterval(() => {
     if (isStreamClosed(res)) { cleanup(); return }
     try { res.write(': keepalive\n\n') } catch { cleanup() }
-  }, 3600)
+  }, 15_000)
 })
 
 // SSE endpoint: stream processing events (welcome_message, complete) to the frontend

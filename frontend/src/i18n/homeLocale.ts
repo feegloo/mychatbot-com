@@ -98,7 +98,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     videoNotSupported: 'Video files are not supported.',
     fileTooLarge: 'File too large. Maximum upload size is ~30 MB per file.',
     urlLoadFailed: 'Failed to load URL',
-    imageGenError: 'Sorry, there was an error during generating image. Try again.',
+    imageGenError: 'Sorry, there was an error during generating image. Refresh page or try again.',
     switchTitle: 'Switch home page language',
   },
   pl: {
@@ -123,7 +123,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     videoNotSupported: 'Pliki wideo nie są obsługiwane.',
     fileTooLarge: 'Plik zbyt duży. Maksymalny rozmiar to ~30 MB na plik.',
     urlLoadFailed: 'Nie udało się wczytać URL',
-    imageGenError: 'Przepraszam, wystąpił błąd podczas generowania obrazu. Spróbuj ponownie.',
+    imageGenError: 'Przepraszam, wystąpił błąd podczas generowania obrazu. Odśwież stronę lub spróbuj ponownie.',
     switchTitle: 'Zmień język strony głównej',
   },
 }

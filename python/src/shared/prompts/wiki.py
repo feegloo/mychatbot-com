@@ -372,7 +372,8 @@ ASCII arrow graph. One relationship per line. Use ONLY these arrows:
     A -.-> B     weak / hypothesized / off-page / foreshadowed
 Right-pad the arrows so they line up visually (use spaces, not tabs).
 Append a short parenthetical label after each line explaining the relation
-in ≤ 6 words. Aim for 6-15 relationships.
+in ≤ 6 words. Scale with document size: tiny/short docs 6-15 relationships;
+medium docs 12-25; large/xl docs 20-40.
 
 ## Hierarchy
 Indented bullet tree (2 spaces per level, max depth 3). Capture the
@@ -430,10 +431,12 @@ Rules:
     A <-->|syncs +0.63| B    (bidirectional, moderate correlation)
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
-- Aim for 25-45 nodes and 30-55 edges. More is always better when supported
-  by source material — prefer completeness over brevity. Include specific
-  details in node labels (exact names, amounts, dates, section refs) when
-  they disambiguate or add meaning.
+- Node and edge targets are driven by the DOCUMENT SCALE section in the
+  human message (see below). The default is 25-45 nodes / 30-55 edges;
+  scale UP proportionally for medium/large/xl documents as instructed there.
+  More is always better when supported by source material — prefer
+  completeness over brevity. Include specific details in node labels (exact
+  names, amounts, dates, section refs) when they disambiguate or add meaning.
 - CRITICAL SYNTAX RULES (violations break rendering):
     * No unescaped `"` or `{{` or `}}` inside node labels — use single quotes
       or rephrase: `A["label"]` is OK; `A[label with {{brace}}]` is NOT.
@@ -441,6 +444,12 @@ Rules:
       `RJ45["2x RJ45 10/100/1000BaseT(X)"]` is correct;
       `RJ45[2x RJ45 10/100/1000BaseT(X)]` is WRONG — Mermaid interprets the
       trailing `(X)` as a stadium-shape suffix and breaks parsing.
+    * Node labels containing `@` (e.g. email addresses) MUST be wrapped in
+      double quotes: `C3["olek.figiel@gmail.com"]` is correct;
+      `C3[olek.figiel@gmail.com]` is WRONG — Mermaid parses `@` as a link ID.
+    * Node labels starting with `+` (e.g. phone numbers) MUST be wrapped in
+      double quotes: `C2["+48 791 421 067"]` is correct;
+      `C2[+48 791 421 067]` is WRONG.
     * No trailing pipe characters on edge lines.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.
@@ -448,7 +457,9 @@ Rules:
 
 == HARD CONSTRAINTS ==
 
-- Total length ≤ ~2500 tokens (~10000 characters). Terseness in prose, richness in diagram.
+- Total length: scale with document size. Tiny/short docs: ≤ ~2500 tokens (~10 000 chars).
+  Medium docs: ≤ ~3500 tokens (~14 000 chars). Large/XL docs: ≤ ~5000 tokens (~20 000 chars).
+  Terseness in prose sections; richness and exhaustiveness in the diagram.
 - Write in the SAME LANGUAGE as the welcome message (prose sections only; Mermaid node IDs always English alphanumeric).
 - No emojis. No [action:...] markers. No [source:N] citations. No URLs.
 - Never invent entities or relationships not supported by the welcome message
@@ -477,6 +488,9 @@ _WIKI_HUMAN = """== CONVERSATION TITLE ==
 
 == LANGUAGE ==
 Write the wiki in: {language}
+
+== DOCUMENT SCALE ==
+{document_scale_hint}
 
 == WELCOME MESSAGE (already shown to user) ==
 {welcome_message}

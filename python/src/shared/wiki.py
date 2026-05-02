@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 4
 _DEFAULT_TOKEN_BUDGET = 300_000
 _MAX_WELCOME_CHARS = 6_000  # welcome is concentrated framing — full clip rarely needed
-_MAX_OUTPUT_CHARS = 12_000  # ~3000 tokens; accommodates prose + rich mermaid diagram
-_TOP_K_CHUNKS = 10  # vector neighbours retrieved against the welcome message
+_MAX_OUTPUT_CHARS = 16_000  # ~4000 tokens; extra headroom for rich large-doc diagrams
+_TOP_K_CHUNKS = 20  # vector neighbours retrieved against the welcome message (doubled for breadth)
 
 
 def _budget_chars(token_budget: int) -> int:
@@ -238,6 +238,93 @@ def _build_raw_material(
     return combined, len(rows)
 
 
+def _build_document_scale_hint(page_count: int | None, welcome_len: int) -> str:
+    """Return an extraction-depth hint based on estimated document size.
+
+    For large documents we want the model to be exhaustive — extract every
+    named entity, secondary character, location, subplot, etc. — rather than
+    producing a high-level representative sample.  We express this as a
+    qualitative instruction ("what to extract more of") plus scaled numeric
+    targets so the model understands both the WHAT and the HOW MUCH.
+
+    Tiers (page_count takes precedence; falls back to welcome length):
+      • tiny   : < 20 pages  (or welcome < 1 000 chars)
+      • short  : 20–80 pages (or welcome 1 000–3 000 chars)
+      • medium : 80–180 pages
+      • large  : 180–400 pages
+      • xl     : > 400 pages
+    """
+    # Estimate tier from page_count; fall back to welcome length as proxy.
+    if page_count is not None:
+        if page_count < 20:
+            tier = "tiny"
+        elif page_count < 80:
+            tier = "short"
+        elif page_count < 180:
+            tier = "medium"
+        elif page_count < 400:
+            tier = "large"
+        else:
+            tier = "xl"
+    else:
+        # Welcome message length is a rough proxy for document richness.
+        if welcome_len < 1_000:
+            tier = "tiny"
+        elif welcome_len < 3_000:
+            tier = "short"
+        elif welcome_len < 5_000:
+            tier = "medium"
+        else:
+            tier = "large"
+
+    if tier == "tiny":
+        return (
+            "DOCUMENT SCALE: short (tiny). "
+            "Standard extraction: 20–35 nodes, 25–45 edges."
+        )
+    if tier == "short":
+        return (
+            "DOCUMENT SCALE: short. "
+            "Standard extraction: 30–45 nodes, 35–55 edges."
+        )
+    if tier == "medium":
+        return (
+            "DOCUMENT SCALE: medium (~80-180 pages). "
+            "Extended extraction: aim for 45–65 nodes and 55–75 edges. "
+            "Include secondary characters/modules/clauses alongside the main entities. "
+            "For fiction: capture subplots, locations, and factions in addition to the main cast. "
+            "For technical docs: include specific APIs, configs, data structures, and constraints. "
+            "For legal docs: capture every clause, party, obligation, amount, and deadline."
+        )
+    if tier == "large":
+        return (
+            "DOCUMENT SCALE: LARGE (~180-400 pages). "
+            "EXHAUSTIVE EXTRACTION MODE — target 60–85 nodes and 70–95 edges. "
+            "Extract EVERY significant named entity visible in the raw material: "
+            "for fiction — every named character (including minor ones), every named location, "
+            "every subplot, every faction/alliance, every legal/formal concept, every piece of "
+            "evidence, every key scene mechanism; "
+            "for technical docs — every module, component, algorithm, parameter, API endpoint, "
+            "data structure, and config option; "
+            "for legal/business docs — every party, clause number, obligation, right, penalty, "
+            "date, amount, and condition. "
+            "Do NOT group or generalize individual entities — individual specificity matters more "
+            "than a tidy diagram. Cross-cutting edges (between subgraphs) are especially valuable."
+        )
+    # xl
+    return (
+        "DOCUMENT SCALE: VERY LARGE (400+ pages). "
+        "MAXIMUM EXHAUSTIVE EXTRACTION MODE — target 80–110 nodes and 90–120 edges. "
+        "The raw material covers only a sample of the full document; extract every entity "
+        "you can see. Prioritise depth over neatness: include secondary characters, "
+        "sub-sub-plots, minor locations, all named concepts, all evidence items, "
+        "all formal/legal mechanisms. "
+        "Use multiple subgraphs to organise the density (e.g. Characters, Locations, "
+        "Events, Evidence, Legal/Formal, Themes). "
+        "Cross-subgraph edges are especially valuable — show how disparate threads connect."
+    )
+
+
 def build_conversation_wiki(
     *,
     conversation_id: str,
@@ -247,6 +334,7 @@ def build_conversation_wiki(
     storage_dir: str | None,
     language: str | None = None,
     token_budget: int = _DEFAULT_TOKEN_BUDGET,
+    page_count: int | None = None,
 ) -> str | None:
     """Build the internal wiki for a conversation.
 
@@ -272,6 +360,11 @@ def build_conversation_wiki(
     token_budget
         Soft cap on prompt input tokens for the raw-material section.
         Defaults to 300k.
+    page_count
+        Total page count of the source document(s), used to scale extraction
+        depth.  When provided, large documents automatically receive more
+        aggressive node/edge targets.  Optional — inferred from welcome
+        length when absent.
     """
     welcome_message = (welcome_message or "").strip()
     if not welcome_message:
@@ -302,6 +395,12 @@ def build_conversation_wiki(
         )
         return None
 
+    # Build a scale hint so the prompt adjusts extraction depth to document size.
+    document_scale_hint = _build_document_scale_hint(
+        page_count=page_count,
+        welcome_len=len(welcome_message),
+    )
+
     from .rag import get_llm  # local import — avoids circular at module load
 
     llm = get_llm()
@@ -311,12 +410,13 @@ def build_conversation_wiki(
     )
 
     logger.info(
-        "📚 Wiki: building (conv=%s, lang=%s, matches=%d, raw=%d chars, budget=%dk tokens)",
+        "📚 Wiki: building (conv=%s, lang=%s, matches=%d, raw=%d chars, budget=%dk tokens, scale=%s)",
         conversation_id,
         language,
         chunk_count,
         len(raw_material),
         token_budget // 1000,
+        document_scale_hint.split(".")[0],
     )
 
     try:
@@ -327,6 +427,7 @@ def build_conversation_wiki(
                 "language": language,
                 "welcome_message": welcome_clipped,
                 "raw_material": raw_material,
+                "document_scale_hint": document_scale_hint,
             },
             operation="build_conversation_wiki",
             model=model,

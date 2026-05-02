@@ -69,6 +69,25 @@ export function createApp() {
     return next()
   })
 
+  // Serve .well-known files explicitly (extensionless files need content-type set)
+  app.use(async (ctx, next) => {
+    if (ctx.path.startsWith('/.well-known/')) {
+      const distRoot = path.resolve(config.frontendDistPath)
+      // Try exact path first, then without .txt extension
+      const candidates = [ctx.path, ctx.path.replace(/\.txt$/, '')]
+      for (const candidate of candidates) {
+        const resolved = path.resolve(path.join(distRoot, candidate))
+        if (!resolved.startsWith(distRoot)) continue
+        if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+          ctx.type = 'text/plain'
+          ctx.body = fs.createReadStream(resolved)
+          return
+        }
+      }
+    }
+    return next()
+  })
+
   app.use(async (ctx, next) => {
     if (ctx.path.startsWith('/api') && !ctx.path.startsWith('/api/debug')) {
       ctx.path = ctx.path.replace(/^\/api/, '') || '/'

@@ -985,7 +985,10 @@ async function ask() {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+      const openaiMessage = (err as any)?.openaiMessage
+      reactiveMsg.content = openaiMessage
+        ? `Sorry, there was an error during generating image. Refresh page or try again.\n\n> ${openaiMessage}`
+        : 'Sorry, there was an error during generating image. Refresh page or try again.'
     } else {
       const { message, raw } = extractError(err)
       reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`

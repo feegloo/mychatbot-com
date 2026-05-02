@@ -1106,6 +1106,16 @@ def _index_documents_inline(
             wiki_title = ", ".join(
                 clean_file_name(name) for name in file_name_list[:3]
             ) or "Conversation"
+            # Extract total page count so the wiki can scale extraction depth.
+            wiki_page_count: int | None = None
+            if file_metadata:
+                for meta in file_metadata.values():
+                    if isinstance(meta, dict) and meta.get("page_count"):
+                        try:
+                            wiki_page_count = int(meta["page_count"])
+                            break
+                        except (TypeError, ValueError):
+                            pass
             with trace_step(conversation_id, "*", "build_conversation_wiki"):
                 wiki_text = build_conversation_wiki(
                     conversation_id=conversation_id,
@@ -1114,6 +1124,7 @@ def _index_documents_inline(
                     welcome_message=welcome_message,
                     storage_dir=storage_dir,
                     language=detected_language,
+                    page_count=wiki_page_count,
                 )
             if wiki_text and on_progress:
                 on_progress(

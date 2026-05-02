@@ -383,7 +383,7 @@ export type ImageGenStreamCallbacks = {
       imageTitle: string
     }
   }) => void
-  onError?: (message: string) => void
+  onError?: (message: string, openaiMessage?: string) => void
   signal?: AbortSignal
 }
 
@@ -436,7 +436,8 @@ export async function generateImageStream(
     } else if (eventName === 'complete') {
       callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
     } else if (eventName === 'error') {
-      callbacks.onError?.((payload as { error: string }).error)
+      const errPayload = payload as { error: string; openai_message?: string }
+      callbacks.onError?.(errPayload.error, errPayload.openai_message)
     }
   }
 

@@ -21,14 +21,16 @@ from .labels_actions import LABELS_ACTIONS_RULES
 # ---------------------------------------------------------------------------
 
 KEY_ENTITIES_BULLETS_RULES = (
-    "8–18 bullets (aim for the upper end for information-rich documents). Each bullet:\n"
+    "8–25 bullets (aim for the upper end for information-rich or large documents). Each bullet:\n"
     "- **Name** — terse definition (≤ 20 words). Include SPECIFIC DETAILS: exact amounts,\n"
     "  dates, roles, section/page references, or numeric values wherever they add precision.\n"
     "  Example: **§7-NDA** — 3-year confidentiality, 50k PLN penalty (§7).\n"
     "  Example: **Encoder Stack** — 6 identical layers, multi-head self-attention + FFN.\n"
     "Pick entities by salience: things mentioned often AND things load-bearing for meaning\n"
     "(a once-mentioned threshold, deadline, or definition can outrank a frequently-mentioned\n"
-    "filler word). Specificity > brevity here."
+    "filler word). For large documents (100+ pages), include secondary characters, minor\n"
+    "locations, sub-concepts, and specific evidence items — do NOT stop at the obvious top-10.\n"
+    "Specificity > brevity here."
 )
 
 _KEY_FACTS_SYSTEM_TEMPLATE = f"""You extract and present the key facts, entities, and concepts from uploaded documents.

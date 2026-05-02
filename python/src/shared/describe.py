@@ -17,6 +17,8 @@ from .extractors import clean_file_name
 from .lang_detect import detect_language
 from .llm_instrument import traced_llm_call
 from .prompts.welcome import (
+    MINDMAP_RULES_EN,
+    MINDMAP_RULES_PL,
     WELCOME_QUESTIONS_RULES_EN,
     WELCOME_QUESTIONS_RULES_PL,
     WELCOME_SYSTEM_EN,
@@ -1108,7 +1110,8 @@ def _synthesize_welcome_messages(
             "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
             "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
             "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
-            "Twoja odpowiedź MUSI składać się z trzech części:\n"
+        ) + MINDMAP_RULES_PL + (
+            "\nTwoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
             "2. **Opis**: 3-5 zdań podsumowujących CAŁY dokument. Zachowaj najważniejsze "
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia** selektywnie — tylko liczby, nazwy własne i najważniejszy 1-2 termin na akapit.\n"
@@ -1126,7 +1129,8 @@ def _synthesize_welcome_messages(
             "You may also receive raw text from the beginning of the document — use it "
             "to capture the author's voice, tone, and opening context.\n\n"
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
-            "Your response MUST have three parts:\n"
+        ) + MINDMAP_RULES_EN + (
+            "\nYour response MUST have three parts:\n"
             "1. **Title**: # Document Title (append \" - Author Name\" only if the author is known; do NOT write \"Unknown author\")\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"

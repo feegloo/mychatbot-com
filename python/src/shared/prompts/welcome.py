@@ -189,6 +189,7 @@ Twoja odpowiedź MUSI składać się z trzech części:
    AUTOR W OPISIE: Jeśli znasz autora dokumentu, wspomnij o nim naturalnie w pierwszym zdaniu opisu — tak jakbyś opisywał książkę znajomemu. Na przykład: "Ten 611-stronicowy zbiór poezji **Rumiego** to klasyczne wydanie arabskie Mathnawi." albo "Stephen King w tym **350-stronicowym** thrillerze zabiera czytelnika w mroczną podróż po Nowej Anglii." NIE powtarzaj suchego zapisu z tytułu — wpleć autora w naturalny sposób w treść opisu.
    KLUCZOWE — ZACHOWAJ PRECYZYJNE SZCZEGÓŁY: Zawsze podawaj dokładne liczby, zakresy, nazwy substancji, składników, terminów i konkretne wartości z dokumentu. Na przykład: jeśli tekst mówi o "bliznach do 12 miesięcy (z zaleceniami do 2 lat)", napisz właśnie tak — nie upraszczaj do "blizny do roku". Jeśli wymienione są konkretne składniki jak "witamina C, białko, cynk i selen", wymień je wszystkie. Jeśli podane są zakresy czasowe jak "9–12 miesięcy dla ciała i około 1 rok dla twarzy", podaj te dokładne przedziały. Szczegółowe dane liczbowe i nazwy własne to najcenniejsza informacja w opisie.
    NAZWY PRODUKTÓW, MAREK I OSÓB: Gdy dokument wymienia konkretne marki, produkty lub znane osoby, UŻYWAJ ICH Z NAZWY — nie uogólniaj. Na przykład: pisz "krem RegimA Forte Scar Cream" zamiast "krem na blizny"; "minerały Jane Iredale" zamiast "makijaż mineralny". Dotyczy to leków (Accutane, Retin-A), narzędzi (Photoshop, Figma), firm (Tesla, Google), osób (Warren Buffett, Marie Curie), miejsc (Klinika Mayo, MIT), produktów (iPhone 16, Model Y) i wszystkiego co nosi nazwę własną w treści dokumentu.
+   HIPERŁĄCZA — dodawaj zawsze gdy to sensowne: Do każdej firmy, organizacji, uczelni czy strony internetowej wymienionej w dokumencie lub w odpowiedzi dodaj hiperłącze Markdown `[Nazwa](https://url)` przy PIERWSZYM wystąpieniu w odpowiedzi — nie linkuj tej samej nazwy dwa razy. Jeśli metadane pliku zawierają pole `pdf_hyperlinks` (słownik `{{tekst: url}}` z adnotacji hiperłączy PDF), UŻYWAJ tych URL-i z NAJWYŻSZYM priorytetem — są to dokładne linki osadzone w oryginalnym dokumencie. Jeśli dokument jawnie zawiera URL (np. LinkedIn lub GitHub w CV), użyj tego dokładnego adresu. Jeśli nie podano URL-a, ale podmiot ma powszechnie znana stronę, użyj ich głównej domeny (np. `[McKinsey & Company](https://mckinsey.com)`, `[Statscore](https://statscore.com)`). Stosuj agresywnie — więcej linków = więcej klikalnych odwołań dla użytkownika.
    OBOWIĄZKOWE MIERZALNE FAKTY — oprócz powyższego, KONIECZNIE wymień jak najwięcej z poniższych (jeśli występują w treści):
    - Liczba stron/rozdziałów/części (np. "**266-stronicowy** kryminał w **12 rozdziałach**")
    - Imiona i nazwiska kluczowych postaci/osób (do 3-4 głównych), pogrubione (np. **Joanna Chyłka**, **Kordian Oryński**)
@@ -332,6 +333,7 @@ Your response MUST have three parts:
    AUTHOR IN DESCRIPTION: If you know the author, mention them naturally in the first sentence of the description — as if describing a book to a friend. For example: "This **611-page** collection of poetry by **Rumi** is a classic Arabic edition of the Mathnawi." or "Stephen King takes readers on a dark journey through New England in this **350-page** thriller." Do NOT just repeat the dry title format — weave the author into the description naturally.
    CRITICAL — PRESERVE PRECISE DETAILS: Always include exact numbers, ranges, substance names, ingredient lists, and specific values from the document. For example: if the text says "scars under 12 months old (with some guidance extending to 2 years)", write exactly that — do not simplify to "scars under a year". If specific nutrients are listed like "vitamin C, protein, zinc, and selenium", name them all. If timeframes are given like "9–12 months for the body and about 1 year for the face", include those exact ranges. Specific numbers, names, and precise data are the most valuable part of the description.
    NAME-DROP PRODUCTS, BRANDS, AND PEOPLE: When the document mentions specific brands, products, or notable people, USE THEM BY NAME — do not genericize. For example: write "RegimA Forte Scar Cream" instead of "a scar cream"; "Jane Iredale mineral makeup" instead of "mineral makeup for cover-up". This applies to medications (Accutane, Retin-A), tools (Photoshop, Figma), companies (Tesla, Google), people (Warren Buffett, Marie Curie), places (Mayo Clinic, MIT), products (iPhone 16, Model Y), and anything else with a proper name in the document content.
+   HYPERLINKS — add them whenever meaningful: For every company, organization, university, or notable website mentioned in the document or your answer, add a Markdown hyperlink `[Name](https://url)` on the FIRST occurrence ONLY — never link the same name twice in a single response. If the file metadata contains a `pdf_hyperlinks` field (a JSON dict of `{{display_text: url}}` extracted from PDF link annotations), USE those URLs with HIGHEST priority — they are exact links embedded in the original document. If the document text explicitly contains a URL (e.g. a CV listing LinkedIn or GitHub), use that exact URL. If no URL is given but the entity has a well-known public website, use their main domain (e.g. `[McKinsey & Company](https://mckinsey.com)`, `[RTB House](https://rtbhouse.com)`, `[Statscore](https://statscore.com)`). Apply aggressively — more links give the user actionable, clickable references.
    MANDATORY MEASURABLE FACTS — in addition to the above, you MUST mention as many of these as possible (if present in the content):
    - Page/chapter/part count (e.g. "This **266-page** crime novel spans **12 chapters**")
    - Key character/person names (up to 3-4 main ones), bolded (e.g. **Joanna Chyłka**, **Kordian Oryński**)
@@ -414,6 +416,88 @@ Be substantive — this is a solid analysis, not an essay. Aim for roughly 250-3
 Do NOT ask the user anything. You CAN use 1-2 source markers like [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
 Reply in the same language as the document's primary content (see LANGUAGE DETECTION RULE above).
+"""
+
+# ---------------------------------------------------------------------------
+# Mindmap-only instruction blocks (for synthesis and other non-standard paths)
+# ---------------------------------------------------------------------------
+
+MINDMAP_RULES_PL = r"""
+Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych pojęć owiniętą tagami [mindmap]...[/mindmap]:
+
+[mindmap]
+```mermaid
+---
+config:
+  layout: tidy-tree
+---
+mindmap
+  root((Główny Temat))
+    Pojęcie 1
+      Szczegół A
+        Podszegół A1
+        Podszegół A2
+      Szczegół B
+      Szczegół C
+        Podszegół C1
+      Szczegół D
+    Pojęcie 2
+    Pojęcie 3
+      Szczegół I
+      Szczegół J
+      Szczegół K
+```
+[/mindmap]
+
+Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
+- root((...)) — centralny temat dokumentu, max 4 słowa
+- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji ale tylko dla drugiego poziomu
+- 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
+- każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego pojęcia.
+- Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
+- Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
+- Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
+- NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
+"""
+
+MINDMAP_RULES_EN = r"""
+At the very start of your response, BEFORE the title, output a mindmap of key concepts wrapped in [mindmap]...[/mindmap] tags:
+
+[mindmap]
+```mermaid
+---
+config:
+  layout: tidy-tree
+---
+mindmap
+  root((Main Topic))
+    Concept 1
+      Detail A
+        Subdetail A1
+        Subdetail A2
+      Detail B
+      Detail C
+        Subdetail C1
+      Detail D
+    Concept 2
+    Concept 3
+      Detail I
+      Detail J
+      Detail K
+```
+[/mindmap]
+
+Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
+- root((...)) — the central topic of the document, max 4 words
+- 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
+- 0-4 second-level branches under each main concept: specific details, use emoji before the text but only for second-level
+- 0-2 third-level branches: very specific details, only if important and valuable
+- each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
+- Labels in the document's language, concise (max 5 words per node)
+- Strict indentation: 2 spaces per level of depth
+- Start with [mindmap] on its own line, end with [/mindmap] on its own line
+- IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 """
 
 # ---------------------------------------------------------------------------

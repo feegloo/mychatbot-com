@@ -128,9 +128,11 @@ export async function runImageGenStream(options: {
 
         settleAfterMinMorph(resolve, data)
       },
-      onError: (message) => {
+      onError: (message, openaiMessage) => {
         clearTimeout(timeoutHandle)
-        reject(new Error(message))
+        const err = new Error(message) as Error & { openaiMessage?: string }
+        if (openaiMessage) err.openaiMessage = openaiMessage
+        reject(err)
       },
     }, language, referenceImageFileNames).catch((err) => {
       clearTimeout(timeoutHandle)
