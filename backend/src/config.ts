@@ -27,6 +27,10 @@ export const config = {
   openAiApiKey: process.env.OPENAI_API_KEY || '',
   openAiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-5.4-mini',
   openAiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
+  // LLM provider: 'openai' (default, cloud) or 'ollama' (local, free, no API key)
+  llmProvider: (process.env.LLM_PROVIDER || 'openai') as 'openai' | 'ollama',
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+  ollamaChatModel: process.env.OLLAMA_CHAT_MODEL || 'llama3.2:3b',
   pythonServerUrl: process.env.PYTHON_SERVER_URL || 'http://localhost:8321',
   gcsBucket: process.env.GCS_BUCKET || '',
   logsRoot: resolvePath(process.env.LOGS_ROOT || '../logs'),

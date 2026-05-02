@@ -10,14 +10,6 @@
       <!-- Action buttons (share / PDF / upload-more) — assistant messages only -->
       <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
         <AppButton
-          v-if="isFirstMessage && wikiReady"
-          class="msg-action-btn"
-          title="View Knowledge Wiki"
-          @click="$emit('show-wiki')"
-        >
-          🗺️ Wiki
-        </AppButton>
-        <AppButton
           v-if="isFirstMessage && c4Ready"
           class="msg-action-btn"
           title="Mapa Myśli"
@@ -26,25 +18,14 @@
           💡 Mapa Myśli
         </AppButton>
         <AppButton
-          v-if="isFirstMessage && canUpload"
+          v-if="isFirstMessage && wikiReady"
           class="msg-action-btn"
-          title="Upload more files"
-          @click="triggerUpload"
+          title="View Knowledge Wiki"
+          @click="$emit('show-wiki')"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-          </svg>
-          Upload more files
+          🗺️ Wiki
         </AppButton>
+
         <a
           :href="shareUrl"
           class="msg-action-btn"
@@ -310,6 +291,7 @@
         :src="modalSrc"
         :alt="modalAlt"
         :title="modalTitle"
+        :stretch="modalStretch"
         @close="modalOpen = false"
       />
       <SourcePreviewModal
@@ -338,6 +320,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'
+import { homeLang } from '../i18n/homeLocale'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 import { appReady } from '../composables/appReady'
@@ -723,14 +706,16 @@ const modalOpen = ref(false)
 const modalSrc = ref('')
 const modalAlt = ref('')
 const modalTitle = ref('')
+const modalStretch = ref(false)
 // True when modal was opened by clicking the morph/partial image. While set,
 // the modal src tracks new partials and the final generated image live.
 const morphModalActive = ref(false)
 
-function openImageModal(src: string, alt: string) {
+function openImageModal(src: string, alt: string, stretch = false) {
   modalSrc.value = src
   modalAlt.value = alt
   modalTitle.value = alt
+  modalStretch.value = stretch
   morphModalActive.value = false
   modalOpen.value = true
 }
@@ -850,8 +835,13 @@ function getFileUrl(file: FileInfo) {
 // Clicking a welcome-message file preview opens ImageModal for images,
 // SourcePreviewModal for PDFs and other file types.
 function openFilePreview(file: FileInfo) {
-  if (file.mimeType?.startsWith('image/')) {
-    openImageModal(getFileUrl(file), file.originalName)
+  // Detect SVG by extension first so that files with a missing or incorrect
+  // MIME type (e.g. application/octet-stream from older uploads) still open
+  // in ImageModal with stretch=true rather than falling through to SourcePreviewModal.
+  const isSvg =
+    file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
+  if (isSvg || file.mimeType?.startsWith('image/')) {
+    openImageModal(getFileUrl(file), file.originalName, isSvg)
     return
   }
   previewCitation.value = {

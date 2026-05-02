@@ -47,4 +47,11 @@ const renderedLabel = computed(() => marked.parseInline(props.label) as string)
 .action:hover::after {
   background: rgba(167, 139, 250, 0.55);
 }
+.action :deep(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
 </style>

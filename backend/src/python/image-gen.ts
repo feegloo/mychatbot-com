@@ -103,7 +103,7 @@ export type ImageStreamEvent =
         }>
       }
     }
-  | { event: 'error'; data: { error: string } }
+  | { event: 'error'; data: { error: string; openai_message?: string } }
 
 /**
  * Streams NDJSON events from the Python `/generate-image-stream` endpoint.

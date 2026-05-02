@@ -393,7 +393,7 @@ class TestBuildConversationWiki:
         assert result is None
 
     def test_trims_oversized_output(self):
-        long_wiki = "x" * 20_000  # exceeds _MAX_OUTPUT_CHARS = 12_000
+        long_wiki = "x" * 25_000  # exceeds _MAX_OUTPUT_CHARS = 16_000
         patches = self._patch_all(wiki_text=long_wiki)
         for p in patches:
             p.start()
@@ -410,7 +410,7 @@ class TestBuildConversationWiki:
                 p.stop()
 
         assert result is not None
-        assert len(result) <= 12_000 + len("\n\n_(trimmed)_")
+        assert len(result) <= 16_000 + len("\n\n_(trimmed)_")
         assert result.endswith("_(trimmed)_")
 
     def test_returns_none_for_empty_llm_output(self):

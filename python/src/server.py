@@ -11,6 +11,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import urllib.error
 from pathlib import Path
 from typing import Literal
@@ -75,9 +76,14 @@ from sentry_sdk import logger as sentry_logger  # noqa: E402
 from shared.image_gen import (  # noqa: E402
     build_image_announcement,
     build_image_prompt,
+    build_social_media_image_prompt,
     generate_image,
     generate_image_streaming,
 )
+
+# Matches the action label "Adjust image for social media ❤️" and any similar
+# user-typed phrasing so those requests bypass the full LLM prompt builder.
+_SOCIAL_MEDIA_RE = re.compile(r"\badjust\b.{0,30}?\bsocial\b", re.IGNORECASE)
 from shared.indexing import index_documents  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
@@ -665,16 +671,20 @@ async def generate_image_endpoint(req: GenerateImageRequest):
                 except Exception as exc:
                     logger.warning(f"⚠️ Could not query RAG chunks for image: {exc}")
 
-            # Build a detailed visual prompt grounded in the retrieved sources
-            prompt_result = build_image_prompt(
-                question=req.question,
-                context=req.context,
-                welcome_messages=req.welcome_messages,
-                rag_chunks=rag_chunks if rag_chunks else None,
-                chat_history=req.chat_history,
-                conversation_language_code=req.conversation_language_code,
-                conversation_language_name=req.conversation_language_name,
-            )
+            # Build a detailed visual prompt grounded in the retrieved sources.
+            # Social media edits use a fixed prompt — no LLM call needed.
+            if _SOCIAL_MEDIA_RE.search(req.question):
+                prompt_result = build_social_media_image_prompt()
+            else:
+                prompt_result = build_image_prompt(
+                    question=req.question,
+                    context=req.context,
+                    welcome_messages=req.welcome_messages,
+                    rag_chunks=rag_chunks if rag_chunks else None,
+                    chat_history=req.chat_history,
+                    conversation_language_code=req.conversation_language_code,
+                    conversation_language_name=req.conversation_language_name,
+                )
             image_prompt = prompt_result["prompt"]
             image_title = prompt_result["title"]
             source_indices = prompt_result.get("source_indices", [])
@@ -706,6 +716,21 @@ async def generate_image_endpoint(req: GenerateImageRequest):
     except Exception as e:
         logger.exception("Error generating image")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _build_error_data(exc: BaseException) -> dict:
+    """Build an error event payload, extracting the human-readable OpenAI
+    message when the exception is a BadRequestError (e.g. moderation block)."""
+    data: dict = {"error": str(exc)}
+    try:
+        from openai import BadRequestError
+        if isinstance(exc, BadRequestError) and exc.body:
+            openai_msg = (exc.body.get("error") or {}).get("message")
+            if openai_msg:
+                data["openai_message"] = openai_msg
+    except Exception:
+        pass
+    return data
 
 
 @app.post("/generate-image-stream")
@@ -746,15 +771,19 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
             except Exception as exc:
                 logger.warning(f"⚠️ Could not query RAG chunks (stream): {exc}")
 
-        prompt_result = build_image_prompt(
-            question=req.question,
-            context=req.context,
-            welcome_messages=req.welcome_messages,
-            rag_chunks=rag_chunks if rag_chunks else None,
-            chat_history=req.chat_history,
-            conversation_language_code=req.conversation_language_code,
-            conversation_language_name=req.conversation_language_name,
-        )
+        # Social media edits use a fixed prompt — no LLM call needed.
+        if _SOCIAL_MEDIA_RE.search(req.question):
+            prompt_result = build_social_media_image_prompt()
+        else:
+            prompt_result = build_image_prompt(
+                question=req.question,
+                context=req.context,
+                welcome_messages=req.welcome_messages,
+                rag_chunks=rag_chunks if rag_chunks else None,
+                chat_history=req.chat_history,
+                conversation_language_code=req.conversation_language_code,
+                conversation_language_name=req.conversation_language_name,
+            )
         image_prompt = prompt_result["prompt"]
         image_title = prompt_result["title"]
         source_indices = prompt_result.get("source_indices", [])
@@ -798,10 +827,19 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
         task = asyncio.ensure_future(asyncio.to_thread(_run))
         try:
             while True:
-                try:
-                    item = await asyncio.wait_for(event_queue.get(), timeout=60.0)
+                # Use asyncio.wait so task failure is detected immediately
+                # instead of waiting up to 60 s for the queue timeout.
+                queue_get = asyncio.ensure_future(event_queue.get())
+                done, _ = await asyncio.wait(
+                    {queue_get, task},
+                    timeout=60.0,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if queue_get in done:
+                    item = queue_get.result()
                     yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
-                except TimeoutError:
+                else:
+                    queue_get.cancel()
                     if task.done():
                         break
                     yield "\n"  # keepalive
@@ -809,12 +847,12 @@ async def generate_image_stream_endpoint(req: GenerateImageRequest):
                     break
             exc = task.exception()
             if exc:
-                yield json.dumps({"event": "error", "data": {"error": str(exc)}}) + "\n"
+                yield json.dumps({"event": "error", "data": _build_error_data(exc)}) + "\n"
             else:
                 yield json.dumps({"event": "complete", "data": task.result()}, ensure_ascii=False, default=str) + "\n"
         except Exception as e:
             logger.exception("Error in generate-image-stream generator")
-            yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
+            yield json.dumps({"event": "error", "data": _build_error_data(e)}) + "\n"
             if not task.done():
                 with contextlib.suppress(Exception):
                     await task

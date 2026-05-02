@@ -1,9 +1,77 @@
 import Router from '@koa/router'
-import { Translate } from '@google-cloud/translate/build/src/v2/index.js'
-
-const translate = new Translate()
+import { config } from '../config.js'
 
 export const translateRouter = new Router()
+
+// ---------------------------------------------------------------------------
+// Ollama-based translation (offline, no API key required)
+// Uses Ollama's OpenAI-compatible chat endpoint with a structured prompt.
+// ---------------------------------------------------------------------------
+async function ollamaTranslate(texts: string[], targetLang: string, sourceLang?: string): Promise<string[]> {
+  const fromNote = sourceLang ? ` from ${sourceLang}` : ''
+  const results: string[] = []
+
+  for (const text of texts) {
+    const prompt =
+      `Translate the following text${fromNote} to ${targetLang}. ` +
+      `Return ONLY the translated text, no explanations, no quotes, no extra text.\n\n${text}`
+
+    const res = await fetch(`${config.ollamaBaseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: config.ollamaChatModel,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+      }),
+    })
+    if (!res.ok) throw new Error(`Ollama translate HTTP ${res.status}`)
+    const data = (await res.json()) as { choices: Array<{ message: { content: string } }> }
+    results.push(data.choices[0]?.message?.content?.trim() ?? text)
+  }
+  return results
+}
+
+async function ollamaDetectLanguage(text: string): Promise<{ language: string; confidence: number }> {
+  const prompt =
+    `Detect the language of the following text. ` +
+    `Reply with ONLY the ISO 639-1 two-letter language code (e.g. "en", "pl", "ar"). ` +
+    `No explanations.\n\n${text.slice(0, 500)}`
+
+  const res = await fetch(`${config.ollamaBaseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.ollamaChatModel,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+    }),
+  })
+  if (!res.ok) throw new Error(`Ollama detect HTTP ${res.status}`)
+  const data = (await res.json()) as { choices: Array<{ message: { content: string } }> }
+  const lang = data.choices[0]?.message?.content?.trim().toLowerCase().slice(0, 5) ?? 'en'
+  return { language: lang, confidence: 0.9 }
+}
+
+// ---------------------------------------------------------------------------
+// Google Cloud Translation (online path — used when LLM_PROVIDER=openai)
+// ---------------------------------------------------------------------------
+async function googleTranslate(texts: string[], targetLang: string, sourceLang?: string): Promise<string[]> {
+  const { Translate } = await import('@google-cloud/translate/build/src/v2/index.js')
+  const client = new Translate()
+  const options: { from?: string; to: string; format: 'text' } = { to: targetLang, format: 'text' }
+  if (sourceLang) options.from = sourceLang
+  const [translations] = await client.translate(texts, options)
+  return Array.isArray(translations) ? translations : [translations]
+}
+
+async function googleDetectLanguage(text: string): Promise<{ language: string; confidence: number }> {
+  const { Translate } = await import('@google-cloud/translate/build/src/v2/index.js')
+  const client = new Translate()
+  const [detection] = await client.detect(text.slice(0, 500))
+  const det = Array.isArray(detection) ? detection[0] : detection
+  return { language: det.language, confidence: det.confidence }
+}
 
 /**
  * POST /translate
@@ -23,7 +91,6 @@ translateRouter.post('/translate', async (ctx) => {
     return
   }
 
-  // Cap at 20 texts per request to avoid abuse
   if (texts.length > 20) {
     ctx.status = 400
     ctx.body = { error: 'Maximum 20 texts per request' }
@@ -31,20 +98,14 @@ translateRouter.post('/translate', async (ctx) => {
   }
 
   try {
-    // format: 'text' preserves newlines and avoids HTML entity encoding
-    // (e.g. apostrophes becoming &#39;) which matters for markdown content.
-    const options: { from?: string; to: string; format: 'text' } = {
-      to: targetLang,
-      format: 'text',
-    }
-    if (sourceLang) options.from = sourceLang
+    const translations =
+      config.llmProvider === 'ollama'
+        ? await ollamaTranslate(texts, targetLang, sourceLang)
+        : await googleTranslate(texts, targetLang, sourceLang)
 
-    const [translations] = await translate.translate(texts, options)
-    const result = Array.isArray(translations) ? translations : [translations]
-
-    ctx.body = { translations: result }
+    ctx.body = { translations }
   } catch (err: any) {
-    console.error('Translation API error:', err.message)
+    console.error('Translation error:', err.message)
     ctx.status = 502
     ctx.body = { error: 'Translation service unavailable' }
   }
@@ -65,15 +126,16 @@ translateRouter.post('/detect-language', async (ctx) => {
   }
 
   try {
-    // Use first 500 chars for detection (enough for reliable results)
-    const sample = text.slice(0, 500)
-    const [detection] = await translate.detect(sample)
-    const det = Array.isArray(detection) ? detection[0] : detection
+    const result =
+      config.llmProvider === 'ollama'
+        ? await ollamaDetectLanguage(text)
+        : await googleDetectLanguage(text)
 
-    ctx.body = { language: det.language, confidence: det.confidence }
+    ctx.body = result
   } catch (err: any) {
-    console.error('Language detection API error:', err.message)
+    console.error('Language detection error:', err.message)
     ctx.status = 502
     ctx.body = { error: 'Language detection service unavailable' }
   }
 })
+

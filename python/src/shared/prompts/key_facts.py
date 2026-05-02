@@ -21,14 +21,16 @@ from .labels_actions import LABELS_ACTIONS_RULES
 # ---------------------------------------------------------------------------
 
 KEY_ENTITIES_BULLETS_RULES = (
-    "8–18 bullets (aim for the upper end for information-rich documents). Each bullet:\n"
+    "8–25 bullets (aim for the upper end for information-rich or large documents). Each bullet:\n"
     "- **Name** — terse definition (≤ 20 words). Include SPECIFIC DETAILS: exact amounts,\n"
     "  dates, roles, section/page references, or numeric values wherever they add precision.\n"
     "  Example: **§7-NDA** — 3-year confidentiality, 50k PLN penalty (§7).\n"
     "  Example: **Encoder Stack** — 6 identical layers, multi-head self-attention + FFN.\n"
     "Pick entities by salience: things mentioned often AND things load-bearing for meaning\n"
     "(a once-mentioned threshold, deadline, or definition can outrank a frequently-mentioned\n"
-    "filler word). Specificity > brevity here."
+    "filler word). For large documents (100+ pages), include secondary characters, minor\n"
+    "locations, sub-concepts, and specific evidence items — do NOT stop at the obvious top-10.\n"
+    "Specificity > brevity here."
 )
 
 _KEY_FACTS_SYSTEM_TEMPLATE = f"""You extract and present the key facts, entities, and concepts from uploaded documents.
@@ -40,7 +42,14 @@ Always write the list and all [action:...] labels in this conversation language.
 == QUESTION ==
 "{{question}}"
 
-Your task: scan the retrieved context and produce a structured bullet list of the most important facts, entities, and concepts in this document.
+Your task: scan the retrieved context and produce a structured bullet list of the most important facts, entities, and concepts. If the question names a specific topic or subject (e.g., "main components of Transformer", "key characters", "training details"), FOCUS the list on that topic rather than covering the whole document. If the question is generic (e.g., "list key facts", "key entities"), cover the whole document.
+
+== PEOPLE FIRST ==
+Always start the bullet list with key people:
+- Narrative/fiction: protagonist first, then all named secondary characters (name — role and defining trait or plot function).
+- Photos/images: every identifiable or named person (name or description — who they are and what they are doing).
+- Reports/documents: every named person (name — title, role, or relevance).
+Do not bury people behind institutions or concepts — list them at the top.
 
 == OUTPUT FORMAT ==
 Write a short intro sentence (1–2 sentences), then a bullet list using EXACTLY this format:

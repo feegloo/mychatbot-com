@@ -7,6 +7,7 @@ SELECT
 FROM user_fingerprints u
 LEFT JOIN conversation_messages m ON m.user_id = u.user_id
 GROUP BY u.user_id, u.fingerprint, u.user_agent, u.created_at
+HAVING COUNT(m.id) > 0
 
 UNION ALL
 

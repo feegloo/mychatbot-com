@@ -1,0 +1,48 @@
+{
+  "name": "chatrag",
+  "version": "1.0.0",
+  "description": "ChatRAG — local AI document assistant",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "pack": "npm run build && electron-builder --mac --dir",
+    "dist": "npm run build && electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.0.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "build": {
+    "appId": "dev.chatrag.app",
+    "productName": "ChatRAG",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ]
+    },
+    "dmg": {
+      "title": "ChatRAG",
+      "background": "assets/dmg-background.png",
+      "window": { "width": 540, "height": 380 }
+    },
+    "extraResources": [
+      { "from": "../backend", "to": "backend", "filter": ["**/*", "!node_modules/**", "!*.test.*"] },
+      { "from": "../frontend/dist", "to": "frontend-dist" },
+      { "from": "../python/src", "to": "python/src" },
+      { "from": "../python/requirements.txt", "to": "python/requirements.txt" }
+    ],
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ]
+  }
+}

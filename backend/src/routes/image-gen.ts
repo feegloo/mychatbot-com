@@ -376,7 +376,7 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
 
   // Set up SSE stream. Using the same pattern as conversations-stream so
   // proxies keep the connection alive and flush events eagerly.
-  ctx.req.socket.setTimeout(3600)
+  ctx.req.socket.setTimeout(0)
   ctx.req.socket.setNoDelay(true)
   ctx.req.socket.setKeepAlive(true)
   ctx.status = 200

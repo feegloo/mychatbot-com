@@ -219,9 +219,14 @@ export function renderMarkdown(content: string): string {
     'pink',
     'gray',
   ])
-  const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c(?::\w+)?\]/g, (_, color, text) =>
-    allowedColors.has(color) ? `<span class="text-color-${color}">${text}</span>` : text,
-  )
+  const withColors = withUnderline.replace(/\[c:(\w+)\](.*?)\[\/c(?::\w+)?\]/g, (_, color, text) => {
+    if (!allowedColors.has(color)) return text
+    // Color-in-name guard: if the text itself contains a palette color name, enforce that color
+    const textLower = text.toLowerCase()
+    const embeddedColor = [...allowedColors].find((c) => textLower.includes(c))
+    const resolvedColor = embeddedColor ?? color
+    return `<span class="text-color-${resolvedColor}">${text}</span>`
+  })
   // Replace [source:N] or [source:N,N,...] markers with clickable inline source buttons
   const withSources = withColors.replace(
     /\[(?:source|zrodlo|źródło):\s*(\d+(?:,\s*\d+)*)\]/gi,
@@ -390,4 +395,4 @@ export function renderInlineMarkdown(content: string): string {
  * Polish "wygeneruj obraz" is also matched so users can type it directly
  * without needing the 🎨 emoji.
  */
-export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b|\bwygeneruj\b[^\n]{0,40}?\bobraz\b/i
+export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b|\bwygeneruj\b[^\n]{0,40}?\bobraz\b|\badjust\b[^\n]{0,30}?\bsocial\b/i

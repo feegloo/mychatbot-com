@@ -156,6 +156,17 @@
         </div>
 
         <div v-if="roleLoaded && canReply" class="chat-input-bar">
+          <div
+            v-if="canUpload"
+            class="upload-plus-btn"
+            :data-tooltip="homeLang === 'pl' ? 'Prześlij więcej plików' : 'Upload more files'"
+            @click="triggerUploadOnFirstMessage"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </div>
           <textarea
             ref="questionInput"
             v-model="question"
@@ -194,6 +205,7 @@
     :visible="wikiModalOpen"
     :content="wikiContent"
     :loading="wikiLoading"
+    :title="conversationTitle"
     @close="wikiModalOpen = false"
   />
   <ImageModal
@@ -246,7 +258,7 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
-import { homeT } from '../i18n/homeLocale'
+import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
@@ -764,7 +776,7 @@ function viewHeaderThreads() {
   }
 }
 
-function scrollToElement(container: HTMLElement, element: HTMLElement) {
+function scrollToElement(container: HTMLElement, element: HTMLElement, smooth = true) {
   const containerTop = container.getBoundingClientRect().top
   const elementTop = element.getBoundingClientRect().top
 
@@ -773,60 +785,33 @@ function scrollToElement(container: HTMLElement, element: HTMLElement) {
 
   container.scrollTo({
     top: target,
-    behavior: 'smooth',
+    behavior: smooth ? 'smooth' : 'instant',
   })
 }
 
 function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
-  // When `toEnd` is true, scroll all the way to the bottom — used when the
-  // last message's size can grow after mount (e.g. a generated image finishes
-  // loading), so aligning to the top of the message would leave it off-screen.
-  if (toEnd) {
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'instant',
-    })
-    return
-  }
-  const messageEls = container.querySelectorAll('.message')
-  // When `showUserQuestion` is true, scroll so the last user message is at the
-  // top of the container — this keeps the question visible with the response
-  // flowing below it, matching the desired layout after submitting a question.
-  let targetMsg: HTMLElement | undefined
-  if (showUserQuestion) {
-    for (let i = messageEls.length - 1; i >= 0; i--) {
-      if ((messageEls[i] as HTMLElement).classList.contains('user')) {
-        targetMsg = messageEls[i] as HTMLElement
-        break
-      }
-    }
-  }
 
-  targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
-  if (targetMsg) {
-    // Scroll so the top of the target message aligns with the top of the container.
-    // const msgTop = targetMsg.offsetTop - container.offsetTop
-    // const maxScroll = container.scrollHeight - container.clientHeight
-    // container.scrollTo({
-    //   top: Math.min(msgTop, maxScroll),
-    //   behavior: smooth ? 'smooth' : 'instant',
-    // })
-
+  // When `showUserQuestion` is true (and not forced to end), scroll so the
+  // last user message is at the top of the container — keeps the question
+  // visible while the response flows below it.
+  if (showUserQuestion && !toEnd) {
     const users = document.querySelectorAll('.chat-log .message-row.user')
     const user = users[users.length - 1] as HTMLElement | undefined
     const chatLog = document.querySelector('.chat-log') as HTMLElement | null
-
     if (chatLog && user) {
-      scrollToElement(chatLog, user)
+      scrollToElement(chatLog, user, smooth)
+      return
     }
-  } else {
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'instant',
-    })
   }
+
+  // Default: scroll all the way to the bottom (new response arrived, image
+  // loaded, initial mount, or showUserQuestion with no user message found).
+  container.scrollTo({
+    top: container.scrollHeight,
+    behavior: smooth ? 'smooth' : 'instant',
+  })
 }
 
 function scrollToSearchHit() {
@@ -980,12 +965,15 @@ async function ask() {
     await nextTick()
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true, false, true), 200)
+    setTimeout(() => scrollToBottom(true, true), 200)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      reactiveMsg.content = 'Sorry, there was an error during generating image. Try again.'
+      const openaiMessage = (err as any)?.openaiMessage
+      reactiveMsg.content = openaiMessage
+        ? `Sorry, there was an error during generating image. Refresh page or try again.\n\n> ${openaiMessage}`
+        : 'Sorry, there was an error during generating image. Refresh page or try again.'
     } else {
       const { message, raw } = extractError(err)
       reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`
@@ -1119,7 +1107,20 @@ async function openC4Modal() {
   if (!match) return
 
   // Strip ```mermaid fences if the LLM wrapped the code block
-  const mermaidCode = match[1].trim().replace(/^```mermaid\n?/, '').replace(/\n?```$/, '').trim()
+  // Strip emoji characters (including variation selectors like U+FE0F) which
+  // Mermaid's mindmap lexer does not support.
+  // Use [^\S\n]* instead of \s* so that newlines (which encode indentation
+  // hierarchy) are never consumed — only horizontal whitespace is stripped.
+  // Also normalise single-brace hexagon nodes {Label} → {{Label}} since the
+  // LLM occasionally emits single braces which are an unrecognised token.
+  const mermaidCode = match[1]
+    .replace(/\\n/g, '\n')  // normalize escaped newlines that may come through JSON/SSE
+    .trim()
+    .replace(/^```mermaid\n?/, '')
+    .replace(/\n?```$/, '')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
+    .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
+    .trim()
   if (!mermaidCode) return
 
   try {
@@ -1144,6 +1145,7 @@ async function openC4Modal() {
         labelTextColor: '#000000',
       },
       securityLevel: 'loose',
+      suppressErrorRendering: true,
     })
     const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
     c4SvgCache.value = svg

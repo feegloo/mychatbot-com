@@ -29,9 +29,9 @@
         class="pdf-tool-btn pdf-tool-btn--text"
         @click="emit('openPdf')"
       >
-        Open PDF
+        Otwórz PDF
       </button>
-      <span v-if="showOpenPdf" class="pdf-toolbar-divider" aria-hidden="true" />
+      <span v-if="showOpenPdf" class="pdf-toolbar-gap" aria-hidden="true" />
 
       <button class="pdf-tool-btn" aria-label="Previous page" :disabled="currentPage <= 1" @click="goToPrevPage">
         <svg
@@ -59,22 +59,10 @@
         </svg>
       </button>
 
-      <template v-if="showClose">
-        <span class="pdf-toolbar-divider" aria-hidden="true" />
-        <button class="pdf-tool-btn" aria-label="Close" @click="emit('close')">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </template>
+      <span v-if="showClose" class="pdf-toolbar-gap" aria-hidden="true" />
+      <button v-if="showClose" class="pdf-close-btn" aria-label="Close" @click="emit('close')">
+        &times;
+      </button>
     </div>
   </div>
 </template>
@@ -675,52 +663,20 @@ function onScroll() {
 // --- Touch gesture handling ---
 type Touch1 = { id: number; x: number; y: number; t: number }
 let touchStart: Touch1 | null = null
-let pinchInitialDistance = 0
-let pinchInitialScale = 1
-let pinching = false
 let lastTapTime = 0
 
 function onTouchStart(e: TouchEvent) {
-  if (e.touches.length === 2) {
-    pinching = true
-    pinchInitialScale = scale.value
-    pinchInitialDistance = pointDistance(
-      { x: e.touches[0].clientX, y: e.touches[0].clientY },
-      { x: e.touches[1].clientX, y: e.touches[1].clientY },
-    )
-    touchStart = null
-  } else if (e.touches.length === 1 && !pinching) {
+  if (e.touches.length === 1) {
     const t = e.touches[0]
     touchStart = { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }
   }
 }
 
-function onTouchMove(e: TouchEvent) {
-  if (pinching && e.touches.length === 2) {
-    // Prevent the browser's native pinch (which would just blur the canvas).
-    e.preventDefault()
-    const d = pointDistance(
-      { x: e.touches[0].clientX, y: e.touches[0].clientY },
-      { x: e.touches[1].clientX, y: e.touches[1].clientY },
-    )
-    const next = computePinchScale(pinchInitialScale, pinchInitialDistance, d)
-    // Only re-render when the scale has changed meaningfully, to avoid
-    // thrashing the canvas during the pinch.
-    if (Math.abs(next - scale.value) >= PINCH_RERENDER_THRESHOLD) {
-      setZoom(next)
-    }
-  }
+function onTouchMove(_e: TouchEvent) {
+  // Pinch-to-zoom intentionally disabled; vertical pan is handled by CSS touch-action: pan-y.
 }
 
 function onTouchEnd(e: TouchEvent) {
-  if (pinching) {
-    if (e.touches.length < 2) {
-      // Commit final scale on pinch end.
-      pinching = false
-      pinchInitialDistance = 0
-    }
-    return
-  }
   if (!touchStart) return
   const changed = e.changedTouches[0]
   if (!changed || changed.identifier !== touchStart.id) {
@@ -915,7 +871,7 @@ watch(
   font-size: 14px;
 }
 
-/* Toolbar — Apple Liquid Glass */
+/* Toolbar */
 .pdf-toolbar {
   position: absolute;
   left: 50%;
@@ -926,14 +882,12 @@ watch(
   justify-content: center;
   gap: 2px;
   padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(10, 10, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 50px;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
   z-index: 5;
   white-space: nowrap;
 }
@@ -943,6 +897,11 @@ watch(
   height: 18px;
   background: rgba(255, 255, 255, 0.3);
   margin: 0 6px;
+  flex-shrink: 0;
+}
+
+.pdf-toolbar-gap {
+  width: 5px;
   flex-shrink: 0;
 }
 
@@ -1002,5 +961,32 @@ watch(
   .pdf-page-info {
     min-width: 44px;
   }
+}
+
+.pdf-close-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: white;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .pdf-close-btn:hover {
+    background: #334155;
+  }
+}
+
+.pdf-close-btn:active {
+  background: #334155;
 }
 </style>
