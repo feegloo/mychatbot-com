@@ -66,11 +66,15 @@ defineProps<{
  * made transparent and the rendering bug cannot occur.
  */
 
-/* 1. Override color: transparent on button children during enter-from */
+/* 1. Override color: transparent on button children during both enter-from and leave-to */
 .fade-text-enter-from .actions-row,
 .fade-text-enter-from .actions-row *,
 .fade-text-enter-from .prompts-row,
-.fade-text-enter-from .prompts-row * {
+.fade-text-enter-from .prompts-row *,
+.fade-text-leave-to .actions-row,
+.fade-text-leave-to .actions-row *,
+.fade-text-leave-to .prompts-row,
+.fade-text-leave-to .prompts-row * {
   color: var(--text-foreground) !important;
 }
 
