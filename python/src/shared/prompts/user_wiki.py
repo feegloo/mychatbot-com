@@ -30,7 +30,7 @@ knowledge map that captures:
   • How different topics relate to each other (dependencies, analogies,
     shared vocabulary)
   • The big picture: what domains/fields this user is working in
-  • A Mermaid flowchart visualising the cross-topic knowledge graph
+  • A flowchart visualising the cross-topic knowledge graph
 
 === OUTPUT FORMAT ===
 
@@ -45,7 +45,7 @@ summarise the key entities and insights from that cluster in 3-8 bullets.
 Bullet list of relationships that span two or more clusters.  Use the
 entity --> entity [label] notation consistent with the per-topic wikis.
 
-## Master Mermaid Flowchart
+## Master Flowchart
 A single rich flowchart that maps ALL clusters and their cross-topic
 connections.  Requirements:
   • Use `flowchart LR`

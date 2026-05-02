@@ -96,7 +96,7 @@ Recurrence          -.-> Transformer            (explicitly removed; ablation co
 3. The sqrt(d_k) scaling is non-cosmetic: without it softmax saturates for large
    d_k, killing gradients — a frequently overlooked detail when re-implementing.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph Input
@@ -209,7 +209,7 @@ Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnien
 3. Brak klauzuli zakazu konkurencji — zleceniobiorca może świadczyć usługi konkurencji
    równolegle, co przy modelu B2B bywa nieoczywiste dla zamawiającego.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph Strony
@@ -282,7 +282,7 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 3. Theon's casual cruelty toward the deserter's head is a quiet seed: his later
    betrayal is not a swerve, it is consistent with how he is introduced here.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph StarkHousehold
@@ -390,7 +390,7 @@ exists, write a single line: "(flat — no nested hierarchy)".
 Do NOT restate surface facts. If you cannot produce a real cross-cutting
 insight, write fewer items rather than padding.
 
-## Mermaid Flowchart
+## Flowchart
 A rich, detailed "big-picture" flowchart rendering the SAME entities and
 relationships as the sections above in valid Mermaid syntax. This diagram
 is the primary visual map — favour completeness and depth over brevity.

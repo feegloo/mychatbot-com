@@ -205,6 +205,7 @@
     :visible="wikiModalOpen"
     :content="wikiContent"
     :loading="wikiLoading"
+    :title="conversationTitle"
     @close="wikiModalOpen = false"
   />
   <ImageModal
