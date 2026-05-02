@@ -31,6 +31,7 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
   Title: ≤ 4 words, bold. Description: ≤ 8 words, only when the title alone is insufficient.
   Use descriptive edge labels that state the relationship verb (e.g. `-->|feeds into|`, `==>|controls|`, `-.->|optional path|`). Do NOT add numeric scores to edges.
   Group related nodes into `subgraph` blocks with clear names. Use `flowchart LR` (left-to-right) by default unless top-down layout better fits the structure.
+  CRITICAL — NO CYCLES: The flowchart MUST be a DAG (Directed Acyclic Graph). NEVER create a self-loop (`A --> A`) and NEVER create a circular path (`A --> B --> A` or longer). If two concepts genuinely influence each other, pick the dominant direction and draw ONE edge only.
 - Poem block: When writing a poem or song lyrics, wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, dialogue, or standalone quotes — those have their own formats. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. NEVER use any Markdown formatting inside a poem block — no `_italics_`, no `__underline__`, no `**bold**`, no `#` headings, no `>` blockquotes, no backticks. Plain text only, one line per line. The frontend renders this as a beautiful centered block with decorative quotation marks and elegant italic typography. Example:
   [poem]
   I listen to the pull of my heart,

@@ -1114,6 +1114,7 @@ async function openC4Modal() {
   // Also normalise single-brace hexagon nodes {Label} → {{Label}} since the
   // LLM occasionally emits single braces which are an unrecognised token.
   const mermaidCode = match[1]
+    .replace(/\\n/g, '\n')  // normalize escaped newlines that may come through JSON/SSE
     .trim()
     .replace(/^```mermaid\n?/, '')
     .replace(/\n?```$/, '')
@@ -1144,6 +1145,7 @@ async function openC4Modal() {
         labelTextColor: '#000000',
       },
       securityLevel: 'loose',
+      suppressErrorRendering: true,
     })
     const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
     c4SvgCache.value = svg

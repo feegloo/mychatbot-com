@@ -455,6 +455,7 @@ Rules:
       double quotes: `C2["+48 791 421 067"]` is correct;
       `C2[+48 791 421 067]` is WRONG.
     * No trailing pipe characters on edge lines.
+    * NEVER create cycles: no self-loops (`A --> A`) and no circular paths (`A --> B --> A` or longer). The graph MUST be a DAG. If two nodes genuinely relate in both directions, draw only the dominant directional edge.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.
     * Enclose the whole block in triple-backtick mermaid fence.
