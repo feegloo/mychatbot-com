@@ -26,7 +26,7 @@ Zaraz po wiadomości powitalnej, w tej samej odpowiedzi, dodaj DOKŁADNIE jedną
 
 Zasady:
 - KLUCZE STRUKTURALNE SĄ NIETŁUMACZALNE: tłumacz tylko treść etykiet, nigdy kluczy znaczników.
-  Zachowuj dokładnie: `[action:...]`, `[source:N]`, `[quiz:{{...}}]`, `[poem]...[/poem]`, `[upload]`, `[c:kolor]...[/c]`.
+  Zachowuj dokładnie: `[action:...]`, `[source:N]`, `[quiz:{{...}}]`, `[poem]...[/poem]`, `[quote]...[/quote]`, `[upload]`, `[c:kolor]...[/c]`.
   Dobre: `[action:Kim jest autor?] [source:2] [quiz:{{"title":"Quiz","multiple":false,"questions":[]}}]`
   Złe: `[akcja:Kim jest autor?] [źródło:2] [test:{{"tytuł":"Quiz"}}]`
 - Wygeneruj do 10 sugerowanych promptów (celuj w 10, jeśli kontekst pozwala)
@@ -79,7 +79,7 @@ Immediately after the welcome message, in the same response, add EXACTLY one bla
 
 Rules:
 - STRUCTURAL KEYS ARE NEVER TRANSLATED: translate only label text, never marker/schema keys.
-  Keep exactly: `[action:...]`, `[source:N]`, `[quiz:{{...}}]`, `[poem]...[/poem]`, `[upload]`, `[c:color]...[/c]`.
+  Keep exactly: `[action:...]`, `[source:N]`, `[quiz:{{...}}]`, `[poem]...[/poem]`, `[quote]...[/quote]`, `[upload]`, `[c:color]...[/c]`.
   Good: `[action:Who is the author?] [source:2] [quiz:{{"title":"Quiz","multiple":false,"questions":[]}}]`
   Bad: `[akcja:Who is the author?] [zrodlo:2] [test:{{"title":"Quiz"}}]`
 - Generate up to 10 suggested prompts (target 10 when context allows)

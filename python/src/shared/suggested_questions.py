@@ -279,7 +279,7 @@ p) Oś czasu / timeline 📅 — sugeruj gdy:
    - POWIEŚĆ / BELETRYSTYKA (kryminał, thriller, romans, fantasy, sci-fi, saga itp.) — ZAWSZE sugeruj oś czasu jako pozycję 6 (pierwsza w "More ..."), ponieważ narracyjna sekwencja wydarzeń jest kluczową wartością dla czytelnika
    - akcja: "Zrób oś czasu wydarzeń 📅" (po polsku) lub "create a timeline of events" (po angielsku)
 
-q) Mapa myśli 🧩 — sugeruj gdy:
+q) Mapa myśli 💡 — sugeruj gdy:
    - treść przedstawia wiele powiązanych koncepcji lub tematów
    - dokument nadaje się do wizualnego przeglądu relacji między ideami
    - akcja: "stwórz mapę myśli" (wygeneruj jako diagram mermaid mindmap)
@@ -614,7 +614,7 @@ p) Timeline 📅 — suggest when:
    - NOVEL / FICTION (crime, thriller, romance, fantasy, sci-fi, saga, etc.) — ALWAYS suggest a timeline at position 6 (first in "More ..."), because the narrative sequence of events is key value for the reader
    - action: "Zrób oś czasu wydarzeń 📅" (Polish) / "Create a timeline of events 📅" (English)
 
-q) Mind map 🧩 — suggest when:
+q) Mind map 💡 — suggest when:
    - content presents many related concepts or topics
    - document is suitable for a visual overview of idea relationships
    - action: "create a mind map" (generate as mermaid mindmap diagram)
@@ -1148,9 +1148,9 @@ def _append_contextual_prompts(
             else f"Write a new poem inspired by {author_name} 📜"
         )
         pinned_quote_prompt = (
-            f"Napisz nowy inspirowany cytat w stylu {author_name} �"
+            f"Napisz nowy inspirowany cytat w stylu {author_name} 💬"
             if language == "pl"
-            else f"Write a new quote inspired by {author_name} 💡"
+            else f"Write a new quote inspired by {author_name} 💬"
         )
     elif is_selfhelp and author_name:
         _selfhelp_options_pl = [

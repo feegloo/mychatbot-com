@@ -23,7 +23,7 @@
           title="Mapa Myśli"
           @click="$emit('show-c4')"
         >
-          🧩 Mapa Myśli
+          💡 Mapa Myśli
         </AppButton>
         <AppButton
           v-if="isFirstMessage && canUpload"
@@ -1171,6 +1171,32 @@ function openFilePreview(file: FileInfo) {
   font-size: 15.5px;
   line-height: 1.9;
   color: #d1d5db;
+  font-style: italic;
+  padding: 0 8px;
+  letter-spacing: 0.01em;
+}
+
+/* Quote block — same layout as poem, amber/gold accent to differentiate. */
+:deep(.quote-block) {
+  text-align: center;
+  margin: 20px 0;
+  padding: 24px 28px 20px;
+  background: rgba(251, 191, 36, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.15);
+}
+:deep(.quote-mark) {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 48px;
+  line-height: 1;
+  color: rgba(251, 191, 36, 0.4);
+  user-select: none;
+}
+:deep(.quote-body) {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15.5px;
+  line-height: 1.9;
+  color: #e5e0d0;
   font-style: italic;
   padding: 0 8px;
   letter-spacing: 0.01em;

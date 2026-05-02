@@ -89,7 +89,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search &amp; RAG, translate files to your language 🇵🇱🇬🇧🌍',
     subtitleP2MobileLine2Html: 'synthesize speech 🔊 share answers',
     subtitleP3:
-      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💡 PDF 📄 mermaid diagram 🧩 recipe 🍝 checklist ✅ and more!',
+      'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💬 PDF 📄 mermaid diagram 💡 recipe 🍝 checklist ✅ and more!',
     dropzoneHeading: 'Upload',
     dropzoneTitle: 'click or drag & drop',
     dropzoneHint: 'PDF, images, .doc, other text files',
@@ -114,7 +114,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Zadaj pytanie <strong> chatbotowi AI</strong>, rób research, używając wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧🌍',
     subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
-      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 czeklistę ✅ i więcej!',
+      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💬 PDF 📄 diagram mermaid 💡 przepis 🍝 czeklistę ✅ i więcej!',
     dropzoneHeading: 'Prześlij',
     dropzoneTitle: 'kliknij lub przeciągnij i upuść',
     dropzoneHint: 'PDF, obrazy, .doc, inne pliki tekstowe',
