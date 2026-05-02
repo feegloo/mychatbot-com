@@ -65,14 +65,14 @@ async def _stream_events(req: server.GenerateImageRequest) -> list[dict]:
         data = event.get("data", {})
 
         if event_type == "prompt_ready":
-            _log(f"→ prompt_ready")
+            _log("→ prompt_ready")
             _log(f"  image_title : {data.get('image_title', '—')}")
             _log(f"  image_prompt: {data.get('image_prompt', '—')[:300]}")
         elif event_type == "partial":
             b64_len = len(data.get("b64", ""))
             _log(f"→ partial  index={data.get('index')}  b64_bytes≈{b64_len}")
         elif event_type == "complete":
-            _log(f"→ complete")
+            _log("→ complete")
             _log(f"  file_name     : {data.get('file_name', '—')}")
             _log(f"  revised_prompt: {str(data.get('revised_prompt', '—'))[:300]}")
         elif event_type == "error":

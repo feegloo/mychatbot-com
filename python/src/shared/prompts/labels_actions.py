@@ -240,7 +240,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   - Position 2: "What makes masked self-attention different from cross-attention?"  ← the next hop
 
   **Example** (wiki has: `NDA <---> ObaStrony`, `Wynagrodzenie ===> IP`, user asked about NDA):
-  - Anchor = NDA node  
+  - Anchor = NDA node
   - Adjacent candidates = ObaStrony (bidirectional), Kara (from NDA), Wynagrodzenie (separate cluster)
   - Position 1: "What triggers the 50k PLN NDA penalty in practice?"  ← outgoing NDA edge
   - Position 2: "Does the IP clause interact with NDA breach timing?"  ← cross-cluster connection

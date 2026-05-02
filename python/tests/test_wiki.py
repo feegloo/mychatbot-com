@@ -15,12 +15,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shared.wiki import (
-    _cosine_similarity,
     _build_chunk_correlation_block,
     _build_raw_material,
+    _cosine_similarity,
     build_conversation_wiki,
 )
-
 
 # ---------------------------------------------------------------------------
 # _cosine_similarity
@@ -132,9 +131,9 @@ class TestBuildChunkCorrelationBlock:
             result = _build_chunk_correlation_block(
                 "col", ["c1", "c2", "c3"], ["M1", "M2", "M3"]
             )
-        lines = [l for l in result.splitlines() if "<->" in l]
+        lines = [line for line in result.splitlines() if "<->" in line]
         # First listed pair should have the highest |score|
-        scores = [float(l.split(": ")[1]) for l in lines]
+        scores = [float(line.split(": ")[1]) for line in lines]
         assert scores == sorted(scores, key=abs, reverse=True)
 
     def test_single_chunk_returns_empty(self):

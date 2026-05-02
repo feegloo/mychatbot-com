@@ -224,7 +224,10 @@ def process_pdf_streaming(
                 # scanned article where only a small caption box has vector text).
                 # In that case render the full page via GPT-Vision OCR.
                 stripped_len = len(native_text.split("\n\n", 1)[-1].strip())
-                if stripped_len < _MIN_TEXT_CHARS_WITH_IMAGES and _page_has_significant_images(page):
+                if (
+                    stripped_len < _MIN_TEXT_CHARS_WITH_IMAGES
+                    and _page_has_significant_images(page)
+                ):
                     logger.info(
                         "🔍 p.%d: %d text chars with large images → forcing full-page OCR",
                         page_nr,

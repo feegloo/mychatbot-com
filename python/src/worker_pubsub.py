@@ -27,6 +27,7 @@ sentry_sdk.init(
 )
 
 from sentry_sdk import logger as sentry_logger  # noqa: E402
+
 from shared.logging_utils import configure_safe_logging  # noqa: E402
 
 configure_safe_logging(logging.INFO)
@@ -166,100 +167,99 @@ def _process_message(message) -> None:
         else nullcontext()
     )
 
-    with trace_ctx:
-        with sentry_sdk.start_span(
-            name="worker.process_indexing_job",
-            op="queue.process",
-        ) as span:
-            span.set_data("conversation_id", payload.conversation_id)
-            span.set_data("job_id", payload.job_id)
-            span.set_data("chatrag.trace_id", trace_id)
-            logger.info(
-                f"📨 Received job {payload.job_id} "
-                f"(conv={payload.conversation_id}, files={len(payload.file_names)})"
+    with trace_ctx, sentry_sdk.start_span(
+        name="worker.process_indexing_job",
+        op="queue.process",
+    ) as span:
+        span.set_data("conversation_id", payload.conversation_id)
+        span.set_data("job_id", payload.job_id)
+        span.set_data("chatrag.trace_id", trace_id)
+        logger.info(
+            f"📨 Received job {payload.job_id} "
+            f"(conv={payload.conversation_id}, files={len(payload.file_names)})"
+        )
+        sentry_logger.info(
+            "Worker received indexing job",
+            attributes={
+                "job_id": payload.job_id,
+                "conversation_id": payload.conversation_id,
+                "file_count": len(payload.file_names),
+                "requested_by": payload.worker_name,
+                "trace_id": trace_id,
+            },
+        )
+
+        def on_progress(event_type: str, data: dict) -> None:
+            enriched = dict(data)
+            if event_type in ("welcome_message", "complete"):
+                enriched.setdefault(
+                    "_meta",
+                    {
+                        "uploadedFileNames": metadata.get("uploadedFileNames", []),
+                        "storedToOriginal": metadata.get("storedToOriginal", {}),
+                        "traceId": trace_id,
+                    },
+                )
+            _emit_event_to_db(
+                payload.conversation_id,
+                event_type,
+                enriched,
+                job_id=payload.job_id,
             )
-            sentry_logger.info(
-                "Worker received indexing job",
+
+        try:
+            local_paths = _ensure_files_local(payload.file_names)
+        except Exception as e:
+            logger.exception(f"❌ Failed to resolve files for job {payload.job_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            on_progress("error", {"error": f"file resolution failed: {e}"})
+            message.ack()
+            return
+
+        start_ts = time.time()
+        executor = futures.ThreadPoolExecutor(max_workers=1)
+        job_future = executor.submit(
+            index_documents,
+            conversation_id=payload.conversation_id,
+            collection_name=payload.collection_name,
+            file_paths=local_paths,
+            on_progress=on_progress,
+            job_metadata=payload.metadata,
+            allow_delegation=False,
+        )
+        try:
+            job_future.result(timeout=_JOB_TIMEOUT_SEC)
+            elapsed = round(time.time() - start_ts, 3)
+            logger.info(f"✅ Job {payload.job_id} done in {elapsed}s")
+            sentry_logger.debug(
+                "Worker finished indexing job",
                 attributes={
                     "job_id": payload.job_id,
                     "conversation_id": payload.conversation_id,
-                    "file_count": len(payload.file_names),
-                    "requested_by": payload.worker_name,
+                    "duration_seconds": elapsed,
                     "trace_id": trace_id,
                 },
             )
-
-            def on_progress(event_type: str, data: dict) -> None:
-                enriched = dict(data)
-                if event_type in ("welcome_message", "complete"):
-                    enriched.setdefault(
-                        "_meta",
-                        {
-                            "uploadedFileNames": metadata.get("uploadedFileNames", []),
-                            "storedToOriginal": metadata.get("storedToOriginal", {}),
-                            "traceId": trace_id,
-                        },
-                    )
-                _emit_event_to_db(
-                    payload.conversation_id,
-                    event_type,
-                    enriched,
-                    job_id=payload.job_id,
-                )
-
-            try:
-                local_paths = _ensure_files_local(payload.file_names)
-            except Exception as e:
-                logger.exception(f"❌ Failed to resolve files for job {payload.job_id}: {e}")
-                sentry_sdk.capture_exception(e)
-                on_progress("error", {"error": f"file resolution failed: {e}"})
-                message.ack()
-                return
-
-            start_ts = time.time()
-            executor = futures.ThreadPoolExecutor(max_workers=1)
-            job_future = executor.submit(
-                index_documents,
-                conversation_id=payload.conversation_id,
-                collection_name=payload.collection_name,
-                file_paths=local_paths,
-                on_progress=on_progress,
-                job_metadata=payload.metadata,
-                allow_delegation=False,
+            message.ack()
+        except futures.TimeoutError:
+            elapsed = int(time.time() - start_ts)
+            logger.error(
+                f"⏱️ Job {payload.job_id} timed out after {elapsed}s "
+                f"(limit={_JOB_TIMEOUT_SEC}s)"
             )
-            try:
-                job_future.result(timeout=_JOB_TIMEOUT_SEC)
-                elapsed = round(time.time() - start_ts, 3)
-                logger.info(f"✅ Job {payload.job_id} done in {elapsed}s")
-                sentry_logger.debug(
-                    "Worker finished indexing job",
-                    attributes={
-                        "job_id": payload.job_id,
-                        "conversation_id": payload.conversation_id,
-                        "duration_seconds": elapsed,
-                        "trace_id": trace_id,
-                    },
-                )
-                message.ack()
-            except futures.TimeoutError:
-                elapsed = int(time.time() - start_ts)
-                logger.error(
-                    f"⏱️ Job {payload.job_id} timed out after {elapsed}s "
-                    f"(limit={_JOB_TIMEOUT_SEC}s)"
-                )
-                sentry_sdk.capture_message(
-                    f"Indexing job timed out: {payload.conversation_id}",
-                    level="error",
-                )
-                on_progress("error", {"error": f"Processing timed out after {elapsed}s"})
-                message.ack()
-            except Exception as e:
-                logger.exception(f"❌ Job {payload.job_id} failed: {e}")
-                sentry_sdk.capture_exception(e)
-                on_progress("error", {"error": str(e)[:500]})
-                message.nack()
-            finally:
-                executor.shutdown(wait=False)
+            sentry_sdk.capture_message(
+                f"Indexing job timed out: {payload.conversation_id}",
+                level="error",
+            )
+            on_progress("error", {"error": f"Processing timed out after {elapsed}s"})
+            message.ack()
+        except Exception as e:
+            logger.exception(f"❌ Job {payload.job_id} failed: {e}")
+            sentry_sdk.capture_exception(e)
+            on_progress("error", {"error": str(e)[:500]})
+            message.nack()
+        finally:
+            executor.shutdown(wait=False)
 
 
 def main() -> int:

@@ -28,11 +28,7 @@
           </svg>
           Download
         </button>
-        <button class="mermaid-ctrl-btn" aria-label="Expand diagram" title="Expand" @click="openPopup">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M1.75 10a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 1 13.25v-2.5a.75.75 0 0 1 .75-.75Zm12.5 0a.75.75 0 0 1 .75.75v2.5A1.75 1.75 0 0 1 13.25 15h-2.5a.75.75 0 0 1 0-1.5h2.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 .75-.75ZM2.75 2.5a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0v-2.5C1 1.784 1.784 1 2.75 1h2.5a.75.75 0 0 1 0 1.5ZM10 1.75a.75.75 0 0 1 .75-.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.25.25 0 0 0-.25-.25h-2.5a.75.75 0 0 1-.75-.75Z" />
-          </svg>
-        </button>
+
       </div>
     </div>
     <div v-else-if="mode === 'text'" class="mermaid-controls-bar mermaid-controls-bar--text">
@@ -45,8 +41,8 @@
       </button>
     </div>
     <div
-      ref="diagramViewportEl"
       v-show="mode === 'diagram' && ready && !renderError"
+      ref="diagramViewportEl"
       class="mermaid-diagram"
       :class="{ 'is-dragging': isDragging }"
       @pointerdown="onPointerDown"
@@ -123,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import type mermaidType from 'mermaid'
 import { sanitizeMermaidCode } from '../utils/mermaidSanitize'
 
@@ -277,11 +273,9 @@ function fitToWidth() {
     panX.value = 0
     panY.value = 0
   } else {
-    scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
-    const scaledWidth = svgNaturalWidth * scale.value
-    const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
-    panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
-    panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
+    scale.value = MAX_SCALE
+    panX.value = 0
+    panY.value = 0
   }
 }
 
@@ -395,9 +389,6 @@ async function renderDiagram() {
 
 function switchToDiagram() {
   mode.value = 'diagram'
-  if (!renderedSvg.value) {
-    nextTick(renderDiagram)
-  }
 }
 
 function downloadSvg() {
@@ -421,12 +412,13 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeyDown)
 })
 
-watch(
-  () => props.code,
-  () => {
-    nextTick(renderDiagram)
-  },
-)
+// Re-render when switching to diagram mode (diagram el must be in DOM first).
+watch(mode, (m) => {
+  if (m === 'diagram' && !renderedSvg.value) renderDiagram()
+}, { flush: 'post' })
+
+// Re-render when the code prop changes, after Vue has updated the DOM.
+watch(() => props.code, renderDiagram, { flush: 'post' })
 </script>
 
 <style scoped>

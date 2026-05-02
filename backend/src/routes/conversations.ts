@@ -29,8 +29,7 @@ import {
 } from '../repositories/conversations.js'
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
-import { config } from '../config.js'
-import { indexConversation, describeUrl } from '../python/indexing.js'
+import { describeUrl } from '../python/indexing.js'
 import { onConversationEvent } from '../events.js'
 import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
@@ -530,7 +529,6 @@ conversationsRouter.post('/conversations/:conversationId/add-url', async (ctx) =
     collectionName: data.conversation.vector_collection_name,
   })
     .then(async (result) => {
-      const suggestedQuestions: string[] = result.parsedJson?.suggested_questions || []
       const welcomeMessage: string = result.parsedJson?.welcome_message || ''
       const fallbackMessage =
         welcomeMessage ||

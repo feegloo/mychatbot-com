@@ -80,7 +80,7 @@ export function fixSubgraphNodeConflicts(code: string): string {
       const placeholders: string[] = []
       let out = line.replace(/"[^"]*"/g, match => {
         placeholders.push(match)
-        return `"\x00PH${placeholders.length - 1}\x00"`
+        return `"\uE000PH${placeholders.length - 1}\uE000"`
       })
 
       for (const id of conflictingIds) {
@@ -89,7 +89,7 @@ export function fixSubgraphNodeConflicts(code: string): string {
       }
 
       // Restore quoted content
-      return out.replace(/"\x00PH(\d+)\x00"/g, (_, i) => placeholders[parseInt(i, 10)])
+      return out.replace(/"\uE000PH(\d+)\uE000"/g, (_, i) => placeholders[parseInt(i, 10)])
     })
     .join('\n')
 }
@@ -124,12 +124,12 @@ export function fixInvalidNodeIdChars(code: string): string {
       const placeholders: string[] = []
       let out = line.replace(/\|[^|]*\||"[^"]*"/g, (match) => {
         placeholders.push(match)
-        return `\x00PH${placeholders.length - 1}\x00`
+        return `\uE000PH${placeholders.length - 1}\uE000`
       })
       // Strip ? from node ID positions (word characters directly followed by ?).
       out = out.replace(/\b(\w+)\?/g, '$1')
       // Restore protected content.
-      return out.replace(/\x00PH(\d+)\x00/g, (_, i) => placeholders[parseInt(i, 10)])
+      return out.replace(/\uE000PH(\d+)\uE000/g, (_, i) => placeholders[parseInt(i, 10)])
     })
     .join('\n')
 }

@@ -13,8 +13,6 @@ import time
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from shared.telemetry import (
     _truncate,
     _utc_now,

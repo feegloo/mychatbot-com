@@ -68,7 +68,8 @@ def reverse_geocode_coordinates(lat: float, lon: float) -> str | None:
             f"(1) the country and administrative division/region, "
             f"(2) the district and sub-district (upazila / county / commune / municipality), "
             f"(3) the nearest named village, town, or landmark if identifiable, "
-            f"(4) any notable geographic character (coastal, riverine, agricultural, urban, mountainous, etc.). "
+            f"(4) any notable geographic character "
+            f"(coastal, riverine, agricultural, urban, mountainous, etc.). "
             f"Be specific and factual. No preamble, no bullet points, plain prose only."
         )
         response = client.responses.create(

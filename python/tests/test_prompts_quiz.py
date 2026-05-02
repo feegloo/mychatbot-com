@@ -10,7 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
 from langchain_core.prompts import ChatPromptTemplate
 
 from shared.prompts import LABELS_ACTIONS_RULES, QUIZ_ACTIONS_RULES, QUIZ_PROMPT
@@ -86,7 +85,6 @@ class TestQuizPromptStructure:
 
     def test_has_system_and_human_messages(self):
         messages = QUIZ_PROMPT.messages
-        roles = [m.role if hasattr(m, "role") else type(m).__name__ for m in messages]
         # Should have at least 2 messages (system + human)
         assert len(messages) == 2
 

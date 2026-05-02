@@ -17,20 +17,15 @@ Validated behaviours:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from shared.extractors import (
-    IMAGE_EXTENSIONS,
     _MIME_TYPES,
-    _VISION_STANDALONE_IMAGE_PROMPT,
-    _describe_image,
+    IMAGE_EXTENSIONS,
     extract_image,
     extract_text,
 )
 from shared.page_worker import process_standalone_file
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

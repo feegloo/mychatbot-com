@@ -75,9 +75,7 @@ import {
   isMobileUserAgent,
   estimatePageHeight,
   detectSwipe,
-  pointDistance,
   clampScale,
-  computePinchScale,
   LruSet,
 } from './PdfPageViewer.utils'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
@@ -142,9 +140,6 @@ const isMobile = isMobileUserAgent()
 const MAX_RENDERED_PAGES = isMobile ? 6 : 10
 const renderedLru = new LruSet<number>(MAX_RENDERED_PAGES)
 const HORIZONTAL_PADDING = 0 // container has no side padding; pages span full width
-// Don't re-render the canvas on every pinch delta — only commit when the
-// scale has moved by at least this much, to keep pinch fluid.
-const PINCH_RERENDER_THRESHOLD = 0.15
 // A touch is treated as a tap only if it stays within this much movement
 // and ends within this many milliseconds (used for double-tap detection).
 const MAX_TAP_MOVEMENT_PX = 10

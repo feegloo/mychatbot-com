@@ -238,7 +238,6 @@ import {
   saveConversationToken,
   extractError,
   getConversationWiki,
-  getConversationC4,
   type ConversationStatus,
   type ChatMessage,
 } from '../api'
@@ -267,7 +266,12 @@ const STEP_LABELS: Record<ProcessingStep, string> = {
   indexing_pages: 'Indexing pages for Q&A',
   '': '',
 }
-function stepLabel(step: ProcessingStep): string {
+const IMAGE_MIME_PREFIXES = ['image/']
+function isImageOnlyUpload(files: ConversationStatus['files']): boolean {
+  return files.length > 0 && files.every((f) => IMAGE_MIME_PREFIXES.some((p) => f.mimeType.startsWith(p)))
+}
+function stepLabel(step: ProcessingStep, imageOnly = false): string {
+  if (step === 'indexing_pages' && imageOnly) return 'Analyzing image'
   return STEP_LABELS[step] || ''
 }
 import { newContent } from '../composables/newContent'
@@ -433,7 +437,9 @@ watch(
   { immediate: true },
 )
 
-const processingStepLabel = computed(() => stepLabel(processingStep.value))
+const processingStepLabel = computed(() =>
+  stepLabel(processingStep.value, isImageOnlyUpload(status.value.files)),
+)
 
 // Loader text shown in the centered (empty state) and inline (below messages)
 // processing indicators.  Reflects live SSE page-progress updates so users see
@@ -962,10 +968,9 @@ async function ask() {
     // Also assign user message id
     const userMsg = messages.value[messages.value.length - 2]
     if (response.userMessageId && userMsg?.role === 'user') userMsg.id = response.userMessageId
-    await nextTick()
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true, true), 200)
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true, true)))
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
@@ -1061,30 +1066,26 @@ watch(
 
 watch(
   () => messages.value.length,
-  async (newLen) => {
+  (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
-      await nextTick()
       // Show user question at top so the response streams into view below it
-      setTimeout(() => scrollToBottom(false, false, true), 0)
+      scrollToBottom(false, false, true)
     }
     prevMessageCount = newLen
 
-    if (searchTermFromRoute.value) {
-      await nextTick()
-      setTimeout(scrollToSearchHit, 30)
-    }
+    if (searchTermFromRoute.value) scrollToSearchHit()
   },
+  { flush: 'post' },
 )
 
 watch(
   () => route.query,
-  async () => {
+  () => {
     syncSearchFromRoute()
     if (!searchTermFromRoute.value) return
-    await nextTick()
-    setTimeout(scrollToSearchHit, 30)
+    scrollToSearchHit()
   },
-  { immediate: true },
+  { immediate: true, flush: 'post' },
 )
 
 async function openWikiModal() {
@@ -1174,7 +1175,7 @@ onMounted(async () => {
     scrollToBottom()
   }
   if (searchTermFromRoute.value) {
-    setTimeout(scrollToSearchHit, 30)
+    requestAnimationFrame(scrollToSearchHit)
   }
   prevMessageCount = messages.value.length
   conversationReady.value = true

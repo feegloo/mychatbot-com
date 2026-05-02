@@ -14,8 +14,8 @@ from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
 from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
-from .prompts.labels_actions import LABELS_ACTIONS_RULES
 from .prompts.key_facts import KEY_FACTS_PROMPT
+from .prompts.labels_actions import LABELS_ACTIONS_RULES
 from .prompts.quiz import QUIZ_PROMPT
 from .prompts.response_formats import RESPONSE_FORMATS_RULES
 from .prompts.voice_tone import VOICE_TONE_RULES
@@ -1019,17 +1019,7 @@ def _trim_prompt_to_budget(
     })
 
     vars_copy = dict(prompt_vars)
-    
-    # Log initial context sizes for debugging
-    context_sections = {
-        "question": len(vars_copy.get("question", "")),
-        "context": len(vars_copy.get("context", "")),
-        "chat_history": len(vars_copy.get("chat_history", "")),
-        "matched_pages": len(vars_copy.get("matched_pages", "")),
-        "chapter_context": len(vars_copy.get("chapter_context", "")),
-        "welcome_messages": len(vars_copy.get("welcome_messages", "")),
-    }
-    
+
     for attempt in range(12):
         rendered_messages = prompt.format_messages(**vars_copy)
         full_text = "\n".join(m.content for m in rendered_messages)

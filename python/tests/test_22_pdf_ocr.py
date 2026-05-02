@@ -21,16 +21,15 @@ from __future__ import annotations
 import os
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import fitz
 import pytest
 
 from shared.streaming_pdf import (
-    PageOutcome,
-    StreamingPdfResult,
     _MIN_RENDERED_IMAGE_AREA_PTS2,
     _MIN_TEXT_CHARS_WITH_IMAGES,
+    PageOutcome,
     _page_has_significant_images,
     process_pdf_streaming,
 )

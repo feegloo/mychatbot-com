@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -1021,7 +1020,7 @@ def _index_documents_inline(
                         break
                     except (TypeError, ValueError):
                         pass
-        
+
         with trace_step(conversation_id, "*", "generate_suggested_questions"):
             suggested_questions = suggest_questions_from_chunks(
                 chunk_texts,

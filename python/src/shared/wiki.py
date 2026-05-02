@@ -221,8 +221,8 @@ def _build_raw_material(
 
     # 4. Pairwise cosine correlation between retrieved chunks.
     #    Fetches stored embeddings from Chroma; failures are silently skipped.
-    valid_ids = [cid for cid, lbl in zip(chunk_ids, chunk_labels) if cid]
-    valid_labels = [lbl for cid, lbl in zip(chunk_ids, chunk_labels) if cid]
+    valid_ids = [cid for cid, lbl in zip(chunk_ids, chunk_labels, strict=False) if cid]
+    valid_labels = [lbl for cid, lbl in zip(chunk_ids, chunk_labels, strict=False) if cid]
     if len(valid_ids) >= 2:
         corr_block = _build_chunk_correlation_block(collection_name, valid_ids, valid_labels)
         if corr_block:
@@ -410,7 +410,8 @@ def build_conversation_wiki(
     )
 
     logger.info(
-        "📚 Wiki: building (conv=%s, lang=%s, matches=%d, raw=%d chars, budget=%dk tokens, scale=%s)",
+        "📚 Wiki: building (conv=%s, lang=%s, matches=%d, raw=%d chars, "
+        "budget=%dk tokens, scale=%s)",
         conversation_id,
         language,
         chunk_count,

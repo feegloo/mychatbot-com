@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # Import the internal helpers directly for unit tests
 from shared.url_fetch import _extract_visible_text, fetch_url
 
@@ -70,7 +68,7 @@ class TestExtractVisibleText:
         assert "First" in text
         assert "Second" in text
         assert "Third" in text
-        lines = [l for l in text.splitlines() if l.strip()]
+        lines = [line for line in text.splitlines() if line.strip()]
         assert len(lines) == 3
 
     def test_nested_skip_tags_handled(self):

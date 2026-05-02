@@ -17,7 +17,7 @@ import {
   getMessageById,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
-import { indexConversation, indexConversationStream, describeUrl } from '../python/indexing.js'
+import { indexConversationStream, describeUrl } from '../python/indexing.js'
 import logger from '../logger.js'
 
 import { emitConversationEvent } from '../events.js'
@@ -710,12 +710,11 @@ uploadRouter.post('/upload-url', async (ctx) => {
     traceId,
   })
     .then(async (result) => {
-      const suggestedQuestions = result.parsedJson?.suggested_questions || []
       const welcomeMessage = result.parsedJson?.welcome_message || ''
       const fallbackMessage =
         welcomeMessage ||
         `## ${parsed.hostname}\n\nWebsite loaded and ready. Ask me anything about this page.`
-      const messageId = await insertConversationMessage({
+      await insertConversationMessage({
         conversationId,
         role: 'assistant',
         content: fallbackMessage,

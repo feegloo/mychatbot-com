@@ -644,7 +644,7 @@ function wrapInlineTokens(
     const pieces = splitTokenPieces(token)
     for (const piece of pieces) {
       if (!piece.text) continue
-      let pieceWidth = measurePiece(doc, piece, fontSize, baseStyle)
+      const pieceWidth = measurePiece(doc, piece, fontSize, baseStyle)
       if (piece.text.trim().length === 0 && current.length === 0) continue
 
       if (pieceWidth > maxWidth) {

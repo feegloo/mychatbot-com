@@ -1037,7 +1037,7 @@ def _append_contextual_prompts(
     the welcome message indicates a person is visible in the image.
     'create recipe' is added when the image description indicates ingredients,
     dishes, or other food-related context.
-    
+
     For fiction books with 300+ pages, occasionally suggest 'write a large chapter inspired by'
     instead of or alongside 'write a chapter inspired by'.
     """

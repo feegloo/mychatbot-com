@@ -25,8 +25,10 @@ _chroma_client = None
 _openai_client = None
 
 EMBED_BATCH_SIZE = 2048  # OpenAI API max items per request
-EMBED_MAX_TOKENS_PER_BATCH = 200_000  # Stay well under OpenAI's 300K limit; 200K gives room for non-English text
-EMBED_CHARS_PER_TOKEN = 2  # OpenAI rule of thumb: ~4 chars/token for English; non-English (Polish, CJK) uses fewer chars/token so this may underestimate — batches stay safely under 200K limit anyway
+EMBED_MAX_TOKENS_PER_BATCH = 200_000  # Stay well under OpenAI's 300K limit;
+# 200K gives room for non-English text
+EMBED_CHARS_PER_TOKEN = 2  # ~4 chars/token for English; non-English (Polish, CJK)
+# uses fewer chars/token — batches stay safely under 200K limit anyway
 EMBED_MAX_WORKERS = 4  # Parallel embedding requests for very large batches
 CHROMA_BATCH_SIZE = 5000  # Chroma add() limit is ~5461
 

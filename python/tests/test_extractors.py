@@ -308,6 +308,7 @@ class TestExtractGifFrames:
 
     def test_invalid_max_frames_raises(self, tmp_path):
         import pytest
+
         from shared.extractors import _extract_gif_frames
 
         gif = tmp_path / "anim.gif"

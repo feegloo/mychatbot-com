@@ -6,8 +6,6 @@ _dominant_exotic_script and _LANG_CHARS fast-path behaviour.
 
 from __future__ import annotations
 
-import pytest
-
 from shared.lang_detect import _dominant_exotic_script, detect_language
 
 

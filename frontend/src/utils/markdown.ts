@@ -338,7 +338,7 @@ export function renderMarkdown(content: string): string {
   })()
   // Linkify phone numbers and bare domain URLs in text nodes (not inside existing <a> tags)
   // Phone: international format starting with + country-code, e.g. +48 791 421 067
-  const phoneRe = /\+\d{1,3}(?:[\s\-]\d{2,4}){2,4}/g
+  const phoneRe = /\+\d{1,3}(?:[\s-]\d{2,4}){2,4}/g
   const tlds = 'com|org|net|io|dev|pl|eu|co|info|me|app|xyz|tech|ai'
   const bareDomain = new RegExp(
     `\\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${tlds}))(\\/[^\\s<"'\u201C\u201D\u2018\u2019\u00AB\u00BB.,;:!?)\\]]*)?`,

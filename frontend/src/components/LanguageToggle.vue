@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
 import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
@@ -435,8 +435,8 @@ watch(
       // Auto-translate if there's a stored language preference different from detected
       const storedLang = getStoredLanguage()
       if (storedLang && storedLang !== result.language) {
-        // Defer to next tick so the component is fully rendered
-        await new Promise((r) => setTimeout(r, 50))
+        // Defer until Vue has rendered the detected language before translating
+        await nextTick()
         translateTo(storedLang)
       }
     } catch {
@@ -638,7 +638,7 @@ async function translateTo(targetLang: string) {
   if (isTranslated.value) {
     currentLang.value = detectedLang.value
     emit('restored', new Map())
-    await new Promise((r) => setTimeout(r, 0))
+    await nextTick()
   }
 
   // Reuse an in-flight promise for the same target if one exists. On settle

@@ -4,8 +4,8 @@ import argparse
 import json
 import logging
 
-from shared.logging_utils import configure_safe_logging
 from shared.indexing import index_documents
+from shared.logging_utils import configure_safe_logging
 
 configure_safe_logging(logging.INFO)
 

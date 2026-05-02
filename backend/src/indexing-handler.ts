@@ -219,13 +219,13 @@ async function handleComplete(
     },
   )
 
-  let welcomeMessageId = await findExistingWelcomeMessageId(conversationId)
+  const existingWelcomeId = await findExistingWelcomeMessageId(conversationId)
 
-  if (!welcomeMessageId) {
+  if (!existingWelcomeId) {
     // No prior welcome emitted (e.g. fast text PDF skipped the OCR prefetch).
     const fallbackMessage =
       finalWelcomeMessage || buildFallbackWelcome(uploadedFileNames)
-    welcomeMessageId = await insertConversationMessage({
+    await insertConversationMessage({
       conversationId,
       role: 'assistant',
       content: fallbackMessage,
@@ -244,7 +244,7 @@ async function handleComplete(
     // version — merge under an UPDATE section.
     try {
       await appendWelcomeUpdate(
-        welcomeMessageId,
+        existingWelcomeId,
         finalWelcomeMessage,
         parsedPages,
         totalPages,

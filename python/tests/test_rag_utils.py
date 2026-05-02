@@ -7,8 +7,6 @@ _handle_exif, _build_citations, _limit_image_rows, _format_welcome_messages.
 
 from __future__ import annotations
 
-import pytest
-
 from shared.rag import (
     _build_citations,
     _extract_quiz_question_count,
@@ -21,7 +19,6 @@ from shared.rag import (
     _strip_orphan_source_tags,
     build_context,
 )
-
 
 # ---------------------------------------------------------------------------
 # build_context

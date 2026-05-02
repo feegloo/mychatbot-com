@@ -318,9 +318,8 @@
  * parent pages (ConversationPage, SharedMessagePage, HomePage) work
  * without modification.
  */
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'
-import { homeLang } from '../i18n/homeLocale'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 import { appReady } from '../composables/appReady'
@@ -554,9 +553,7 @@ watch(
     }
     if (wasGenerating && lastMorphSrc.value) {
       pendingMorphSwap.value = true
-      void nextTick(() => {
-        maybeStartMorphSwap()
-      })
+      maybeStartMorphSwap()
       return
     }
 
@@ -565,6 +562,7 @@ watch(
     pendingMorphSwap.value = false
     finishImageSwap()
   },
+  { flush: 'post' },
 )
 
 watch(finalGeneratedImageUrl, () => {

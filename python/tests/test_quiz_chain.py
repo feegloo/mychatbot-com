@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
@@ -162,7 +161,6 @@ class TestQuizChainMocked:
     @patch("shared.rag.get_llm")
     def test_quiz_chain_invoked_with_question(self, mock_get_llm):
         """When _is_quiz_request matches, quiz chain should use QUIZ_PROMPT."""
-        from shared.prompts import QUIZ_PROMPT
 
         quiz_answer = "[quiz:{...}] [action:Quiz A 🧠] [action:Quiz B 🧠]"
         mock_get_llm.return_value = _make_mock_llm(quiz_answer)

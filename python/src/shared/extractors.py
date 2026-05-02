@@ -507,12 +507,9 @@ def _extract_gif_frames(path: Path, max_frames: int = _GIF_MAX_FRAMES) -> list[b
         k = min(max_frames, n_frames)
         # Linear interpolation gives perfectly even spacing and always
         # includes index 0 (first) and n_frames-1 (last).
-        if k == 1:
-            indices = [0]
-        else:
-            indices = sorted(
-                {round(i * (n_frames - 1) / (k - 1)) for i in range(k)}
-            )
+        indices = [0] if k == 1 else sorted(
+            {round(i * (n_frames - 1) / (k - 1)) for i in range(k)}
+        )
 
         result: list[bytes] = []
         for idx in indices:
