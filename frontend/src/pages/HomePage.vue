@@ -126,6 +126,7 @@ import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { homeT } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { extractPastedFiles } from '../composables/useFilePaste'
 
 const t = homeT
 
@@ -358,23 +359,7 @@ function autoResize(e: Event) {
 }
 
 function onPasteFile(event: ClipboardEvent) {
-  const items = event.clipboardData?.items
-  if (!items) return
-
-  const files: File[] = []
-  for (const item of Array.from(items)) {
-    if (item.kind !== 'file') continue
-    const type = item.type
-    if (!type.startsWith('image/') && type !== 'application/pdf' && type !== 'text/plain') continue
-    const raw = item.getAsFile()
-    if (!raw) continue
-    // Pasted screenshots have an empty name; give them a readable timestamp-based name
-    const ext = type.split('/')[1] ?? 'bin'
-    const name = raw.name || `pasted-${Date.now()}.${ext}`
-    const file = raw.name ? raw : new File([raw], name, { type: raw.type })
-    files.push(file)
-  }
-
+  const files = extractPastedFiles(event)
   if (files.length === 0) return
   event.preventDefault()
   uploadFilesArr.value = files
