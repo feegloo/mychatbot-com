@@ -734,11 +734,13 @@ def build_social_media_image_prompt() -> dict:
             "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
 
             # --- Final quality bar ---
-            "IMPORTANT: use only 1–2 accents total (overlay + accent format). "
+            "IMPORTANT: keep the edit minimal — use only 1–2 accents total (overlay + accent format). "
+            "Think of the decoration as a seasoning, not the main dish — it should enhance the photo, not overpower it. "
             "Less is more — the edit should feel intentional and personal, "
-            "NOT like a generic filter was applied. Avoid combining too many effects. "
+            "NOT like a generic filter was applied. When in doubt, go more minimal. "
+            "Avoid combining too many effects. "
             "The result should look like a polished Instagram or TikTok story edit — "
-            "high quality, cohesive, and specific to this photo's vibe. "
+            "high quality, cohesive, minimal, and specific to this photo's vibe. "
             "No watermark. No logos. The subject's face and body must be fully preserved."
         ),
         "title": "Social Media Edit",
