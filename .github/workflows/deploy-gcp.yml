@@ -5,11 +5,6 @@ on:
     branches:
       - main
 
-env:
-  REGION: europe-west1
-  SERVICE_NAME: chatrag
-  IMAGE_NAME: chatrag
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -28,76 +23,26 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
-        run: |
-          gcloud auth configure-docker gcr.io
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          build-args: |
-            VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
-            VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Deploy to Cloud Run
+      - name: Run deploy-gcp.sh
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DEBUG_USER: ${{ secrets.DEBUG_USER }}
+          DEBUG_PASS: ${{ secrets.DEBUG_PASS }}
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:latest \
-            --region ${{ env.REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --network default \
-            --subnet default \
-            --vpc-egress private-ranges-only \
-            --port 8080 \
-            --memory 16Gi \
-            --cpu 8 \
-            --no-cpu-throttling \
-            --min-instances 1 \
-            --max-instances 1 \
-            --timeout 300 \
-            --update-env-vars "\
-          NODE_ENV=production,\
-          DATABASE_URL=${{ secrets.DATABASE_URL }},\
-          CHROMA_MODE=local,\
-          ANONYMIZED_TELEMETRY=False,\
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
-          STORAGE_PROVIDER=gcs,\
-          GCS_BUCKET=${{ secrets.GCS_BUCKET }},\
-          FRONTEND_DIST_PATH=/app/frontend/dist,\
-          PYTHON_BIN=/app/python/.venv/bin/python3,\
-          PYTHON_PROJECT_ROOT=/app/python,\
-          PYTHON_SERVER_URL=http://localhost:8321,\
-          DEBUG_USER=${{ secrets.DEBUG_USER }},\
-          DEBUG_PASS=${{ secrets.DEBUG_PASS }},\
-          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},\
-          SENTRY_DSN=${{ secrets.SENTRY_DSN }},\
-          WORKER_MODE=inline"
-
-      - name: Get service URL
-        run: |
-          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region ${{ env.REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --format='value(status.url)')
-          echo "Service deployed at: $URL"
-
-      - name: Notify deployment
-        if: success()
-        run: |
-          echo "✅ Deployment successful!"
-          echo "Service: ${{ env.SERVICE_NAME }}"
-          echo "Region: ${{ env.REGION }}"
-          echo "Image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          chmod +x infra/cloudrun/deploy-gcp.sh
+          ./infra/cloudrun/deploy-gcp.sh

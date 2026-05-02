@@ -80,7 +80,12 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
 # ── Init env ─────────────────────────────────────────────────────────────────
-source infra/cloudrun/.env.gcp
+# In CI the vars are injected as environment variables; the file is only needed locally.
+if [[ -f "infra/cloudrun/.env.gcp" ]]; then
+  set -a
+  source infra/cloudrun/.env.gcp
+  set +a
+fi
 
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 [[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
@@ -90,26 +95,29 @@ source infra/cloudrun/.env.gcp
 # ── Step 1: Install prerequisites ────────────────────────────────────────────
 info "Step 1/8: Checking prerequisites..."
 
-if ! command -v brew &>/dev/null; then
-  warn "Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
+# In CI (GitHub Actions) all tools are pre-installed; skip macOS/brew setup.
+if [[ -z "${CI:-}" ]]; then
+  if ! command -v brew &>/dev/null; then
+    warn "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
 
-if ! command -v gcloud &>/dev/null; then
-  warn "Installing Google Cloud SDK..."
-  brew install --cask google-cloud-sdk
-fi
+  if ! command -v gcloud &>/dev/null; then
+    warn "Installing Google Cloud SDK..."
+    brew install --cask google-cloud-sdk
+  fi
 
-if ! command -v docker &>/dev/null; then
-  warn "Installing Docker..."
-  brew install --cask docker
-  echo "Please start Docker Desktop, then re-run this script."
-  exit 1
-fi
+  if ! command -v docker &>/dev/null; then
+    warn "Installing Docker..."
+    brew install --cask docker
+    echo "Please start Docker Desktop, then re-run this script."
+    exit 1
+  fi
 
-if ! command -v npm &>/dev/null; then
-  warn "Installing Node.js (npm required for cloud-function build)..."
-  brew install node
+  if ! command -v npm &>/dev/null; then
+    warn "Installing Node.js (npm required for cloud-function build)..."
+    brew install node
+  fi
 fi
 
 # ── Step 2: Authenticate & set project ───────────────────────────────────────
