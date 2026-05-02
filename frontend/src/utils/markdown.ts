@@ -192,7 +192,7 @@ export function renderMarkdown(content: string): string {
     return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`
   })
   // Restore [quote] blocks — same centered layout as poem but distinct amber styling
-  const withQuotes = withPoems.replace(/\x03QUOTE(\d+)\x03/g, (_, idxStr) => {
+  const withPoemsAndQuotes = withPoems.replace(/\x03QUOTE(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const lines = quotePlaceholders[idx]
       .split('\n')
@@ -203,7 +203,7 @@ export function renderMarkdown(content: string): string {
     return `<div class="quote-block"><div class="quote-mark">\u201C</div><div class="quote-body">${body}</div><div class="quote-mark quote-mark-close">\u201D</div></div>`
   })
   // Replace ++underline++ markers with <u> tags
-  const withUnderline = withQuotes.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
+  const withUnderline = withPoemsAndQuotes.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
   // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
   // Palette matches the 9 colors defined in the AI system prompt:
   // green, red, yellow, blue, purple, orange, gold, pink, gray
