@@ -853,9 +853,12 @@ function getFileUrl(file: FileInfo) {
 // Clicking a welcome-message file preview opens ImageModal for images,
 // SourcePreviewModal for PDFs and other file types.
 function openFilePreview(file: FileInfo) {
-  if (file.mimeType?.startsWith('image/')) {
-    const isSvg =
-      file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
+  // Detect SVG by extension first so that files with a missing or incorrect
+  // MIME type (e.g. application/octet-stream from older uploads) still open
+  // in ImageModal with stretch=true rather than falling through to SourcePreviewModal.
+  const isSvg =
+    file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
+  if (isSvg || file.mimeType?.startsWith('image/')) {
     openImageModal(getFileUrl(file), file.originalName, isSvg)
     return
   }
