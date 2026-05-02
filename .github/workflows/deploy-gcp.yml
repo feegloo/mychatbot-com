@@ -40,7 +40,6 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
-          STATIC_BUCKET: ${{ secrets.STATIC_BUCKET }}
           ENABLE_STATIC_CDN: "true"
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
