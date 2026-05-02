@@ -86,20 +86,35 @@ describe("DonateWidget", () => {
 
   it("shows payment method bubbles when donate button clicked (no Apple Pay)", async () => {
     const wrapper = mount(DonateWidget);
-    await nextTick();
-    await nextTick();
-    // Wait for initStripe to finish (async)
+    // Wait for onMounted initStripe to finish (pre-initialization)
     await new Promise((r) => setTimeout(r, 50));
     await nextTick();
 
     const btn = wrapper.find(".conv-nav-donate");
     if (btn.exists()) {
+      // handleDonate is now synchronous — no await needed before it checks state
       await btn.trigger("click");
       await nextTick();
       expect(wrapper.find(".donate-methods").exists()).toBe(true);
       const bubbles = wrapper.findAll(".donate-bubble");
       // Should have bubbles for non-Apple-Pay methods
       expect(bubbles.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("calls paymentRequest.show() synchronously on first tap when Stripe is pre-initialized", async () => {
+    const { _mocks } = await import("@stripe/stripe-js") as any;
+    _mocks.canMakePayment.mockResolvedValue({ applePay: true });
+
+    const wrapper = mount(DonateWidget);
+    // Wait for onMounted initStripe to complete
+    await new Promise((r) => setTimeout(r, 50));
+    await nextTick();
+
+    const btn = wrapper.find(".conv-nav-donate");
+    if (btn.exists()) {
+      await btn.trigger("click");
+      expect(_mocks.show).toHaveBeenCalledTimes(1);
     }
   });
 });
