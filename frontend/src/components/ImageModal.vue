@@ -91,10 +91,19 @@ defineEmits<{
   background: #334155;
 }
 
-/* On mobile: show button in-flow above the image, aligned right */
+.image-modal-img {
+  max-width: 90vw;
+  max-height: 100vh;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
+  display: block;
+}
+
+/* On mobile: full-width image, close button in-flow above the image aligned right */
 @media (max-width: 768px) {
   .image-modal-overlay {
     padding: 0;
+    align-items: flex-start;
   }
 
   .image-modal-content {
@@ -112,15 +121,9 @@ defineEmits<{
   .image-modal-img {
     width: 100vw;
     max-width: 100vw;
+    height: auto;
+    max-height: none;
   }
-}
-
-.image-modal-img {
-  max-width: 90vw;
-  max-height: 100vh;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  object-fit: contain;
-  display: block;
 }
 
 /* Stretch mode: SVG/diagrams — mobile fills full width, desktop fills full height */
