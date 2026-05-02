@@ -88,7 +88,7 @@ export function splitIntoSentences(text: string): string[] {
   return matches.map((s) => s.trim()).filter((s) => s.length > 0)
 }
 
-export function extractPoemForAutoRead(text: string): string | null {
+export function extractPoemOrQuoteForAutoRead(text: string): string | null {
   const poemMatch = text.match(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/i)
   if (poemMatch?.[1]?.trim()) return poemMatch[1].trim()
   const quoteMatch = text.match(/\[quote\]\s*\n?([\s\S]*?)\[\/quote\]/i)
@@ -305,7 +305,7 @@ export function useAutoRead(
     stop()
     aborted = false
 
-    const poemOnlyText = extractPoemForAutoRead(text)
+    const poemOnlyText = extractPoemOrQuoteForAutoRead(text)
     const cleaned = cleanTextForTTS(poemOnlyText ?? text)
     const sentences = splitIntoSentences(cleaned)
     if (sentences.length === 0) return

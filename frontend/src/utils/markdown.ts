@@ -169,8 +169,8 @@ export function renderMarkdown(content: string): string {
       /<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*\/?>/gi,
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>',
     )
-  // Restore [poem] blocks BEFORE DOMPurify so that DOMPurify sanitizes both the
-  // surrounding HTML and any raw HTML inside the verse body (e.g. <img onerror=...>).
+  // Restore [poem] and [quote] blocks BEFORE DOMPurify so that DOMPurify sanitizes both
+  // the surrounding HTML and any raw HTML inside the verse/quote body (e.g. <img onerror=...>).
   const withPoems = withChecklists.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
     const lines = poemPlaceholders[idx]

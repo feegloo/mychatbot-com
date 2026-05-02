@@ -954,33 +954,35 @@ async function renderMarkdownBlock(
       continue
     }
 
+    // Shared layout constants for poem and quote blocks
+    const BLOCK_LINE_H = 6
+    const BLOCK_QUOTE_MARK_H = 8
+    const BLOCK_PADDING = 6
+
     const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)
     if (poemPlaceholder) {
       const idx = parseInt(poemPlaceholder[1], 10)
       const pLines = poemBlocks[idx]
-      const lineH = 6
-      const quoteMarkH = 8
-      const padding = 6
-      const blockH = quoteMarkH + pLines.length * lineH + quoteMarkH + padding * 2
+      const blockH = BLOCK_QUOTE_MARK_H + pLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
       ensureNewPage(doc, yRef, layout, blockH)
 
       doc.setFillColor(248, 245, 255)
       doc.setDrawColor(210, 195, 250)
       doc.roundedRect(layout.marginLeft, yRef.y - 2, layout.contentWidth, blockH, 3, 3, 'FD')
 
-      yRef.y += padding + 5
+      yRef.y += BLOCK_PADDING + 5
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(32)
       doc.setTextColor(167, 139, 250)
       doc.text('\u201C', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-      yRef.y += quoteMarkH
+      yRef.y += BLOCK_QUOTE_MARK_H
 
       doc.setFont(PDF_FONT, 'italic')
       doc.setFontSize(11)
       doc.setTextColor(80, 80, 80)
       for (const pLine of pLines) {
         doc.text(pLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-        yRef.y += lineH
+        yRef.y += BLOCK_LINE_H
       }
 
       yRef.y += 2
@@ -988,7 +990,7 @@ async function renderMarkdownBlock(
       doc.setFontSize(32)
       doc.setTextColor(167, 139, 250)
       doc.text('\u201D', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-      yRef.y += quoteMarkH + padding
+      yRef.y += BLOCK_QUOTE_MARK_H + BLOCK_PADDING
       i++
       continue
     }
@@ -997,10 +999,7 @@ async function renderMarkdownBlock(
     if (quotePlaceholder) {
       const idx = parseInt(quotePlaceholder[1], 10)
       const qLines = quoteBlocks[idx]
-      const lineH = 6
-      const quoteMarkH = 8
-      const padding = 6
-      const blockH = quoteMarkH + qLines.length * lineH + quoteMarkH + padding * 2
+      const blockH = BLOCK_QUOTE_MARK_H + qLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
       ensureNewPage(doc, yRef, layout, blockH)
 
       // Amber/gold background to differentiate from poem's purple
@@ -1008,19 +1007,19 @@ async function renderMarkdownBlock(
       doc.setDrawColor(230, 180, 60)
       doc.roundedRect(layout.marginLeft, yRef.y - 2, layout.contentWidth, blockH, 3, 3, 'FD')
 
-      yRef.y += padding + 5
+      yRef.y += BLOCK_PADDING + 5
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(32)
       doc.setTextColor(202, 138, 4)
       doc.text('\u201C', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-      yRef.y += quoteMarkH
+      yRef.y += BLOCK_QUOTE_MARK_H
 
       doc.setFont(PDF_FONT, 'italic')
       doc.setFontSize(11)
       doc.setTextColor(80, 70, 40)
       for (const qLine of qLines) {
         doc.text(qLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-        yRef.y += lineH
+        yRef.y += BLOCK_LINE_H
       }
 
       yRef.y += 2
@@ -1028,7 +1027,7 @@ async function renderMarkdownBlock(
       doc.setFontSize(32)
       doc.setTextColor(202, 138, 4)
       doc.text('\u201D', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
-      yRef.y += quoteMarkH + padding
+      yRef.y += BLOCK_QUOTE_MARK_H + BLOCK_PADDING
       i++
       continue
     }
