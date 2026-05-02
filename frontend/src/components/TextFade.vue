@@ -50,4 +50,47 @@ defineProps<{
 .fade-text-leave-to * {
   color: transparent !important;
 }
+
+/*
+ * Action and prompt button rows (.actions-row, .prompts-row) must never be
+ * subject to `color: transparent`. Platform color emoji fonts (Apple Color
+ * Emoji, Segoe UI Emoji, Noto Color Emoji) can get "stuck" invisible in some
+ * browsers when `color` transitions from transparent back to a normal value,
+ * because those fonts composite emoji as image glyphs that are sometimes not
+ * repainted correctly after a color-to-transparent-to-color round-trip.
+ *
+ * Solution: pin the button children to the app's base text color via
+ * `--text-foreground` (a CSS custom property that is independent of the
+ * `color: transparent` set on ancestors), and transition the rows in/out via
+ * `opacity` instead of `color`. This way the emoji in action labels is never
+ * made transparent and the rendering bug cannot occur.
+ */
+
+/* 1. Override color: transparent on button children during both enter-from and leave-to */
+.fade-text-enter-from .actions-row,
+.fade-text-enter-from .actions-row *,
+.fade-text-enter-from .prompts-row,
+.fade-text-enter-from .prompts-row *,
+.fade-text-leave-to .actions-row,
+.fade-text-leave-to .actions-row *,
+.fade-text-leave-to .prompts-row,
+.fade-text-leave-to .prompts-row * {
+  color: var(--text-foreground) !important;
+}
+
+/* 2. Action/prompt rows start invisible on enter, end invisible on leave */
+.fade-text-enter-from .actions-row,
+.fade-text-enter-from .prompts-row,
+.fade-text-leave-to .actions-row,
+.fade-text-leave-to .prompts-row {
+  opacity: 0;
+}
+
+/* 3. Transition rows with opacity (not color) during active phases */
+.fade-text-enter-active .actions-row,
+.fade-text-enter-active .prompts-row,
+.fade-text-leave-active .actions-row,
+.fade-text-leave-active .prompts-row {
+  transition: opacity 0.25s ease !important;
+}
 </style>
