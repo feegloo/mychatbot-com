@@ -247,15 +247,32 @@ npm run build
 popd >/dev/null
 
 gcloud auth configure-docker --quiet
-docker build \
-  --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
-  --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
-  --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
-  --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
-  --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
-  --build-arg SENTRY_ORG="${SENTRY_ORG}" \
-  --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
-  -t "${IMAGE}:latest" .
+
+# In CI use buildx with GHA layer cache for fast rebuilds; locally use plain docker build.
+if [[ -n "${CI:-}" ]]; then
+  docker buildx build \
+    --cache-from type=gha \
+    --cache-to   type=gha,mode=max \
+    --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+    --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+    --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
+    --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
+    --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
+    --build-arg SENTRY_ORG="${SENTRY_ORG}" \
+    --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
+    --load \
+    -t "${IMAGE}:latest" .
+else
+  docker build \
+    --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+    --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+    --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
+    --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
+    --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
+    --build-arg SENTRY_ORG="${SENTRY_ORG}" \
+    --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
+    -t "${IMAGE}:latest" .
+fi
 
 # ── Step 7: Push to GCR ─────────────────────────────────────────────────────
 info "Step 7/9: Pushing image to Container Registry..."
