@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { mount, flushPromises } from "@vue/test-utils";
 
 // Mock vue-router
 vi.mock("vue-router", () => ({
@@ -54,10 +53,7 @@ describe("DonateWidget", () => {
 
   it("shows Donate button when Stripe key is set", async () => {
     const wrapper = mount(DonateWidget);
-    await nextTick();
-    await nextTick();
-    // canDonate is true because VITE_STRIPE_PUBLISHABLE_KEY is set
-    // It should show either the donate button or thank you (if ?donated=1)
+    await flushPromises();
     const hasDonate = wrapper.find(".conv-nav-donate").exists();
     const hasThanks = wrapper.find(".donate-thanks").exists();
     const hasMethods = wrapper.find(".donate-methods").exists();
@@ -65,7 +61,6 @@ describe("DonateWidget", () => {
   });
 
   it("shows thank you message when ?donated=1 is in URL", async () => {
-    // Simulate ?donated=1
     const originalSearch = window.location.search;
     const originalHref = window.location.href;
     Object.defineProperty(window.location, "search", { writable: true, value: "?donated=1" });
@@ -73,8 +68,7 @@ describe("DonateWidget", () => {
     const replaceState = vi.spyOn(window.history, "replaceState").mockImplementation(() => {});
 
     const wrapper = mount(DonateWidget);
-    await nextTick();
-    await nextTick();
+    await flushPromises();
 
     expect(wrapper.find(".donate-thanks").exists()).toBe(true);
     expect(wrapper.text()).toContain("Thank you");
@@ -84,22 +78,44 @@ describe("DonateWidget", () => {
     Object.defineProperty(window.location, "href", { writable: true, value: originalHref });
   });
 
-  it("shows payment method bubbles when donate button clicked (no Apple Pay)", async () => {
+  it("shows payment method bubbles immediately when donate button clicked (no Apple Pay)", async () => {
     const wrapper = mount(DonateWidget);
-    await nextTick();
-    await nextTick();
-    // Wait for initStripe to finish (async)
-    await new Promise((r) => setTimeout(r, 50));
-    await nextTick();
+    await flushPromises();
 
     const btn = wrapper.find(".conv-nav-donate");
-    if (btn.exists()) {
-      await btn.trigger("click");
-      await nextTick();
-      expect(wrapper.find(".donate-methods").exists()).toBe(true);
-      const bubbles = wrapper.findAll(".donate-bubble");
-      // Should have bubbles for non-Apple-Pay methods
-      expect(bubbles.length).toBeGreaterThan(0);
-    }
+    expect(btn.exists()).toBe(true);
+
+    // handleDonate is synchronous — methods list appears on the same tick
+    await btn.trigger("click");
+
+    expect(wrapper.find(".donate-methods").exists()).toBe(true);
+    const bubbles = wrapper.findAll(".donate-bubble");
+    // Apple Pay is hidden (canMakePayment returns null); other methods always shown
+    expect(bubbles.length).toBeGreaterThan(0);
+  });
+
+  it("shows Apple Pay bubble after Stripe init and calls show() on tap", async () => {
+    const { _mocks } = await import("@stripe/stripe-js") as any;
+    _mocks.canMakePayment.mockResolvedValue({ applePay: true });
+
+    const wrapper = mount(DonateWidget);
+    await flushPromises();
+
+    const btn = wrapper.find(".conv-nav-donate");
+    expect(btn.exists()).toBe(true);
+
+    // First tap: synchronously shows methods + kicks off Stripe init in background
+    await btn.trigger("click");
+    expect(wrapper.find(".donate-methods").exists()).toBe(true);
+
+    // Let Stripe init + canMakePayment resolve so Apple Pay bubble appears
+    await flushPromises();
+
+    const applePayBubble = wrapper.find('.donate-bubble[title="Apple Pay"]');
+    expect(applePayBubble.exists()).toBe(true);
+
+    // Tapping the Apple Pay bubble calls show() synchronously within its own gesture
+    await applePayBubble.trigger("click");
+    expect(_mocks.show).toHaveBeenCalledTimes(1);
   });
 });
