@@ -595,7 +595,6 @@ fi
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
-echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Worker mode:    inline (indexing runs in-process on this instance)"
 echo "  Worker pool:    disabled"
 if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
