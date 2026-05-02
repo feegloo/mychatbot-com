@@ -50,4 +50,39 @@ defineProps<{
 .fade-text-leave-to * {
   color: transparent !important;
 }
+
+/*
+ * Action and prompt button rows use opacity-based fading instead of the
+ * color-based fade above. On iOS Safari / WebKit there is a rendering
+ * quirk where emoji characters in text nodes do not repaint correctly
+ * after `color` transitions from `transparent` back to a visible value —
+ * the emoji stays invisible even though regular text repaints fine. Fading
+ * these rows via `opacity` sidesteps the issue entirely.
+ *
+ * The more-specific selectors (0,2,0) override the `*` rule (0,1,0) so
+ * the action/prompt rows and all their button children keep a real text
+ * color throughout the transition rather than inheriting `transparent`.
+ */
+.fade-text-enter-active .actions-row,
+.fade-text-enter-active .prompts-row,
+.fade-text-leave-active .actions-row,
+.fade-text-leave-active .prompts-row {
+  transition: opacity 0.25s ease;
+}
+.fade-text-enter-from .actions-row,
+.fade-text-leave-to .actions-row,
+.fade-text-enter-from .prompts-row,
+.fade-text-leave-to .prompts-row {
+  opacity: 0;
+}
+.fade-text-enter-from .actions-row,
+.fade-text-enter-from .actions-row *,
+.fade-text-enter-from .prompts-row,
+.fade-text-enter-from .prompts-row *,
+.fade-text-leave-to .actions-row,
+.fade-text-leave-to .actions-row *,
+.fade-text-leave-to .prompts-row,
+.fade-text-leave-to .prompts-row * {
+  color: #e2e8f0 !important;
+}
 </style>
