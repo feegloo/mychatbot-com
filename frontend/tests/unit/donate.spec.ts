@@ -107,13 +107,17 @@ describe("DonateWidget", () => {
     _mocks.canMakePayment.mockResolvedValue({ applePay: true });
 
     const wrapper = mount(DonateWidget);
-    // Wait for onMounted initStripe to complete
+    // Wait for onMounted initStripe to complete (pre-initialization)
     await new Promise((r) => setTimeout(r, 50));
     await nextTick();
+
+    // Verify canMakePayment was called during the mount phase (pre-init)
+    expect(_mocks.canMakePayment).toHaveBeenCalledTimes(1);
 
     const btn = wrapper.find(".conv-nav-donate");
     if (btn.exists()) {
       await btn.trigger("click");
+      // show() must be called immediately — no async gap before it
       expect(_mocks.show).toHaveBeenCalledTimes(1);
     }
   });
