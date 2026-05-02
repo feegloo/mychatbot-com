@@ -23,7 +23,7 @@ Step 2 is to move prompts here and rebuild them from shared building blocks.
 | File | Owns |
 |---|---|
 | `voice_tone.py` | VOICE & IDENTITY, author-style mimicry, creativity band [0.2–0.6], common-knowledge signaling (EN+PL), name-drop specifics |
-| `response_formats.py` | `[poem]...[/poem]`, chapter en-dash dialogue, `[c:color]` palette (10 colors), emoji palette, KaTeX, markdown tables, citation `[source:N]` frequency (welcome ≤3 / assistant ≤10), page/chapter natural references (EN+PL) |
+| `response_formats.py` | `[poem]...[/poem]`, `[quote]...[/quote]`, chapter en-dash dialogue, `[c:color]` palette (10 colors), emoji palette, KaTeX, markdown tables, citation `[source:N]` frequency (welcome ≤3 / assistant ≤10), page/chapter natural references (EN+PL) |
 | `labels_actions.py` | **Shared** `[action:Label]` rules: 7 buttons (1–2 plain, 3 visible rich, 4–7 More…), language mirroring (rule #1), image-gen 50/50 placement with mandatory "inspired" keyword, creative-writing/wisdom-quote/factual-docs rules, branches-not-sequels, anti-repetition, brevity (3–5 words per label) |
 | `welcome.py` | Standard welcome system prompt, composed from the three shared modules above + welcome-specific goal |
 | `welcome_empty_book.py` | Edge-case: near-empty PDF, OCR in progress, EXIF-based expert preview, explicit "I'll update this after parsing all N pages" |

@@ -7,7 +7,7 @@ Reused by welcome + assistant composition (see PROMPTS_REFACTOR.md).
 RESPONSE_FORMATS_RULES = r"""c) Structured Output:
 - STRUCTURAL KEYS ARE IMMUTABLE (CRITICAL): translate ONLY human-readable values, NEVER translate schema/marker keys.
   Keep these keys EXACTLY as written in English:
-  * [action:...], [prompt:...], [source:N], [quiz:{{...}}], [poem]...[/poem], [upload], [c:color]...[/c]
+  * [action:...], [prompt:...], [source:N], [quiz:{{...}}], [poem]...[/poem], [quote]...[/quote], [upload], [c:color]...[/c]
   * JSON keys like "label", "source", "quiz", "title", "questions", "options", "correct", "explanation", "multiple"
   Good: [action:Stwórz quiz z rozdziału 🧠] [source:2] [quiz:{{"title":"Quiz","multiple":false,"questions":[]}}]
   Bad:  [akcja:Stwórz quiz z rozdziału 🧠] [źródło:2] [quiz:{{"etykieta":"Quiz","pytania":[]}}]
@@ -23,15 +23,20 @@ Chyłka wysiadła pierwsza. Jeden z policjantów spojrzał na nią z wyraźnym n
 WRONG (creates bullets): "- Tu nie można wchodzić."
 CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases or multiple words in a row. If more than ~15% of the text is bold, you are overdoing it. When in doubt, do not bold.
-- Supported rich output formats: source citations, quiz, checklist, recipe, poem, diagram, mermaid, table. Use whichever best fits the question.
+- Supported rich output formats: source citations, quiz, checklist, recipe, poem, quote, diagram, mermaid, table. Use whichever best fits the question.
 - **Mermaid diagrams**: NEVER include [source:N] or any source citation markers inside a mermaid code block. Source references break mermaid syntax and must be completely omitted from the entire ```mermaid``` block. Place any relevant citations in the surrounding text outside the diagram instead.
-- Poem / Quote block: When writing a poem, lyrics, or short inspirational quote (NOT chapters, prose fiction, scripts, or dialogue), wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, or dialogue — those should be written as regular flowing text with paragraph breaks and en-dash dialogue. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. NEVER use any Markdown formatting inside a poem block — no `_italics_`, no `__underline__`, no `**bold**`, no `#` headings, no `>` blockquotes, no backticks. Plain text only, one line per line. The frontend renders this as a beautiful centered blockquote with decorative quotation marks and elegant typography. Example:
+- Poem block: When writing a poem or song lyrics, wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, dialogue, or standalone quotes — those have their own formats. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. NEVER use any Markdown formatting inside a poem block — no `_italics_`, no `__underline__`, no `**bold**`, no `#` headings, no `>` blockquotes, no backticks. Plain text only, one line per line. The frontend renders this as a beautiful centered block with decorative quotation marks and elegant italic typography. Example:
   [poem]
   I listen to the pull of my heart,
   where dreams begin before they are seen.
   I risk the wrong turn,
   because stillness is the safest kind of fear.
   [/poem]
+- Quote block: When writing a short inspirational quote, aphorism, or citation (NOT a poem or prose), wrap the content in [quote]...[/quote] markers. Same rules as poem — plain text only, one line per line, no Markdown. The frontend renders this identically to a poem block but with a warm amber/gold visual style to differentiate. Example:
+  [quote]
+  The only way to do great work is to love what you do.
+  — Steve Jobs
+  [/quote]
 - Markdown formatting: The frontend renders full Markdown. Use rich formatting GENEROUSLY — it makes answers visually striking and easy to scan:
   - **Headings are your friend**: Use ## for major sections, ### for subsections, #### for fine detail. Break up ANY answer longer than 3 paragraphs with headings. Headings add visual rhythm and let the user scan. Don't be shy — a well-placed heading transforms a wall of text into a structured document.
   - Use `inline code` for technical terms, file names, commands, variable names.

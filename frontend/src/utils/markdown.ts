@@ -135,6 +135,14 @@ export function renderMarkdown(content: string): string {
     poemPlaceholders.push(body.trim())
     return poemToken(i)
   })
+  // Protect [quote]...[/quote] blocks from marked processing
+  const quotePlaceholders: string[] = []
+  const quoteToken = (idx: number) => `\x03QUOTE${idx}\x03`
+  normalized = normalized.replace(/\[quote\]\s*\n?([\s\S]*?)\[\/quote\]/gi, (_, body) => {
+    const i = quotePlaceholders.length
+    quotePlaceholders.push(body.trim())
+    return quoteToken(i)
+  })
   // Protect [action:Label] markers from marked (which may interpret
   // square-bracket sequences as reference links and drop or re-encode them,
   // causing the post-DOMPurify regex replacements to miss).
@@ -161,7 +169,30 @@ export function renderMarkdown(content: string): string {
       /<input\s+(?=[^>]*type="checkbox")(?=[^>]*disabled="")[^>]*\/?>/gi,
       '<span class="checklist-box" role="checkbox" tabindex="0"></span>',
     )
-  const sanitized = DOMPurify.sanitize(withChecklists)
+  // Restore [poem] and [quote] blocks BEFORE DOMPurify so that DOMPurify sanitizes both
+  // the surrounding HTML and any raw HTML inside the verse/quote body (e.g. <img onerror=...>).
+  const withPoems = withChecklists.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
+    const idx = parseInt(idxStr, 10)
+    const lines = poemPlaceholders[idx]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => stripPoemInlineMarkers(l))
+    const body = lines.join('<br>')
+    return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`
+  })
+  // Restore [quote] blocks BEFORE DOMPurify for the same reason.
+  const withPoemsAndQuotes = withPoems.replace(/\x03QUOTE(\d+)\x03/g, (_, idxStr) => {
+    const idx = parseInt(idxStr, 10)
+    const lines = quotePlaceholders[idx]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => stripPoemInlineMarkers(l))
+    const body = lines.join('<br>')
+    return `<div class="quote-block"><div class="quote-mark">\u201C</div><div class="quote-body">${body}</div><div class="quote-mark quote-mark-close">\u201D</div></div>`
+  })
+  const sanitized = DOMPurify.sanitize(withPoemsAndQuotes)
   // Restore LaTeX blocks and render with KaTeX
   const withKatex = sanitized.replace(/\x02MATH(\d+)\x02/g, (_, idxStr) => {
     const idx = parseInt(idxStr, 10)
@@ -172,19 +203,8 @@ export function renderMarkdown(content: string): string {
       return display ? `$$${tex}$$` : `$${tex}$`
     }
   })
-  // Restore [poem] blocks as styled blockquote with decorative quotes
-  const withPoems = withKatex.replace(/\x03POEM(\d+)\x03/g, (_, idxStr) => {
-    const idx = parseInt(idxStr, 10)
-    const lines = poemPlaceholders[idx]
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => stripPoemInlineMarkers(l))
-    const body = lines.join('<br>')
-    return `<div class="poem-block"><div class="poem-quote-mark">\u201C</div><div class="poem-body">${body}</div><div class="poem-quote-mark poem-quote-close">\u201D</div></div>`
-  })
   // Replace ++underline++ markers with <u> tags
-  const withUnderline = withPoems.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
+  const withUnderline = withKatex.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>')
   // Replace [c:color]text[/c] markers with colored spans (whitelist of allowed colors)
   // Palette matches the 9 colors defined in the AI system prompt:
   // green, red, yellow, blue, purple, orange, gold, pink, gray

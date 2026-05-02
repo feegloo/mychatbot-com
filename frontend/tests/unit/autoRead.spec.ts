@@ -3,7 +3,7 @@ import {
   buildSentenceChunkSizes,
   buildSynthesisChunks,
   cleanTextForTTS,
-  extractPoemForAutoRead,
+  extractPoemOrQuoteForAutoRead,
   splitIntoSentences,
 } from "../../src/composables/useAutoRead";
 
@@ -106,6 +106,19 @@ describe("cleanTextForTTS", () => {
     expect(result).toContain("Haemostasis");
     expect(result).toContain("This starts within seconds.");
   });
+
+  it("removes poem blocks keeping verse content", () => {
+    expect(cleanTextForTTS("[poem]\nRoses are red.\nViolets are blue.\n[/poem]")).toBe(
+      "Roses are red. Violets are blue.",
+    );
+  });
+
+  it("removes quote blocks keeping quote content", () => {
+    expect(cleanTextForTTS("[quote]\nBe the change.\n[/quote]")).toBe(
+      "Be the change.",
+    );
+  });
+
 });
 
 describe("splitIntoSentences", () => {
@@ -153,23 +166,37 @@ describe("splitIntoSentences", () => {
   });
 });
 
-describe("extractPoemForAutoRead", () => {
+describe("extractPoemOrQuoteForAutoRead", () => {
   it("returns poem body when poem block exists", () => {
     expect(
-      extractPoemForAutoRead(
+      extractPoemOrQuoteForAutoRead(
         "Intro text [poem]\nLine one\nLine two\n[/poem]\nTrailing text",
       ),
     ).toBe("Line one\nLine two");
   });
 
-  it("returns null when no poem block exists", () => {
-    expect(extractPoemForAutoRead("Plain answer without poem block.")).toBeNull();
+  it("returns null when no poem or quote block exists", () => {
+    expect(extractPoemOrQuoteForAutoRead("Plain answer without poem block.")).toBeNull();
   });
 
   it("trims leading blank lines inside poem block", () => {
-    expect(extractPoemForAutoRead("[poem]\n  \n  Line one\n[/poem]")).toBe(
+    expect(extractPoemOrQuoteForAutoRead("[poem]\n  \n  Line one\n[/poem]")).toBe(
       "Line one",
     );
+  });
+
+  it("returns quote body when quote block exists", () => {
+    expect(
+      extractPoemOrQuoteForAutoRead(
+        "Intro text [quote]\nBe the change.\n— Gandhi\n[/quote]\nTrailing text",
+      ),
+    ).toBe("Be the change.\n— Gandhi");
+  });
+
+  it("prefers poem over quote when both are present", () => {
+    expect(
+      extractPoemOrQuoteForAutoRead("[poem]\nVerse\n[/poem] [quote]\nAphorism\n[/quote]"),
+    ).toBe("Verse");
   });
 });
 

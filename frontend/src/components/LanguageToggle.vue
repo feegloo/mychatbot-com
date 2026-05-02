@@ -51,14 +51,15 @@ import {
 // - [action:Label] markers are also opaque during translation, but their Label
 //   text is translated separately and re-inserted so suggested-action buttons
 //   appear in the target language.
-// - [poem] / [/poem] tags are opaque so the literal word "poem" isn't
-//   translated (e.g. to "wiersz" in Polish), while the verse content between
-//   the tags is still translated naturally as part of the surrounding text.
+// - [poem] / [/poem] and [quote] / [/quote] tags are opaque so the literal
+//   words "poem"/"quote" aren't translated (e.g. to "wiersz"/"cytat" in Polish),
+//   while the verse/quote content between the tags is still translated naturally
+//   as part of the surrounding text.
 // - ![alt](url) markdown images are opaque: the URL must never be translated
 //   (e.g. Pollinations URLs embed the prompt in the path, and translating it
 //   produces an unreachable src and a broken-image icon after the v-html swap).
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
-const POEM_TAG_RE = /\[\/?poem\]/gi
+const POEM_TAG_RE = /\[\/?(?:poem|quote)\]/gi
 // Markdown image: `![alt](url "optional title")`. Uses negated character
 // classes so the match stops at the first closing `]` / `)` rather than
 // spanning over adjacent links on the same line.
