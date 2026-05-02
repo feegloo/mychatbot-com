@@ -68,6 +68,7 @@ export function cleanTextForTTS(text: string): string {
     .replace(/\[action:\s*[^\]]+\]/g, '')
     .replace(/\[c:\w+\](.*?)\[\/c(?::\w+)?\]/g, '$1')
     .replace(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/gi, '$1')
+    .replace(/\[quote\]\s*\n?([\s\S]*?)\[\/quote\]/gi, '$1')
     .replace(/\[quiz:[\s\S]*?\]/g, '')
     .replace(/```mermaid\s*\n[\s\S]*?```/g, '')
     .replace(/!\[.*?\]\(.*?\)/g, '')
@@ -89,7 +90,9 @@ export function splitIntoSentences(text: string): string[] {
 
 export function extractPoemForAutoRead(text: string): string | null {
   const poemMatch = text.match(/\[poem\]\s*\n?([\s\S]*?)\[\/poem\]/i)
-  return poemMatch?.[1]?.trim() || null
+  if (poemMatch?.[1]?.trim()) return poemMatch[1].trim()
+  const quoteMatch = text.match(/\[quote\]\s*\n?([\s\S]*?)\[\/quote\]/i)
+  return quoteMatch?.[1]?.trim() || null
 }
 
 export function buildSentenceChunkSizes(sentenceCount: number): number[] {

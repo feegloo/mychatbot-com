@@ -869,7 +869,22 @@ async function renderMarkdownBlock(
     },
   )
 
-  const lines = withPoemPlaceholders.split('\n')
+  const quoteBlocks: string[][] = []
+  let quoteIdx = 0
+  const withQuotePlaceholders = withPoemPlaceholders.replace(
+    /\[quote\]\s*\n?([\s\S]*?)\[\/quote\]/gi,
+    (_, body: string) => {
+      const qLines = body
+        .trim()
+        .split('\n')
+        .map((line: string) => stripInlineFormatting(line.trim()))
+        .filter(Boolean)
+      quoteBlocks.push(qLines)
+      return `[QUOTE_BLOCK_${quoteIdx++}]`
+    },
+  )
+
+  const lines = withQuotePlaceholders.split('\n')
   let i = 0
   let inCodeBlock = false
 
@@ -972,6 +987,46 @@ async function renderMarkdownBlock(
       doc.setFont(PDF_FONT, 'normal')
       doc.setFontSize(32)
       doc.setTextColor(167, 139, 250)
+      doc.text('\u201D', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+      yRef.y += quoteMarkH + padding
+      i++
+      continue
+    }
+
+    const quotePlaceholder = line.trim().match(/^\[QUOTE_BLOCK_(\d+)\]$/)
+    if (quotePlaceholder) {
+      const idx = parseInt(quotePlaceholder[1], 10)
+      const qLines = quoteBlocks[idx]
+      const lineH = 6
+      const quoteMarkH = 8
+      const padding = 6
+      const blockH = quoteMarkH + qLines.length * lineH + quoteMarkH + padding * 2
+      ensureNewPage(doc, yRef, layout, blockH)
+
+      // Amber/gold background to differentiate from poem's purple
+      doc.setFillColor(255, 250, 235)
+      doc.setDrawColor(230, 180, 60)
+      doc.roundedRect(layout.marginLeft, yRef.y - 2, layout.contentWidth, blockH, 3, 3, 'FD')
+
+      yRef.y += padding + 5
+      doc.setFont(PDF_FONT, 'normal')
+      doc.setFontSize(32)
+      doc.setTextColor(202, 138, 4)
+      doc.text('\u201C', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+      yRef.y += quoteMarkH
+
+      doc.setFont(PDF_FONT, 'italic')
+      doc.setFontSize(11)
+      doc.setTextColor(80, 70, 40)
+      for (const qLine of qLines) {
+        doc.text(qLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
+        yRef.y += lineH
+      }
+
+      yRef.y += 2
+      doc.setFont(PDF_FONT, 'normal')
+      doc.setFontSize(32)
+      doc.setTextColor(202, 138, 4)
       doc.text('\u201D', layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
       yRef.y += quoteMarkH + padding
       i++

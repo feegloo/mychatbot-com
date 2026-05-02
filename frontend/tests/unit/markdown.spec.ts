@@ -158,6 +158,46 @@ describe('renderMarkdown LaTeX math delimiters', () => {
   })
 })
 
+describe('renderMarkdown [quote] block', () => {
+  it('wraps quote content in a .quote-block with decorative marks', () => {
+    const html = renderMarkdown('[quote]\nThe only way to do great work is to love what you do.\n— Steve Jobs\n[/quote]')
+
+    expect(html).toContain('class="quote-block"')
+    expect(html).toContain('class="quote-mark"')
+    expect(html).toContain('class="quote-body"')
+    expect(html).toContain('\u201C')
+    expect(html).toContain('\u201D')
+  })
+
+  it('preserves quote text content', () => {
+    const html = renderMarkdown('[quote]\nBe the change you wish to see in the world.\n— Gandhi\n[/quote]')
+
+    expect(html).toContain('Be the change you wish to see in the world.')
+    expect(html).toContain('Gandhi')
+  })
+
+  it('strips dangerous attributes from HTML inside quote body (XSS protection via DOMPurify)', () => {
+    const html = renderMarkdown('[quote]\n<img src=x onerror=alert(1)>\n[/quote]')
+
+    // DOMPurify removes the dangerous onerror event handler
+    expect(html).not.toContain('onerror')
+    expect(html).not.toContain('alert(1)')
+  })
+
+  it('does not render [quote] tags as plain text', () => {
+    const html = renderMarkdown('[quote]\nSome quote text.\n[/quote]')
+
+    expect(html).not.toContain('[quote]')
+    expect(html).not.toContain('[/quote]')
+  })
+
+  it('renders inline bold inside quote', () => {
+    const html = renderMarkdown('[quote]\n**Bold words** in a quote.\n[/quote]')
+
+    expect(html).toContain('<strong>Bold words</strong>')
+  })
+})
+
 describe('renderMarkdown phone number linkification', () => {
   it('linkifies a Polish international phone number with spaces', () => {
     const html = renderMarkdown('Call me at +48 791 421 067 anytime.')
