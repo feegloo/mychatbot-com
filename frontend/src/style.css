@@ -1651,9 +1651,9 @@ textarea.big-input {
 .upload-plus-btn::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
   background: #1e293b;
   color: #e2e8f0;
   font-size: 12px;

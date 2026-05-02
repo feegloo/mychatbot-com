@@ -183,10 +183,11 @@ function fitToWidth() {
   const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
 
   if (props.initialZoom === 'max') {
+    // Start at max scale but anchored to top-left so the diagram is always
+    // visible — the user can pan to explore the rest.
     scale.value = MAX_SCALE
-    // Center the diagram; negative pan is intentional (user can drag to explore)
-    panX.value = (containerWidth - svgNaturalWidth * MAX_SCALE) / 2
-    panY.value = svgNaturalHeight > 0 ? (viewportHeight - svgNaturalHeight * MAX_SCALE) / 2 : 0
+    panX.value = 0
+    panY.value = 0
   } else {
     scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
     const scaledWidth = svgNaturalWidth * scale.value
@@ -334,11 +335,21 @@ async function renderDiagram() {
     const { svg } = await m.render(id, sanitizeMermaidCode(props.code))
     diagramEl.value.innerHTML = svg
     renderedSvg.value = svg
-    // Auto-zoom to fit width before revealing
+    // Auto-zoom to fit width before revealing. If the container has no layout
+    // yet (e.g. modal still rendering), retry after the next paint.
     fitToWidth()
-    // Wait one frame so the browser paints the SVG before revealing
     requestAnimationFrame(() => {
-      ready.value = true
+      const block = diagramEl.value?.closest('.mermaid-block') as HTMLElement | null
+      if (block && block.clientWidth <= 0) {
+        // Container still has no size — retry once more after browser layout
+        requestAnimationFrame(() => {
+          fitToWidth()
+          ready.value = true
+        })
+      } else {
+        if (block && block.clientWidth > 0) fitToWidth()
+        ready.value = true
+      }
     })
   } catch (err) {
     // Stay in diagram mode and surface the error so failing renders don't

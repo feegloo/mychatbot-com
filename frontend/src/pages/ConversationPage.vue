@@ -776,7 +776,7 @@ function viewHeaderThreads() {
   }
 }
 
-function scrollToElement(container: HTMLElement, element: HTMLElement) {
+function scrollToElement(container: HTMLElement, element: HTMLElement, smooth = true) {
   const containerTop = container.getBoundingClientRect().top
   const elementTop = element.getBoundingClientRect().top
 
@@ -785,60 +785,33 @@ function scrollToElement(container: HTMLElement, element: HTMLElement) {
 
   container.scrollTo({
     top: target,
-    behavior: 'smooth',
+    behavior: smooth ? 'smooth' : 'instant',
   })
 }
 
 function scrollToBottom(smooth = false, toEnd = false, showUserQuestion = false) {
   if (!chatContainer.value) return
   const container = chatContainer.value
-  // When `toEnd` is true, scroll all the way to the bottom — used when the
-  // last message's size can grow after mount (e.g. a generated image finishes
-  // loading), so aligning to the top of the message would leave it off-screen.
-  if (toEnd) {
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'instant',
-    })
-    return
-  }
-  const messageEls = container.querySelectorAll('.message')
-  // When `showUserQuestion` is true, scroll so the last user message is at the
-  // top of the container — this keeps the question visible with the response
-  // flowing below it, matching the desired layout after submitting a question.
-  let targetMsg: HTMLElement | undefined
-  if (showUserQuestion) {
-    for (let i = messageEls.length - 1; i >= 0; i--) {
-      if ((messageEls[i] as HTMLElement).classList.contains('user')) {
-        targetMsg = messageEls[i] as HTMLElement
-        break
-      }
-    }
-  }
 
-  targetMsg = targetMsg ?? (messageEls[messageEls.length - 1] as HTMLElement | undefined)
-  if (targetMsg) {
-    // Scroll so the top of the target message aligns with the top of the container.
-    // const msgTop = targetMsg.offsetTop - container.offsetTop
-    // const maxScroll = container.scrollHeight - container.clientHeight
-    // container.scrollTo({
-    //   top: Math.min(msgTop, maxScroll),
-    //   behavior: smooth ? 'smooth' : 'instant',
-    // })
-
+  // When `showUserQuestion` is true (and not forced to end), scroll so the
+  // last user message is at the top of the container — keeps the question
+  // visible while the response flows below it.
+  if (showUserQuestion && !toEnd) {
     const users = document.querySelectorAll('.chat-log .message-row.user')
     const user = users[users.length - 1] as HTMLElement | undefined
     const chatLog = document.querySelector('.chat-log') as HTMLElement | null
-
     if (chatLog && user) {
-      scrollToElement(chatLog, user)
+      scrollToElement(chatLog, user, smooth)
+      return
     }
-  } else {
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'instant',
-    })
   }
+
+  // Default: scroll all the way to the bottom (new response arrived, image
+  // loaded, initial mount, or showUserQuestion with no user message found).
+  container.scrollTo({
+    top: container.scrollHeight,
+    behavior: smooth ? 'smooth' : 'instant',
+  })
 }
 
 function scrollToSearchHit() {
@@ -992,7 +965,7 @@ async function ask() {
     await nextTick()
     await loadConversation()
     await nextTick()
-    setTimeout(() => scrollToBottom(true, false, true), 200)
+    setTimeout(() => scrollToBottom(true, true), 200)
   } catch (err: unknown) {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
@@ -1134,7 +1107,13 @@ async function openC4Modal() {
   if (!match) return
 
   // Strip ```mermaid fences if the LLM wrapped the code block
-  const mermaidCode = match[1].trim().replace(/^```mermaid\n?/, '').replace(/\n?```$/, '').trim()
+  // Also strip emoji characters which Mermaid's mindmap lexer does not support
+  const mermaidCode = match[1]
+    .trim()
+    .replace(/^```mermaid\n?/, '')
+    .replace(/\n?```$/, '')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\s*/gu, '')
+    .trim()
   if (!mermaidCode) return
 
   try {
