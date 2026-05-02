@@ -668,6 +668,69 @@ def build_image_announcement(
     return cleaned
 
 
+def build_social_media_image_prompt() -> dict:
+    """Return a direct image-edit prompt for social-media-style photo overlays.
+
+    No LLM call needed — the effect is always the same family: a decorative
+    bottom strip with emoji pairs *plus* optional subject-level overlays
+    (kiss marks on cheeks, angel wings behind the subject, sparkles, etc.)
+    chosen to match the photo's mood. The model should read the vibe first,
+    then pick the most fitting combination from the menu below.
+    """
+    return {
+        "prompt": (
+            "Take this exact photo and transform it into a fun, vibrant social media post image. "
+            "Keep the original photo as the complete base — do NOT alter the subject, colors, or composition. "
+
+            # --- Step 1: read the vibe ---
+            "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
+            "Use that mood to drive ALL decoration choices below. "
+
+            # --- Step 2: subject-level overlay (pick ONE that fits) ---
+            "SECOND, apply ONE of the following decorative overlays directly on/around the subject: "
+            "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
+            "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
+            "Use for: romantic, flirty, playful vibes. "
+            "(b) ANGEL WINGS — add a pair of large, soft white or golden feathered angel wings "
+            "behind the subject's shoulders, as if the person is an angel. "
+            "Wings should look painterly and luminous, not cartoon-flat. "
+            "Use for: ethereal, dreamy, angelic, pure vibes. "
+            "(c) SPARKLE HALO — place a delicate golden halo ring above the subject's head "
+            "with small glowing sparkles radiating outward. "
+            "Use for: angelic, goddess, celestial vibes. "
+            "(d) FLOWER CROWN — overlay a realistic or illustrated flower crown on the subject's head. "
+            "Use for: boho, nature, soft-aesthetic vibes. "
+            "(e) GLITTER SPARKLES — scatter ✨ glitter particle bursts around the subject "
+            "without covering the face. "
+            "Use for: party, celebratory, magical vibes. "
+            "If no overlay clearly fits, skip this step and go straight to the strip. "
+
+            # --- Step 3: bottom strip with emoji pairs ---
+            "THIRD, add a semi-transparent frosted strip across the lower third of the image. "
+            "Place 1–3 emoji on it as large sticker-style overlays, "
+            "preferring meaningful pairs or triplets. "
+            "TOP PRIORITY pair — use this whenever the photo has any playful, flirty, or contrasting vibe: 😇😈. "
+            "Other strong pairs (use as inspiration): 🎀🧸 😘🍑 🫦🔥, 💄💋, 😘🍑, 💕😈, "
+            "✨😘, 😋🍒, 🍑🍒, 👄🔥, 💅🛍️, 🥂😘, 🍸😈, 🩵❤️🩵, "
+            "🛍️😏, 💫🐹, 💖😏, 😈🔥, 🩷💋. "
+            "Available palette: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 💋 👄 🫦 😇 "
+            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
+            "🌸 🌈 🦋 🎶 🧖‍♀️ 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
+            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺. "
+            "Optionally add 1–2 short fun words (e.g. 'vibes ✨', 'love 💋', 'mood 💫') "
+            "in a bold rounded font on the strip. "
+
+            # --- Final quality bar ---
+            "The result should look like a polished Instagram or Snapchat story edit — "
+            "high quality, cohesive, not cluttered. "
+            "No watermark. No logos. The subject's face and body must be fully preserved."
+        ),
+        "title": "Social Media Edit",
+        "source_indices": [],
+        "aspect": "square",
+    }
+
+
 def build_image_prompt(
     question: str,
     context: str = "",
