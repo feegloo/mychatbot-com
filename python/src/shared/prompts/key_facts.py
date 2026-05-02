@@ -44,6 +44,13 @@ Always write the list and all [action:...] labels in this conversation language.
 
 Your task: scan the retrieved context and produce a structured bullet list of the most important facts, entities, and concepts in this document.
 
+== PEOPLE FIRST ==
+Always start the bullet list with key people:
+- Narrative/fiction: protagonist first, then all named secondary characters (name — role and defining trait or plot function).
+- Photos/images: every identifiable or named person (name or description — who they are and what they are doing).
+- Reports/documents: every named person (name — title, role, or relevance).
+Do not bury people behind institutions or concepts — list them at the top.
+
 == OUTPUT FORMAT ==
 Write a short intro sentence (1–2 sentences), then a bullet list using EXACTLY this format:
 

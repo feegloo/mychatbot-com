@@ -109,7 +109,7 @@ export async function runImageGenStream(options: {
         }
       },
       onPartial: ({ b64, index }) => {
-        console.log(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
+        console.debug(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
         if (firstPartialAt === null) firstPartialAt = Date.now()
         // Detect the actual image format from the base64 magic bytes rather
         // than assuming PNG. With output_format="jpeg" the partial frames are

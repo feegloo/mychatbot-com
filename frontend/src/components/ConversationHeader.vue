@@ -78,7 +78,7 @@
         {{ status.conversationThreadCount }}
         {{ status.conversationThreadCount === 1 ? 'Reply' : 'Replies' }}
       </div>
-      <VTooltip v-if="processing" :triggers="['hover']" placement="bottom">
+      <VTooltip v-show="processing" :triggers="['hover']" placement="bottom">
         <div
           class="indexing-bar"
           role="status"

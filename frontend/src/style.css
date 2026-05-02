@@ -2099,7 +2099,7 @@ h3 {
   transform-origin: center;
   will-change: transform, filter, opacity;
 
-  animation: morphCinematic 2s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  animation: morphCinematic 3s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 /* Progressive (morphing) partial image while OpenAI streams the diffusion
@@ -2111,7 +2111,7 @@ h3 {
   max-width: min(70vh, 420px);
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2s ease-in-out infinite alternate;
+  animation: image-morph-pulse 3s ease-in-out infinite alternate;
 }
 .image-morph {
   display: block;
@@ -2141,7 +2141,7 @@ h3 {
   background: radial-gradient(circle at 30% 25%, rgba(255, 170, 100, 0.14), transparent 65%);
 
   mix-blend-mode: screen;
-  animation: glowPulse 2s ease-in-out infinite alternate;
+  animation: glowPulse 3s ease-in-out infinite alternate;
 }
 
 /* main morph loop (forward ↔ backward) — two keyframes only so cubic-bezier
@@ -2156,7 +2156,7 @@ h3 {
   100% {
     transform: scale(1.018) translateY(-2px);
     opacity: 0.94;
-    filter: brightness(1.06) contrast(1.03) saturate(1.08) blur(1.5px);
+    filter: brightness(1.06) contrast(1.03) saturate(1.08) blur(2.25px);
   }
 }
 

@@ -405,12 +405,20 @@ Rules:
     A{{Label}}  = hexagon: category header / group label (prefer subgraph instead)
     A[[Label]]  = subroutine: subprocess / nested system / module
   Mix shapes within each subgraph to signal semantic roles at a glance.
-- USE classDef TO COLOR-CODE NODES by semantic role (add at the top, after `flowchart LR`):
-    classDef hub fill:#1a365d,stroke:#2b6cb0,color:#fff,stroke-width:2px
-    classDef entity fill:#2d3748,stroke:#4a5568,color:#e2e8f0,stroke-width:1px
-    classDef process fill:#22543d,stroke:#276749,color:#f0fff4,stroke-width:1px
-    classDef evidence fill:#742a2a,stroke:#9b2c2c,color:#fff5f5,stroke-width:1px
-  Apply via: `class NodeId hub` or `class NodeId1,NodeId2 entity`
+- NODE COLORS: keep individual nodes plain — white/light fill with black text. Do NOT apply
+  classDef colors to regular nodes. Color belongs on subgraph containers only (see below).
+  Exception: central hub nodes (circle shape) may use a single subtle highlight:
+    classDef hub fill:#dbeafe,stroke:#2563eb,color:#000,stroke-width:2px
+  Apply only to the one or two most central hub nodes: `class NodeId hub`
+- SUBGRAPH COLORS: give each subgraph a distinct pastel background using `style` after
+  the closing `end` of that subgraph. Use distinct, light colors so subgraphs are visually
+  distinguishable at a glance. All text stays black (color:#000). Example palette:
+    style SubgraphA fill:#dbeafe,stroke:#93c5fd,color:#000
+    style SubgraphB fill:#dcfce7,stroke:#86efac,color:#000
+    style SubgraphC fill:#fef9c3,stroke:#fde047,color:#000
+    style SubgraphD fill:#ffe4e6,stroke:#fda4af,color:#000
+    style SubgraphE fill:#f3e8ff,stroke:#d8b4fe,color:#000
+  Rotate through these (or similar pastels) so each subgraph gets a unique color.
   Adapt the semantic roles to the domain (e.g. for fiction: hub=protagonist, entity=character,
   process=event, evidence=theme/symbol; for legal: hub=party, entity=clause, process=obligation).
 - Edge types (always include `|relation score|` label — verb/noun ≤ 3 words then score):

@@ -1107,12 +1107,18 @@ async function openC4Modal() {
   if (!match) return
 
   // Strip ```mermaid fences if the LLM wrapped the code block
-  // Also strip emoji characters which Mermaid's mindmap lexer does not support
+  // Strip emoji characters (including variation selectors like U+FE0F) which
+  // Mermaid's mindmap lexer does not support.
+  // Use [^\S\n]* instead of \s* so that newlines (which encode indentation
+  // hierarchy) are never consumed — only horizontal whitespace is stripped.
+  // Also normalise single-brace hexagon nodes {Label} → {{Label}} since the
+  // LLM occasionally emits single braces which are an unrecognised token.
   const mermaidCode = match[1]
     .trim()
     .replace(/^```mermaid\n?/, '')
     .replace(/\n?```$/, '')
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\s*/gu, '')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
+    .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
     .trim()
   if (!mermaidCode) return
 

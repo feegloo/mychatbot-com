@@ -228,10 +228,14 @@ function setupTooltips() {
 // Re-attach after every render that could swap out the citation buttons:
 // content string changes (new message or translation) and citations array
 // changes (streaming in).
+const isMounted = ref(false)
+onMounted(() => { isMounted.value = true })
+
 watch(
   () => [props.content, props.citations] as const,
   () => {
     nextTick(() => {
+      if (!isMounted.value) return
       setupTooltips()
       restoreChecklistState()
     })
@@ -272,6 +276,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  isMounted.value = false
   cleanupTooltips()
   rootEl.value?.removeEventListener('load', onImageLoadCapture, true)
 })
