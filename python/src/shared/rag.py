@@ -1257,6 +1257,19 @@ def answer_with_citations(
                     "somewhere in your reply — to invite the user to share relevant files.\n"
                     "Do NOT skip this. Do NOT put [upload] on its own line or as a heading.\n\n"
                 )
+            elif not is_first_message and has_no_files:
+                no_file_context_instruction = (
+                    "== NO FILES UPLOADED — GENERAL CHAT MODE ==\n"
+                    "The user has NOT uploaded any files. Sections 1–4 above are empty.\n"
+                    "Answer from your own general knowledge as you would in a standard chat assistant — "
+                    "you can answer questions, explain concepts, brainstorm, and help with any topic "
+                    "without requiring documents.\n"
+                    "Do NOT fabricate document-specific details or pretend context exists.\n"
+                    "You MAY suggest [upload] ONCE if the user's question would be meaningfully better "
+                    "answered with a specific document they could realistically provide — but ONLY if it "
+                    "adds clear, concrete value. NEVER repeat [upload] if it already appeared in a "
+                    "previous assistant turn without a new upload since then.\n\n"
+                )
             else:
                 no_file_context_instruction = ""
             prompt_vars = {

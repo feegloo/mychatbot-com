@@ -67,15 +67,6 @@ Sequence-to-sequence neural architecture replacing recurrence with self-attentio
 - **Positional Encoding** — sinusoidal vectors injecting order into token reps.
 - **Scaled Dot-Product** — softmax(QK^T / sqrt(d_k)) V.
 
-## Relationships
-Self-Attention      ===> Transformer            (architectural backbone)
-Multi-Head          <--- Self-Attention         (parallel composition of)
-Positional Encoding ===> Transformer            (no recurrence => order signal required)
-Scaled Dot-Product  <--- Self-Attention         (numerical stability for large d_k)
-Transformer         <---> Parallelism           (architectural choice enables training speed)
-Transformer         ---> SOTA WMT 2014 BLEU     (empirical outcome)
-Recurrence          -.-> Transformer            (explicitly removed; ablation context)
-
 ## Hierarchy
 - Transformer
   - Encoder stack (N=6)
@@ -100,40 +91,40 @@ Recurrence          -.-> Transformer            (explicitly removed; ablation co
 ```mermaid
 flowchart LR
   subgraph Input
-    Tokens[Input Tokens]
-    PosEnc[Positional Encoding]
-    EmbLayer[Embedding Layer]
+    Tokens["<b>Input Tokens</b><br/><small>raw token sequence</small>"]
+    PosEnc["<b>Positional Encoding</b><br/><small>injects order, no recurrence</small>"]
+    EmbLayer["<b>Embedding Layer</b><br/><small>token to dense vector</small>"]
   end
   subgraph Encoder
     direction TB
-    MHSA1[Multi-Head Self-Attention]
-    Add1[Add & Norm]
-    FFN1[Position-wise FFN]
-    Add2[Add & Norm]
-    EncStack[Encoder Stack x6]
+    MHSA1["<b>Multi-Head Self-Attention</b><br/><small>h parallel attention heads</small>"]
+    Add1["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    FFN1["<b>Position-wise FFN</b><br/><small>two-layer feed-forward</small>"]
+    Add2["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    EncStack["<b>Encoder Stack x6</b><br/><small>stacked encoder layers</small>"]
   end
   subgraph Decoder
     direction TB
-    MaskedMHSA[Masked Multi-Head Self-Attention]
-    Add3[Add & Norm]
-    CrossAttn[Encoder-Decoder Attention]
-    Add4[Add & Norm]
-    FFN2[Position-wise FFN]
-    Add5[Add & Norm]
-    DecStack[Decoder Stack x6]
+    MaskedMHSA["<b>Masked Self-Attention</b><br/><small>causal mask, left-only</small>"]
+    Add3["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    CrossAttn["<b>Cross-Attention</b><br/><small>encoder-decoder bridge</small>"]
+    Add4["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    FFN2["<b>Position-wise FFN</b><br/><small>two-layer feed-forward</small>"]
+    Add5["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    DecStack["<b>Decoder Stack x6</b><br/><small>stacked decoder layers</small>"]
   end
   subgraph Output
-    Linear[Linear Projection]
-    Softmax[Softmax]
-    Probs[Output Probabilities]
+    Linear["<b>Linear Projection</b><br/><small>maps to vocab size</small>"]
+    Softmax["<b>Softmax</b><br/><small>probability distribution</small>"]
+    Probs["<b>Output Probabilities</b><br/><small>next-token prediction</small>"]
   end
   subgraph Attention_Mechanism
-    Q[Query Q]
-    K[Key K]
-    V[Value V]
-    Scale["Scale / sqrt(d_k)"]
-    SoftmaxA[Softmax]
-    DotProd["Scaled Dot-Product (QKV)"]
+    Q["<b>Query Q</b><br/><small>projected query matrix</small>"]
+    K["<b>Key K</b><br/><small>projected key matrix</small>"]
+    V["<b>Value V</b><br/><small>projected value matrix</small>"]
+    Scale["<b>Scale sqrt(d_k)</b><br/><small>prevents softmax saturation</small>"]
+    SoftmaxA["<b>Softmax</b><br/><small>attention weights</small>"]
+    DotProd["<b>Scaled Dot-Product</b><br/><small>QKV attention mechanism</small>"]
   end
 
   Tokens --> EmbLayer
@@ -182,15 +173,6 @@ Polska umowa o świadczenie usług IT B2B, prawo polskie, jurysdykcja Warszawa.
 - **NDA** — 3 lata po zakończeniu, kara umowna 50 000 PLN za naruszenie.
 - **IP** — przeniesienie majątkowych praw autorskich z chwilą zapłaty.
 
-## Relationships
-Wykonanie usług ===> Wynagrodzenie              (warunek wypłaty)
-Wynagrodzenie   <--- Faktura VAT                (wymagana forma rozliczenia)
-Zapłata         ===> IP                         (przeniesienie praw warunkowane zapłatą)
-NDA             <---> Obie strony               (obowiązek wzajemny)
-Wypowiedzenie   ---> Rozwiązanie umowy          (po 30 dniach)
-Naruszenie NDA  ---> Kara 50k PLN               (sankcja)
-Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnienie)
-
 ## Hierarchy
 - Umowa
   - Świadczenie usług (§2)
@@ -213,32 +195,34 @@ Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnien
 ```mermaid
 flowchart LR
   subgraph Strony
-    Acme[Acme Sp. z o.o.]
-    Kowalski[J. Kowalski - JDG]
+    Acme["<b>Acme Sp. z o.o.</b><br/><small>zamawiający usługi IT</small>"]
+    Kowalski["<b>J. Kowalski JDG</b><br/><small>wykonawca, zleceniobiorca</small>"]
   end
   subgraph Rozliczenie
-    Faktura[Faktura VAT]
-    Wynagrodzenie[Wynagrodzenie 18k PLN]
-    Odsetki[Roszczenie odsetkowe]
+    Faktura["<b>Faktura VAT</b><br/><small>wymagana forma rozliczenia</small>"]
+    Wynagrodzenie["<b>Wynagrodzenie</b><br/><small>18k PLN netto / mies.</small>"]
+    Odsetki["<b>Odsetki ustawowe</b><br/><small>przy opóźnieniu płatności</small>"]
+    BrakZaplaty["<b>Brak zapłaty</b><br/><small>naruszenie terminu płatności</small>"]
   end
   subgraph Prawa
-    IP[Prawa autorskie - IP]
-    NDA[NDA 3 lata]
+    IP["<b>Prawa autorskie IP</b><br/><small>przeniesienie z chwilą zapłaty</small>"]
+    NDA["<b>NDA 3 lata</b><br/><small>obowiązek poufności obu stron</small>"]
   end
   subgraph Sankcje
-    Kara[Kara 50k PLN]
-    Wypowiedzenie[Wypowiedzenie 30 dni]
-    Rozwiazanie[Rozwiazanie umowy]
+    Kara["<b>Kara 50k PLN</b><br/><small>za naruszenie NDA</small>"]
+    Wypowiedzenie["<b>Wypowiedzenie</b><br/><small>30 dni, forma pisemna</small>"]
+    Rozwiazanie["<b>Rozwiązanie umowy</b><br/><small>skutek po upływie okresu</small>"]
+    NaruszNDA["<b>Naruszenie NDA</b><br/><small>aktywuje karę umowną</small>"]
   end
 
   Kowalski ==>|wystawia +0.88| Faktura
   Faktura ==>|rozlicza +0.92| Wynagrodzenie
   Wynagrodzenie ==>|warunkuje +0.85| IP
   Acme -->|zatwierdza +0.76| Wynagrodzenie
-  Brak_zaplaty[Brak zaplaty] -.->|generuje +0.41| Odsetki
+  BrakZaplaty -.->|generuje +0.41| Odsetki
   NDA <-->|wiaze +0.69| Acme
   NDA <-->|wiaze +0.67| Kowalski
-  Naruszenie_NDA[Naruszenie NDA] ==>|aktywuje +0.83| Kara
+  NaruszNDA ==>|aktywuje +0.83| Kara
   Wypowiedzenie -->|skutkuje +0.79| Rozwiazanie
   IP -.->|niezalezne od -0.08| NDA
 ```
@@ -257,14 +241,6 @@ Opening chapter, narrative fiction, low-magic political fantasy, Stark POV.
 - **Robb / Jon** — older brothers, foils to each other.
 - **Direwolf pups** — six found, one per Stark child + Jon.
 - **The Deserter** — Night's Watch oathbreaker, executed in opening scene.
-
-## Relationships
-Ned Stark        ===> Justice (himself swings the sword)   (ethos)
-Bran             <--- Ned (lesson on lordship)             (mentorship)
-Direwolves       <---> Stark children                      (one-per-child symbolic bond)
-Jon Snow         -.-> Stark family                         (acknowledged but bastard)
-Theon            ---> Cynical lens on Stark honor          (foil)
-The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismissed in-text)
 
 ## Hierarchy
 - Stark household
@@ -286,31 +262,33 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 ```mermaid
 flowchart LR
   subgraph StarkHousehold
-    Ned[Ned Stark]
-    Bran[Bran Stark]
-    Robb[Robb Stark]
-    Jon[Jon Snow - bastard]
-    Theon[Theon Greyjoy - ward]
+    Ned["<b>Ned Stark</b><br/><small>Lord Winterfell, executes justice</small>"]
+    Bran["<b>Bran Stark</b><br/><small>7yo POV, inherits lordship lesson</small>"]
+    Robb["<b>Robb Stark</b><br/><small>heir, older brother</small>"]
+    Jon["<b>Jon Snow</b><br/><small>bastard, marginal belonging</small>"]
+    Theon["<b>Theon Greyjoy</b><br/><small>ward, cynical foil</small>"]
   end
   subgraph Symbolism
-    Direwolves[Direwolf Pups x6]
-    StarkChildren[Stark Children x5]
-    AlbinoRunt[Albino Runt - Jon]
+    Direwolves["<b>Direwolf Pups x6</b><br/><small>one per Stark child + Jon</small>"]
+    StarkChildren["<b>Stark Children x5</b><br/><small>trueborn heirs of Winterfell</small>"]
+    AlbinoRunt["<b>Albino Runt</b><br/><small>Jon's direwolf, mirrors bastard status</small>"]
+    StarkHonor["<b>Stark Honor</b><br/><small>face-to-face justice ethos</small>"]
   end
   subgraph NightWatch
-    Deserter[The Deserter]
-    Others[White Walkers - off-page]
+    Deserter["<b>The Deserter</b><br/><small>oathbreaker, executed by Ned</small>"]
+    Others["<b>White Walkers</b><br/><small>off-page, dismissed threat</small>"]
+    Justice["<b>Justice</b><br/><small>Ned wields sword himself</small>"]
   end
 
   Ned ==>|mentors +0.89| Bran
-  Ned ==>|executes +0.84| Justice(Justice - execution scene)
+  Ned ==>|executes +0.84| Justice
   Bran -->|discovers +0.72| Direwolves
   Robb -->|discovers +0.68| Direwolves
   Jon -.->|marginal in +0.31| StarkHousehold
   Jon -->|claims +0.58| AlbinoRunt
   Direwolves <-->|bonds with +0.91| StarkChildren
   AlbinoRunt -.->|mirrors +0.35| Jon
-  Theon -.->|mocks -0.18| StarkHonor(Stark Honor)
+  Theon -.->|mocks -0.18| StarkHonor
   Deserter ==>|fled from +0.77| Others
   Ned -->|executes +0.65| Deserter
   Others -.->|dismissed by -0.12| Ned
@@ -363,18 +341,6 @@ One sentence characterizing the field, register, and stakes of the material.
 ## Key Entities
 {key_entities_bullets_rules}
 
-## Relationships
-ASCII arrow graph. One relationship per line. Use ONLY these arrows:
-    A ---> B     A leads-to / causes / produces B
-    A <--- B     A depends-on / is-fed-by B
-    A <---> B    mutual / bidirectional
-    A ===> B     strong/strict dependency (must-have, blocking)
-    A -.-> B     weak / hypothesized / off-page / foreshadowed
-Right-pad the arrows so they line up visually (use spaces, not tabs).
-Append a short parenthetical label after each line explaining the relation
-in ≤ 6 words. Scale with document size: tiny/short docs 6-15 relationships;
-medium docs 12-25; large/xl docs 20-40.
-
 ## Hierarchy
 Indented bullet tree (2 spaces per level, max depth 3). Capture the
 parent→child decomposition of the dominant structure (parts of a system,
@@ -391,9 +357,20 @@ Do NOT restate surface facts. If you cannot produce a real cross-cutting
 insight, write fewer items rather than padding.
 
 ## Flowchart
-A rich, detailed "big-picture" flowchart rendering the SAME entities and
-relationships as the sections above in valid Mermaid syntax. This diagram
-is the primary visual map — favour completeness and depth over brevity.
+A rich, detailed "big-picture" flowchart that is the SOLE place where ALL
+relationships between entities are encoded. There is no separate Relationships
+section — every relationship, dependency, and connection MUST appear as an
+edge in this diagram. Favour completeness and depth over brevity.
+
+== NODE LABELS: TITLE + DESCRIPTION ==
+Every node MUST use a two-line label: a short bold title followed by a
+brief description on the next line. Use HTML labels (htmlLabels is enabled):
+  A["<b>Entity Name</b><br/><small>short description — role or key fact</small>"]
+- Title: entity name, ≤ 4 words, bold
+- Description: ≤ 8 words, lower contrast, explains the role, key trait, or significance
+- All node labels MUST be wrapped in double quotes when using HTML
+- Example (fiction): A["<b>Joanna Chylka</b><br/><small>adwokat obrony, strategia procesowa</small>"]
+- Example (legal):   B["<b>Wynagrodzenie</b><br/><small>18k PLN, platne do 10. dnia</small>"]
 
 == CORRELATION SCORES ON EDGES ==
 The raw material contains a "CHUNK PAIRWISE COSINE CORRELATION" section with

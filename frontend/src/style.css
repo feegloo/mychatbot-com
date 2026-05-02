@@ -386,7 +386,8 @@ a {
 }
 
 .conv-nav-search-btn {
-  visibility: hidden;
+  /* visibility: hidden; */
+  display: none;
   border: 1px solid rgba(148, 163, 184, 0.36);
   background: rgba(15, 23, 42, 0.5);
   color: #94a3b8;
@@ -1580,6 +1581,24 @@ textarea.big-input {
 .action-btn {
   text-wrap: nowrap !important;
   background: #242832 !important;
+}
+
+.upload-action-btn {
+  background: #a78bfa !important;
+  color: #fff !important;
+  border-color: #a78bfa !important;
+}
+
+@media (hover: hover) {
+  .upload-action-btn:hover {
+    background: #c4b5fd !important;
+    border-color: #c4b5fd !important;
+  }
+}
+
+.upload-action-btn:active {
+  background: #c4b5fd !important;
+  border-color: #c4b5fd !important;
 }
 
 .question-pill {
