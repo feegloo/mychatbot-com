@@ -29,7 +29,7 @@ import {
 } from '../repositories/conversations.js'
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
-import { describeUrl } from '../python/indexing.js'
+import { describeUrl, indexConversation } from '../python/indexing.js'
 import { onConversationEvent } from '../events.js'
 import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
@@ -449,7 +449,7 @@ conversationsRouter.post(
       collectionName: data.conversation.vector_collection_name,
       files: absolutePaths,
     })
-      .then(async (result) => {
+      .then(async (result: Awaited<ReturnType<typeof indexConversation>>) => {
         const welcomeMessage = result.parsedJson?.welcome_message || ''
         const fileMetadata = result.parsedJson?.file_metadata || {}
         if (welcomeMessage) {
@@ -471,7 +471,7 @@ conversationsRouter.post(
         }
         await updateConversationStatus(conversationId, 'ready')
       })
-      .catch(async (error) => {
+      .catch(async (error: Error) => {
         logger.error({ err: error, conversationId }, 'indexing error')
         await updateConversationStatus(conversationId, 'failed', error.message)
       })

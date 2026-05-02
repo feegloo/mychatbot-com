@@ -703,7 +703,13 @@ def build_social_media_image_prompt() -> dict:
             "(e) GLITTER SPARKLES — scatter ✨ glitter particle bursts around the subject "
             "without covering the face. "
             "Use for: party, celebratory, magical vibes. "
-            "If no overlay clearly fits, skip this step and go straight to the strip. "
+            "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
+            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve) around the subject's wrist, "
+            "sitting naturally on the skin. "
+            "It should look like a real accessory the person is wearing, not a sticker. "
+            "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
+            "If the wrist is not visible or the mood doesn't fit, skip this option. "
+            "If no overlay clearly fits, skip this step and go straight to the accent. "
 
             # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
             "THIRD, choose ONE of the following accent formats — pick what feels most natural "
