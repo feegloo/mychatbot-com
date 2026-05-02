@@ -529,7 +529,7 @@ WELCOME_MULTI_FILE_PREAMBLE_EN = (
 )
 
 WELCOME_MULTI_FILE_PREAMBLE_PL = (
-    "PRZESŁANIE WIELU PLIKÓW — JEDNOCZEŚNIE PRZESŁANO {num_files} PLIKI(ÓW)\n"
+    "PRZESŁANIE WIELU PLIKÓW — JEDNOCZEŚNIE PRZESŁANO {num_files} PLIKI\n"
     "Użytkownik przesłał {num_files} pliki jednocześnie. "
     "MUSISZ opisać WSZYSTKIE {num_files} pliki w tej jednej wiadomości powitalnej — nie skupiaj się tylko na pierwszym pliku.\n"
     "Treść poniżej podzielona jest na sekcje [File: nazwa] — po jednej na każdy przesłany plik. "

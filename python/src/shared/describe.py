@@ -1332,7 +1332,7 @@ def describe_documents(
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
-    num_unique_files = len(list(dict.fromkeys(fn for fn in file_names if fn)))
+    num_unique_files = len(dict.fromkeys(fn for fn in file_names if fn))
     all_text = "\n\n---\n\n".join(
         (doc.get("text") or "") for doc in extracted if (doc.get("text") or "").strip()
     )

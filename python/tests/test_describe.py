@@ -423,7 +423,8 @@ class TestEdgeCases:
         mock_llm = _make_mock_llm("# Single File\nOne document.")
         mock_get_llm.return_value = mock_llm
 
-        describe_documents(SAMPLE_EXTRACTED, SAMPLE_IMAGES, language="en")
+        single_file = [{"file_name": "only.pdf", "text": "Single document content."}]
+        describe_documents(single_file, [], language="en")
 
         system_text = _get_system_message_text(mock_llm)
         assert "MULTI-FILE UPLOAD" not in system_text
