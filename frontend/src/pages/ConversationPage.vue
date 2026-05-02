@@ -175,6 +175,7 @@
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
+            @paste="canUpload ? onPasteFile($event) : undefined"
           ></textarea>
           <button class="send-btn" :disabled="asking || !question.trim()" @click="submitQuestion">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1008,6 +1009,29 @@ function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
+}
+
+function onPasteFile(event: ClipboardEvent) {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  const files: File[] = []
+  for (const item of Array.from(items)) {
+    if (item.kind !== 'file') continue
+    const type = item.type
+    if (!type.startsWith('image/') && type !== 'application/pdf' && type !== 'text/plain') continue
+    const raw = item.getAsFile()
+    if (!raw) continue
+    // Pasted screenshots have an empty name; give them a readable timestamp-based name
+    const ext = type.split('/')[1] ?? 'bin'
+    const name = raw.name || `pasted-${Date.now()}.${ext}`
+    const file = raw.name ? raw : new File([raw], name, { type: raw.type })
+    files.push(file)
+  }
+
+  if (files.length === 0) return
+  event.preventDefault()
+  handleUploadFiles(files)
 }
 
 // --- Scroll position persistence ---
