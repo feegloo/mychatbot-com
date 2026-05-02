@@ -37,6 +37,15 @@ defineProps<{
  * the translated text animates. `*` is needed because descendants like
  * links or code spans set their own `color`, which wouldn't otherwise
  * fade alongside the wrapper's color.
+ *
+ * Action and prompt buttons (.actions-row, .prompts-row) are excluded from
+ * the color transition. Platform color emoji fonts (Apple Color Emoji,
+ * Segoe UI Emoji, Noto Color Emoji) don't always re-render emoji glyphs
+ * correctly when `color` transitions from transparent back to a visible
+ * value, causing emoji labels to remain invisible until the next full
+ * repaint (e.g. page refresh). Because action buttons are interactive
+ * elements that should always be readable, they are rendered outside the
+ * color-fade envelope entirely.
  */
 .fade-text-enter-active,
 .fade-text-enter-active *,
@@ -49,5 +58,17 @@ defineProps<{
 .fade-text-leave-to,
 .fade-text-leave-to * {
   color: transparent !important;
+}
+/* Override: keep action/prompt buttons and their contents at their normal
+   color so emoji glyphs are never subject to the color-fade. */
+.fade-text-enter-from .actions-row,
+.fade-text-enter-from .actions-row *,
+.fade-text-enter-from .prompts-row,
+.fade-text-enter-from .prompts-row *,
+.fade-text-leave-to .actions-row,
+.fade-text-leave-to .actions-row *,
+.fade-text-leave-to .prompts-row,
+.fade-text-leave-to .prompts-row * {
+  color: inherit !important;
 }
 </style>
