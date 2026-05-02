@@ -379,6 +379,55 @@ class TestEdgeCases:
         # Verify invoke was called (prompt construction didn't crash)
         assert len(mock_llm.captured) == 1
 
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_multi_file_uses_multi_file_system_prompt(self, _mock_lang, mock_get_llm):
+        """When 2+ distinct files are uploaded, the multi-file preamble must be prepended."""
+        mock_llm = _make_mock_llm("# Two Files\nBoth documents covered.")
+        mock_get_llm.return_value = mock_llm
+
+        extracted = [
+            {"file_name": "doc1.pdf", "text": "First document content about topic A."},
+            {"file_name": "doc2.pdf", "text": "Second document content about topic B."},
+        ]
+
+        describe_documents(extracted, [], language="en")
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "MULTI-FILE UPLOAD" in system_text
+        assert "2 FILES" in system_text
+        assert "ALL 2 files" in system_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="pl")
+    def test_multi_file_uses_polish_multi_file_preamble(self, _mock_lang, mock_get_llm):
+        """When 2+ files are uploaded with Polish language, the Polish multi-file preamble is used."""
+        mock_llm = _make_mock_llm("# Dwa Pliki\nOba dokumenty opisane.")
+        mock_get_llm.return_value = mock_llm
+
+        extracted = [
+            {"file_name": "plik1.pdf", "text": "Treść pierwszego dokumentu."},
+            {"file_name": "plik2.pdf", "text": "Treść drugiego dokumentu."},
+        ]
+
+        describe_documents(extracted, [], language="pl")
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "WIELU PLIKÓW" in system_text
+        assert "2 PLIKI" in system_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_single_file_does_not_use_multi_file_preamble(self, _mock_lang, mock_get_llm):
+        """Single-file uploads must NOT include the multi-file preamble."""
+        mock_llm = _make_mock_llm("# Single File\nOne document.")
+        mock_get_llm.return_value = mock_llm
+
+        describe_documents(SAMPLE_EXTRACTED, SAMPLE_IMAGES, language="en")
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "MULTI-FILE UPLOAD" not in system_text
+
 
 # ---------------------------------------------------------------------------
 # Retry logic

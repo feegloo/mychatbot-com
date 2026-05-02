@@ -19,6 +19,8 @@ from .llm_instrument import traced_llm_call
 from .prompts.welcome import (
     MINDMAP_RULES_EN,
     MINDMAP_RULES_PL,
+    WELCOME_MULTI_FILE_PREAMBLE_EN,
+    WELCOME_MULTI_FILE_PREAMBLE_PL,
     WELCOME_QUESTIONS_RULES_EN,
     WELCOME_QUESTIONS_RULES_PL,
     WELCOME_SYSTEM_EN,
@@ -1330,6 +1332,7 @@ def describe_documents(
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
+    num_unique_files = len(list(dict.fromkeys(fn for fn in file_names if fn)))
     all_text = "\n\n---\n\n".join(
         (doc.get("text") or "") for doc in extracted if (doc.get("text") or "").strip()
     )
@@ -1620,17 +1623,28 @@ def describe_documents(
     if combined == _NO_TEXT_PLACEHOLDER and _identification_section:
         effective_metadata_section = metadata_section + _identification_section
 
+    # When multiple files are uploaded simultaneously, prepend a preamble that
+    # explicitly instructs the LLM to describe ALL files and find connections.
+    if num_unique_files > 1:
+        preamble = (
+            WELCOME_MULTI_FILE_PREAMBLE_PL if language == "pl" else WELCOME_MULTI_FILE_PREAMBLE_EN
+        ).format(num_files=num_unique_files)
+        system_prompt = preamble + (WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN)
+        logger.info(f"📂 Multi-file welcome: using multi-file prompt for {num_unique_files} files")
+    else:
+        system_prompt = WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN
+
     if language == "pl":
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", WELCOME_SYSTEM_PL),
+                ("system", system_prompt),
                 ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
             ]
         )
     else:
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", WELCOME_SYSTEM_EN),
+                ("system", system_prompt),
                 ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
             ]
         )
