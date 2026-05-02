@@ -42,7 +42,7 @@ Always write the list and all [action:...] labels in this conversation language.
 == QUESTION ==
 "{{question}}"
 
-Your task: scan the retrieved context and produce a structured bullet list of the most important facts, entities, and concepts in this document.
+Your task: scan the retrieved context and produce a structured bullet list of the most important facts, entities, and concepts. If the question names a specific topic or subject (e.g., "main components of Transformer", "key characters", "training details"), FOCUS the list on that topic rather than covering the whole document. If the question is generic (e.g., "list key facts", "key entities"), cover the whole document.
 
 == PEOPLE FIRST ==
 Always start the bullet list with key people:

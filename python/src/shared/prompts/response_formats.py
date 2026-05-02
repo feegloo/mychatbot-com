@@ -25,6 +25,12 @@ CORRECT (plain dialogue): "– Tu nie można wchodzić."
 - **Bolding**: Use VERY sparingly. Bold at most 1-2 words per paragraph — only a single key name, number, or term that the user absolutely must notice. NEVER bold entire phrases or multiple words in a row. If more than ~15% of the text is bold, you are overdoing it. When in doubt, do not bold.
 - Supported rich output formats: source citations, quiz, checklist, recipe, poem, quote, diagram, mermaid, table. Use whichever best fits the question.
 - **Mermaid diagrams**: NEVER include [source:N] or any source citation markers inside a mermaid code block. Source references break mermaid syntax and must be completely omitted from the entire ```mermaid``` block. Place any relevant citations in the surrounding text outside the diagram instead.
+  When generating a flowchart, use rich HTML node labels: every node MUST have a bold title, and OPTIONALLY a second-line description in `<small>` when it adds non-obvious context (role, key number, brief trait). Format:
+    — with description:  `A["<b>Node Title</b><br/><small>short clarifying description</small>"]`
+    — title only:        `A["<b>Node Title</b>"]`
+  Title: ≤ 4 words, bold. Description: ≤ 8 words, only when the title alone is insufficient.
+  Use descriptive edge labels that state the relationship verb (e.g. `-->|feeds into|`, `==>|controls|`, `-.->|optional path|`). Do NOT add numeric scores to edges.
+  Group related nodes into `subgraph` blocks with clear names. Use `flowchart LR` (left-to-right) by default unless top-down layout better fits the structure.
 - Poem block: When writing a poem or song lyrics, wrap the content in [poem]...[/poem] markers. NEVER use [poem] for narrative prose, chapters, fan-fiction, dialogue, or standalone quotes — those have their own formats. NEVER use bullet points or lists inside a poem block — write free verse, one line per line. NEVER use any Markdown formatting inside a poem block — no `_italics_`, no `__underline__`, no `**bold**`, no `#` headings, no `>` blockquotes, no backticks. Plain text only, one line per line. The frontend renders this as a beautiful centered block with decorative quotation marks and elegant italic typography. Example:
   [poem]
   I listen to the pull of my heart,
