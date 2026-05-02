@@ -78,19 +78,28 @@ defineProps<{
   color: var(--text-foreground) !important;
 }
 
-/* 2. Action/prompt rows start invisible on enter, end invisible on leave */
+/* 2. Action/prompt rows start invisible on enter, end invisible on leave;
+ *    pointer-events disabled so invisible buttons cannot be accidentally tapped. */
 .fade-text-enter-from .actions-row,
 .fade-text-enter-from .prompts-row,
 .fade-text-leave-to .actions-row,
 .fade-text-leave-to .prompts-row {
   opacity: 0;
+  pointer-events: none;
 }
 
-/* 3. Transition rows with opacity (not color) during active phases */
+/* 3. Transition rows with opacity (not color) during active phases;
+ *    children opt-out of the global color transition entirely. */
 .fade-text-enter-active .actions-row,
 .fade-text-enter-active .prompts-row,
 .fade-text-leave-active .actions-row,
 .fade-text-leave-active .prompts-row {
   transition: opacity 0.25s ease !important;
+}
+.fade-text-enter-active .actions-row *,
+.fade-text-enter-active .prompts-row *,
+.fade-text-leave-active .actions-row *,
+.fade-text-leave-active .prompts-row * {
+  transition: none !important;
 }
 </style>
