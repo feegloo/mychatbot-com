@@ -17,6 +17,11 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "chat.agent.maxRequests": 500,
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Generate a single concise sentence commit message in the imperative mood (e.g. 'Add login page'). No bullet points, no line breaks, no body, no footer — just one sentence."
+    }
+  ],
   "chat.mcp.serverSampling": {
     "chatrag-app/.vscode/mcp.json: sentry": {
       "allowedModels": ["copilot/auto", "copilotcli/claude-sonnet-4.6"]
