@@ -967,10 +967,10 @@ watch(
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 50%;
+  border-radius: 4px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 20px;
+  color: white;
+  font-size: 32px;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -978,16 +978,15 @@ watch(
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
-  transition: background 0.15s;
 }
 
 @media (hover: hover) {
   .pdf-close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #334155;
   }
 }
 
 .pdf-close-btn:active {
-  background: rgba(255, 255, 255, 0.28);
+  background: #334155;
 }
 </style>

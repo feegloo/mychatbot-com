@@ -264,13 +264,13 @@ flowchart LR
   subgraph StarkHousehold
     Ned["<b>Ned Stark</b><br/><small>Lord Winterfell, executes justice</small>"]
     Bran["<b>Bran Stark</b><br/><small>7yo POV, inherits lordship lesson</small>"]
-    Robb["<b>Robb Stark</b><br/><small>heir, older brother</small>"]
+    Robb["<b>Robb Stark</b>"]
     Jon["<b>Jon Snow</b><br/><small>bastard, marginal belonging</small>"]
     Theon["<b>Theon Greyjoy</b><br/><small>ward, cynical foil</small>"]
   end
   subgraph Symbolism
     Direwolves["<b>Direwolf Pups x6</b><br/><small>one per Stark child + Jon</small>"]
-    StarkChildren["<b>Stark Children x5</b><br/><small>trueborn heirs of Winterfell</small>"]
+    StarkChildren["<b>Stark Children x5</b>"]
     AlbinoRunt["<b>Albino Runt</b><br/><small>Jon's direwolf, mirrors bastard status</small>"]
     StarkHonor["<b>Stark Honor</b><br/><small>face-to-face justice ethos</small>"]
   end
@@ -362,15 +362,21 @@ relationships between entities are encoded. There is no separate Relationships
 section — every relationship, dependency, and connection MUST appear as an
 edge in this diagram. Favour completeness and depth over brevity.
 
-== NODE LABELS: TITLE + DESCRIPTION ==
-Every node MUST use a two-line label: a short bold title followed by a
-brief description on the next line. Use HTML labels (htmlLabels is enabled):
-  A["<b>Entity Name</b><br/><small>short description — role or key fact</small>"]
+== NODE LABELS: TITLE + OPTIONAL DESCRIPTION ==
+Every node MUST have a bold title. Add a second-line description ONLY when
+it provides information not evident from the title alone (role disambiguation,
+key numerical fact, non-obvious trait). Omit it for self-explanatory names.
+Use HTML labels (htmlLabels is enabled):
+  — with description:    A["<b>Entity Name</b><br/><small>short description — role or key fact</small>"]
+  — title only (default): A["<b>Entity Name</b>"]
 - Title: entity name, ≤ 4 words, bold
-- Description: ≤ 8 words, lower contrast, explains the role, key trait, or significance
+- Description (optional): ≤ 8 words, lower contrast, explains role, key trait, or significance.
+  Add only when it genuinely clarifies — e.g. "18k PLN, due 10th", "causal mask, left-only".
+  Skip for nodes where the name already speaks for itself (e.g. a character name in fiction).
 - All node labels MUST be wrapped in double quotes when using HTML
-- Example (fiction): A["<b>Joanna Chylka</b><br/><small>adwokat obrony, strategia procesowa</small>"]
-- Example (legal):   B["<b>Wynagrodzenie</b><br/><small>18k PLN, platne do 10. dnia</small>"]
+- Example (fiction, description needed):   A["<b>Joanna Chylka</b><br/><small>adwokat obrony, strategia procesowa</small>"]
+- Example (fiction, description skipped):  B["<b>Jon Snow</b>"]
+- Example (legal, description needed):     C["<b>Wynagrodzenie</b><br/><small>18k PLN, platne do 10. dnia</small>"]
 
 == CORRELATION SCORES ON EDGES ==
 The raw material contains a "CHUNK PAIRWISE COSINE CORRELATION" section with

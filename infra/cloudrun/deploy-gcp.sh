@@ -480,6 +480,13 @@ hostRules:
 pathMatchers:
   - name: chatrag-paths
     defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+    defaultCustomErrorResponsePolicy:
+      errorService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+      errorResponseRules:
+        - matchResponseCodes:
+            - '404'
+          path: /index.html
+          overrideResponseCode: 200
     pathRules:
       - paths:
           - /api/*

@@ -713,7 +713,7 @@ def build_social_media_image_prompt() -> dict:
             "Other strong pairs (use as inspiration): 🎀🧸 😘🍑 🫦🔥, 💄💋, 😘🍑, 💕😈, "
             "✨😘, 😋🍒, 🍑🍒, 👄🔥, 💅🛍️, 🥂😘, 🍸😈, 🩵❤️🩵, "
             "🛍️😏, 💫🐹, 💖😏, 😈🔥, 🩷💋. "
-            "Available palette: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 💋 👄 🫦 😇 "
+            "Available palette: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
             "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
             "🌸 🌈 🦋 🎶 🧖‍♀️ 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
             "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺. "
