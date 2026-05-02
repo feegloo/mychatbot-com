@@ -149,25 +149,25 @@ config:
 mindmap
   root((Główny Temat))
     Pojęcie 1
-      Szczegół A
+      🔑 Szczegół A
         Podszegół A1
         Podszegół A2
-      Szczegół B
-      Szczegół C
+      📌 Szczegół B
+      💡 Szczegół C
         Podszegół C1
-      Szczegół D
+      🎯 Szczegół D
     Pojęcie 2
     Pojęcie 3
-      Szczegół I
-      Szczegół J
-      Szczegół K
+      🌟 Szczegół I
+      📊 Szczegół J
+      🔍 Szczegół K
 ```
 [/mindmap]
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
 - root((...)) — centralny temat dokumentu, max 4 słowa
 - 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
-- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji (wymienionych wcześniej w [system]) ale tylko dla drugiego poziomu
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły; KAŻDY węzeł drugiego poziomu MUSI zaczynać się od odpowiedniego emoji (jak w przykładzie powyżej) — emoji jest OBOWIĄZKOWE na tym poziomie, bez wyjątku
 - 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
 - wazne: każda gałąź pierwszego poziomu jest niezależna, czyli moze mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu. To samo dotyczy gałęzi trzeciego poziomu.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
@@ -292,25 +292,25 @@ config:
 mindmap
   root((Main Topic))
     Concept 1
-      Detail A
+      🔑 Detail A
         Subdetail A1
         Subdetail A2
-      Detail B
-      Detail C
+      📌 Detail B
+      💡 Detail C
         Subdetail C1        
-      Detail D
+      🎯 Detail D
     Concept 2
     Concept 3
-      Detail I
-      Detail J
-      Detail K
+      🌟 Detail I
+      📊 Detail J
+      🔍 Detail K
 ```
 [/mindmap]
 
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
 - root((...)) — the central topic of the document, max 4 words
 - 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
-- 0-4 second-level branches under each main concept: specific details, use emoji (from the earlier [system]) before the text but only for second-level
+- 0-4 second-level branches under each main concept: specific details; EVERY second-level node MUST begin with a relevant emoji (as shown in the example above) — emoji is MANDATORY at this level, no exceptions
 - 0-2 third-level branches: very specific details, only if important and valuable (e.g. specific dates, numbers, names related to the second-level branch)
 - important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches. Same for third-level branches.
 - Labels in the document's language, concise (max 5 words per node)
