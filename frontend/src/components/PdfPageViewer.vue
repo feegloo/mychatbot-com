@@ -29,7 +29,7 @@
         class="pdf-tool-btn pdf-tool-btn--text"
         @click="emit('openPdf')"
       >
-        Open PDF
+        Otwórz PDF
       </button>
       <span v-if="showOpenPdf" class="pdf-toolbar-divider" aria-hidden="true" />
 
@@ -61,18 +61,8 @@
 
       <template v-if="showClose">
         <span class="pdf-toolbar-divider" aria-hidden="true" />
-        <button class="pdf-tool-btn" aria-label="Close" @click="emit('close')">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+        <button class="pdf-tool-btn pdf-tool-btn--text" aria-label="Zamknij" @click="emit('close')">
+          Zamknij ✕
         </button>
       </template>
     </div>
