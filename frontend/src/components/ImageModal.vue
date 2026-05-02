@@ -93,7 +93,12 @@ defineEmits<{
 
 /* On mobile: show button in-flow above the image, aligned right */
 @media (max-width: 768px) {
+  .image-modal-overlay {
+    padding: 0;
+  }
+
   .image-modal-content {
+    width: 100vw;
     max-width: 100vw;
   }
 
@@ -105,6 +110,7 @@ defineEmits<{
   }
 
   .image-modal-img {
+    width: 100vw;
     max-width: 100vw;
   }
 }

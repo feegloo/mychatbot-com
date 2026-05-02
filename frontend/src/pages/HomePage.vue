@@ -337,7 +337,10 @@ async function submitQuestion() {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      reactiveMsg.content = t.value.imageGenError
+      const openaiMessage = (err as any)?.openaiMessage
+      reactiveMsg.content = openaiMessage
+        ? `${t.value.imageGenError}\n\n> ${openaiMessage}`
+        : t.value.imageGenError
     } else {
       const { message, raw } = extractError(err)
       reactiveMsg.content = `⚠️ Error: ${message}\n\n<details><summary>Show details</summary>\n\n\`\`\`\n${raw}\n\`\`\`\n</details>`

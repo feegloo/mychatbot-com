@@ -17,15 +17,27 @@
       </button>
     </div>
 
-    <!-- Default donate button -->
-    <button v-else-if="canDonate" class="conv-nav-donate" :disabled="stripeInitializing" @click="handleDonate">
-      {{ stripeInitializing ? '...' : 'Donate 1$' }}
-    </button>
+    <!-- Default donate button with amount picker -->
+    <div v-else-if="canDonate" class="donate-amount-row">
+      <span class="donate-currency">$</span>
+      <input
+        v-model.number="donationAmount"
+        type="number"
+        min="1"
+        max="1000"
+        step="1"
+        class="donate-amount-input"
+        @click.stop
+      />
+      <button class="conv-nav-donate" :disabled="stripeInitializing" @click="handleDonate">
+        {{ stripeInitializing ? '...' : 'Donate' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { type Stripe, type PaymentRequest } from '@stripe/stripe-js'
 import axios from 'axios'
 
@@ -40,6 +52,7 @@ const showMethods = ref(false)
 const hasApplePay = ref(false)
 const stripeInitialized = ref(false)
 const stripeInitializing = ref(false)
+const donationAmount = ref(1)
 
 let stripeInstance: Stripe | null = null
 let paymentRequest: PaymentRequest | null = null
@@ -128,7 +141,7 @@ async function initStripe() {
     paymentRequest = stripeInstance.paymentRequest({
       country: 'US',
       currency: 'usd',
-      total: { label: 'ChatRAG Donation', amount: 100 },
+      total: { label: 'ChatRAG Donation', amount: donationAmount.value * 100 },
       requestPayerName: false,
       requestPayerEmail: false,
     })
@@ -139,7 +152,7 @@ async function initStripe() {
 
       paymentRequest.on('paymentmethod', async (ev) => {
         try {
-          const { data } = await api.post('/donate')
+          const { data } = await api.post('/donate', { amount: donationAmount.value })
           const { error } = await stripeInstance!.confirmCardPayment(
             data.clientSecret,
             { payment_method: ev.paymentMethod.id },
@@ -157,6 +170,12 @@ async function initStripe() {
       })
     }
     stripeInitialized.value = true
+
+    watch(donationAmount, (newVal) => {
+      if (paymentRequest) {
+        paymentRequest.update({ total: { label: 'ChatRAG Donation', amount: newVal * 100 } })
+      }
+    })
   } finally {
     stripeInitializing.value = false
   }
@@ -182,7 +201,7 @@ async function handleMethodClick(method: PaymentMethod) {
   // All other methods → Stripe Checkout
   try {
     const returnUrl = window.location.origin + window.location.pathname
-    const { data } = await api.post('/donate/checkout', { returnUrl })
+    const { data } = await api.post('/donate/checkout', { returnUrl, amount: donationAmount.value })
     if (data.url) {
       window.location.href = data.url
     }

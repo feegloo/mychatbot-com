@@ -1,8 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatMessage from '../../src/components/ChatMessage.vue'
 import { vDropdownHideSpy } from '../setup'
+
+vi.mock('../../src/api', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return { ...actual, getStorageUrl: (_cid: string, name: string) => `/files/${name}` }
+})
 
 function baseProps() {
   return {
@@ -176,6 +181,96 @@ describe('ChatMessage — image citations deduplication', () => {
     })
     await nextTick()
     expect(wrapper.findAll('.citation-image-thumb').length).toBe(0)
+  })
+})
+
+describe('ChatMessage — openFilePreview SVG stretch', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  function welcomeProps(file: {
+    id: string
+    originalName: string
+    mimeType: string | null
+    url: string
+  }) {
+    return {
+      msg: { role: 'assistant' as const, content: 'Welcome!' },
+      asking: false,
+      conversationId: 'abc123',
+      isWelcome: true,
+      files: [file],
+    }
+  }
+
+  async function openFirstFile(file: {
+    id: string
+    originalName: string
+    mimeType: string | null
+    url: string
+  }) {
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: welcomeProps(file),
+    })
+    await nextTick()
+
+    // Emit the `open` event on PreviewFiles to simulate a click
+    const previewFiles = wrapper.findComponent({ name: 'PreviewFiles' })
+    expect(previewFiles.exists()).toBe(true)
+    await previewFiles.vm.$emit('open', file)
+    await nextTick()
+
+    return wrapper
+  }
+
+  it('opens ImageModal with stretch=true for SVG with image/svg+xml MIME type', async () => {
+    await openFirstFile({
+      id: '1',
+      originalName: 'diagram.svg',
+      mimeType: 'image/svg+xml',
+      url: '/files/diagram.svg',
+    })
+    const img = document.body.querySelector('.image-modal-img')
+    expect(img).not.toBeNull()
+    expect(img!.classList.contains('image-modal-img--stretch')).toBe(true)
+  })
+
+  it('opens ImageModal with stretch=true for SVG with missing MIME type (extension fallback)', async () => {
+    await openFirstFile({
+      id: '2',
+      originalName: 'diagram.svg',
+      mimeType: null,
+      url: '/files/diagram.svg',
+    })
+    const img = document.body.querySelector('.image-modal-img')
+    expect(img).not.toBeNull()
+    expect(img!.classList.contains('image-modal-img--stretch')).toBe(true)
+  })
+
+  it('opens ImageModal with stretch=true for SVG with incorrect MIME type (extension fallback)', async () => {
+    await openFirstFile({
+      id: '3',
+      originalName: 'diagram.svg',
+      mimeType: 'application/octet-stream',
+      url: '/files/diagram.svg',
+    })
+    const img = document.body.querySelector('.image-modal-img')
+    expect(img).not.toBeNull()
+    expect(img!.classList.contains('image-modal-img--stretch')).toBe(true)
+  })
+
+  it('opens ImageModal without stretch for regular images', async () => {
+    await openFirstFile({
+      id: '4',
+      originalName: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      url: '/files/photo.jpg',
+    })
+    const img = document.body.querySelector('.image-modal-img')
+    expect(img).not.toBeNull()
+    expect(img!.classList.contains('image-modal-img--stretch')).toBe(false)
   })
 })
 

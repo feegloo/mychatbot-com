@@ -228,10 +228,14 @@ function setupTooltips() {
 // Re-attach after every render that could swap out the citation buttons:
 // content string changes (new message or translation) and citations array
 // changes (streaming in).
+const isMounted = ref(false)
+onMounted(() => { isMounted.value = true })
+
 watch(
   () => [props.content, props.citations] as const,
   () => {
     nextTick(() => {
+      if (!isMounted.value) return
       setupTooltips()
       restoreChecklistState()
     })
@@ -272,6 +276,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  isMounted.value = false
   cleanupTooltips()
   rootEl.value?.removeEventListener('load', onImageLoadCapture, true)
 })
@@ -296,7 +301,7 @@ onBeforeUnmount(() => {
         :file-name="fileName"
         :lang="lang"
       />
-      <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+      <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" :initial-zoom="4.5" />
     </template>
 
     <div v-if="hasPrompts" class="prompts-row">

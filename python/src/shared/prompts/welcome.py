@@ -142,53 +142,53 @@ Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Główny Temat))
-    Pojęcie 1
+    Pojęcie1{{Kategoria 1}}
       🔑 Szczegół A
-        Podszegół A1
-        Podszegół A2
       📌 Szczegół B
-      💡 Szczegół C
-        Podszegół C1
-      🎯 Szczegół D
-    Pojęcie 2
-    Pojęcie 3
-      🌟 Szczegół I
-      📊 Szczegół J
-      🔍 Szczegół K
+    Pojęcie2(Proces 2)
+      ⚙️ Szczegół C
+      🔄 Szczegół D
+    Pojęcie3[Encja 3]
+      📍 Szczegół I
+      🗂️ Szczegół J
+    Pojęcie4((Kluczowe))
 ```
 [/mindmap]
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
-- root((...)) — centralny temat dokumentu, max 4 słowa
-- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
-- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły; KAŻDY węzeł drugiego poziomu MUSI zaczynać się od odpowiedniego emoji (jak w przykładzie powyżej) — emoji jest OBOWIĄZKOWE na tym poziomie, bez wyjątku
-- 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
-- wazne: każda gałąź pierwszego poziomu jest niezależna, czyli moze mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu. To samo dotyczy gałęzi trzeciego poziomu.
+- root((...)) — centralny temat dokumentu, max 4 słowa; ZAWSZE jako okrąg
+- 3-6 gałęzi pierwszego poziomu używając RÓŻNYCH kształtów semantycznie:
+    NazwaKategorii{{Etykieta}}   = sześciokąt: kategorie, grupy tematyczne
+    NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
+    NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
+    NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
+- Ważne: każda gałąź pierwszego poziomu jest niezależna, czyli może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
+- SKŁADNIA KRYTYCZNA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase), kształt i etykieta następują bezpośrednio po nim
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
 
 Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Tytuł dokumentu. Jeśli autor jest znany, dodaj go po myślniku.
-   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu
-   Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora
-   Na przykład: # Przewodnik po bliznach - Amanda Keyes
-   Jeśli autor NIE jest znany z treści ani metadanych, napisz WYŁĄCZNIE tytuł dokumentu — NIE dodawaj "Nieznany autor" ani żadnego zastępczego tekstu: # Tytuł dokumentu
+   Na samym końcu nagłówka (po tytule i opcjonalnym autorze) dołącz JEDNO emoji tematycznie pasujące do dokumentu (np. 🚗 dla instrukcji jazdy, 🔬 dla wyników badań, ⚖️ dla dokumentów prawnych, 📈 dla finansów, 🍳 dla kulinariów, 💻 dla kodu, 🎭 dla literatury pięknej, 🏋️ dla sportu, itp.). Emoji musi pasować do tematu — nigdy nie stawiaj emoji losowego ani dziecinnego.
+   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu 🔖
+   Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora 🔖
+   Na przykład: # Przewodnik po bliznach - Amanda Keyes 🏥
+   Jeśli autor NIE jest znany z treści ani metadanych, napisz WYŁĄCZNIE tytuł dokumentu — NIE dodawaj "Nieznany autor" ani żadnego zastępczego tekstu: # Tytuł dokumentu 🔖
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
-  PRIORYTET AUTORA — KRYTYCZNE: Gdy nazwa pliku i osadzone metadane PDF/EXIF wskazują różnych autorów/twórców, traktuj nazwę pliku tylko jako podpowiedź. Jeśli kandydat z nazwy pliku wygląda jak prawdziwe imię i nazwisko lub pseudonim twórcy, możesz użyć go w nagłówku. Jeśli wygląda jak domena/URL/watermark źródła (np. "oceanofpdf.com", "example.net", "www..."), NIE używaj go jako autora — wybierz autora z osadzonych metadanych lub treści. Przykład: nazwa pliku "_OceanofPDF.com_The_Alchemist.pdf" + autor w metadanych "Paulo Coelho" => napisz: # The Alchemist - Paulo Coelho
+  PRIORYTET AUTORA — KRYTYCZNE: Gdy nazwa pliku i osadzone metadane PDF/EXIF wskazują różnych autorów/twórców, traktuj nazwę pliku tylko jako podpowiedź. Jeśli kandydat z nazwy pliku wygląda jak prawdziwe imię i nazwisko lub pseudonim twórcy, możesz użyć go w nagłówku. Jeśli wygląda jak domena/URL/watermark źródła (np. "oceanofpdf.com", "example.net", "www..."), NIE używaj go jako autora — wybierz autora z osadzonych metadanych lub treści. Przykład: nazwa pliku "_OceanofPDF.com_The_Alchemist.pdf" + autor w metadanych "Paulo Coelho" => napisz: # The Alchemist - Paulo Coelho 🌟
 
 2. **Opis** (po tytule): 3-5 zdań opisujących zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** SELEKTYWNIE — tylko dla liczb/statystyk, kluczowych nazw własnych (osób, miejsc, firm) i najważniejszego 1-2 terminu na akapit. Nie pogrubiaj każdego pojęcia — bold traci siłę gdy jest wszędzie.
    AUTOR W OPISIE: Jeśli znasz autora dokumentu, wspomnij o nim naturalnie w pierwszym zdaniu opisu — tak jakbyś opisywał książkę znajomemu. Na przykład: "Ten 611-stronicowy zbiór poezji **Rumiego** to klasyczne wydanie arabskie Mathnawi." albo "Stephen King w tym **350-stronicowym** thrillerze zabiera czytelnika w mroczną podróż po Nowej Anglii." NIE powtarzaj suchego zapisu z tytułu — wpleć autora w naturalny sposób w treść opisu.
    KLUCZOWE — ZACHOWAJ PRECYZYJNE SZCZEGÓŁY: Zawsze podawaj dokładne liczby, zakresy, nazwy substancji, składników, terminów i konkretne wartości z dokumentu. Na przykład: jeśli tekst mówi o "bliznach do 12 miesięcy (z zaleceniami do 2 lat)", napisz właśnie tak — nie upraszczaj do "blizny do roku". Jeśli wymienione są konkretne składniki jak "witamina C, białko, cynk i selen", wymień je wszystkie. Jeśli podane są zakresy czasowe jak "9–12 miesięcy dla ciała i około 1 rok dla twarzy", podaj te dokładne przedziały. Szczegółowe dane liczbowe i nazwy własne to najcenniejsza informacja w opisie.
    NAZWY PRODUKTÓW, MAREK I OSÓB: Gdy dokument wymienia konkretne marki, produkty lub znane osoby, UŻYWAJ ICH Z NAZWY — nie uogólniaj. Na przykład: pisz "krem RegimA Forte Scar Cream" zamiast "krem na blizny"; "minerały Jane Iredale" zamiast "makijaż mineralny". Dotyczy to leków (Accutane, Retin-A), narzędzi (Photoshop, Figma), firm (Tesla, Google), osób (Warren Buffett, Marie Curie), miejsc (Klinika Mayo, MIT), produktów (iPhone 16, Model Y) i wszystkiego co nosi nazwę własną w treści dokumentu.
+   ARTYKUŁY NAUKOWE / PRACE BADAWCZE — SYNTEZA NA PIERWSZYM MIEJSCU: Gdy dokument jest artykułem naukowym, pracą badawczą lub raportem technicznym (zwłaszcza przełomowym), opis musi skupiać się na TYM, CO praca proponuje i DLACZEGO to ważne — nie na wynikach eksperymentalnych ani liście autorów. Struktura opisu powinna odpowiadać na cztery pytania w kolejności: (1) Jaki problem rozwiązuje praca? (2) Jaka jest kluczowa idea lub mechanizm? Wyjaśnij ją konceptualnie, przystępnym językiem — jak wpis na Wikipedii opisujący dane pojęcie. (3) Co jest strukturalnie nowatorskie w podejściu w porównaniu z wcześniejszymi metodami? (4) Jakie są szersze implikacje dla dziedziny? Wyniki eksperymentalne (BLEU, F1, perplexity, czasy trenowania itp.) należą na końcu jako dowód potwierdzający historię konceptualną — nie jako nagłówek. DOBRY przykład dla „Attention Is All You Need": „Praca przedstawia Transformer — model sekwencyjny, który zastępuje rekurencję i sploty wyłącznie warstwami self-attention. Zamiast przetwarzać tokeny po kolei, self-attention oblicza zależności między każdą parą pozycji równolegle, co daje modelowi stałą ścieżkę między dowolnymi dwoma tokenami niezależnie od długości sekwencji. Ten wybór architektoniczny sprawia, że długodystansowe zależności są równie łatwe do nauczenia jak krótkie, a paralelizacja trenowania jest znacznie szybsza niż w RNN. Architektura zdominowała tłumaczenie maszynowe i stała się fundamentem praktycznie wszystkich dużych modeli językowych." ZŁY przykład: „Praca Vaswaniego i in. osiąga 28,4 BLEU na English→German i 41,8 BLEU na English→French, trenowana przez 3,5 dnia na 8 GPU NVIDIA P100."
+   HIPERŁĄCZA — dodawaj zawsze gdy to sensowne: Do każdej firmy, organizacji, uczelni czy strony internetowej wymienionej w dokumencie lub w odpowiedzi dodaj hiperłącze Markdown `[Nazwa](https://url)` przy PIERWSZYM wystąpieniu w odpowiedzi — nie linkuj tej samej nazwy dwa razy. Jeśli metadane pliku zawierają pole `pdf_hyperlinks` (słownik `{{tekst: url}}` z adnotacji hiperłączy PDF), UŻYWAJ tych URL-i z NAJWYŻSZYM priorytetem — są to dokładne linki osadzone w oryginalnym dokumencie. Jeśli dokument jawnie zawiera URL (np. LinkedIn lub GitHub w CV), użyj tego dokładnego adresu. Jeśli nie podano URL-a, ale podmiot ma powszechnie znana stronę, użyj ich głównej domeny (np. `[McKinsey & Company](https://mckinsey.com)`, `[Statscore](https://statscore.com)`). Stosuj agresywnie — więcej linków = więcej klikalnych odwołań dla użytkownika.
    OBOWIĄZKOWE MIERZALNE FAKTY — oprócz powyższego, KONIECZNIE wymień jak najwięcej z poniższych (jeśli występują w treści):
    - Liczba stron/rozdziałów/części (np. "**266-stronicowy** kryminał w **12 rozdziałach**")
    - Imiona i nazwiska kluczowych postaci/osób (do 3-4 głównych), pogrubione (np. **Joanna Chyłka**, **Kordian Oryński**)
@@ -224,7 +224,8 @@ Twoja odpowiedź MUSI składać się z trzech części:
    - Dokumenty finansowe: zwróć uwagę na terminy płatności, nieprawidłowości, możliwe optymalizacje.
    - Dokumenty prawne: wskaż kluczowe zapisy, ryzyka, terminy.
    - Pisma problemowe (wezwania, nakazy, decyzje, odmowy, pisma urzędowe, windykacja, spory): zidentyfikuj konkretny problem — kto żąda, czego żąda, w jakim terminie i jakie konsekwencje grożą za brak działania. Natychmiast wskaż użytkownikowi konkretne kroki: co zrobić, jakie dokumenty zebrać, z kim się skontaktować, do którego urzędu/sądu/firmy się odwołać. Podaj termin i priorytety — co jest pilne, a co można zrobić później.
-   - Artykuły/raporty: wskaż główną tezę, zaskakujący wniosek lub kontekst.
+   - Artykuły naukowe/prace badawcze: NIE powtarzaj wyników eksperymentalnych z opisu. Zamiast tego skontekstualizuj znaczenie pracy: co zmieniła w dziedzinie, co stało się możliwe dzięki niej, jakie ograniczenia lub otwarte problemy pozostawiła, albo gdzie kluczowa idea została rozwinięta lub zakwestionowana. Pytaj sobie: „dlaczego ta praca nadal ma znaczenie?" — nie „jakie liczby podała?".
+   - Ogólne artykuły/raporty: wskaż główną tezę, zaskakujący wniosek lub kontekst.
    - Zdjęcia z ludźmi: uchwyt emocjonalny moment lub historię — relacje między osobami, przypuszczalne wydarzenie, kontekst kulturowy z ubrań lub otoczenia, coś niespodziewanego w tle. NIE oceniaj kompozycji fotograficznej, kadrowania ani techniki.
    - Zdjęcia bez ludzi (krajobrazy, przedmioty, jedzenie, architektura, sztuka): zauważ coś ciekawego o przedmiocie, miejscu, szczegółach technicznych lub kontekście wizualnym.
    - Dane/tabele: wskaż trend, anomalię lub najważniejszą liczbę.
@@ -285,53 +286,53 @@ wrapped in [mindmap]...[/mindmap] tags:
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Main Topic))
-    Concept 1
+    Concept1{{Category 1}}
       🔑 Detail A
-        Subdetail A1
-        Subdetail A2
       📌 Detail B
-      💡 Detail C
-        Subdetail C1        
-      🎯 Detail D
-    Concept 2
-    Concept 3
-      🌟 Detail I
-      📊 Detail J
-      🔍 Detail K
+    Concept2(Process 2)
+      ⚙️ Detail C
+      🔄 Detail D
+    Concept3[Entity 3]
+      📍 Detail I
+      🗂️ Detail J
+    Concept4((Key Idea))
 ```
 [/mindmap]
 
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
-- root((...)) — the central topic of the document, max 4 words
-- 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
-- 0-4 second-level branches under each main concept: specific details; EVERY second-level node MUST begin with a relevant emoji (as shown in the example above) — emoji is MANDATORY at this level, no exceptions
-- 0-2 third-level branches: very specific details, only if important and valuable (e.g. specific dates, numbers, names related to the second-level branch)
-- important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches. Same for third-level branches.
+- root((...)) — the central topic of the document, max 4 words; ALWAYS a circle
+- 3-6 first-level branches using VARIED shapes semantically:
+    ConceptName{{Label}}   = hexagon: category / thematic group
+    ConceptName(Label)     = rounded square: process / mechanism / action
+    ConceptName[Label]     = square: concrete fact / entity / object
+    ConceptName((Label))   = circle: key concept / protagonist / core idea
+- 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
+- Important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
+- CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase), shape and label follow immediately after the ID
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
 - IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 
 Your response MUST have three parts:
 
 1. **Title** (first line): The document title. If the author is known, append a dash and the author name after the title.
-   Format as a Markdown heading: # Document Title
-   For example (with known author): # Ultimate Guide To Scar Treatments - Amanda Keyes
-   For example (unknown author): # Ultimate Guide To Scar Treatments
-   If the author is not known from the content or metadata, write ONLY the document title — do NOT append "Unknown author" or any placeholder.
+   At the very end of the heading (after the title and optional author), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 for a driving manual, 🔬 for lab results, ⚖️ for legal documents, 📈 for finance, 🍳 for cooking, 💻 for code, 🎭 for fiction, 🏋️ for sports, etc.). The emoji must match the topic — never use a random or childish emoji.
+   Format as a Markdown heading: # Document Title 🔖
+   For example (with known author): # Ultimate Guide To Scar Treatments - Amanda Keyes 🏥
+   For example (unknown author): # Ultimate Guide To Scar Treatments 🏥
+   If the author is not known from the content or metadata, write ONLY the document title (plus the emoji) — do NOT append "Unknown author" or any placeholder.
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
-  AUTHOR PRIORITY — CRITICAL: If uploaded filename clues disagree with embedded PDF/EXIF metadata, treat filename author clues as hints only. Use filename-derived author in the heading only when it looks like a real person/creator name. If it looks like a domain/URL/source watermark (for example "oceanofpdf.com", "example.net", "www..."), DO NOT use it as author. In that case, prefer embedded metadata/content author. Example: uploaded filename "_OceanofPDF.com_The_Alchemist.pdf" + embedded metadata author "Paulo Coelho" => write: # The Alchemist - Paulo Coelho
+  AUTHOR PRIORITY — CRITICAL: If uploaded filename clues disagree with embedded PDF/EXIF metadata, treat filename author clues as hints only. Use filename-derived author in the heading only when it looks like a real person/creator name. If it looks like a domain/URL/source watermark (for example "oceanofpdf.com", "example.net", "www..."), DO NOT use it as author. In that case, prefer embedded metadata/content author. Example: uploaded filename "_OceanofPDF.com_The_Alchemist.pdf" + embedded metadata author "Paulo Coelho" => write: # The Alchemist - Paulo Coelho 🌟
 
 2. **Description** (after the title): 2-4 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** SELECTIVELY — only for exact numbers/statistics, key proper names (people, places, organizations), and the single most critical term per paragraph. Do not bold every concept — bold loses its impact when overused.
    AUTHOR IN DESCRIPTION: If you know the author, mention them naturally in the first sentence of the description — as if describing a book to a friend. For example: "This **611-page** collection of poetry by **Rumi** is a classic Arabic edition of the Mathnawi." or "Stephen King takes readers on a dark journey through New England in this **350-page** thriller." Do NOT just repeat the dry title format — weave the author into the description naturally.
    CRITICAL — PRESERVE PRECISE DETAILS: Always include exact numbers, ranges, substance names, ingredient lists, and specific values from the document. For example: if the text says "scars under 12 months old (with some guidance extending to 2 years)", write exactly that — do not simplify to "scars under a year". If specific nutrients are listed like "vitamin C, protein, zinc, and selenium", name them all. If timeframes are given like "9–12 months for the body and about 1 year for the face", include those exact ranges. Specific numbers, names, and precise data are the most valuable part of the description.
    NAME-DROP PRODUCTS, BRANDS, AND PEOPLE: When the document mentions specific brands, products, or notable people, USE THEM BY NAME — do not genericize. For example: write "RegimA Forte Scar Cream" instead of "a scar cream"; "Jane Iredale mineral makeup" instead of "mineral makeup for cover-up". This applies to medications (Accutane, Retin-A), tools (Photoshop, Figma), companies (Tesla, Google), people (Warren Buffett, Marie Curie), places (Mayo Clinic, MIT), products (iPhone 16, Model Y), and anything else with a proper name in the document content.
+   SCIENTIFIC PAPERS / RESEARCH ARTICLES — SYNTHESIS FIRST: When the document is a scientific paper, research article, or technical report (especially foundational or landmark works), the description must lead with WHAT the work proposes and WHY it matters — not with experimental benchmarks or author lists. Structure the description around these four questions in order: (1) What problem does the work address? (2) What is the core proposed idea or mechanism? Explain it conceptually in plain, accessible language — as if writing a Wikipedia article about the concept. (3) What is structurally novel or surprising about the approach compared to prior art? (4) What are the broader implications for the field? Experimental numbers (BLEU scores, GPU hours, F1, perplexity, etc.) belong at the end as supporting evidence for the conceptual story, not as the headline. GOOD example for "Attention Is All You Need": "The paper introduces the Transformer — a sequence model that replaces recurrence and convolutions entirely with stacked self-attention layers. Instead of processing tokens one by one, self-attention computes relationships between every pair of positions in parallel, giving the model a constant-length path between any two tokens regardless of sequence length. This structural choice makes long-range dependencies as easy to learn as short-range ones, and enables far greater parallelization during training than RNNs. The architecture proved dominant in machine translation and has since become the foundation for virtually all large language models." BAD example: "The paper by Vaswani et al. achieves 28.4 BLEU on English→German and 41.8 BLEU on English→French, trained for 3.5 days on 8 NVIDIA P100 GPUs."
+   HYPERLINKS — add them whenever meaningful: For every company, organization, university, or notable website mentioned in the document or your answer, add a Markdown hyperlink `[Name](https://url)` on the FIRST occurrence ONLY — never link the same name twice in a single response. If the file metadata contains a `pdf_hyperlinks` field (a JSON dict of `{{display_text: url}}` extracted from PDF link annotations), USE those URLs with HIGHEST priority — they are exact links embedded in the original document. If the document text explicitly contains a URL (e.g. a CV listing LinkedIn or GitHub), use that exact URL. If no URL is given but the entity has a well-known public website, use their main domain (e.g. `[McKinsey & Company](https://mckinsey.com)`, `[RTB House](https://rtbhouse.com)`, `[Statscore](https://statscore.com)`). Apply aggressively — more links give the user actionable, clickable references.
    MANDATORY MEASURABLE FACTS — in addition to the above, you MUST mention as many of these as possible (if present in the content):
    - Page/chapter/part count (e.g. "This **266-page** crime novel spans **12 chapters**")
    - Key character/person names (up to 3-4 main ones), bolded (e.g. **Joanna Chyłka**, **Kordian Oryński**)
@@ -367,7 +368,8 @@ Your response MUST have three parts:
    - Financial documents: highlight payment deadlines, irregularities, potential optimizations.
    - Legal documents: point out key clauses, risks, deadlines.
    - Problem documents (notices, demands, court letters, denial letters, administrative decisions, debt collection, insurance disputes, workplace conflicts, fines): identify the specific problem — who is demanding what, by what deadline, and what happens if ignored. Immediately give the user concrete next steps: what to do first, what documents to gather, who to contact, which office/court/company to reach out to. Flag urgency — what is time-sensitive vs. what can wait.
-   - Articles/reports: surface the main thesis, a surprising finding, or broader context.
+   - Scientific/research papers: do NOT repeat experimental metrics already in the description. Instead contextualize the work's impact: what it changed in the field, what became newly possible because of it, what limitations or open problems it left, or where the core idea has since been extended or challenged. Think "why does this paper still matter?" rather than "what numbers did it report?"
+   - General articles/reports: surface the main thesis, a surprising finding, or broader context.
    - Photos with people: capture the emotional moment or story — the relationship dynamic, guessed occasion, cultural context from clothing or setting, or something unexpected in the background. Do NOT critique photographic composition, cropping, or framing.
    - Photos without people (landscapes, objects, food, architecture, art): note something interesting about the subject, setting, technical details, or visual context.
    - Data/tables: point out a trend, anomaly, or the single most important number.
@@ -414,6 +416,82 @@ Be substantive — this is a solid analysis, not an essay. Aim for roughly 250-3
 Do NOT ask the user anything. You CAN use 1-2 source markers like [source:1].
 Occasionally use professional emoji to make the message more lively and scannable (e.g. ✅, 👌, 📄, 📊, 🔬, ⚠️, 💡, 📸, 🏥, ⚖️, 📝, 🔍, 📈, 🗓️, 💰, other light, fun, cool, non-offensive emoji). Do NOT overdo it — one or two per section is enough. Never use childish or unprofessional emoji (💩, 🤡, 😜, etc.).
 Reply in the same language as the document's primary content (see LANGUAGE DETECTION RULE above).
+"""
+
+# ---------------------------------------------------------------------------
+# Mindmap-only instruction blocks (for synthesis and other non-standard paths)
+# ---------------------------------------------------------------------------
+
+MINDMAP_RULES_PL = r"""
+Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych pojęć owiniętą tagami [mindmap]...[/mindmap]:
+
+[mindmap]
+```mermaid
+mindmap
+  root((Główny Temat))
+    Pojęcie1{{Kategoria 1}}
+      🔑 Szczegół A
+      📌 Szczegół B
+    Pojęcie2(Proces 2)
+      ⚙️ Szczegół C
+      🔄 Szczegół D
+    Pojęcie3[Encja 3]
+      📍 Szczegół I
+      🗂️ Szczegół J
+    Pojęcie4((Kluczowe))
+```
+[/mindmap]
+
+Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
+- root((...)) — centralny temat dokumentu, max 4 słowa; ZAWSZE jako okrąg
+- 3-6 gałęzi pierwszego poziomu używając RÓŻNYCH kształtów semantycznie:
+    NazwaKategorii{{Etykieta}}   = sześciokąt: kategorie, grupy tematyczne
+    NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
+    NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
+    NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
+- każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego pojęcia.
+- Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
+- Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
+- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase)
+- Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
+- NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
+"""
+
+MINDMAP_RULES_EN = r"""
+At the very start of your response, BEFORE the title, output a mindmap of key concepts wrapped in [mindmap]...[/mindmap] tags:
+
+[mindmap]
+```mermaid
+mindmap
+  root((Main Topic))
+    Concept1{{Category 1}}
+      🔑 Detail A
+      📌 Detail B
+    Concept2(Process 2)
+      ⚙️ Detail C
+      🔄 Detail D
+    Concept3[Entity 3]
+      📍 Detail I
+      🗂️ Detail J
+    Concept4((Key Idea))
+```
+[/mindmap]
+
+Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
+- root((...)) — the central topic of the document, max 4 words; ALWAYS a circle
+- 3-6 first-level branches using VARIED shapes semantically:
+    ConceptName{{Label}}   = hexagon: category / thematic group
+    ConceptName(Label)     = rounded square: process / mechanism / action
+    ConceptName[Label]     = square: concrete fact / entity / object
+    ConceptName((Label))   = circle: key concept / protagonist / core idea
+- 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
+- each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
+- Labels in the document's language, concise (max 5 words per node)
+- Strict indentation: 2 spaces per level of depth
+- CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase)
+- Start with [mindmap] on its own line, end with [/mindmap] on its own line
+- IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 """
 
 # ---------------------------------------------------------------------------

@@ -383,7 +383,7 @@ export type ImageGenStreamCallbacks = {
       imageTitle: string
     }
   }) => void
-  onError?: (message: string) => void
+  onError?: (message: string, openaiMessage?: string) => void
   signal?: AbortSignal
 }
 
@@ -425,18 +425,19 @@ export async function generateImageStream(
       return
     }
     eventCount++
-    console.log(`🎬 Frontend: Dispatching event #${eventCount} (type=${eventName})`, { payload })
+    console.debug(`🎬 Frontend: Dispatching event #${eventCount} (type=${eventName})`, { payload })
     if (eventName === 'user_message') {
       callbacks.onUserMessage?.((payload as { userMessageId: string }).userMessageId)
     } else if (eventName === 'prompt_ready') {
       callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
     } else if (eventName === 'partial') {
-      console.log(`🎬 Frontend: Calling onPartial callback for index=${(payload as any)?.index}`)
+      console.debug(`🎬 Frontend: Calling onPartial callback for index=${(payload as any)?.index}`)
       callbacks.onPartial?.(payload as { b64: string; index: number })
     } else if (eventName === 'complete') {
       callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
     } else if (eventName === 'error') {
-      callbacks.onError?.((payload as { error: string }).error)
+      const errPayload = payload as { error: string; openai_message?: string }
+      callbacks.onError?.(errPayload.error, errPayload.openai_message)
     }
   }
 

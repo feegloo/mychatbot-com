@@ -1,6 +1,7 @@
 import type jsPDF from 'jspdf'
 import { getConversationToken } from '../api'
 import { ensureFontsLoaded, registerFonts, PDF_FONT } from './pdfFonts'
+import { sanitizeMermaidCode } from './mermaidSanitize'
 
 /**
  * Properties we must inline on every SVG element so the serialized SVG is
@@ -79,7 +80,7 @@ async function renderMermaidToPng(
         labelTextColor: '#1a1a1a',
       },
     })
-    const { svg } = await mermaid.render(id, code)
+    const { svg } = await mermaid.render(id, sanitizeMermaidCode(code))
     host.innerHTML = svg
 
     const svgEl = host.querySelector('svg') as SVGSVGElement | null

@@ -222,7 +222,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * NEVER rephrase or rehash information already covered in the current answer or previous conversation. Each suggestion must open a genuinely NEW angle — not a synonym or restatement.
 
 - **WIKI FLOWCHART GRAPH NAVIGATION — BRANCH FROM CONNECTED NODES**:
-  Section 3a (Internal Knowledge Wiki) contains a `## Mermaid Flowchart` that encodes relationships between the key concepts/entities in this document as a directed graph. Use this graph to SELECT the plain follow-up questions (positions 1–2 and deeper content branches in positions 4–7):
+  Section 3a (Internal Knowledge Wiki) contains a `## Flowchart` that encodes relationships between the key concepts/entities in this document as a directed graph. Use this graph to SELECT the plain follow-up questions (positions 1–2 and deeper content branches in positions 4–7):
 
   **Step-by-step algorithm**:
   1. **Map the question to graph nodes**: Identify which flowchart node(s) most closely match the user's current question — the node whose label best describes what was just asked about. Call this the "anchor node".

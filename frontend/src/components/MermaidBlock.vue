@@ -1,62 +1,47 @@
 <template>
-  <div class="mermaid-block" @mouseenter="hovered = true" @mouseleave="hovered = false">
-    <div class="mermaid-toolbar" :class="{ visible: hovered }">
-      <button v-if="mode === 'diagram'" class="mermaid-tool-btn" @click="mode = 'text'">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="4 7 4 4 20 4 20 7" />
-          <line x1="9" y1="20" x2="15" y2="20" />
-          <line x1="12" y1="4" x2="12" y2="20" />
-        </svg>
-        Switch to text
-      </button>
-      <button v-else class="mermaid-tool-btn" @click="switchToDiagram">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="3" y="3" width="7" height="7" />
-          <rect x="14" y="3" width="7" height="7" />
-          <rect x="14" y="14" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" />
+  <div class="mermaid-block">
+    <!-- Controls bar: zoom group left, actions right -->
+    <div v-if="mode === 'diagram' && ready && !renderError" class="mermaid-controls-bar">
+      <div class="mermaid-zoom-group">
+        <button class="mermaid-ctrl-btn" aria-label="Zoom out" title="Zoom out" :disabled="!canZoomOut" @click="zoomOut">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 7.75A.75.75 0 0 1 2.75 7h10a.75.75 0 0 1 0 1.5h-10A.75.75 0 0 1 2 7.75Z" />
+          </svg>
+        </button>
+        <span class="mermaid-zoom-label">{{ Math.round(scale * 100) }}%</span>
+        <button class="mermaid-ctrl-btn" aria-label="Zoom in" title="Zoom in" :disabled="!canZoomIn" @click="zoomIn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" />
+          </svg>
+        </button>
+      </div>
+      <div class="mermaid-action-group">
+        <button class="mermaid-tool-btn" @click="mode = 'text'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" />
+          </svg>
+          Switch to text
+        </button>
+        <button class="mermaid-tool-btn" @click="downloadSvg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download
+        </button>
+        <button class="mermaid-ctrl-btn" aria-label="Expand diagram" title="Expand" @click="openPopup">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M1.75 10a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 1 13.25v-2.5a.75.75 0 0 1 .75-.75Zm12.5 0a.75.75 0 0 1 .75.75v2.5A1.75 1.75 0 0 1 13.25 15h-2.5a.75.75 0 0 1 0-1.5h2.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 .75-.75ZM2.75 2.5a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0v-2.5C1 1.784 1.784 1 2.75 1h2.5a.75.75 0 0 1 0 1.5ZM10 1.75a.75.75 0 0 1 .75-.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.25.25 0 0 0-.25-.25h-2.5a.75.75 0 0 1-.75-.75Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div v-else-if="mode === 'text'" class="mermaid-controls-bar mermaid-controls-bar--text">
+      <button class="mermaid-tool-btn" @click="switchToDiagram">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
         </svg>
         Switch to diagram
-      </button>
-      <button
-        v-if="mode === 'diagram' && ready && !renderError"
-        class="mermaid-tool-btn"
-        title="Download SVG"
-        @click="downloadSvg"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        Download
       </button>
     </div>
     <div
@@ -75,37 +60,6 @@
         :class="{ 'is-dragging': isDragging }"
         :style="{ transform: svgTransform }"
       ></div>
-      <div class="mermaid-controls">
-        <button class="mermaid-ctrl-btn" aria-label="Fullscreen" title="Fullscreen" @click="toggleFullscreen">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path
-              d="M1.75 10a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 1 13.25v-2.5a.75.75 0 0 1 .75-.75Zm12.5 0a.75.75 0 0 1 .75.75v2.5A1.75 1.75 0 0 1 13.25 15h-2.5a.75.75 0 0 1 0-1.5h2.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 .75-.75ZM2.75 2.5a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0v-2.5C1 1.784 1.784 1 2.75 1h2.5a.75.75 0 0 1 0 1.5ZM10 1.75a.75.75 0 0 1 .75-.75h2.5c.966 0 1.75.784 1.75 1.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.25.25 0 0 0-.25-.25h-2.5a.75.75 0 0 1-.75-.75Z"
-            />
-          </svg>
-        </button>
-        <button
-          class="mermaid-ctrl-btn"
-          aria-label="Zoom out"
-          title="Zoom out"
-          :disabled="!canZoomOut"
-          @click="zoomOut"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M2 7.75A.75.75 0 0 1 2.75 7h10a.75.75 0 0 1 0 1.5h-10A.75.75 0 0 1 2 7.75Z" />
-          </svg>
-        </button>
-        <button
-          class="mermaid-ctrl-btn"
-          aria-label="Zoom in"
-          title="Zoom in"
-          :disabled="!canZoomIn"
-          @click="zoomIn"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" />
-          </svg>
-        </button>
-      </div>
     </div>
     <div v-if="mode === 'diagram' && !ready" class="mermaid-loading">
       <span class="mermaid-loading-dot"></span>
@@ -120,16 +74,62 @@
     <pre v-show="mode === 'text'" class="mermaid-source"><code>{{ code }}</code></pre>
   </div>
 
+  <!-- Popup overlay -->
+  <Teleport to="body">
+    <div
+      v-if="popupOpen"
+      class="mermaid-popup-overlay"
+      @click.self="popupOpen = false"
+      @keydown.esc.capture="popupOpen = false"
+    >
+      <div class="mermaid-popup-dialog">
+        <div class="mermaid-popup-header">
+          <div class="mermaid-popup-controls">
+            <button class="mermaid-popup-ctrl-btn" aria-label="Zoom out" title="Zoom out" :disabled="popupScale <= POPUP_MIN_SCALE" @click="popupZoomOut">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 7.75A.75.75 0 0 1 2.75 7h10a.75.75 0 0 1 0 1.5h-10A.75.75 0 0 1 2 7.75Z" /></svg>
+            </button>
+            <span class="mermaid-popup-zoom-label">{{ Math.round(popupScale * 100) }}%</span>
+            <button class="mermaid-popup-ctrl-btn" aria-label="Zoom in" title="Zoom in" :disabled="popupScale >= POPUP_MAX_SCALE" @click="popupZoomIn">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" /></svg>
+            </button>
+          </div>
+          <button class="mermaid-popup-close" aria-label="Close" @click="popupOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div
+          ref="popupViewportEl"
+          class="mermaid-popup-viewport"
+          :class="{ 'is-dragging': popupIsDragging }"
+          @pointerdown="onPopupPointerDown"
+          @pointermove="onPopupPointerMove"
+          @pointerup="onPopupPointerUp"
+          @pointercancel="onPopupPointerUp"
+        >
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div
+            class="mermaid-popup-svg-inner"
+            :style="{ transform: `translate(${popupPanX}px, ${popupPanY}px) scale(${popupScale})`, transformOrigin: 'top left' }"
+            v-html="renderedSvg"
+          />
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import type mermaidType from 'mermaid'
+import { sanitizeMermaidCode } from '../utils/mermaidSanitize'
 
-const props = defineProps<{ code: string }>()
+const props = defineProps<{ code: string; initialZoom?: 'fit' | 'max' | number }>()
 
 const mode = ref<'diagram' | 'text'>('diagram')
-const hovered = ref(false)
 const ready = ref(false)
 const renderedSvg = ref('')
 const renderError = ref<string | null>(null)
@@ -137,6 +137,7 @@ const diagramEl = ref<HTMLElement | null>(null)
 const diagramViewportEl = ref<HTMLElement | null>(null)
 let renderCounter = 0
 
+// ── Inline pan / zoom ────────────────────────────────────────────────────────
 const scale = ref(1)
 const panX = ref(0)
 const panY = ref(0)
@@ -159,11 +160,97 @@ const ZOOM_STEP = 0.2
 const MIN_SCALE = 0.2
 const MAX_SCALE = 5
 
-/**
- * Scale the rendered SVG so its natural width fills the container on first render.
- * Reads dimensions from the SVG viewBox/width attribute and the always-visible
- * outer .mermaid-block element (which is never hidden by v-show).
- */
+// ── Popup state ─────────────────────────────────────────────────────────────
+const popupOpen = ref(false)
+const popupScale = ref(1)
+const popupPanX = ref(0)
+const popupPanY = ref(0)
+const popupIsDragging = ref(false)
+const popupViewportEl = ref<HTMLElement | null>(null)
+
+let popupActivePointerId: number | null = null
+let popupDragStartX = 0
+let popupDragStartY = 0
+let popupDragStartPanX = 0
+let popupDragStartPanY = 0
+
+const POPUP_MIN_SCALE = 0.2
+const POPUP_MAX_SCALE = 8
+const POPUP_ZOOM_STEP = 0.25
+
+function popupZoomIn() {
+  popupScale.value = Math.min(POPUP_MAX_SCALE, +(popupScale.value + POPUP_ZOOM_STEP).toFixed(2))
+}
+function popupZoomOut() {
+  popupScale.value = Math.max(POPUP_MIN_SCALE, +(popupScale.value - POPUP_ZOOM_STEP).toFixed(2))
+}
+
+function openPopup() {
+  if (!renderedSvg.value) return
+  // Reset to fit-width scale
+  const svgEl = diagramEl.value?.querySelector('svg') as SVGSVGElement | null
+  if (svgEl) {
+    const vb = svgEl.viewBox?.baseVal
+    const naturalW = (vb && vb.width > 0 ? vb.width : parseFloat(svgEl.getAttribute('width') ?? '0')) || 800
+    const viewW = window.innerWidth * 0.88 - 32
+    popupScale.value = Math.min(Math.max(+(viewW / naturalW).toFixed(2), 0.2), 3)
+  } else {
+    popupScale.value = 1
+  }
+  popupPanX.value = 0
+  popupPanY.value = 0
+  popupOpen.value = true
+}
+
+type DragPointerEvent = {
+  pointerId: number
+  pointerType?: string
+  button?: number
+  clientX: number
+  clientY: number
+  target: unknown
+  currentTarget: unknown
+  preventDefault: () => void
+}
+
+function onPopupPointerDown(event: DragPointerEvent) {
+  if (event.pointerType !== 'touch' && event.button !== 0) return
+  const target = event.target
+  if (target instanceof HTMLElement && target.closest('.mermaid-popup-header')) return
+
+  popupActivePointerId = event.pointerId
+  popupDragStartX = event.clientX
+  popupDragStartY = event.clientY
+  popupDragStartPanX = popupPanX.value
+  popupDragStartPanY = popupPanY.value
+  popupIsDragging.value = true
+
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement) currentTarget.setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function onPopupPointerMove(event: DragPointerEvent) {
+  if (!popupIsDragging.value || event.pointerId !== popupActivePointerId) return
+  popupPanX.value = popupDragStartPanX + (event.clientX - popupDragStartX)
+  popupPanY.value = popupDragStartPanY + (event.clientY - popupDragStartY)
+  event.preventDefault()
+}
+
+function onPopupPointerUp(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'>) {
+  if (event.pointerId !== popupActivePointerId) return
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement) currentTarget.releasePointerCapture(event.pointerId)
+  popupIsDragging.value = false
+  popupActivePointerId = null
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && popupOpen.value) popupOpen.value = false
+}
+
+// ── Inline pan / drag handlers ───────────────────────────────────────────────
+
 function fitToWidth() {
   if (!diagramEl.value) return
   const svg = diagramEl.value.querySelector('svg')
@@ -178,14 +265,24 @@ function fitToWidth() {
     vb && vb.width > 0 ? vb.width : parseFloat(svg.getAttribute('width') ?? '0')
   if (svgNaturalWidth <= 0) return
 
-  scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
   const svgNaturalHeight = vb && vb.height > 0 ? vb.height : parseFloat(svg.getAttribute('height') ?? '0')
-  const scaledWidth = svgNaturalWidth * scale.value
-  const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
   const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
 
-  panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
-  panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
+  if (typeof props.initialZoom === 'number') {
+    scale.value = Math.min(Math.max(props.initialZoom, MIN_SCALE), MAX_SCALE)
+    panX.value = 0
+    panY.value = 0
+  } else if (props.initialZoom === 'max') {
+    scale.value = MAX_SCALE
+    panX.value = 0
+    panY.value = 0
+  } else {
+    scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
+    const scaledWidth = svgNaturalWidth * scale.value
+    const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
+    panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
+    panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
+  }
 }
 
 function zoomIn() {
@@ -193,37 +290,6 @@ function zoomIn() {
 }
 function zoomOut() {
   scale.value = Math.max(MIN_SCALE, +(scale.value - ZOOM_STEP).toFixed(2))
-}
-function syncFullscreenState() {
-  const active = document.fullscreenElement
-  const host = diagramViewportEl.value
-  if (!host || active !== host) {
-    isDragging.value = false
-    activePointerId = null
-  }
-}
-
-async function toggleFullscreen() {
-  const host = diagramViewportEl.value
-  if (!host) return
-
-  if (document.fullscreenElement === host) {
-    await document.exitFullscreen()
-    return
-  }
-
-  await host.requestFullscreen()
-}
-
-type DragPointerEvent = {
-  pointerId: number
-  pointerType?: string
-  button?: number
-  clientX: number
-  clientY: number
-  target: unknown
-  currentTarget: unknown
-  preventDefault: () => void
 }
 
 function onPointerDown(event: DragPointerEvent) {
@@ -254,10 +320,10 @@ function onPointerDown(event: DragPointerEvent) {
 
 function onPointerMove(event: DragPointerEvent) {
   if (!isDragging.value || event.pointerId !== activePointerId) return
-  const deltaX = event.clientX - dragStartX
-  const deltaY = event.clientY - dragStartY
-  panX.value = dragStartPanX + deltaX
-  panY.value = dragStartPanY + deltaY
+  const dx = event.clientX - dragStartX
+  const dy = event.clientY - dragStartY
+  panX.value = dragStartPanX + dx
+  panY.value = dragStartPanY + dy
   event.preventDefault()
 }
 
@@ -283,34 +349,13 @@ async function getMermaid() {
     startOnLoad: false,
     look: 'handDrawn',
     theme: 'forest',
-    // theme: 'base',
-    // themeVariables: {
-    //   darkMode: false,
-    //   background: '#f4f4f4',
-    //   primaryColor: '#ede9fe',
-    //   primaryTextColor: '#000000',
-    //   primaryBorderColor: '#7c3aed',
-    //   secondaryColor: '#e2e8f0',
-    //   secondaryTextColor: '#000000',
-    //   tertiaryColor: '#f1f5f9',
-    //   tertiaryTextColor: '#000000',
-    //   lineColor: '#475569',
-    //   textColor: '#000000',
-    //   nodeTextColor: '#000000',
-    //   labelTextColor: '#000000',
-    // },
     flowchart: { htmlLabels: true, curve: 'basis' },
     securityLevel: 'loose',
+    suppressErrorRendering: true,
   })
   return mermaid
 }
 
-/**
- * Renders the mermaid source into an SVG and mounts it into the diagram
- * container. On failure we surface an error but stay in diagram mode so the
- * user can retry once the source updates (e.g. during streaming) or by
- * toggling the diagram view.
- */
 async function renderDiagram() {
   if (!diagramEl.value) return
   if (props.code.trim().length === 0) {
@@ -323,18 +368,23 @@ async function renderDiagram() {
   try {
     const m = await getMermaid()
     const id = `mermaid-${Date.now()}-${renderCounter++}`
-    const { svg } = await m.render(id, props.code)
+    const { svg } = await m.render(id, sanitizeMermaidCode(props.code))
     diagramEl.value.innerHTML = svg
     renderedSvg.value = svg
-    // Auto-zoom to fit width before revealing
     fitToWidth()
-    // Wait one frame so the browser paints the SVG before revealing
     requestAnimationFrame(() => {
-      ready.value = true
+      const block = diagramEl.value?.closest('.mermaid-block') as HTMLElement | null
+      if (block && block.clientWidth <= 0) {
+        requestAnimationFrame(() => {
+          fitToWidth()
+          ready.value = true
+        })
+      } else {
+        if (block && block.clientWidth > 0) fitToWidth()
+        ready.value = true
+      }
     })
   } catch (err) {
-    // Stay in diagram mode and surface the error so failing renders don't
-    // silently flip the view to text and trap the user there.
     console.error('[MermaidBlock] Failed to render diagram', err)
     renderError.value = err instanceof Error ? err.message : String(err)
     renderedSvg.value = ''
@@ -345,8 +395,6 @@ async function renderDiagram() {
 
 function switchToDiagram() {
   mode.value = 'diagram'
-  // Re-render if we don't yet have a successful render (previous attempt
-  // failed, component mounted while hidden, etc.).
   if (!renderedSvg.value) {
     nextTick(renderDiagram)
   }
@@ -366,11 +414,11 @@ function downloadSvg() {
 
 onMounted(() => {
   renderDiagram()
-  document.addEventListener('fullscreenchange', syncFullscreenState)
+  document.addEventListener('keydown', onKeyDown)
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('fullscreenchange', syncFullscreenState)
+  document.removeEventListener('keydown', onKeyDown)
 })
 
 watch(
@@ -391,19 +439,38 @@ watch(
   overflow: hidden;
 }
 
-.mermaid-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.mermaid-controls-bar {
   display: flex;
-  gap: 4px;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 0.15s;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
 }
 
-.mermaid-toolbar.visible {
-  opacity: 1;
+.mermaid-controls-bar--text {
+  justify-content: flex-end;
+}
+
+.mermaid-zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mermaid-zoom-label {
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.7);
+  min-width: 38px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mermaid-action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .mermaid-tool-btn {
@@ -476,19 +543,6 @@ watch(
 .mermaid-svg-wrapper :deep(svg text) {
   color: #000 !important;
   fill: #000 !important;
-}
-
-.mermaid-controls {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  display: flex;
-  gap: 6px;
-  background: rgba(15, 20, 35, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  padding: 4px;
-  backdrop-filter: blur(4px);
 }
 
 .mermaid-ctrl-btn {
@@ -593,8 +647,145 @@ watch(
   }
 }
 
-.mermaid-diagram:fullscreen {
-  background: #0f172a;
-  padding: 24px;
+/* ── Popup overlay ────────────────────────────────────────────────────────── */
+
+.mermaid-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.mermaid-popup-dialog {
+  background: rgba(10, 13, 22, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 1100px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  cursor: default;
+  overflow: hidden;
+}
+
+.mermaid-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mermaid-popup-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mermaid-popup-zoom-label {
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.7);
+  min-width: 38px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mermaid-popup-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(148, 163, 184, 0.8);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.mermaid-popup-ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .mermaid-popup-ctrl-btn:not(:disabled):hover {
+    background: rgba(167, 139, 250, 0.15);
+    color: #c4b5fd;
+  }
+}
+
+.mermaid-popup-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-left: 8px;
+}
+
+@media (hover: hover) {
+  .mermaid-popup-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
+
+.mermaid-popup-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  min-height: 300px;
+}
+
+.mermaid-popup-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.mermaid-popup-svg-inner {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  transform-origin: top left;
+  transition: transform 0.15s ease;
+}
+
+.mermaid-popup-svg-inner.is-dragging {
+  transition: none;
+}
+
+.mermaid-popup-svg-inner :deep(svg) {
+  display: block;
+  max-width: none;
+}
+
+.mermaid-popup-svg-inner :deep(svg foreignObject),
+.mermaid-popup-svg-inner :deep(svg foreignObject *),
+.mermaid-popup-svg-inner :deep(svg .nodeLabel),
+.mermaid-popup-svg-inner :deep(svg .edgeLabel),
+.mermaid-popup-svg-inner :deep(svg text) {
+  color: #000 !important;
+  fill: #000 !important;
 }
 </style>

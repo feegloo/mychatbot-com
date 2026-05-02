@@ -17,6 +17,8 @@ from .extractors import clean_file_name
 from .lang_detect import detect_language
 from .llm_instrument import traced_llm_call
 from .prompts.welcome import (
+    MINDMAP_RULES_EN,
+    MINDMAP_RULES_PL,
     WELCOME_QUESTIONS_RULES_EN,
     WELCOME_QUESTIONS_RULES_PL,
     WELCOME_SYSTEM_EN,
@@ -1108,7 +1110,8 @@ def _synthesize_welcome_messages(
             "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
             "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
             "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
-            "Twoja odpowiedź MUSI składać się z trzech części:\n"
+        ) + MINDMAP_RULES_PL + (
+            "\nTwoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
             "2. **Opis**: 3-5 zdań podsumowujących CAŁY dokument. Zachowaj najważniejsze "
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia** selektywnie — tylko liczby, nazwy własne i najważniejszy 1-2 termin na akapit.\n"
@@ -1126,8 +1129,9 @@ def _synthesize_welcome_messages(
             "You may also receive raw text from the beginning of the document — use it "
             "to capture the author's voice, tone, and opening context.\n\n"
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
-            "Your response MUST have three parts:\n"
-            "1. **Title**: # Document Title (append \" - Author Name\" only if the author is known; do NOT write \"Unknown author\")\n"
+        ) + MINDMAP_RULES_EN + (
+            "\nYour response MUST have three parts:\n"
+            "1. **Title**: # Document Title 🔖 — after the title (and optional \" - Author Name\"), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 driving, 🔬 science/lab, ⚖️ legal, 📈 finance, 🍳 cooking, 💻 code, 🎭 fiction). Only known author gets appended; do NOT write \"Unknown author\".\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
@@ -1209,6 +1213,45 @@ def _make_empty_file_welcome(empty_names: list[str], language: str) -> str:
         actions = ["Upload a different file", "What file formats are supported?"]
     action_line = " ".join(f"[action:{q}]" for q in actions)
     return f"{body}\n\n{action_line}"
+
+
+def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
+    """Inject an 'Adjust image for social media' action button into the welcome
+    message when the user uploaded a standalone image file (not a PDF page image).
+
+    The action uses ``|ref:FILENAME`` so the frontend can pass the original file
+    to the image-generation pipeline as a reference image.
+    """
+    if not images:
+        return welcome
+
+    image_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".heic", ".avif"}
+    # Only inject for actual uploaded image files — not PDF-extracted page images.
+    # PDF page images have a numeric ``page`` field; standalone uploads have page=None.
+    first_image_file: str | None = None
+    for img in images:
+        if img.get("page") is not None:
+            continue
+        fname = img.get("file_name", "")
+        if Path(fname).suffix.lower() in image_extensions:
+            first_image_file = fname
+            break
+
+    if not first_image_file:
+        return welcome
+
+    action_label = f"Adjust image for social media ❤️|ref:{first_image_file}"
+
+    # Parse existing actions out, insert ours at position 1 (after the first
+    # action so the most relevant document question stays first), then re-embed.
+    existing = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(welcome)]
+    # Avoid duplicating the action if it was somehow already present.
+    if any("adjust image for social media" in a.lower() for a in existing):
+        return welcome
+
+    insert_at = min(1, len(existing))
+    merged = existing[:insert_at] + [action_label] + existing[insert_at:]
+    return _embed_actions_in_welcome(welcome, merged)
 
 
 def describe_documents(
@@ -1644,6 +1687,10 @@ def describe_documents(
     # still returned separately for back-compat with answering.ts's
     # "don't repeat these" heuristic.
     welcome_message = _embed_actions_in_welcome(welcome_message, suggested_questions)
+
+    # Inject social media action for standalone image uploads (sets |ref: so
+    # the frontend routes it through the image-gen pipeline with the photo).
+    welcome_message = _inject_social_media_action(welcome_message, images)
 
     return DescribeResult(
         welcome_message=welcome_message,

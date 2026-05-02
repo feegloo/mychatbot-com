@@ -239,32 +239,21 @@ def generate_image(
     output_format: str = "jpeg",
     output_compression: int = 85,
 ) -> dict:
-    """Generate an image from a text prompt using OpenAI.
+    """Generate an image from a text prompt.
 
-    When ``reference_image_paths`` is provided, the OpenAI ``images.edit``
-    endpoint is used so the model can visually ground the generation in the
-    uploaded references (style, subject, composition). Otherwise the standard
-    ``images.generate`` endpoint is used.
-
-    ``model`` defaults to ``settings.openai_image_model`` (env:
-    ``OPENAI_IMAGE_MODEL``, fallback ``gpt-image-2``). gpt-image-2 accepts any
-    WxH where both dimensions are multiples of 16 (range 16–4096).
-
-    Args:
-        prompt: The text description for image generation.
-        storage_dir: Directory to save the generated image.
-        size: Image size string "WxH" — use ``aspect_to_image_size()`` to get a
-            well-formed value from an aspect ratio.
-        quality: Image quality (auto, high, medium, low). "low" is fastest.
-        model: OpenAI image model id; default taken from settings.
-        reference_image_paths: Optional list of local paths to reference images.
-            Each must be a readable png/jpeg/webp file. Capped at
-            ``MAX_REFERENCE_IMAGES``.
-
-    Returns:
-        dict with 'file_name' (saved filename).
+    Uses OpenAI when LLM_PROVIDER=openai. When LLM_PROVIDER=ollama, image
+    generation is unavailable (no free local model with equivalent quality)
+    and a NotImplementedError is raised so the caller can surface a
+    user-friendly message.
     """
     settings = get_settings()
+
+    if settings.llm_provider == "ollama":
+        raise NotImplementedError(
+            "Image generation is not available in offline mode. "
+            "Set LLM_PROVIDER=openai and provide an OPENAI_API_KEY to enable it."
+        )
+
     client = OpenAI(api_key=settings.openai_api_key)
     model = model or settings.openai_image_model
 
@@ -307,6 +296,25 @@ def generate_image(
             **compression_kwarg,
         )
 
+    def _call_generate_only(p: str):
+        """Fallback: plain images.generate without any reference images."""
+        return client.images.generate(
+            model=model,
+            prompt=p,
+            n=1,
+            size=size,
+            quality=quality,
+            output_format=output_format,
+            **compression_kwarg,
+        )
+
+    def _is_moderation_blocked(exc: BaseException) -> bool:
+        from openai import BadRequestError
+        return (
+            isinstance(exc, BadRequestError)
+            and getattr(exc, "code", None) == "moderation_blocked"
+        )
+
     with tracer.start_as_current_span("image.generate", attributes=span_attrs):
         try:
             result = _call(prompt)
@@ -321,7 +329,20 @@ def generate_image(
                 f"⚠️ OpenAI image gen failed ({exc}); "
                 f"retrying once with 'inspired' emphasis: '{retry_prompt[:120]}...'"
             )
-            result = _call(retry_prompt)
+            try:
+                result = _call(retry_prompt)
+            except Exception as exc2:
+                # When images.edit is blocked by moderation (e.g. portrait prompts),
+                # fall back to images.generate without reference images, which uses
+                # a less restrictive content policy.
+                if reference_paths and _is_moderation_blocked(exc2):
+                    logger.warning(
+                        "⚠️ images.edit moderation blocked; "
+                        "retrying with images.generate (no reference images)"
+                    )
+                    result = _call_generate_only(retry_prompt)
+                else:
+                    raise
 
     image_data = result.data[0]
 
@@ -383,6 +404,13 @@ def generate_image_streaming(
     endpoint can emit an "error" event.
     """
     settings = get_settings()
+
+    if settings.llm_provider == "ollama":
+        raise NotImplementedError(
+            "Image generation is not available in offline mode. "
+            "Set LLM_PROVIDER=openai and provide an OPENAI_API_KEY to enable it."
+        )
+
     client = OpenAI(api_key=settings.openai_api_key)
     model = model or settings.openai_image_model
     stream_model = model
@@ -638,6 +666,85 @@ def build_image_announcement(
     # Normalise whitespace / stray quotes the model sometimes adds.
     cleaned = (text or "").strip().strip('"').strip("'").strip()
     return cleaned
+
+
+def build_social_media_image_prompt() -> dict:
+    """Return a direct image-edit prompt for social-media-style photo overlays.
+
+    No LLM call needed — the effect is always the same family: a decorative
+    bottom strip with emoji pairs *plus* optional subject-level overlays
+    (kiss marks on cheeks, angel wings behind the subject, sparkles, etc.)
+    chosen to match the photo's mood. The model should read the vibe first,
+    then pick the most fitting combination from the menu below.
+    """
+    return {
+        "prompt": (
+            "Take this exact photo and transform it into a fun, vibrant social media post image. "
+            "Keep the original photo as the complete base — do NOT alter the subject, colors, or composition. "
+
+            # --- Step 1: read the vibe ---
+            "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
+            "Use that mood to drive ALL decoration choices below. "
+
+            # --- Step 2: subject-level overlay (pick ONE that fits) ---
+            "SECOND, apply ONE of the following decorative overlays directly on/around the subject: "
+            "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
+            "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
+            "Use for: romantic, flirty, playful vibes. "
+            "(b) ANGEL WINGS — add a pair of large, soft white or golden feathered angel wings "
+            "behind the subject's shoulders, as if the person is an angel. "
+            "Wings should look painterly and luminous, not cartoon-flat. "
+            "Use for: ethereal, dreamy, angelic, pure vibes. "
+            "(c) SPARKLE HALO — place a delicate golden halo ring above the subject's head "
+            "with small glowing sparkles radiating outward. "
+            "Use for: angelic, goddess, celestial vibes. "
+            "(d) FLOWER CROWN — overlay a realistic or illustrated flower crown on the subject's head. "
+            "Use for: boho, nature, soft-aesthetic vibes. "
+            "(e) GLITTER SPARKLES — scatter ✨ glitter particle bursts around the subject "
+            "without covering the face. "
+            "Use for: party, celebratory, magical vibes. "
+            "If no overlay clearly fits, skip this step and go straight to the strip. "
+
+            # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
+            "THIRD, choose ONE of the following accent formats — pick what feels most natural "
+            "for THIS specific photo, not the most obvious template: "
+            "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
+            "near the edges or corners, NOT covering the face. No strip. "
+            "Use for: clean/minimal aesthetic, strong subject, fashion or editorial vibe. "
+            "(ii) FROSTED STRIP — a semi-transparent frosted bar across the lower ~20% "
+            "with 1–2 emoji and optionally 1 short word ('vibes ✨', 'soft 🌸', 'mood 💫'). "
+            "Use for: playful, casual, Snapchat-story energy. "
+            "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
+            "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
+            "Use for: fashion, confident, high-contrast shots. "
+            "Choose by mood — do NOT default to the strip every time. "
+
+            # --- Emoji selection ---
+            "Emoji pairs/triplets (use as inspiration, not as a fixed list): "
+            "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
+            "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
+            "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
+            "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
+            "💫🐹 (wholesome quirky), 🩵❄️ (cool aesthetic), 🍓💋 (sweet bold), "
+            "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
+            "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
+            "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
+            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
+            "🌸 🌈 🦋 🎶 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
+            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
+
+            # --- Final quality bar ---
+            "IMPORTANT: use only 1–2 accents total (overlay + accent format). "
+            "Less is more — the edit should feel intentional and personal, "
+            "NOT like a generic filter was applied. Avoid combining too many effects. "
+            "The result should look like a polished Instagram or TikTok story edit — "
+            "high quality, cohesive, and specific to this photo's vibe. "
+            "No watermark. No logos. The subject's face and body must be fully preserved."
+        ),
+        "title": "Social Media Edit",
+        "source_indices": [],
+        "aspect": "square",
+    }
 
 
 def build_image_prompt(

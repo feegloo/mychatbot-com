@@ -27,6 +27,13 @@ class Settings:
     chroma_database: str
     # Database for telemetry
     database_url: str
+    # LLM provider: 'openai' (default) or 'ollama' (fully offline, no API key needed)
+    llm_provider: str
+    ollama_base_url: str
+    ollama_chat_model: str
+    ollama_embedding_model: str
+    # Vision model for OCR — must support image input (e.g. llava:7b, llava-llama3, moondream)
+    ollama_vision_model: str
     # Optional local OCR integration (https://github.com/ahnafnafee/local-llm-pdf-ocr)
     local_pdf_ocr_enabled: bool
     local_pdf_ocr_command: str
@@ -53,6 +60,11 @@ def get_settings() -> Settings:
         chroma_tenant=os.getenv("CHROMA_TENANT", ""),
         chroma_database=os.getenv("CHROMA_DATABASE", ""),
         database_url=os.getenv("DATABASE_URL", "postgres://chatrag:chatrag@localhost:5432/chatrag"),
+        llm_provider=os.getenv("LLM_PROVIDER", "openai").strip().lower(),
+        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
+        ollama_chat_model=os.getenv("OLLAMA_CHAT_MODEL", "llama3.2:3b"),
+        ollama_embedding_model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+        ollama_vision_model=os.getenv("OLLAMA_VISION_MODEL", "llava:7b"),
         local_pdf_ocr_enabled=_env_bool("LOCAL_PDF_OCR_ENABLED", False),
         local_pdf_ocr_command=os.getenv("LOCAL_PDF_OCR_COMMAND", "").strip(),
         local_pdf_ocr_repo_path=os.getenv("LOCAL_PDF_OCR_REPO_PATH", "").strip(),

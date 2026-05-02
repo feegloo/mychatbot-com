@@ -109,7 +109,7 @@ export async function runImageGenStream(options: {
         }
       },
       onPartial: ({ b64, index }) => {
-        console.log(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
+        console.debug(`🎬 useImageGenStream: Setting partial frame #${index} (b64 length=${b64.length})`)
         if (firstPartialAt === null) firstPartialAt = Date.now()
         // Detect the actual image format from the base64 magic bytes rather
         // than assuming PNG. With output_format="jpeg" the partial frames are
@@ -128,9 +128,11 @@ export async function runImageGenStream(options: {
 
         settleAfterMinMorph(resolve, data)
       },
-      onError: (message) => {
+      onError: (message, openaiMessage) => {
         clearTimeout(timeoutHandle)
-        reject(new Error(message))
+        const err = new Error(message) as Error & { openaiMessage?: string }
+        if (openaiMessage) err.openaiMessage = openaiMessage
+        reject(err)
       },
     }, language, referenceImageFileNames).catch((err) => {
       clearTimeout(timeoutHandle)

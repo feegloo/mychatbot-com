@@ -67,15 +67,6 @@ Sequence-to-sequence neural architecture replacing recurrence with self-attentio
 - **Positional Encoding** — sinusoidal vectors injecting order into token reps.
 - **Scaled Dot-Product** — softmax(QK^T / sqrt(d_k)) V.
 
-## Relationships
-Self-Attention      ===> Transformer            (architectural backbone)
-Multi-Head          <--- Self-Attention         (parallel composition of)
-Positional Encoding ===> Transformer            (no recurrence => order signal required)
-Scaled Dot-Product  <--- Self-Attention         (numerical stability for large d_k)
-Transformer         <---> Parallelism           (architectural choice enables training speed)
-Transformer         ---> SOTA WMT 2014 BLEU     (empirical outcome)
-Recurrence          -.-> Transformer            (explicitly removed; ablation context)
-
 ## Hierarchy
 - Transformer
   - Encoder stack (N=6)
@@ -96,44 +87,44 @@ Recurrence          -.-> Transformer            (explicitly removed; ablation co
 3. The sqrt(d_k) scaling is non-cosmetic: without it softmax saturates for large
    d_k, killing gradients — a frequently overlooked detail when re-implementing.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph Input
-    Tokens[Input Tokens]
-    PosEnc[Positional Encoding]
-    EmbLayer[Embedding Layer]
+    Tokens["<b>Input Tokens</b><br/><small>raw token sequence</small>"]
+    PosEnc["<b>Positional Encoding</b><br/><small>injects order, no recurrence</small>"]
+    EmbLayer["<b>Embedding Layer</b><br/><small>token to dense vector</small>"]
   end
   subgraph Encoder
     direction TB
-    MHSA1[Multi-Head Self-Attention]
-    Add1[Add & Norm]
-    FFN1[Position-wise FFN]
-    Add2[Add & Norm]
-    EncStack[Encoder Stack x6]
+    MHSA1["<b>Multi-Head Self-Attention</b><br/><small>h parallel attention heads</small>"]
+    Add1["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    FFN1["<b>Position-wise FFN</b><br/><small>two-layer feed-forward</small>"]
+    Add2["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    EncStack["<b>Encoder Stack x6</b><br/><small>stacked encoder layers</small>"]
   end
   subgraph Decoder
     direction TB
-    MaskedMHSA[Masked Multi-Head Self-Attention]
-    Add3[Add & Norm]
-    CrossAttn[Encoder-Decoder Attention]
-    Add4[Add & Norm]
-    FFN2[Position-wise FFN]
-    Add5[Add & Norm]
-    DecStack[Decoder Stack x6]
+    MaskedMHSA["<b>Masked Self-Attention</b><br/><small>causal mask, left-only</small>"]
+    Add3["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    CrossAttn["<b>Cross-Attention</b><br/><small>encoder-decoder bridge</small>"]
+    Add4["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    FFN2["<b>Position-wise FFN</b><br/><small>two-layer feed-forward</small>"]
+    Add5["<b>Add & Norm</b><br/><small>residual + layer norm</small>"]
+    DecStack["<b>Decoder Stack x6</b><br/><small>stacked decoder layers</small>"]
   end
   subgraph Output
-    Linear[Linear Projection]
-    Softmax[Softmax]
-    Probs[Output Probabilities]
+    Linear["<b>Linear Projection</b><br/><small>maps to vocab size</small>"]
+    Softmax["<b>Softmax</b><br/><small>probability distribution</small>"]
+    Probs["<b>Output Probabilities</b><br/><small>next-token prediction</small>"]
   end
   subgraph Attention_Mechanism
-    Q[Query Q]
-    K[Key K]
-    V[Value V]
-    Scale["Scale / sqrt(d_k)"]
-    SoftmaxA[Softmax]
-    DotProd["Scaled Dot-Product (QKV)"]
+    Q["<b>Query Q</b><br/><small>projected query matrix</small>"]
+    K["<b>Key K</b><br/><small>projected key matrix</small>"]
+    V["<b>Value V</b><br/><small>projected value matrix</small>"]
+    Scale["<b>Scale sqrt(d_k)</b><br/><small>prevents softmax saturation</small>"]
+    SoftmaxA["<b>Softmax</b><br/><small>attention weights</small>"]
+    DotProd["<b>Scaled Dot-Product</b><br/><small>QKV attention mechanism</small>"]
   end
 
   Tokens --> EmbLayer
@@ -182,15 +173,6 @@ Polska umowa o świadczenie usług IT B2B, prawo polskie, jurysdykcja Warszawa.
 - **NDA** — 3 lata po zakończeniu, kara umowna 50 000 PLN za naruszenie.
 - **IP** — przeniesienie majątkowych praw autorskich z chwilą zapłaty.
 
-## Relationships
-Wykonanie usług ===> Wynagrodzenie              (warunek wypłaty)
-Wynagrodzenie   <--- Faktura VAT                (wymagana forma rozliczenia)
-Zapłata         ===> IP                         (przeniesienie praw warunkowane zapłatą)
-NDA             <---> Obie strony               (obowiązek wzajemny)
-Wypowiedzenie   ---> Rozwiązanie umowy          (po 30 dniach)
-Naruszenie NDA  ---> Kara 50k PLN               (sankcja)
-Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnienie)
-
 ## Hierarchy
 - Umowa
   - Świadczenie usług (§2)
@@ -209,36 +191,38 @@ Brak zapłaty    -.-> Roszczenie odsetkowe       (ustawowe odsetki za opóźnien
 3. Brak klauzuli zakazu konkurencji — zleceniobiorca może świadczyć usługi konkurencji
    równolegle, co przy modelu B2B bywa nieoczywiste dla zamawiającego.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph Strony
-    Acme[Acme Sp. z o.o.]
-    Kowalski[J. Kowalski - JDG]
+    Acme["<b>Acme Sp. z o.o.</b><br/><small>zamawiający usługi IT</small>"]
+    Kowalski["<b>J. Kowalski JDG</b><br/><small>wykonawca, zleceniobiorca</small>"]
   end
   subgraph Rozliczenie
-    Faktura[Faktura VAT]
-    Wynagrodzenie[Wynagrodzenie 18k PLN]
-    Odsetki[Roszczenie odsetkowe]
+    Faktura["<b>Faktura VAT</b><br/><small>wymagana forma rozliczenia</small>"]
+    Wynagrodzenie["<b>Wynagrodzenie</b><br/><small>18k PLN netto / mies.</small>"]
+    Odsetki["<b>Odsetki ustawowe</b><br/><small>przy opóźnieniu płatności</small>"]
+    BrakZaplaty["<b>Brak zapłaty</b><br/><small>naruszenie terminu płatności</small>"]
   end
   subgraph Prawa
-    IP[Prawa autorskie - IP]
-    NDA[NDA 3 lata]
+    IP["<b>Prawa autorskie IP</b><br/><small>przeniesienie z chwilą zapłaty</small>"]
+    NDA["<b>NDA 3 lata</b><br/><small>obowiązek poufności obu stron</small>"]
   end
   subgraph Sankcje
-    Kara[Kara 50k PLN]
-    Wypowiedzenie[Wypowiedzenie 30 dni]
-    Rozwiazanie[Rozwiazanie umowy]
+    Kara["<b>Kara 50k PLN</b><br/><small>za naruszenie NDA</small>"]
+    Wypowiedzenie["<b>Wypowiedzenie</b><br/><small>30 dni, forma pisemna</small>"]
+    Rozwiazanie["<b>Rozwiązanie umowy</b><br/><small>skutek po upływie okresu</small>"]
+    NaruszNDA["<b>Naruszenie NDA</b><br/><small>aktywuje karę umowną</small>"]
   end
 
   Kowalski ==>|wystawia +0.88| Faktura
   Faktura ==>|rozlicza +0.92| Wynagrodzenie
   Wynagrodzenie ==>|warunkuje +0.85| IP
   Acme -->|zatwierdza +0.76| Wynagrodzenie
-  Brak_zaplaty[Brak zaplaty] -.->|generuje +0.41| Odsetki
+  BrakZaplaty -.->|generuje +0.41| Odsetki
   NDA <-->|wiaze +0.69| Acme
   NDA <-->|wiaze +0.67| Kowalski
-  Naruszenie_NDA[Naruszenie NDA] ==>|aktywuje +0.83| Kara
+  NaruszNDA ==>|aktywuje +0.83| Kara
   Wypowiedzenie -->|skutkuje +0.79| Rozwiazanie
   IP -.->|niezalezne od -0.08| NDA
 ```
@@ -258,14 +242,6 @@ Opening chapter, narrative fiction, low-magic political fantasy, Stark POV.
 - **Direwolf pups** — six found, one per Stark child + Jon.
 - **The Deserter** — Night's Watch oathbreaker, executed in opening scene.
 
-## Relationships
-Ned Stark        ===> Justice (himself swings the sword)   (ethos)
-Bran             <--- Ned (lesson on lordship)             (mentorship)
-Direwolves       <---> Stark children                      (one-per-child symbolic bond)
-Jon Snow         -.-> Stark family                         (acknowledged but bastard)
-Theon            ---> Cynical lens on Stark honor          (foil)
-The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismissed in-text)
-
 ## Hierarchy
 - Stark household
   - Trueborn children (Robb, Sansa, Arya, Bran, Rickon)
@@ -282,35 +258,37 @@ The Deserter     ---> White Walkers (off-page motif)       (foreshadow, dismisse
 3. Theon's casual cruelty toward the deserter's head is a quiet seed: his later
    betrayal is not a swerve, it is consistent with how he is introduced here.
 
-## Mermaid Flowchart
+## Flowchart
 ```mermaid
 flowchart LR
   subgraph StarkHousehold
-    Ned[Ned Stark]
-    Bran[Bran Stark]
-    Robb[Robb Stark]
-    Jon[Jon Snow - bastard]
-    Theon[Theon Greyjoy - ward]
+    Ned["<b>Ned Stark</b><br/><small>Lord Winterfell, executes justice</small>"]
+    Bran["<b>Bran Stark</b><br/><small>7yo POV, inherits lordship lesson</small>"]
+    Robb["<b>Robb Stark</b>"]
+    Jon["<b>Jon Snow</b><br/><small>bastard, marginal belonging</small>"]
+    Theon["<b>Theon Greyjoy</b><br/><small>ward, cynical foil</small>"]
   end
   subgraph Symbolism
-    Direwolves[Direwolf Pups x6]
-    StarkChildren[Stark Children x5]
-    AlbinoRunt[Albino Runt - Jon]
+    Direwolves["<b>Direwolf Pups x6</b><br/><small>one per Stark child + Jon</small>"]
+    StarkChildren["<b>Stark Children x5</b>"]
+    AlbinoRunt["<b>Albino Runt</b><br/><small>Jon's direwolf, mirrors bastard status</small>"]
+    StarkHonor["<b>Stark Honor</b><br/><small>face-to-face justice ethos</small>"]
   end
   subgraph NightWatch
-    Deserter[The Deserter]
-    Others[White Walkers - off-page]
+    Deserter["<b>The Deserter</b><br/><small>oathbreaker, executed by Ned</small>"]
+    Others["<b>White Walkers</b><br/><small>off-page, dismissed threat</small>"]
+    Justice["<b>Justice</b><br/><small>Ned wields sword himself</small>"]
   end
 
   Ned ==>|mentors +0.89| Bran
-  Ned ==>|executes +0.84| Justice(Justice - execution scene)
+  Ned ==>|executes +0.84| Justice
   Bran -->|discovers +0.72| Direwolves
   Robb -->|discovers +0.68| Direwolves
   Jon -.->|marginal in +0.31| StarkHousehold
   Jon -->|claims +0.58| AlbinoRunt
   Direwolves <-->|bonds with +0.91| StarkChildren
   AlbinoRunt -.->|mirrors +0.35| Jon
-  Theon -.->|mocks -0.18| StarkHonor(Stark Honor)
+  Theon -.->|mocks -0.18| StarkHonor
   Deserter ==>|fled from +0.77| Others
   Ned -->|executes +0.65| Deserter
   Others -.->|dismissed by -0.12| Ned
@@ -363,17 +341,6 @@ One sentence characterizing the field, register, and stakes of the material.
 ## Key Entities
 {key_entities_bullets_rules}
 
-## Relationships
-ASCII arrow graph. One relationship per line. Use ONLY these arrows:
-    A ---> B     A leads-to / causes / produces B
-    A <--- B     A depends-on / is-fed-by B
-    A <---> B    mutual / bidirectional
-    A ===> B     strong/strict dependency (must-have, blocking)
-    A -.-> B     weak / hypothesized / off-page / foreshadowed
-Right-pad the arrows so they line up visually (use spaces, not tabs).
-Append a short parenthetical label after each line explaining the relation
-in ≤ 6 words. Aim for 6-15 relationships.
-
 ## Hierarchy
 Indented bullet tree (2 spaces per level, max depth 3). Capture the
 parent→child decomposition of the dominant structure (parts of a system,
@@ -389,10 +356,27 @@ exists, write a single line: "(flat — no nested hierarchy)".
 Do NOT restate surface facts. If you cannot produce a real cross-cutting
 insight, write fewer items rather than padding.
 
-## Mermaid Flowchart
-A rich, detailed "big-picture" flowchart rendering the SAME entities and
-relationships as the sections above in valid Mermaid syntax. This diagram
-is the primary visual map — favour completeness and depth over brevity.
+## Flowchart
+A rich, detailed "big-picture" flowchart that is the SOLE place where ALL
+relationships between entities are encoded. There is no separate Relationships
+section — every relationship, dependency, and connection MUST appear as an
+edge in this diagram. Favour completeness and depth over brevity.
+
+== NODE LABELS: TITLE + OPTIONAL DESCRIPTION ==
+Every node MUST have a bold title. Add a second-line description ONLY when
+it provides information not evident from the title alone (role disambiguation,
+key numerical fact, non-obvious trait). Omit it for self-explanatory names.
+Use HTML labels (htmlLabels is enabled):
+  — with description:    A["<b>Entity Name</b><br/><small>short description — role or key fact</small>"]
+  — title only (default): A["<b>Entity Name</b>"]
+- Title: entity name, ≤ 4 words, bold
+- Description (optional): ≤ 8 words, lower contrast, explains role, key trait, or significance.
+  Add only when it genuinely clarifies — e.g. "18k PLN, due 10th", "causal mask, left-only".
+  Skip for nodes where the name already speaks for itself (e.g. a character name in fiction).
+- All node labels MUST be wrapped in double quotes when using HTML
+- Example (fiction, description needed):   A["<b>Joanna Chylka</b><br/><small>adwokat obrony, strategia procesowa</small>"]
+- Example (fiction, description skipped):  B["<b>Jon Snow</b>"]
+- Example (legal, description needed):     C["<b>Wynagrodzenie</b><br/><small>18k PLN, platne do 10. dnia</small>"]
 
 == CORRELATION SCORES ON EDGES ==
 The raw material contains a "CHUNK PAIRWISE COSINE CORRELATION" section with
@@ -419,9 +403,30 @@ Workflow:
 Rules:
 - First line must be: `flowchart LR`
 - Node IDs: short, alphanumeric, no spaces (e.g. TransformerModel, SelfAttn).
-- Node labels in square brackets: `A[Label text]`
-- Round brackets for process/action nodes: `A(Label)`
-- Double-square for subsystems/modules: `A[[Label]]`
+- NODE SHAPE VOCABULARY — use shapes semantically to create visual hierarchy:
+    A[Label]    = rectangle: standard entity / fact / object (default)
+    A(Label)    = rounded rectangle: process / action / event / mechanism
+    A([Label])  = stadium: terminal concept / key finding / output / conclusion
+    A((Label))  = circle: central hub / protagonist / core system
+    A{{Label}}  = hexagon: category header / group label (prefer subgraph instead)
+    A[[Label]]  = subroutine: subprocess / nested system / module
+  Mix shapes within each subgraph to signal semantic roles at a glance.
+- NODE COLORS: keep individual nodes plain — white/light fill with black text. Do NOT apply
+  classDef colors to regular nodes. Color belongs on subgraph containers only (see below).
+  Exception: central hub nodes (circle shape) may use a single subtle highlight:
+    classDef hub fill:#dbeafe,stroke:#2563eb,color:#000,stroke-width:2px
+  Apply only to the one or two most central hub nodes: `class NodeId hub`
+- SUBGRAPH COLORS: give each subgraph a distinct pastel background using `style` after
+  the closing `end` of that subgraph. Use distinct, light colors so subgraphs are visually
+  distinguishable at a glance. All text stays black (color:#000). Example palette:
+    style SubgraphA fill:#dbeafe,stroke:#93c5fd,color:#000
+    style SubgraphB fill:#dcfce7,stroke:#86efac,color:#000
+    style SubgraphC fill:#fef9c3,stroke:#fde047,color:#000
+    style SubgraphD fill:#ffe4e6,stroke:#fda4af,color:#000
+    style SubgraphE fill:#f3e8ff,stroke:#d8b4fe,color:#000
+  Rotate through these (or similar pastels) so each subgraph gets a unique color.
+  Adapt the semantic roles to the domain (e.g. for fiction: hub=protagonist, entity=character,
+  process=event, evidence=theme/symbol; for legal: hub=party, entity=clause, process=obligation).
 - Edge types (always include `|relation score|` label — verb/noun ≤ 3 words then score):
     A ==>|drives +0.87| B    (strong dependency, high cosine similarity)
     A -->|uses +0.55| B      (moderate relation)
@@ -430,10 +435,12 @@ Rules:
     A <-->|syncs +0.63| B    (bidirectional, moderate correlation)
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
-- Aim for 25-45 nodes and 30-55 edges. More is always better when supported
-  by source material — prefer completeness over brevity. Include specific
-  details in node labels (exact names, amounts, dates, section refs) when
-  they disambiguate or add meaning.
+- Node and edge targets are driven by the DOCUMENT SCALE section in the
+  human message (see below). The default is 30-54 nodes / 36-66 edges;
+  scale UP proportionally for medium/large/xl documents as instructed there.
+  More is always better when supported by source material — prefer
+  completeness over brevity. Include specific details in node labels (exact
+  names, amounts, dates, section refs) when they disambiguate or add meaning.
 - CRITICAL SYNTAX RULES (violations break rendering):
     * No unescaped `"` or `{{` or `}}` inside node labels — use single quotes
       or rephrase: `A["label"]` is OK; `A[label with {{brace}}]` is NOT.
@@ -441,14 +448,23 @@ Rules:
       `RJ45["2x RJ45 10/100/1000BaseT(X)"]` is correct;
       `RJ45[2x RJ45 10/100/1000BaseT(X)]` is WRONG — Mermaid interprets the
       trailing `(X)` as a stadium-shape suffix and breaks parsing.
+    * Node labels containing `@` (e.g. email addresses) MUST be wrapped in
+      double quotes: `C3["olek.figiel@gmail.com"]` is correct;
+      `C3[olek.figiel@gmail.com]` is WRONG — Mermaid parses `@` as a link ID.
+    * Node labels starting with `+` (e.g. phone numbers) MUST be wrapped in
+      double quotes: `C2["+48 791 421 067"]` is correct;
+      `C2[+48 791 421 067]` is WRONG.
     * No trailing pipe characters on edge lines.
+    * NEVER create cycles: no self-loops (`A --> A`) and no circular paths (`A --> B --> A` or longer). The graph MUST be a DAG. If two nodes genuinely relate in both directions, draw only the dominant directional edge.
     * Node IDs must be unique.
     * `subgraph` bodies must be indented; close every `subgraph` with `end`.
     * Enclose the whole block in triple-backtick mermaid fence.
 
 == HARD CONSTRAINTS ==
 
-- Total length ≤ ~2500 tokens (~10000 characters). Terseness in prose, richness in diagram.
+- Total length: scale with document size. Tiny/short docs: ≤ ~2500 tokens (~10 000 chars).
+  Medium docs: ≤ ~3500 tokens (~14 000 chars). Large/XL docs: ≤ ~5000 tokens (~20 000 chars).
+  Terseness in prose sections; richness and exhaustiveness in the diagram.
 - Write in the SAME LANGUAGE as the welcome message (prose sections only; Mermaid node IDs always English alphanumeric).
 - No emojis. No [action:...] markers. No [source:N] citations. No URLs.
 - Never invent entities or relationships not supported by the welcome message
@@ -477,6 +493,9 @@ _WIKI_HUMAN = """== CONVERSATION TITLE ==
 
 == LANGUAGE ==
 Write the wiki in: {language}
+
+== DOCUMENT SCALE ==
+{document_scale_hint}
 
 == WELCOME MESSAGE (already shown to user) ==
 {welcome_message}

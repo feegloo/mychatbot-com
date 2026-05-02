@@ -80,7 +80,12 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
 # ── Init env ─────────────────────────────────────────────────────────────────
-source infra/cloudrun/.env.gcp
+# In CI the vars are injected as environment variables; the file is only needed locally.
+if [[ -f "infra/cloudrun/.env.gcp" ]]; then
+  set -a
+  source infra/cloudrun/.env.gcp
+  set +a
+fi
 
 # ── Pre-flight checks ───────────────────────────────────────────────────────
 [[ -z "$PROJECT_ID" ]] && error "Set GCP_PROJECT_ID env var first:\n  export GCP_PROJECT_ID=my-project-id"
@@ -90,26 +95,29 @@ source infra/cloudrun/.env.gcp
 # ── Step 1: Install prerequisites ────────────────────────────────────────────
 info "Step 1/8: Checking prerequisites..."
 
-if ! command -v brew &>/dev/null; then
-  warn "Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
+# In CI (GitHub Actions) all tools are pre-installed; skip macOS/brew setup.
+if [[ -z "${CI:-}" ]]; then
+  if ! command -v brew &>/dev/null; then
+    warn "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
 
-if ! command -v gcloud &>/dev/null; then
-  warn "Installing Google Cloud SDK..."
-  brew install --cask google-cloud-sdk
-fi
+  if ! command -v gcloud &>/dev/null; then
+    warn "Installing Google Cloud SDK..."
+    brew install --cask google-cloud-sdk
+  fi
 
-if ! command -v docker &>/dev/null; then
-  warn "Installing Docker..."
-  brew install --cask docker
-  echo "Please start Docker Desktop, then re-run this script."
-  exit 1
-fi
+  if ! command -v docker &>/dev/null; then
+    warn "Installing Docker..."
+    brew install --cask docker
+    echo "Please start Docker Desktop, then re-run this script."
+    exit 1
+  fi
 
-if ! command -v npm &>/dev/null; then
-  warn "Installing Node.js (npm required for cloud-function build)..."
-  brew install node
+  if ! command -v npm &>/dev/null; then
+    warn "Installing Node.js (npm required for cloud-function build)..."
+    brew install node
+  fi
 fi
 
 # ── Step 2: Authenticate & set project ───────────────────────────────────────
@@ -118,113 +126,114 @@ if ! gcloud auth print-access-token &>/dev/null; then
   gcloud auth login --quiet 2>/dev/null || true
 fi
 gcloud config set project "$PROJECT_ID"
-gcloud services enable \
-  run.googleapis.com \
-  cloudfunctions.googleapis.com \
-  artifactregistry.googleapis.com \
-  eventarc.googleapis.com \
-  sqladmin.googleapis.com \
-  containerregistry.googleapis.com \
-  cloudbuild.googleapis.com \
-  servicenetworking.googleapis.com \
-  compute.googleapis.com
+# In CI all APIs are already enabled; skip to avoid requiring serviceusage.serviceUsageAdmin.
+if [[ -z "${CI:-}" ]]; then
+  gcloud services enable \
+    run.googleapis.com \
+    cloudfunctions.googleapis.com \
+    artifactregistry.googleapis.com \
+    eventarc.googleapis.com \
+    sqladmin.googleapis.com \
+    containerregistry.googleapis.com \
+    cloudbuild.googleapis.com \
+    servicenetworking.googleapis.com \
+    compute.googleapis.com
+fi
 
 # ── Step 2b: Set up Private Service Connection ───────────────────────────────
-info "Step 2b/8: Setting up Private Service Connection..."
-if ! gcloud compute addresses describe google-managed-services-default --global &>/dev/null; then
-  warn "  Creating private connection address..."
-  gcloud compute addresses create google-managed-services-default \
-    --global \
-    --purpose=VPC_PEERING \
-    --prefix-length=16 \
-    --network=default
-fi
+# Skipped in CI — VPC peering is already configured in production.
+if [[ -z "${CI:-}" ]]; then
+  info "Step 2b/8: Setting up Private Service Connection..."
+  if ! gcloud compute addresses describe google-managed-services-default --global &>/dev/null; then
+    warn "  Creating private connection address..."
+    gcloud compute addresses create google-managed-services-default \
+      --global \
+      --purpose=VPC_PEERING \
+      --prefix-length=16 \
+      --network=default
+  fi
 
-if ! gcloud services vpc-peerings list --service=servicenetworking.googleapis.com 2>/dev/null | grep -q "servicenetworking-googleapis-com"; then
-  warn "  Creating VPC peering connection..."
-  gcloud services vpc-peerings connect \
-    --service=servicenetworking.googleapis.com \
-    --ranges=google-managed-services-default \
-    --network=default
-fi
-info "  Private Service Connection ready"
-
-# ── Step 3: Create Cloud SQL PostgreSQL instance ─────────────────────────────
-info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
-if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
-  # Cheapest option: --tier=db-f1-micro (shared core, 0.6 GiB, ~$8/mo, no SLA)
-  # db-custom-2-3840
-  gcloud sql instances create "$DB_INSTANCE_NAME" \
-    --database-version=POSTGRES_16 \
-    --edition=ENTERPRISE \
-    --tier=db-f1-micro \
-    --region="$REGION" \
-    --root-password="$DB_PASSWORD" \
-    --storage-size=10GB \
-    --storage-auto-increase \
-    --no-assign-ip \
-    --network=default
-  info "  Created instance: $DB_INSTANCE_NAME"
-
-  # Enable automatic daily backups at 03:00 UTC, keep last 2
-  gcloud sql instances patch "$DB_INSTANCE_NAME" \
-    --backup-start-time="03:00" \
-    --retained-backups-count=1 \
-    --quiet
-  info "  Enabled automatic backups"
+  if ! gcloud services vpc-peerings list --service=servicenetworking.googleapis.com 2>/dev/null | grep -q "servicenetworking-googleapis-com"; then
+    warn "  Creating VPC peering connection..."
+    gcloud services vpc-peerings connect \
+      --service=servicenetworking.googleapis.com \
+      --ranges=google-managed-services-default \
+      --network=default
+  fi
+  info "  Private Service Connection ready"
 else
-  warn "  Instance $DB_INSTANCE_NAME already exists, skipping."
+  info "Step 2b/8: Skipped Private Service Connection setup (CI)"
 fi
 
-# Create database and user (if they don't already exist)
-if ! gcloud sql databases describe "$DB_NAME" --instance="$DB_INSTANCE_NAME" &>/dev/null; then
-  gcloud sql databases create "$DB_NAME" --instance="$DB_INSTANCE_NAME"
-  info "  Created database $DB_NAME"
+# ── Steps 3 & 4: Cloud SQL setup — skipped in CI (already provisioned) ───────
+if [[ -z "${CI:-}" ]]; then
+  info "Step 3/8: Creating Cloud SQL PostgreSQL instance..."
+  if ! gcloud sql instances describe "$DB_INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
+    gcloud sql instances create "$DB_INSTANCE_NAME" \
+      --database-version=POSTGRES_16 \
+      --edition=ENTERPRISE \
+      --tier=db-f1-micro \
+      --region="$REGION" \
+      --root-password="$DB_PASSWORD" \
+      --storage-size=10GB \
+      --storage-auto-increase \
+      --no-assign-ip \
+      --network=default
+    info "  Created instance: $DB_INSTANCE_NAME"
+    gcloud sql instances patch "$DB_INSTANCE_NAME" \
+      --backup-start-time="03:00" \
+      --retained-backups-count=1 \
+      --quiet
+    info "  Enabled automatic backups"
+  else
+    warn "  Instance $DB_INSTANCE_NAME already exists, skipping."
+  fi
+
+  if ! gcloud sql databases describe "$DB_NAME" --instance="$DB_INSTANCE_NAME" &>/dev/null; then
+    gcloud sql databases create "$DB_NAME" --instance="$DB_INSTANCE_NAME"
+    info "  Created database $DB_NAME"
+  else
+    warn "  Database $DB_NAME already exists, skipping."
+  fi
+  if ! gcloud sql users list --instance="$DB_INSTANCE_NAME" --format='value(name)' | grep -qx "$DB_USER"; then
+    gcloud sql users create "$DB_USER" --instance="$DB_INSTANCE_NAME" --password="$DB_PASSWORD"
+    info "  Created user $DB_USER"
+  else
+    warn "  User $DB_USER already exists, skipping."
+  fi
+
+  DB_CONNECTION_NAME=$(gcloud sql instances describe "$DB_INSTANCE_NAME" --format='value(connectionName)')
+  info "  Connection name: $DB_CONNECTION_NAME"
+
+  info "Step 4/8: Getting Cloud SQL instance details..."
+  DB_PRIVATE_IP=$(gcloud sql instances describe "$DB_INSTANCE_NAME" \
+    --format=json 2>/dev/null | jq -r '.ipAddresses[] | select(.type=="PRIVATE") | .ipAddress' | head -1)
+  [[ -z "$DB_PRIVATE_IP" ]] && error "Could not get private IP."
+  info "  Cloud SQL private IP: $DB_PRIVATE_IP"
 else
-  warn "  Database $DB_NAME already exists, skipping."
+  info "Step 3/8: Skipped Cloud SQL provisioning (CI)"
+  info "Step 4/8: Skipped Cloud SQL IP lookup (CI) — DATABASE_URL injected via secret"
 fi
-if ! gcloud sql users list --instance="$DB_INSTANCE_NAME" --format='value(name)' | grep -qx "$DB_USER"; then
-  gcloud sql users create "$DB_USER" --instance="$DB_INSTANCE_NAME" --password="$DB_PASSWORD"
-  info "  Created user $DB_USER"
-else
-  warn "  User $DB_USER already exists, skipping."
-fi
-
-# Get connection name for Cloud Run
-DB_CONNECTION_NAME=$(gcloud sql instances describe "$DB_INSTANCE_NAME" --format='value(connectionName)')
-info "  Connection name: $DB_CONNECTION_NAME"
-
-# ── Step 4: Initialize database schema ───────────────────────────────────────
-info "Step 4/8: Getting Cloud SQL instance details..."
-
-# Get the private IP of the instance (private IP only, no public IP)
-DB_PRIVATE_IP=$(gcloud sql instances describe "$DB_INSTANCE_NAME" \
-  --format=json 2>/dev/null | jq -r '.ipAddresses[] | select(.type=="PRIVATE") | .ipAddress' | head -1)
-
-if [[ -z "$DB_PRIVATE_IP" ]]; then
-  error "Could not get private IP. Ensure instance has private IP enabled and VPC peering is configured."
-fi
-
-info "  Cloud SQL private IP: $DB_PRIVATE_IP"
 
 # ── Step 5: Create GCS bucket for file storage ──────────────────────────────
-info "Step 5/9: Creating GCS bucket for file storage..."
-gcloud services enable storage.googleapis.com
-if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" &>/dev/null; then
-  gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION"
-  info "  Created bucket: ${GCS_BUCKET}"
+if [[ -z "${CI:-}" ]]; then
+  info "Step 5/9: Creating GCS bucket for file storage..."
+  gcloud services enable storage.googleapis.com
+  if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" &>/dev/null; then
+    gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION"
+    info "  Created bucket: ${GCS_BUCKET}"
+  else
+    warn "  Bucket ${GCS_BUCKET} already exists, skipping."
+  fi
+  CORS_FILE="${SCRIPT_DIR}/gcs-cors.json"
+  if [[ -f "$CORS_FILE" ]]; then
+    gcloud storage buckets update "gs://${GCS_BUCKET}" --cors-file="$CORS_FILE"
+    info "  Applied CORS config to bucket ${GCS_BUCKET}"
+  else
+    warn "  CORS config file not found at ${CORS_FILE}, skipping."
+  fi
 else
-  warn "  Bucket ${GCS_BUCKET} already exists, skipping."
-fi
-
-# Apply CORS so the browser can fetch signed URLs directly from storage.googleapis.com
-# (needed for PDF embeds and range requests served via redirect from /api/storage).
-CORS_FILE="${SCRIPT_DIR}/gcs-cors.json"
-if [[ -f "$CORS_FILE" ]]; then
-  gcloud storage buckets update "gs://${GCS_BUCKET}" --cors-file="$CORS_FILE"
-  info "  Applied CORS config to bucket ${GCS_BUCKET}"
-else
-  warn "  CORS config file not found at ${CORS_FILE}, skipping."
+  info "Step 5/9: Skipped GCS bucket setup (CI)"
 fi
 
 # ── Step 6: Build Docker image ───────────────────────────────────────────────
@@ -238,15 +247,32 @@ npm run build
 popd >/dev/null
 
 gcloud auth configure-docker --quiet
-docker build \
-  --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
-  --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
-  --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
-  --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
-  --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
-  --build-arg SENTRY_ORG="${SENTRY_ORG}" \
-  --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
-  -t "${IMAGE}:latest" .
+
+# In CI use buildx with GHA layer cache for fast rebuilds; locally use plain docker build.
+if [[ -n "${CI:-}" ]]; then
+  docker buildx build \
+    --cache-from type=gha \
+    --cache-to   type=gha,mode=max \
+    --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+    --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+    --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
+    --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
+    --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
+    --build-arg SENTRY_ORG="${SENTRY_ORG}" \
+    --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
+    --load \
+    -t "${IMAGE}:latest" .
+else
+  docker build \
+    --build-arg VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY}" \
+    --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+    --build-arg VITE_SENTRY_DSN="${VITE_SENTRY_DSN}" \
+    --build-arg VITE_COMMIT_HASH="${GIT_COMMIT_HASH}" \
+    --build-arg SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN}" \
+    --build-arg SENTRY_ORG="${SENTRY_ORG}" \
+    --build-arg SENTRY_PROJECT="${SENTRY_PROJECT}" \
+    -t "${IMAGE}:latest" .
+fi
 
 # ── Step 7: Push to GCR ─────────────────────────────────────────────────────
 info "Step 7/9: Pushing image to Container Registry..."
@@ -255,9 +281,14 @@ docker push "${IMAGE}:latest"
 # ── Step 8: Deploy to Cloud Run ──────────────────────────────────────────────
 info "Step 8/9: Deploying to Cloud Run..."
 
-DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NAME}"
-
-warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
+# In CI, DATABASE_URL is injected as a secret; locally it's built from the private IP.
+if [[ -z "${CI:-}" ]]; then
+  DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_PRIVATE_IP}:5432/${DB_NAME}"
+  warn "  DATABASE_URL: postgres://${DB_USER}:****@${DB_PRIVATE_IP}:5432/${DB_NAME}"
+else
+  [[ -z "${DATABASE_URL:-}" ]] && { echo "ERROR: DATABASE_URL secret not set in CI"; exit 1; }
+  warn "  DATABASE_URL: injected from secret"
+fi
 
 # ── Step 8a: Pub/Sub skipped — inline worker mode ────────────────────────────
 # Indexing runs in-process on the single Cloud Run instance (WORKER_MODE=inline).
@@ -365,40 +396,33 @@ fi
 if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
   info "Step 8c/9: Syncing frontend dist to Cloud CDN bucket..."
 
-  gcloud services enable storage.googleapis.com
+  # Bucket/IAM/PAP setup only needed on first provision — skip in CI.
+  if [[ -z "${CI:-}" ]]; then
+    gcloud services enable storage.googleapis.com
 
-  if ! gcloud storage buckets describe "gs://${STATIC_BUCKET}" &>/dev/null; then
-    gcloud storage buckets create "gs://${STATIC_BUCKET}" --location="$REGION"
-    info "  Created static bucket: ${STATIC_BUCKET}"
-  else
-    warn "  Static bucket ${STATIC_BUCKET} already exists, reusing."
+    if ! gcloud storage buckets describe "gs://${STATIC_BUCKET}" &>/dev/null; then
+      gcloud storage buckets create "gs://${STATIC_BUCKET}" --location="$REGION"
+      info "  Created static bucket: ${STATIC_BUCKET}"
+    else
+      warn "  Static bucket ${STATIC_BUCKET} already exists, reusing."
+    fi
+
+    # WHY gsutil: see comment in original script (PAP + allUsers IAM workaround).
+    gsutil pap set unspecified "gs://${STATIC_BUCKET}" || true
+    gcloud storage buckets add-iam-policy-binding "gs://${STATIC_BUCKET}" \
+      --member="allUsers" \
+      --role="roles/storage.objectViewer" || true
+    gcloud storage buckets update "gs://${STATIC_BUCKET}" \
+      --web-main-page-suffix=index.html \
+      --web-error-page=index.html || true
   fi
 
-  # Public read access for CDN backend bucket origin.
-  #
-  # WHY gsutil instead of gcloud:
-  #   GCS buckets created in some projects default to `public_access_prevention: enforced`,
-  #   which blocks allUsers IAM bindings even when explicitly granted — causing 403
-  #   "AccessDenied" from the CDN backend bucket regardless of IAM policy.
-  #   `gcloud storage buckets update --clear-pap` silently failed to lift this in
-  #   practice (2026-05-01 incident: chatrag.app returned 403 after CDN migration).
-  #   `gsutil pap set unspecified` correctly sets PAP to "inherited" (= no restriction)
-  #   without requiring the Organization Policy API to be enabled on the project.
-  gsutil pap set unspecified "gs://${STATIC_BUCKET}" || true
-  gcloud storage buckets add-iam-policy-binding "gs://${STATIC_BUCKET}" \
-    --member="allUsers" \
-    --role="roles/storage.objectViewer" || true
-
-  gcloud storage buckets update "gs://${STATIC_BUCKET}" \
-    --web-main-page-suffix=index.html \
-    --web-error-page=index.html || true
-
+  # Always sync — this is the actual deploy step.
   gcloud storage rsync \
     --recursive \
     --delete-unmatched-destination-objects \
     frontend/dist "gs://${STATIC_BUCKET}"
 
-  # HTML should revalidate, hashed assets can be cached aggressively.
   gcloud storage objects update "gs://${STATIC_BUCKET}/index.html" \
     --cache-control="no-cache, max-age=0, must-revalidate" || true
   gcloud storage objects update "gs://${STATIC_BUCKET}/assets/**" \
@@ -408,8 +432,9 @@ if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
     --cache-control="public, max-age=86400" || true
 fi
 
-# ── Step 8d: Configure HTTPS LB: static by default, /api/* to Cloud Run ─────
-if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
+# ── Step 8d: Configure HTTPS LB ─────────────────────────────────────────────
+# Skipped in CI — LB/NEG/SSL cert are already configured in production.
+if [[ "${ENABLE_STATIC_CDN}" == "true" ]] && [[ -z "${CI:-}" ]]; then
   info "Step 8d/9: Configuring HTTPS Load Balancer + Cloud CDN routing..."
 
   if ! gcloud compute network-endpoint-groups describe "$LB_NEG_NAME" --region "$REGION" &>/dev/null; then
@@ -472,6 +497,13 @@ hostRules:
 pathMatchers:
   - name: chatrag-paths
     defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+    defaultCustomErrorResponsePolicy:
+      errorService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendBuckets/${LB_STATIC_BACKEND_BUCKET}
+      errorResponseRules:
+        - matchResponseCodes:
+            - '404'
+          path: /index.html
+          overrideResponseCode: 200
     pathRules:
       - paths:
           - /api/*
@@ -563,7 +595,6 @@ fi
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo -e "  ${GREEN}Deployed!${NC}  $SERVICE_URL"
-echo "  DB password:    $DB_PASSWORD  (save this!)"
 echo "  Worker mode:    inline (indexing runs in-process on this instance)"
 echo "  Worker pool:    disabled"
 if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then

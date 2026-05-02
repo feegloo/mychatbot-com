@@ -4,7 +4,8 @@
     system-ui,
     -apple-system,
     sans-serif;
-  color: #e2e8f0;
+  --text-foreground: #e2e8f0;
+  color: var(--text-foreground);
   background: #0b0f1a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -19,7 +20,8 @@ svg[aria-roledescription='error'] {
 }
 
 /* Hide temporary mermaid render containers appended to body */
-body > [id^='dmermaid'] {
+body > [id^='dmermaid'],
+body > [id^='dmindmap'] {
   position: absolute !important;
   width: 0 !important;
   height: 0 !important;
@@ -119,7 +121,7 @@ a {
   padding: 12px;
   gap: 8px;
   overflow: hidden;
-  transition: width 0.05s ease-out;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .conv-nav-new {
@@ -135,8 +137,8 @@ a {
   transition:
     opacity 0.15s,
     transform 0.15s,
-    padding 0.12s ease,
-    border-radius 0.12s ease;
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -145,7 +147,7 @@ a {
   display: inline;
   white-space: nowrap;
   opacity: 1;
-  transition: opacity 0.15s ease 0.06s;
+  transition: opacity 0.2s ease 0.18s;
 }
 .conv-nav-new .conv-nav-new-icon {
   position: absolute;
@@ -154,7 +156,7 @@ a {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.18s ease;
 }
 
 @media (hover: hover) {
@@ -176,7 +178,7 @@ a {
   flex: 1;
   min-height: 0;
   opacity: 1;
-  transition: opacity 0.15s ease 0.06s;
+  transition: opacity 0.2s ease 0.18s;
 }
 
 .conv-nav-item {
@@ -287,6 +289,49 @@ a {
   }
 }
 
+.donate-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.donate-amount-row .conv-nav-donate {
+  flex: 1;
+  margin-top: 0;
+  padding: 8px 12px;
+}
+
+.donate-currency {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.donate-amount-input {
+  width: 44px;
+  flex-shrink: 0;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 6px 4px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.donate-amount-input::-webkit-inner-spin-button,
+.donate-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.donate-amount-input:focus {
+  outline: none;
+  border-color: #818cf8;
+}
+
 /* ── Sidebar bottom row (Donate + collapse arrow) ── */
 
 .conv-nav-bottom {
@@ -342,7 +387,8 @@ a {
 }
 
 .conv-nav-search-btn {
-  visibility: hidden;
+  /* visibility: hidden; */
+  display: none;
   border: 1px solid rgba(148, 163, 184, 0.36);
   background: rgba(15, 23, 42, 0.5);
   color: #94a3b8;
@@ -416,11 +462,11 @@ a {
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-label {
     opacity: 0;
-    transition: opacity 0.08s ease;
+    transition: opacity 0.12s ease;
   }
   .conv-nav.collapsed .conv-nav-new .conv-nav-new-icon {
     opacity: 1;
-    transition: opacity 0.1s ease 0.06s;
+    transition: opacity 0.18s ease 0.1s;
   }
   .conv-nav.collapsed .conv-nav-list {
     opacity: 0;
@@ -430,10 +476,10 @@ a {
     margin-top: 0;
     gap: 0;
     transition:
-      opacity 0.08s ease,
-      flex 0.12s ease,
-      margin-top 0.12s ease,
-      gap 0.12s ease;
+      opacity 0.12s ease,
+      flex 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      margin-top 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      gap 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .conv-nav.collapsed .donate-widget {
     opacity: 0;
@@ -441,9 +487,9 @@ a {
     max-height: 0;
     padding: 0;
     transition:
-      opacity 0.08s ease,
-      max-height 0.12s ease,
-      padding 0.12s ease;
+      opacity 0.12s ease,
+      max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Collapsed conversation indicators */
@@ -458,9 +504,9 @@ a {
     opacity: 0;
     pointer-events: none;
     transition:
-      opacity 0.08s ease,
-      max-height 0.1s ease,
-      padding 0.1s ease;
+      opacity 0.12s ease,
+      max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .conv-nav.collapsed .conv-nav-collapsed-hint {
     max-height: 200px;
@@ -468,9 +514,9 @@ a {
     opacity: 1;
     pointer-events: auto;
     transition:
-      opacity 0.12s ease 0.06s,
-      max-height 0.12s ease,
-      padding 0.12s ease;
+      opacity 0.2s ease 0.15s,
+      max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .conv-nav.collapsed .conv-nav-bottom {
     display: block;
@@ -1270,6 +1316,12 @@ li:has(.checklist-box) {
   width: 100%;
 }
 
+.markdown-content table th,
+.markdown-content table td {
+  min-width: 80px;
+  max-width: 600px;
+}
+
 .markdown-content .markdown-table-scroll {
   margin: 8px auto;
   overflow-x: auto;
@@ -1538,6 +1590,24 @@ textarea.big-input {
   background: #242832 !important;
 }
 
+.upload-action-btn {
+  background: #a78bfa !important;
+  color: #fff !important;
+  border-color: #a78bfa !important;
+}
+
+@media (hover: hover) {
+  .upload-action-btn:hover {
+    background: #c4b5fd !important;
+    border-color: #c4b5fd !important;
+  }
+}
+
+.upload-action-btn:active {
+  background: #c4b5fd !important;
+  border-color: #c4b5fd !important;
+}
+
 .question-pill {
   background: #242832;
 }
@@ -1546,6 +1616,64 @@ textarea.big-input {
   background: #a78bfa;
   color: #fff;
   border-color: #a78bfa;
+}
+
+.upload-plus-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+}
+
+@media (hover: hover) {
+  .upload-plus-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #e2e8f0;
+  }
+
+  .upload-plus-btn:hover::after {
+    opacity: 1;
+    pointer-events: none;
+    transition-delay: 1s;
+  }
+}
+
+.upload-plus-btn:active {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+/* CSS tooltip */
+.upload-plus-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  transition-delay: 0s;
+  z-index: 100;
 }
 
 .send-btn {
@@ -1741,7 +1869,7 @@ h3 {
     bottom: 0;
     z-index: 100;
     transform: translateX(100%);
-    transition: transform 0.25s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     width: 240px;
   }
   .conv-nav.open {
@@ -1978,7 +2106,7 @@ h3 {
   transform-origin: center;
   will-change: transform, filter, opacity;
 
-  animation: morphCinematic 2s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  animation: morphCinematic 3s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 /* Progressive (morphing) partial image while OpenAI streams the diffusion
@@ -1990,7 +2118,7 @@ h3 {
   max-width: min(70vh, 420px);
   overflow: hidden;
   background: rgba(167, 139, 250, 0.08);
-  animation: image-morph-pulse 2s ease-in-out infinite alternate;
+  animation: image-morph-pulse 3s ease-in-out infinite alternate;
 }
 .image-morph {
   display: block;
@@ -2020,7 +2148,7 @@ h3 {
   background: radial-gradient(circle at 30% 25%, rgba(255, 170, 100, 0.14), transparent 65%);
 
   mix-blend-mode: screen;
-  animation: glowPulse 2s ease-in-out infinite alternate;
+  animation: glowPulse 3s ease-in-out infinite alternate;
 }
 
 /* main morph loop (forward ↔ backward) — two keyframes only so cubic-bezier
@@ -2035,7 +2163,7 @@ h3 {
   100% {
     transform: scale(1.018) translateY(-2px);
     opacity: 0.94;
-    filter: brightness(1.06) contrast(1.03) saturate(1.08) blur(1.5px);
+    filter: brightness(1.06) contrast(1.03) saturate(1.08) blur(2.25px);
   }
 }
 
