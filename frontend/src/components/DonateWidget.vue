@@ -163,28 +163,14 @@ async function initStripe() {
 }
 
 function handleDonate() {
-  // On iOS Safari, paymentRequest.show() must be called synchronously inside
-  // a user gesture handler — any await before .show() kills the gesture context
-  // and prevents Apple Pay from opening on the first tap.
-  if (!stripeInitialized.value) {
-    // Stripe still loading (slow connection); show methods list as fallback
-    // and let background init finish so the next tap works natively.
-    initStripe()
-    showMethods.value = true
-    return
-  }
-  if (hasApplePay.value && paymentRequest) {
-    // Try Apple Pay first; if user cancels, show methods
-    const cancelHandler = () => {
-      paymentRequest!.off('cancel', cancelHandler)
-      showMethods.value = true
-    }
-    paymentRequest.on('cancel', cancelHandler)
-    paymentRequest.show()
-  } else {
-    // No Apple Pay — show payment methods immediately
-    showMethods.value = true
-  }
+  // Show the methods list immediately — this is always synchronous and avoids
+  // any iOS Safari gesture-context invalidation. Stripe init runs in the
+  // background; once it resolves the Apple Pay bubble will reactively appear
+  // in the methods list. The Apple Pay bubble's own click handler then calls
+  // paymentRequest.show() within a fresh user-gesture context, satisfying
+  // the iOS Payment Request API requirement.
+  showMethods.value = true
+  initStripe()
 }
 
 async function handleMethodClick(method: PaymentMethod) {
@@ -226,8 +212,5 @@ function checkDonateSuccess() {
 
 onMounted(() => {
   checkDonateSuccess()
-  // Pre-initialize Stripe so the first tap can call paymentRequest.show()
-  // synchronously within the iOS user-gesture context.
-  initStripe()
 })
 </script>
