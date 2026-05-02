@@ -23,31 +23,8 @@
             <template v-for="(part, i) in parts" :key="i">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-if="part.type === 'text'" class="wiki-text" :class="{ 'wiki-text--first': i === 0 }" v-html="part.html" />
-              <div v-else-if="part.type === 'mermaid'" class="wiki-flowchart-wrap">
-                <div v-if="flowchartLoading[i]" class="wiki-flowchart-loading">
-                  <span class="wiki-loading-dot" />
-                  <span class="wiki-loading-dot" />
-                  <span class="wiki-loading-dot" />
-                </div>
-                <template v-else-if="flowchartSvgs[i]">
-                  <div class="wiki-flowchart-controls">
-                    <button class="wiki-zoom-btn" aria-label="Zoom out" :disabled="(flowchartScales[i] ?? 1) <= MIN_SCALE" @click="zoomOut(i)">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 7.75A.75.75 0 0 1 2.75 7h10a.75.75 0 0 1 0 1.5h-10A.75.75 0 0 1 2 7.75Z" /></svg>
-                    </button>
-                    <button class="wiki-zoom-btn" aria-label="Zoom in" :disabled="(flowchartScales[i] ?? 1) >= MAX_SCALE" @click="zoomIn(i)">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" /></svg>
-                    </button>
-                  </div>
-                  <div class="wiki-flowchart-viewport">
-                    <!-- eslint-disable-next-line vue/no-v-html -->
-                    <div
-                      class="wiki-flowchart-svg-inner"
-                      :style="{ transform: `scale(${flowchartScales[i] ?? 1})`, transformOrigin: 'top center' }"
-                      v-html="flowchartSvgs[i]"
-                    />
-                  </div>
-                </template>
-                <div v-else-if="flowchartSvgs[i] === ''" class="wiki-flowchart-error">Could not render diagram</div>
+              <div v-else-if="part.type === 'mermaid'" class="wiki-mermaid-wrap">
+                <MermaidBlock :code="(part as Extract<ContentPart, { type: 'mermaid' }>).code" />
               </div>
             </template>
           </template>
@@ -58,9 +35,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { splitContent } from './chat/splitContent'
 import type { ContentPart } from './chat/splitContent'
+
+const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
 
 const props = defineProps<{
   visible: boolean
@@ -89,68 +68,6 @@ const processedContent = computed(() => {
 })
 
 const parts = computed(() => (processedContent.value ? splitContent(processedContent.value) : []))
-
-const MIN_SCALE = 0.3
-const MAX_SCALE = 4
-const ZOOM_STEP = 0.2
-
-const flowchartSvgs = ref<Record<number, string>>({})
-const flowchartLoading = ref<Record<number, boolean>>({})
-const flowchartScales = ref<Record<number, number>>({})
-
-function zoomIn(idx: number) {
-  flowchartScales.value[idx] = Math.min(MAX_SCALE, +((flowchartScales.value[idx] ?? 1) + ZOOM_STEP).toFixed(2))
-}
-
-function zoomOut(idx: number) {
-  flowchartScales.value[idx] = Math.max(MIN_SCALE, +((flowchartScales.value[idx] ?? 1) - ZOOM_STEP).toFixed(2))
-}
-
-async function renderMermaidParts() {
-  if (!props.visible) return
-  const mermaidParts = parts.value
-    .map((part, i) => ({ part, i }))
-    .filter((item): item is { part: Extract<ContentPart, { type: 'mermaid' }>; i: number } =>
-      item.part.type === 'mermaid',
-    )
-  if (mermaidParts.length === 0) return
-
-  const { default: mermaid } = await import('mermaid')
-  mermaid.initialize({
-    startOnLoad: false,
-    look: 'handDrawn',
-    theme: 'forest',
-    securityLevel: 'loose',
-  })
-
-  for (const { part, i } of mermaidParts) {
-    if (flowchartSvgs.value[i] !== undefined) continue
-    flowchartLoading.value[i] = true
-    try {
-      const { svg } = await mermaid.render(`wiki-fc-${Date.now()}-${i}`, part.code)
-      // Strip fixed width/height so CSS controls sizing
-      flowchartSvgs.value[i] = svg.replace(/<svg([^>]*)>/, (_m: string, attrs: string) =>
-        '<svg' + attrs.replace(/\s+(width|height)="[^"]*"/g, '') + '>',
-      )
-      flowchartScales.value[i] = 1
-    } catch (e) {
-      console.error('[WikiModal] Failed to render flowchart:', e)
-      flowchartSvgs.value[i] = ''
-    } finally {
-      flowchartLoading.value[i] = false
-    }
-  }
-}
-
-watch(() => props.content, () => {
-  flowchartSvgs.value = {}
-  flowchartLoading.value = {}
-  flowchartScales.value = {}
-})
-
-watch([() => props.visible, () => parts.value], ([visible]) => {
-  if (visible) renderMermaidParts()
-})
 </script>
 
 <style scoped>
@@ -331,97 +248,7 @@ watch([() => props.visible, () => parts.value], ([visible]) => {
   max-height: 68vh;
 }
 
-/* ── Wiki flowchart (inline-rendered SVG with zoom) ── */
-
-.wiki-flowchart-wrap {
+.wiki-mermaid-wrap {
   margin: 1.2em 0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(248, 250, 252, 0.03);
-  overflow: hidden;
-}
-
-.wiki-flowchart-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 40px 0;
-}
-
-.wiki-loading-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(148, 163, 184, 0.6);
-  animation: wiki-dot-pulse 1.2s infinite ease-in-out;
-}
-
-.wiki-loading-dot:nth-child(2) { animation-delay: 0.2s; }
-.wiki-loading-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes wiki-dot-pulse {
-  0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
-  40% { opacity: 1; transform: scale(1.1); }
-}
-
-.wiki-flowchart-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.wiki-zoom-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(203, 213, 225, 0.8);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.wiki-zoom-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-@media (hover: hover) {
-  .wiki-zoom-btn:not(:disabled):hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.95);
-  }
-}
-
-.wiki-flowchart-viewport {
-  overflow: auto;
-  max-height: 62vh;
-  padding: 12px;
-}
-
-.wiki-flowchart-svg-inner {
-  display: block;
-  transform-origin: top center;
-  transition: transform 0.15s ease;
-}
-
-.wiki-flowchart-svg-inner :deep(svg) {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.wiki-flowchart-error {
-  padding: 20px;
-  text-align: center;
-  color: rgba(248, 113, 113, 0.8);
-  font-size: 0.88rem;
 }
 </style>

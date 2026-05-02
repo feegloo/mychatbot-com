@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
         :file-name="fileName"
         :lang="lang"
       />
-      <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+      <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" :initial-zoom="4.5" />
     </template>
 
     <div v-if="hasPrompts" class="prompts-row">
