@@ -126,16 +126,19 @@ if ! gcloud auth print-access-token &>/dev/null; then
   gcloud auth login --quiet 2>/dev/null || true
 fi
 gcloud config set project "$PROJECT_ID"
-gcloud services enable \
-  run.googleapis.com \
-  cloudfunctions.googleapis.com \
-  artifactregistry.googleapis.com \
-  eventarc.googleapis.com \
-  sqladmin.googleapis.com \
-  containerregistry.googleapis.com \
-  cloudbuild.googleapis.com \
-  servicenetworking.googleapis.com \
-  compute.googleapis.com
+# In CI all APIs are already enabled; skip to avoid requiring serviceusage.serviceUsageAdmin.
+if [[ -z "${CI:-}" ]]; then
+  gcloud services enable \
+    run.googleapis.com \
+    cloudfunctions.googleapis.com \
+    artifactregistry.googleapis.com \
+    eventarc.googleapis.com \
+    sqladmin.googleapis.com \
+    containerregistry.googleapis.com \
+    cloudbuild.googleapis.com \
+    servicenetworking.googleapis.com \
+    compute.googleapis.com
+fi
 
 # ── Step 2b: Set up Private Service Connection ───────────────────────────────
 info "Step 2b/8: Setting up Private Service Connection..."
@@ -217,7 +220,7 @@ info "  Cloud SQL private IP: $DB_PRIVATE_IP"
 
 # ── Step 5: Create GCS bucket for file storage ──────────────────────────────
 info "Step 5/9: Creating GCS bucket for file storage..."
-gcloud services enable storage.googleapis.com
+if [[ -z "${CI:-}" ]]; then gcloud services enable storage.googleapis.com; fi
 if ! gcloud storage buckets describe "gs://${GCS_BUCKET}" &>/dev/null; then
   gcloud storage buckets create "gs://${GCS_BUCKET}" --location="$REGION"
   info "  Created bucket: ${GCS_BUCKET}"
@@ -373,7 +376,7 @@ fi
 if [[ "${ENABLE_STATIC_CDN}" == "true" ]]; then
   info "Step 8c/9: Syncing frontend dist to Cloud CDN bucket..."
 
-  gcloud services enable storage.googleapis.com
+  if [[ -z "${CI:-}" ]]; then gcloud services enable storage.googleapis.com; fi
 
   if ! gcloud storage buckets describe "gs://${STATIC_BUCKET}" &>/dev/null; then
     gcloud storage buckets create "gs://${STATIC_BUCKET}" --location="$REGION"
