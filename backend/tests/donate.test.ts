@@ -68,10 +68,27 @@ describe("donate endpoints", () => {
     expect(res.body.clientSecret).toBe("pi_test_secret_123");
   });
 
+  it("POST /api/donate with custom amount returns clientSecret", async () => {
+    const res = await request(app.callback())
+      .post("/api/donate")
+      .send({ amount: 10 });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("clientSecret");
+  });
+
   it("POST /api/donate/checkout returns checkout URL", async () => {
     const res = await request(app.callback())
       .post("/api/donate/checkout")
       .send({ returnUrl: "https://chatrag.app" });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("url");
+    expect(res.body.url).toContain("checkout.stripe.com");
+  });
+
+  it("POST /api/donate/checkout with custom amount returns checkout URL", async () => {
+    const res = await request(app.callback())
+      .post("/api/donate/checkout")
+      .send({ returnUrl: "https://chatrag.app", amount: 25 });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("url");
     expect(res.body.url).toContain("checkout.stripe.com");

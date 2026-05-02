@@ -378,13 +378,45 @@ def _vision_extract_or_describe(
     conversation_id: str | None = None,
     system_prompt: str | None = None,
 ) -> str:
-    """Extract OCR text first, otherwise describe visual content."""
+    """Extract OCR text first, otherwise describe visual content.
+
+    Works with both OpenAI (cloud) and Ollama (local vision model).
+    Ollama requires a vision-capable model such as llava:7b or llava-llama3.
+    """
     settings = get_settings()
-    # Explicit per-call timeout prevents a single stalled Vision request from
-    # blocking the entire OCR thread pool for the SDK-default 10 minutes.
-    client = OpenAI(api_key=settings.openai_api_key, timeout=_VISION_OCR_TIMEOUT_SEC)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
+    if settings.llm_provider == "ollama":
+        client = OpenAI(
+            api_key="ollama",
+            base_url=f"{settings.ollama_base_url}/v1",
+            timeout=_VISION_OCR_TIMEOUT_SEC,
+        )
+        model = settings.ollama_vision_model
+        # Ollama does not support reasoning_effort; omit it entirely
+        text, _usage = traced_openai_call(
+            client=client,
+            messages=[
+                {"role": "system", "content": system_prompt or _VISION_OCR_FIRST_PROMPT},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime_type};base64,{b64}"},
+                        },
+                    ],
+                },
+            ],
+            model=model,
+            operation="vision_ocr",
+            conversation_id=conversation_id,
+            max_completion_tokens=max_completion_tokens,
+        )
+        return text.strip()
+
+    # --- OpenAI path ---
+    client = OpenAI(api_key=settings.openai_api_key, timeout=_VISION_OCR_TIMEOUT_SEC)
     messages = [
         {
             "role": "system",

@@ -91,20 +91,35 @@ def _get_openai_client() -> OpenAI:
     settings = get_settings()
     # Explicit timeout prevents a stalled embedding call from hanging the
     # indexing pipeline indefinitely (default SDK timeout is 600 s = 10 min).
-    _openai_client = OpenAI(api_key=settings.openai_api_key, timeout=120.0)
+    if settings.llm_provider == "ollama":
+        _openai_client = OpenAI(
+            api_key="ollama",
+            base_url=f"{settings.ollama_base_url}/v1",
+            timeout=120.0,
+        )
+    else:
+        _openai_client = OpenAI(api_key=settings.openai_api_key, timeout=120.0)
     return _openai_client
 
 
+def _embedding_model() -> str:
+    """Return the embedding model name for the configured provider."""
+    settings = get_settings()
+    if settings.llm_provider == "ollama":
+        return settings.ollama_embedding_model
+    return settings.openai_embedding_model
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts using OpenAI API directly (bypasses LangChain/tiktoken overhead)."""
+    """Embed texts using the configured provider (OpenAI or Ollama)."""
     if not texts:
         return []
     client = _get_openai_client()
-    settings = get_settings()
+    model = _embedding_model()
 
     with sentry_sdk.start_span(op="embedding", name=f"embed {len(texts)} texts") as span:
         span.set_data("count", len(texts))
-        span.set_data("model", settings.openai_embedding_model)
+        span.set_data("model", model)
 
         # Build token-budget-aware batches: respect both item count AND token limit
         batches = _build_token_aware_batches(texts)
@@ -112,7 +127,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         if len(batches) == 1:
             start_idx, batch = batches[0]
             response = client.embeddings.create(
-                model=settings.openai_embedding_model,
+                model=model,
                 input=batch,
             )
             tokens_used = getattr(response, "usage", None)
@@ -129,7 +144,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         def _embed_batch(start_idx: int, batch: list[str]):
             nonlocal total_tokens
             resp = client.embeddings.create(
-                model=settings.openai_embedding_model,
+                model=model,
                 input=batch,
             )
             usage = getattr(resp, "usage", None)

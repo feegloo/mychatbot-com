@@ -156,6 +156,17 @@
         </div>
 
         <div v-if="roleLoaded && canReply" class="chat-input-bar">
+          <div
+            v-if="canUpload"
+            class="upload-plus-btn"
+            :data-tooltip="homeLang === 'pl' ? 'Prześlij więcej plików' : 'Upload more files'"
+            @click="triggerUploadOnFirstMessage"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </div>
           <textarea
             ref="questionInput"
             v-model="question"
@@ -246,7 +257,7 @@ import { useTextSelectionSpeech } from '../composables/useTextSelectionSpeech'
 import { useAutoRead } from '../composables/useAutoRead'
 import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
-import { homeT } from '../i18n/homeLocale'
+import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''

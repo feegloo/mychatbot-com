@@ -127,7 +127,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import type mermaidType from 'mermaid'
 import { sanitizeMermaidCode } from '../utils/mermaidSanitize'
 
-const props = defineProps<{ code: string }>()
+const props = defineProps<{ code: string; initialZoom?: 'fit' | 'max' }>()
 
 const mode = ref<'diagram' | 'text'>('diagram')
 const hovered = ref(false)
@@ -179,14 +179,21 @@ function fitToWidth() {
     vb && vb.width > 0 ? vb.width : parseFloat(svg.getAttribute('width') ?? '0')
   if (svgNaturalWidth <= 0) return
 
-  scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
   const svgNaturalHeight = vb && vb.height > 0 ? vb.height : parseFloat(svg.getAttribute('height') ?? '0')
-  const scaledWidth = svgNaturalWidth * scale.value
-  const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
   const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
 
-  panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
-  panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
+  if (props.initialZoom === 'max') {
+    scale.value = MAX_SCALE
+    // Center the diagram; negative pan is intentional (user can drag to explore)
+    panX.value = (containerWidth - svgNaturalWidth * MAX_SCALE) / 2
+    panY.value = svgNaturalHeight > 0 ? (viewportHeight - svgNaturalHeight * MAX_SCALE) / 2 : 0
+  } else {
+    scale.value = Math.min(Math.max(containerWidth / svgNaturalWidth, MIN_SCALE), MAX_SCALE)
+    const scaledWidth = svgNaturalWidth * scale.value
+    const scaledHeight = svgNaturalHeight > 0 ? svgNaturalHeight * scale.value : 0
+    panX.value = Math.max((containerWidth - scaledWidth) / 2, 0)
+    panY.value = Math.max((viewportHeight - scaledHeight) / 2, 0)
+  }
 }
 
 function zoomIn() {

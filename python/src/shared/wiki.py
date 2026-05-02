@@ -280,17 +280,17 @@ def _build_document_scale_hint(page_count: int | None, welcome_len: int) -> str:
     if tier == "tiny":
         return (
             "DOCUMENT SCALE: short (tiny). "
-            "Standard extraction: 20–35 nodes, 25–45 edges."
+            "Standard extraction: 24–42 nodes, 30–54 edges."
         )
     if tier == "short":
         return (
             "DOCUMENT SCALE: short. "
-            "Standard extraction: 30–45 nodes, 35–55 edges."
+            "Standard extraction: 36–54 nodes, 42–66 edges."
         )
     if tier == "medium":
         return (
             "DOCUMENT SCALE: medium (~80-180 pages). "
-            "Extended extraction: aim for 45–65 nodes and 55–75 edges. "
+            "Extended extraction: aim for 54–78 nodes and 66–90 edges. "
             "Include secondary characters/modules/clauses alongside the main entities. "
             "For fiction: capture subplots, locations, and factions in addition to the main cast. "
             "For technical docs: include specific APIs, configs, data structures, and constraints. "
@@ -299,7 +299,7 @@ def _build_document_scale_hint(page_count: int | None, welcome_len: int) -> str:
     if tier == "large":
         return (
             "DOCUMENT SCALE: LARGE (~180-400 pages). "
-            "EXHAUSTIVE EXTRACTION MODE — target 60–85 nodes and 70–95 edges. "
+            "EXHAUSTIVE EXTRACTION MODE — target 72–102 nodes and 84–114 edges. "
             "Extract EVERY significant named entity visible in the raw material: "
             "for fiction — every named character (including minor ones), every named location, "
             "every subplot, every faction/alliance, every legal/formal concept, every piece of "
@@ -314,7 +314,7 @@ def _build_document_scale_hint(page_count: int | None, welcome_len: int) -> str:
     # xl
     return (
         "DOCUMENT SCALE: VERY LARGE (400+ pages). "
-        "MAXIMUM EXHAUSTIVE EXTRACTION MODE — target 80–110 nodes and 90–120 edges. "
+        "MAXIMUM EXHAUSTIVE EXTRACTION MODE — target 96–132 nodes and 108–144 edges. "
         "The raw material covers only a sample of the full document; extract every entity "
         "you can see. Prioritise depth over neatness: include secondary characters, "
         "sub-sub-plots, minor locations, all named concepts, all evidence items, "

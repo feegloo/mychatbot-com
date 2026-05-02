@@ -80,7 +80,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
     subtitleP1Html:
       "Upload your big PDFs and files privately 🔒",
     subtitleP1bHtml:
-      'let AI present expert insights and learn to tell you what\u2019s inside files in the author\u2019s voices.',
+      'let AI present expert insights and learn to tell you what\u2019s inside files in each author\u2019s voices.',
     subtitleP2Html:
       'Ask prompt to <strong> AI Agent chatbot</strong>, do research, use semantic search & RAG,',
     subtitleP2bHtml:
@@ -114,7 +114,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Zadaj pytanie <strong> chatbotowi AI</strong>, rób research, używając wyszukiwania semantycznego i RAG, tłumacz pliki na polski lub angielski 🇵🇱🇬🇧🌍',
     subtitleP2MobileLine2Html: 'syntetyzuj mowę 🔊 udostępniaj odpowiedzi',
     subtitleP3:
-      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💬 PDF 📄 diagram mermaid 💡 przepis 🍝 czeklistę ✅ i więcej!',
+      'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 checklistę ✅ i więcej!',
     dropzoneHeading: 'Prześlij',
     dropzoneTitle: 'kliknij lub przeciągnij i upuść',
     dropzoneHint: 'PDF, obrazy, .doc, inne pliki tekstowe',

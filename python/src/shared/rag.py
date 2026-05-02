@@ -217,13 +217,33 @@ def build_context(rows: list[dict]) -> str:
 
 
 def get_llm() -> Any:
-    """Get OpenAI LLM instance (cached), bound with a random seed for response variation.
+    """Get LLM instance (cached). Supports OpenAI and Ollama providers.
 
-    Raises ValueError if OPENAI_API_KEY is missing.
+    Provider is selected via LLM_PROVIDER env var ('openai' | 'ollama').
+    Ollama requires Ollama running locally — no API key needed.
     """
     global _llm_instance, _llm_provider_key
     settings = get_settings()
 
+    if settings.llm_provider == "ollama":
+        cache_key = f"ollama:{settings.ollama_base_url}:{settings.ollama_chat_model}"
+        if _llm_instance is not None and _llm_provider_key == cache_key:
+            return _llm_instance
+
+        logger.info(
+            f"🦙 Using Ollama model: {settings.ollama_chat_model} @ {settings.ollama_base_url}"
+        )
+        _llm_instance = ChatOpenAI(
+            model=settings.ollama_chat_model,
+            base_url=f"{settings.ollama_base_url}/v1",
+            api_key="ollama",  # Ollama OpenAI-compat endpoint requires a non-empty key
+            temperature=_DEFAULT_LLM_TEMPERATURE,
+            timeout=300.0,  # local models can be slower than cloud
+        )
+        _llm_provider_key = cache_key
+        return _llm_instance
+
+    # --- OpenAI path ---
     cache_key = f"openai:{settings.openai_chat_model}:{settings.openai_reasoning_effort}"
     if _llm_instance is not None and _llm_provider_key == cache_key:
         seed = random.choice(_SEED_OPTIONS)
@@ -235,8 +255,6 @@ def get_llm() -> Any:
     logger.info(
         f"🤖 Using OpenAI model: {settings.openai_chat_model} (reasoning_effort={settings.openai_reasoning_effort})"
     )
-    # Explicit timeout prevents a stalled API call from blocking indexing
-    # indefinitely (default SDK timeout is 600 s = 10 min).
     _llm_instance = ChatOpenAI(
         model=settings.openai_chat_model,
         api_key=settings.openai_api_key,
@@ -246,7 +264,6 @@ def get_llm() -> Any:
     )
     _llm_provider_key = cache_key
 
-    # Bind a random seed to vary responses for repeated prompts
     seed = random.choice(_SEED_OPTIONS)
     logger.info(f"🎲 Selected random seed: {seed}")
     return _llm_instance.bind(seed=seed)

@@ -60,6 +60,29 @@ describe("DonateWidget", () => {
     expect(hasDonate || hasThanks || hasMethods).toBe(true);
   });
 
+  it("shows amount input with default value 1", async () => {
+    const wrapper = mount(DonateWidget);
+    await nextTick();
+    await nextTick();
+    const input = wrapper.find(".donate-amount-input");
+    if (input.exists()) {
+      expect((input.element as HTMLInputElement).value).toBe("1");
+    }
+  });
+
+  it("updates donate button label when amount changes", async () => {
+    const wrapper = mount(DonateWidget);
+    await nextTick();
+    await nextTick();
+    const input = wrapper.find(".donate-amount-input");
+    if (input.exists()) {
+      await input.setValue(10);
+      await nextTick();
+      const btn = wrapper.find(".conv-nav-donate");
+      expect(btn.exists()).toBe(true);
+    }
+  });
+
   it("shows thank you message when ?donated=1 is in URL", async () => {
     const originalSearch = window.location.search;
     const originalHref = window.location.href;

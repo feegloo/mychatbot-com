@@ -16,7 +16,7 @@
             <template v-for="(part, i) in parts" :key="i">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-if="part.type === 'text'" class="wiki-text" v-html="part.html" />
-              <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" />
+              <MermaidBlock v-else-if="part.type === 'mermaid'" :code="part.code" initial-zoom="max" />
             </template>
           </template>
         </div>

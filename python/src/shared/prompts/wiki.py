@@ -420,9 +420,22 @@ Workflow:
 Rules:
 - First line must be: `flowchart LR`
 - Node IDs: short, alphanumeric, no spaces (e.g. TransformerModel, SelfAttn).
-- Node labels in square brackets: `A[Label text]`
-- Round brackets for process/action nodes: `A(Label)`
-- Double-square for subsystems/modules: `A[[Label]]`
+- NODE SHAPE VOCABULARY — use shapes semantically to create visual hierarchy:
+    A[Label]    = rectangle: standard entity / fact / object (default)
+    A(Label)    = rounded rectangle: process / action / event / mechanism
+    A([Label])  = stadium: terminal concept / key finding / output / conclusion
+    A((Label))  = circle: central hub / protagonist / core system
+    A{{Label}}  = hexagon: category header / group label (prefer subgraph instead)
+    A[[Label]]  = subroutine: subprocess / nested system / module
+  Mix shapes within each subgraph to signal semantic roles at a glance.
+- USE classDef TO COLOR-CODE NODES by semantic role (add at the top, after `flowchart LR`):
+    classDef hub fill:#1a365d,stroke:#2b6cb0,color:#fff,stroke-width:2px
+    classDef entity fill:#2d3748,stroke:#4a5568,color:#e2e8f0,stroke-width:1px
+    classDef process fill:#22543d,stroke:#276749,color:#f0fff4,stroke-width:1px
+    classDef evidence fill:#742a2a,stroke:#9b2c2c,color:#fff5f5,stroke-width:1px
+  Apply via: `class NodeId hub` or `class NodeId1,NodeId2 entity`
+  Adapt the semantic roles to the domain (e.g. for fiction: hub=protagonist, entity=character,
+  process=event, evidence=theme/symbol; for legal: hub=party, entity=clause, process=obligation).
 - Edge types (always include `|relation score|` label — verb/noun ≤ 3 words then score):
     A ==>|drives +0.87| B    (strong dependency, high cosine similarity)
     A -->|uses +0.55| B      (moderate relation)
@@ -432,7 +445,7 @@ Rules:
 - Use `subgraph GroupName ... end` to cluster related nodes (chapters,
   modules, legal clauses, factions, etc.). Aim for 2-5 subgraphs.
 - Node and edge targets are driven by the DOCUMENT SCALE section in the
-  human message (see below). The default is 25-45 nodes / 30-55 edges;
+  human message (see below). The default is 30-54 nodes / 36-66 edges;
   scale UP proportionally for medium/large/xl documents as instructed there.
   More is always better when supported by source material — prefer
   completeness over brevity. Include specific details in node labels (exact

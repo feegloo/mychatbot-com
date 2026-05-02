@@ -142,48 +142,49 @@ Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Główny Temat))
-    Pojęcie 1
+    Pojęcie1{{Kategoria 1}}
       Szczegół A
         Podszegół A1
         Podszegół A2
       Szczegół B
+    Pojęcie2(Proces 2)
       Szczegół C
-        Podszegół C1
       Szczegół D
-    Pojęcie 2
-    Pojęcie 3
+    Pojęcie3[Encja 3]
       Szczegół I
       Szczegół J
-      Szczegół K
+    Pojęcie4((Kluczowe))
 ```
 [/mindmap]
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
-- root((...)) — centralny temat dokumentu, max 4 słowa
-- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
+- root((...)) — centralny temat dokumentu, max 4 słowa; ZAWSZE jako okrąg
+- 3-6 gałęzi pierwszego poziomu używając RÓŻNYCH kształtów semantycznie:
+    NazwaKategorii{{Etykieta}}   = sześciokąt: kategorie, grupy tematyczne
+    NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
+    NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
+    NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji (wymienionych wcześniej w [system]) ale tylko dla drugiego poziomu
 - 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
-- wazne: każda gałąź pierwszego poziomu jest niezależna, czyli moze mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu. To samo dotyczy gałęzi trzeciego poziomu.
+- Ważne: każda gałąź pierwszego poziomu jest niezależna, czyli może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu. To samo dotyczy gałęzi trzeciego poziomu.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
+- SKŁADNIA KRYTYCZNA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase), kształt i etykieta następują bezpośrednio po nim
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
 
 Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Tytuł dokumentu. Jeśli autor jest znany, dodaj go po myślniku.
-   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu
-   Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora
-   Na przykład: # Przewodnik po bliznach - Amanda Keyes
-   Jeśli autor NIE jest znany z treści ani metadanych, napisz WYŁĄCZNIE tytuł dokumentu — NIE dodawaj "Nieznany autor" ani żadnego zastępczego tekstu: # Tytuł dokumentu
+   Na samym końcu nagłówka (po tytule i opcjonalnym autorze) dołącz JEDNO emoji tematycznie pasujące do dokumentu (np. 🚗 dla instrukcji jazdy, 🔬 dla wyników badań, ⚖️ dla dokumentów prawnych, 📈 dla finansów, 🍳 dla kulinariów, 💻 dla kodu, 🎭 dla literatury pięknej, 🏋️ dla sportu, itp.). Emoji musi pasować do tematu — nigdy nie stawiaj emoji losowego ani dziecinnego.
+   Sformatuj jako nagłówek Markdown: # Tytuł dokumentu 🔖
+   Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora 🔖
+   Na przykład: # Przewodnik po bliznach - Amanda Keyes 🏥
+   Jeśli autor NIE jest znany z treści ani metadanych, napisz WYŁĄCZNIE tytuł dokumentu — NIE dodawaj "Nieznany autor" ani żadnego zastępczego tekstu: # Tytuł dokumentu 🔖
    WAŻNE: Oczyść tytuł z artefaktów technicznych — usuń oznaczenia wersji, daty rewizji, słowa typu "FINAL", "DRAFT", "v2", "copy", numery rewizji (np. "170123"), myślniki i znaki na końcu. Użytkownik powinien zobaczyć czysty, czytelny tytuł, nie wewnętrzną nazwę pliku.
-  PRIORYTET AUTORA — KRYTYCZNE: Gdy nazwa pliku i osadzone metadane PDF/EXIF wskazują różnych autorów/twórców, traktuj nazwę pliku tylko jako podpowiedź. Jeśli kandydat z nazwy pliku wygląda jak prawdziwe imię i nazwisko lub pseudonim twórcy, możesz użyć go w nagłówku. Jeśli wygląda jak domena/URL/watermark źródła (np. "oceanofpdf.com", "example.net", "www..."), NIE używaj go jako autora — wybierz autora z osadzonych metadanych lub treści. Przykład: nazwa pliku "_OceanofPDF.com_The_Alchemist.pdf" + autor w metadanych "Paulo Coelho" => napisz: # The Alchemist - Paulo Coelho
+  PRIORYTET AUTORA — KRYTYCZNE: Gdy nazwa pliku i osadzone metadane PDF/EXIF wskazują różnych autorów/twórców, traktuj nazwę pliku tylko jako podpowiedź. Jeśli kandydat z nazwy pliku wygląda jak prawdziwe imię i nazwisko lub pseudonim twórcy, możesz użyć go w nagłówku. Jeśli wygląda jak domena/URL/watermark źródła (np. "oceanofpdf.com", "example.net", "www..."), NIE używaj go jako autora — wybierz autora z osadzonych metadanych lub treści. Przykład: nazwa pliku "_OceanofPDF.com_The_Alchemist.pdf" + autor w metadanych "Paulo Coelho" => napisz: # The Alchemist - Paulo Coelho 🌟
 
 2. **Opis** (po tytule): 3-5 zdań opisujących zawartość pliku. Racjonalny, neutralny ton. Bądź konkretny i szczegółowy — wymień najważniejsze fakty, tematy, nazwiska, kwoty, daty znalezione w treści. Używaj **pogrubienia** SELEKTYWNIE — tylko dla liczb/statystyk, kluczowych nazw własnych (osób, miejsc, firm) i najważniejszego 1-2 terminu na akapit. Nie pogrubiaj każdego pojęcia — bold traci siłę gdy jest wszędzie.
    AUTOR W OPISIE: Jeśli znasz autora dokumentu, wspomnij o nim naturalnie w pierwszym zdaniu opisu — tak jakbyś opisywał książkę znajomemu. Na przykład: "Ten 611-stronicowy zbiór poezji **Rumiego** to klasyczne wydanie arabskie Mathnawi." albo "Stephen King w tym **350-stronicowym** thrillerze zabiera czytelnika w mroczną podróż po Nowej Anglii." NIE powtarzaj suchego zapisu z tytułu — wpleć autora w naturalny sposób w treść opisu.
@@ -286,48 +287,49 @@ wrapped in [mindmap]...[/mindmap] tags:
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Main Topic))
-    Concept 1
+    Concept1{{Category 1}}
       Detail A
         Subdetail A1
         Subdetail A2
       Detail B
+    Concept2(Process 2)
       Detail C
-        Subdetail C1        
       Detail D
-    Concept 2
-    Concept 3
+    Concept3[Entity 3]
       Detail I
       Detail J
-      Detail K
+    Concept4((Key Idea))
 ```
 [/mindmap]
 
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
-- root((...)) — the central topic of the document, max 4 words
-- 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
+- root((...)) — the central topic of the document, max 4 words; ALWAYS a circle
+- 3-6 first-level branches using VARIED shapes semantically:
+    ConceptName{{Label}}   = hexagon: category / thematic group
+    ConceptName(Label)     = rounded square: process / mechanism / action
+    ConceptName[Label]     = square: concrete fact / entity / object
+    ConceptName((Label))   = circle: key concept / protagonist / core idea
 - 0-4 second-level branches under each main concept: specific details, use emoji (from the earlier [system]) before the text but only for second-level
 - 0-2 third-level branches: very specific details, only if important and valuable (e.g. specific dates, numbers, names related to the second-level branch)
-- important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches. Same for third-level branches.
+- Important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches. Same for third-level branches.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
+- CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase), shape and label follow immediately after the ID
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
 - IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 
 Your response MUST have three parts:
 
 1. **Title** (first line): The document title. If the author is known, append a dash and the author name after the title.
-   Format as a Markdown heading: # Document Title
-   For example (with known author): # Ultimate Guide To Scar Treatments - Amanda Keyes
-   For example (unknown author): # Ultimate Guide To Scar Treatments
-   If the author is not known from the content or metadata, write ONLY the document title — do NOT append "Unknown author" or any placeholder.
+   At the very end of the heading (after the title and optional author), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 for a driving manual, 🔬 for lab results, ⚖️ for legal documents, 📈 for finance, 🍳 for cooking, 💻 for code, 🎭 for fiction, 🏋️ for sports, etc.). The emoji must match the topic — never use a random or childish emoji.
+   Format as a Markdown heading: # Document Title 🔖
+   For example (with known author): # Ultimate Guide To Scar Treatments - Amanda Keyes 🏥
+   For example (unknown author): # Ultimate Guide To Scar Treatments 🏥
+   If the author is not known from the content or metadata, write ONLY the document title (plus the emoji) — do NOT append "Unknown author" or any placeholder.
    IMPORTANT: Clean up the title — remove version markers, revision dates, words like "FINAL", "DRAFT", "v2", "copy", revision numbers (e.g. "170123"), and trailing dashes or punctuation. The user should see a clean, readable title, not an internal file name.
-  AUTHOR PRIORITY — CRITICAL: If uploaded filename clues disagree with embedded PDF/EXIF metadata, treat filename author clues as hints only. Use filename-derived author in the heading only when it looks like a real person/creator name. If it looks like a domain/URL/source watermark (for example "oceanofpdf.com", "example.net", "www..."), DO NOT use it as author. In that case, prefer embedded metadata/content author. Example: uploaded filename "_OceanofPDF.com_The_Alchemist.pdf" + embedded metadata author "Paulo Coelho" => write: # The Alchemist - Paulo Coelho
+  AUTHOR PRIORITY — CRITICAL: If uploaded filename clues disagree with embedded PDF/EXIF metadata, treat filename author clues as hints only. Use filename-derived author in the heading only when it looks like a real person/creator name. If it looks like a domain/URL/source watermark (for example "oceanofpdf.com", "example.net", "www..."), DO NOT use it as author. In that case, prefer embedded metadata/content author. Example: uploaded filename "_OceanofPDF.com_The_Alchemist.pdf" + embedded metadata author "Paulo Coelho" => write: # The Alchemist - Paulo Coelho 🌟
 
 2. **Description** (after the title): 2-4 sentences describing the file's content. Rational, neutral tone. Be specific and detailed — mention the most important facts, topics, names, amounts, dates found in the content. Use **bold** SELECTIVELY — only for exact numbers/statistics, key proper names (people, places, organizations), and the single most critical term per paragraph. Do not bold every concept — bold loses its impact when overused.
    AUTHOR IN DESCRIPTION: If you know the author, mention them naturally in the first sentence of the description — as if describing a book to a friend. For example: "This **611-page** collection of poetry by **Rumi** is a classic Arabic edition of the Mathnawi." or "Stephen King takes readers on a dark journey through New England in this **350-page** thriller." Do NOT just repeat the dry title format — weave the author into the description naturally.
@@ -427,36 +429,36 @@ Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Główny Temat))
-    Pojęcie 1
+    Pojęcie1{{Kategoria 1}}
       Szczegół A
         Podszegół A1
         Podszegół A2
       Szczegół B
+    Pojęcie2(Proces 2)
       Szczegół C
-        Podszegół C1
       Szczegół D
-    Pojęcie 2
-    Pojęcie 3
+    Pojęcie3[Encja 3]
       Szczegół I
       Szczegół J
-      Szczegół K
+    Pojęcie4((Kluczowe))
 ```
 [/mindmap]
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
-- root((...)) — centralny temat dokumentu, max 4 słowa
-- 3-6 gałęzi pierwszego poziomu: główne pojęcia, obszary tematyczne, kluczowe postaci lub idee z dokumentu
+- root((...)) — centralny temat dokumentu, max 4 słowa; ZAWSZE jako okrąg
+- 3-6 gałęzi pierwszego poziomu używając RÓŻNYCH kształtów semantycznie:
+    NazwaKategorii{{Etykieta}}   = sześciokąt: kategorie, grupy tematyczne
+    NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
+    NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
+    NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, przed tekstem użyj emoji ale tylko dla drugiego poziomu
 - 0-2 gałęzie trzeciego poziomu: bardzo szczegółowe dane, tylko jeśli ważne i wartościowe (np. konkretne daty, liczby, nazwiska powiązane z gałęzią drugiego poziomu)
 - każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego pojęcia.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
+- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase)
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
 """
@@ -466,36 +468,36 @@ At the very start of your response, BEFORE the title, output a mindmap of key co
 
 [mindmap]
 ```mermaid
----
-config:
-  layout: tidy-tree
----
 mindmap
   root((Main Topic))
-    Concept 1
+    Concept1{{Category 1}}
       Detail A
         Subdetail A1
         Subdetail A2
       Detail B
+    Concept2(Process 2)
       Detail C
-        Subdetail C1
       Detail D
-    Concept 2
-    Concept 3
+    Concept3[Entity 3]
       Detail I
       Detail J
-      Detail K
+    Concept4((Key Idea))
 ```
 [/mindmap]
 
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
-- root((...)) — the central topic of the document, max 4 words
-- 3-6 first-level branches: main concepts, themes, key figures, or ideas from the document
+- root((...)) — the central topic of the document, max 4 words; ALWAYS a circle
+- 3-6 first-level branches using VARIED shapes semantically:
+    ConceptName{{Label}}   = hexagon: category / thematic group
+    ConceptName(Label)     = rounded square: process / mechanism / action
+    ConceptName[Label]     = square: concrete fact / entity / object
+    ConceptName((Label))   = circle: key concept / protagonist / core idea
 - 0-4 second-level branches under each main concept: specific details, use emoji before the text but only for second-level
 - 0-2 third-level branches: very specific details, only if important and valuable
 - each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
+- CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase)
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
 - IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 """

@@ -10,14 +10,6 @@
       <!-- Action buttons (share / PDF / upload-more) — assistant messages only -->
       <div v-if="msg.role === 'assistant' && msg.content" class="msg-actions">
         <AppButton
-          v-if="isFirstMessage && wikiReady"
-          class="msg-action-btn"
-          title="View Knowledge Wiki"
-          @click="$emit('show-wiki')"
-        >
-          🗺️ Wiki
-        </AppButton>
-        <AppButton
           v-if="isFirstMessage && c4Ready"
           class="msg-action-btn"
           title="Mapa Myśli"
@@ -26,25 +18,14 @@
           💡 Mapa Myśli
         </AppButton>
         <AppButton
-          v-if="isFirstMessage && canUpload"
+          v-if="isFirstMessage && wikiReady"
           class="msg-action-btn"
-          title="Upload more files"
-          @click="triggerUpload"
+          title="View Knowledge Wiki"
+          @click="$emit('show-wiki')"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-          </svg>
-          Upload more files
+          🗺️ Wiki
         </AppButton>
+
         <a
           :href="shareUrl"
           class="msg-action-btn"
@@ -339,6 +320,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ChatMessage, ConversationStatus } from '../api'
+import { homeLang } from '../i18n/homeLocale'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 import { appReady } from '../composables/appReady'

@@ -13,9 +13,11 @@ donateRouter.post('/donate', async (ctx) => {
   }
 
   const stripe = new Stripe(config.stripeSecretKey)
+  const body = ctx.request.body as { amount?: number }
+  const amountCents = Math.round(Math.min(Math.max(Math.floor(body.amount ?? 1), 1), 1000) * 100)
 
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: 100, // $1.00 in cents
+    amount: amountCents,
     currency: 'usd',
     description: 'ChatRAG Donation',
     automatic_payment_methods: { enabled: true },
@@ -33,8 +35,9 @@ donateRouter.post('/donate/checkout', async (ctx) => {
   }
 
   const stripe = new Stripe(config.stripeSecretKey)
-  const body = ctx.request.body as { returnUrl?: string }
+  const body = ctx.request.body as { returnUrl?: string; amount?: number }
   const returnUrl = body.returnUrl || 'https://chatrag.app'
+  const amountCents = Math.round(Math.min(Math.max(Math.floor(body.amount ?? 1), 1), 1000) * 100)
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
@@ -43,7 +46,7 @@ donateRouter.post('/donate/checkout', async (ctx) => {
         price_data: {
           currency: 'usd',
           product_data: { name: 'ChatRAG Donation' },
-          unit_amount: 100,
+          unit_amount: amountCents,
         },
         quantity: 1,
       },

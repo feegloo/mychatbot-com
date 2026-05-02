@@ -1131,7 +1131,7 @@ def _synthesize_welcome_messages(
             "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
         ) + MINDMAP_RULES_EN + (
             "\nYour response MUST have three parts:\n"
-            "1. **Title**: # Document Title (append \" - Author Name\" only if the author is known; do NOT write \"Unknown author\")\n"
+            "1. **Title**: # Document Title 🔖 — after the title (and optional \" - Author Name\"), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 driving, 🔬 science/lab, ⚖️ legal, 📈 finance, 🍳 cooking, 💻 code, 🎭 fiction). Only known author gets appended; do NOT write \"Unknown author\".\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"

@@ -239,32 +239,21 @@ def generate_image(
     output_format: str = "jpeg",
     output_compression: int = 85,
 ) -> dict:
-    """Generate an image from a text prompt using OpenAI.
+    """Generate an image from a text prompt.
 
-    When ``reference_image_paths`` is provided, the OpenAI ``images.edit``
-    endpoint is used so the model can visually ground the generation in the
-    uploaded references (style, subject, composition). Otherwise the standard
-    ``images.generate`` endpoint is used.
-
-    ``model`` defaults to ``settings.openai_image_model`` (env:
-    ``OPENAI_IMAGE_MODEL``, fallback ``gpt-image-2``). gpt-image-2 accepts any
-    WxH where both dimensions are multiples of 16 (range 16–4096).
-
-    Args:
-        prompt: The text description for image generation.
-        storage_dir: Directory to save the generated image.
-        size: Image size string "WxH" — use ``aspect_to_image_size()`` to get a
-            well-formed value from an aspect ratio.
-        quality: Image quality (auto, high, medium, low). "low" is fastest.
-        model: OpenAI image model id; default taken from settings.
-        reference_image_paths: Optional list of local paths to reference images.
-            Each must be a readable png/jpeg/webp file. Capped at
-            ``MAX_REFERENCE_IMAGES``.
-
-    Returns:
-        dict with 'file_name' (saved filename).
+    Uses OpenAI when LLM_PROVIDER=openai. When LLM_PROVIDER=ollama, image
+    generation is unavailable (no free local model with equivalent quality)
+    and a NotImplementedError is raised so the caller can surface a
+    user-friendly message.
     """
     settings = get_settings()
+
+    if settings.llm_provider == "ollama":
+        raise NotImplementedError(
+            "Image generation is not available in offline mode. "
+            "Set LLM_PROVIDER=openai and provide an OPENAI_API_KEY to enable it."
+        )
+
     client = OpenAI(api_key=settings.openai_api_key)
     model = model or settings.openai_image_model
 
@@ -415,6 +404,13 @@ def generate_image_streaming(
     endpoint can emit an "error" event.
     """
     settings = get_settings()
+
+    if settings.llm_provider == "ollama":
+        raise NotImplementedError(
+            "Image generation is not available in offline mode. "
+            "Set LLM_PROVIDER=openai and provide an OPENAI_API_KEY to enable it."
+        )
+
     client = OpenAI(api_key=settings.openai_api_key)
     model = model or settings.openai_image_model
     stream_model = model

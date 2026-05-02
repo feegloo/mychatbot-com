@@ -31,7 +31,7 @@
       >
         Otwórz PDF
       </button>
-      <span v-if="showOpenPdf" class="pdf-toolbar-divider" aria-hidden="true" />
+      <span v-if="showOpenPdf" class="pdf-toolbar-gap" aria-hidden="true" />
 
       <button class="pdf-tool-btn" aria-label="Previous page" :disabled="currentPage <= 1" @click="goToPrevPage">
         <svg
@@ -59,11 +59,11 @@
         </svg>
       </button>
 
-
+      <span v-if="showClose" class="pdf-toolbar-gap" aria-hidden="true" />
+      <button v-if="showClose" class="pdf-close-btn" aria-label="Close" @click="emit('close')">
+        &times;
+      </button>
     </div>
-    <button v-if="showClose" class="pdf-close-btn" aria-label="Close" @click="emit('close')">
-      &times;
-    </button>
   </div>
 </template>
 
@@ -900,6 +900,11 @@ watch(
   flex-shrink: 0;
 }
 
+.pdf-toolbar-gap {
+  width: 5px;
+  flex-shrink: 0;
+}
+
 .pdf-tool-btn {
   display: flex;
   align-items: center;
@@ -959,32 +964,30 @@ watch(
 }
 
 .pdf-close-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border: none;
+  border-radius: 50%;
   background: transparent;
-  color: #fff;
-  font-size: 32px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s;
 }
 
 @media (hover: hover) {
   .pdf-close-btn:hover {
-    background: rgba(51, 65, 85, 0.7);
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
 .pdf-close-btn:active {
-  background: rgba(51, 65, 85, 0.7);
+  background: rgba(255, 255, 255, 0.28);
 }
 </style>
