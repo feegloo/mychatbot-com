@@ -310,6 +310,7 @@
         :src="modalSrc"
         :alt="modalAlt"
         :title="modalTitle"
+        :stretch="modalStretch"
         @close="modalOpen = false"
       />
       <SourcePreviewModal
@@ -723,14 +724,16 @@ const modalOpen = ref(false)
 const modalSrc = ref('')
 const modalAlt = ref('')
 const modalTitle = ref('')
+const modalStretch = ref(false)
 // True when modal was opened by clicking the morph/partial image. While set,
 // the modal src tracks new partials and the final generated image live.
 const morphModalActive = ref(false)
 
-function openImageModal(src: string, alt: string) {
+function openImageModal(src: string, alt: string, stretch = false) {
   modalSrc.value = src
   modalAlt.value = alt
   modalTitle.value = alt
+  modalStretch.value = stretch
   morphModalActive.value = false
   modalOpen.value = true
 }
@@ -851,7 +854,9 @@ function getFileUrl(file: FileInfo) {
 // SourcePreviewModal for PDFs and other file types.
 function openFilePreview(file: FileInfo) {
   if (file.mimeType?.startsWith('image/')) {
-    openImageModal(getFileUrl(file), file.originalName)
+    const isSvg =
+      file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
+    openImageModal(getFileUrl(file), file.originalName, isSvg)
     return
   }
   previewCitation.value = {
