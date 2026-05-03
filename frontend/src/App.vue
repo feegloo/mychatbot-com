@@ -1,4 +1,5 @@
 <template>
+  <TauriModeToggle />
   <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed, 'embed-mode': isEmbed }">
     <template v-if="!isEmbed">
       <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false"></div>
@@ -38,6 +39,7 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ConversationNav from './components/ConversationNav.vue'
+import TauriModeToggle from './components/TauriModeToggle.vue'
 import { getBrowserFingerprint, getUserId, setUserId } from './utils/fingerprint'
 import { resolveFingerprint } from './api'
 
