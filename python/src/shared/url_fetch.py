@@ -156,12 +156,10 @@ KLUCZOWE NASTAWIENIE: Czytaj HTML jak człowiek przeglądający stronę — NIE 
 
 == INSTRUKCJA ODPOWIEDZI ==
 
-1. **Tytuł** (pierwsza linia): Sformatuj jako: ## [Nazwa serwisu] — [czego dotyczy ta strona]
-   Przykład: ## Allegro — Pharmovit Kolagen Włosy, Skóra, Paznokcie 500ml | Biotyna, MSM, Kwas Hialuronowy
-
-   Bezpośrednio pod tytułem (druga linia), dodaj link do oryginalnej strony w formacie:
-   🔗 [URL strony](URL)
-   Użyj dokładnego URL-a podanego w wiadomości użytkownika — nie skracaj ani nie zmieniaj go.
+1. **Tytuł** (pierwsza linia): Sformatuj jako klikalny nagłówek Markdown z URL strony:
+   ## [Nazwa serwisu — czego dotyczy ta strona](URL)
+   Przykład: ## [Allegro — Pharmovit Kolagen Włosy, Skóra, Paznokcie 500ml](https://allegro.pl/...)
+   Użyj dokładnego URL-a podanego w wiadomości użytkownika — nie skracaj ani nie zmieniaj go. Nie dodawaj osobnej linii z linkiem.
 
 2. **Główna treść** (2–4 akapity): Wyciągnij i przedstaw KLUCZOWE FAKTY, które użytkownik przeczytałby na stronie:
 
@@ -207,12 +205,10 @@ CRITICAL MINDSET: Read the HTML as if you are a human browsing this website — 
 
 == RESPONSE INSTRUCTIONS ==
 
-1. **Title heading** (first line): Format as: ## [Website / service / brand] — [what this specific page is about]
-   Example: ## Allegro — Pharmovit Collagen Hair, Skin, Nails 500ml | Biotin, MSM, Hyaluronic Acid
-
-   Immediately after the title (second line), include a link to the original page:
-   🔗 [Page URL](URL)
-   Use the exact URL from the user message — do not shorten or alter it.
+1. **Title heading** (first line): Format as a clickable Markdown heading that links to the page URL:
+   ## [Website / service / brand — what this specific page is about](URL)
+   Example: ## [Allegro — Pharmovit Collagen Hair, Skin, Nails 500ml](https://allegro.pl/...)
+   Use the exact URL from the user message — do not shorten or alter it. Do not add a separate link line.
 
 2. **Main content** (2–4 paragraphs): Extract and present the KEY FACTS a visitor would actually read:
 
