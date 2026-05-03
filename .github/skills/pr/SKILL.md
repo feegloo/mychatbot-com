@@ -6,9 +6,12 @@ argument-hint: 'GitHub PR URL, e.g. https://github.com/owner/repo/pull/123'
 
 # Address Qodo Review Comments
 
+**Trigger:** `/pr {URL}` — pass a GitHub PR URL as the argument.
+
 Reads every unresolved **Qodo** reviewer comment on the given pull request, applies
-the embedded "Agent Prompt" fix for each issue, commits the result, and posts a
-resolution comment in the PR.
+the embedded "Agent Prompt" fix for each issue, runs lint and tests, commits the
+result, replies to each Qodo thread with the short commit hash, and posts a
+summary resolution comment in the PR.
 
 ---
 
@@ -26,7 +29,7 @@ resolution comment in the PR.
 
 ### Step 1 — Parse the PR URL
 
-Extract `owner`, `repo`, and `pull_number` from the provided URL:
+Extract `owner`, `repo`, and `pull_number` from the argument:
 
 ```
 https://github.com/<owner>/<repo>/pull/<pull_number>
@@ -55,76 +58,127 @@ all review threads on the PR.
 | `thread.is_resolved` | `false` |
 | `thread.is_outdated` | `false` — skip outdated threads; the code they reference no longer exists at the same location. Include them in the resolution comment under **"Skipped (outdated thread)"**. |
 
-### Step 4 — Extract the Agent Prompt from each thread
+### Step 4 — Announce intent on each thread
 
-Each Qodo comment body follows this HTML structure (angle-bracket entities written
-literally here for clarity):
+Before applying any fix, post a reply comment on **each** qualifying Qodo review
+thread (using the GitHub MCP comment tool):
+
+```
+@copilot apply changes based on the comments in this thread
+```
+
+This mirrors what GitHub's "Fix batch with Copilot" button does and creates an
+audit trail showing the agent is processing the thread.
+
+### Step 5 — Extract the Agent Prompt from each thread
+
+Each Qodo comment body follows this HTML structure:
 
 ```
 <details>
   <summary><strong>Agent Prompt</strong></summary>
 
-  [triple-backtick code fence]
+  ```
   ## Issue description
   …
 
   ## Fix Focus Areas
   - path/to/file.ts[L1-L2]
   …
-  [closing triple-backtick]
+  ```
 </details>
 ```
 
 **Extraction rules:**
 
 1. Find the `<details>` block whose `<summary>` contains the text `Agent Prompt`.
-2. Within that `<details>` block, locate the **triple-backtick fenced code block**
-   (i.e. the region delimited by ` ``` ` on its own line) and extract everything
-   between the opening and closing ` ``` ` delimiters.
+2. Within that `<details>` block, locate the triple-backtick fenced code block and
+   extract everything between the opening and closing ` ``` ` delimiters.
 3. That extracted text is the **Agent Prompt** — treat it as a complete,
    self-contained instruction for fixing the issue.
-4. Also record the comment's `html_url` (needed for the resolution comment) and
-   the issue title from the comment body (the bolded first line, e.g.
-   `"No tests for paste upload"`).
+4. Also record the comment's `html_url` and the issue title from the comment body
+   (the bolded first line, e.g. `"No tests for paste upload"`).
 
-### Step 5 — Apply every fix
+### Step 6 — Apply every fix
 
 Work through each extracted Agent Prompt **one at a time**:
 
 1. Read the "Fix Focus Areas" to understand which files need changes.
 2. Apply the minimum code change that resolves the issue described in the prompt.
    Follow all conventions from `.github/copilot-instructions.md`.
-3. After applying each fix, run the narrowest relevant validation:
-   - For frontend changes: `cd frontend && npm test`
-   - For backend changes: `cd backend && npm test`
-   - For python changes: `cd python && python3.11 -m pytest`
-4. If a fix causes a test failure, revise until tests pass before moving on.
-5. Stage the changed files: `git add <changed-files>`.
+3. Stage the changed files: `git add <changed-files>`.
 
 > **Important:** Do **not** commit after each individual fix. Accumulate all
-> staged changes and commit once in Step 6.
+> staged changes and commit once in Step 7.
 
-### Step 6 — Commit all fixes
+### Step 7 — Lint and test
 
-After all Agent Prompts have been applied and tested, commit:
+After all fixes have been applied, run lint then the test suite and fix any
+failures before committing.
+
+**Frontend / backend (Node):**
+
+```bash
+# lint — auto-fix what can be fixed, then fail fast on remaining errors
+cd frontend && npm run lint -- --fix
+cd backend && npm run lint -- --fix
+
+# tests
+cd frontend && npm run test
+cd backend && npm run test
+```
+
+**Python:**
+
+```bash
+cd python && python3.11 -m ruff check --fix .
+cd python && python3.11 -m pytest
+```
+
+- If `npm run lint` reports unfixable errors after `--fix`, address them in the
+  same staged changes before continuing.
+- If tests fail, revise the relevant fix(es) until the suite is green. If a fix is
+  irresolvable, revert it and move it to the **"Not addressed (test failure)"**
+  section of the resolution comment.
+
+Re-run lint and tests after every revision to confirm green status.
+
+### Step 8 — Commit and push
+
+Once lint and tests are fully green, commit **all** staged changes in a single
+commit:
 
 ```bash
 git commit -m "fix: address Qodo review comments on PR #<pull_number>"
 ```
 
-Record the resulting commit hash (`COMMIT_HASH`).
+Record the short SHA (first 7 characters) as `COMMIT_HASH`.
 
-Push the branch:
+Push the branch to origin so the fixes are visible on GitHub:
 
 ```bash
 git push origin <head-branch>
-# (or use report_progress to push)
 ```
 
-### Step 7 — Post a resolution comment on the PR
+(Alternatively, use the `report_progress` tool to push and update the PR
+description simultaneously.)
 
-Use the GitHub MCP tool or the `issue_comment` action to post a single PR-level
-comment summarising all addressed issues.
+### Step 9 — Reply to each Qodo thread with the commit hash
+
+For every thread that was **resolved** in Step 6, post a follow-up reply
+containing only the short commit hash:
+
+```
+<COMMIT_HASH>
+```
+
+This links each review thread directly to the commit that fixed it, matching
+GitHub's convention when you click "Mark as resolved with commit".
+
+### Step 10 — Post a summary resolution comment
+
+Use the GitHub MCP comment tool to post a single PR-level comment summarising all
+outcomes.
 
 **Comment format:**
 
@@ -165,43 +219,19 @@ Each fix follows the corresponding Agent Prompt provided by Qodo.
 
 Omit any section that has no entries (remove the heading and table entirely).
 
-Replace `<COMMIT_HASH>` with the short SHA (first 7 characters is fine).
-
 ---
 
 ## Handling Edge Cases
 
 | Situation | Action |
 |-----------|--------|
-| A thread has `is_outdated: true` | Skip it — the underlying code has changed; the fix would be speculative. Include it in the resolution comment under **"Skipped (outdated thread)"**. |
+| A thread has `is_outdated: true` | Skip it — the underlying code has changed; the fix would be speculative. Include it under **"Skipped (outdated thread)"**. |
 | A thread is already `is_resolved: true` | Skip it silently. |
-| A Qodo comment has **no** triple-backtick Agent Prompt block | Skip it and include it under **"Skipped (no Agent Prompt)"** in the resolution comment. |
-| Applying a fix breaks existing tests | Debug and fix until tests pass. If irresolvable, skip that item and include it under **"Not addressed (test failure)"** with a brief reason. |
+| A Qodo comment has **no** Agent Prompt block | Skip it and include it under **"Skipped (no Agent Prompt)"**. |
+| `npm run lint` reports errors that `--fix` cannot resolve automatically | Fix them manually as part of the staged changes, then re-run lint to confirm green. |
+| Applying a fix breaks existing tests | Debug and revise until tests pass. If irresolvable, revert that fix and list it under **"Not addressed (test failure)"** with a brief reason. |
 | The PR branch cannot be fetched (e.g., merged/deleted) | Inform the user and stop. |
 | No unresolved Qodo comments found | Reply: *"No unresolved Qodo review comments found on this PR."* and stop. |
-
----
-
-## Example Agent Prompt (for reference)
-
-Below is a representative Agent Prompt extracted from a real Qodo comment. This is
-**only an example** — the actual prompts come from the PR at runtime.
-
-```
-## Issue description
-New paste-to-upload behavior was added without accompanying automated tests.
-
-## Issue Context
-The PR introduces `extractPastedFiles()` (MIME filtering + auto-naming) and new
-`@paste` handlers in both chat input pages. These behaviors should be covered by
-unit tests (for extraction logic) and/or e2e tests (for paste-upload UX) so
-regressions are caught.
-
-## Fix Focus Areas
-- frontend/src/composables/useFilePaste.ts[10-33]
-- frontend/src/pages/ConversationPage.vue[1015-1020]
-- frontend/src/pages/HomePage.vue[361-367]
-```
 
 ---
 
