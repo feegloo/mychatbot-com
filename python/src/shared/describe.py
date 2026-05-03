@@ -1240,13 +1240,13 @@ def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
     if not first_image_file:
         return welcome
 
-    action_label = f"Adjust image for social media ❤️|ref:{first_image_file}"
+    action_label = f"Enhance image for social media ❤️|ref:{first_image_file}"
 
     # Parse existing actions out, insert ours at position 1 (after the first
     # action so the most relevant document question stays first), then re-embed.
     existing = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(welcome)]
     # Avoid duplicating the action if it was somehow already present.
-    if any("adjust image for social media" in a.lower() for a in existing):
+    if any("enhance image for social media" in a.lower() for a in existing):
         return welcome
 
     insert_at = min(1, len(existing))

@@ -152,9 +152,9 @@ const svgTransform = computed(
 const canZoomIn = computed(() => scale.value < MAX_SCALE)
 const canZoomOut = computed(() => scale.value > MIN_SCALE)
 
-const ZOOM_STEP = 0.2
+const ZOOM_STEP = 1.0
 const MIN_SCALE = 0.2
-const MAX_SCALE = 5
+const MAX_SCALE = 7
 
 // ── Popup state ─────────────────────────────────────────────────────────────
 const popupOpen = ref(false)
@@ -172,7 +172,7 @@ let popupDragStartPanY = 0
 
 const POPUP_MIN_SCALE = 0.2
 const POPUP_MAX_SCALE = 8
-const POPUP_ZOOM_STEP = 0.25
+const POPUP_ZOOM_STEP = 1.0
 
 function popupZoomIn() {
   popupScale.value = Math.min(POPUP_MAX_SCALE, +(popupScale.value + POPUP_ZOOM_STEP).toFixed(2))
