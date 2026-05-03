@@ -48,14 +48,13 @@ describe('homeLocale', () => {
     setBrowserLanguage('en-US')
     const { homeLang, homeT, setHomeLang } = await loadModule()
     expect(homeLang.value).toBe('en')
-    expect(homeT.value.askPlaceholder).toBe('Ask a question ...')
+    expect(homeT.value.askPlaceholder).toBe('Ask your question ...')
 
     setHomeLang('pl')
 
     expect(homeLang.value).toBe('pl')
     expect(localStorage.getItem(STORAGE_KEY)).toBe('pl')
-    expect(homeT.value.askPlaceholder).toBe('Zadaj pytanie ...')
-  })
+    expect(homeT.value.askPlaceholder).toBe('Zadaj swoje pytanie ...')  })
 
   it('toggleHomeLang flips between en and pl', async () => {
     setBrowserLanguage('en-US')

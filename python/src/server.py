@@ -81,9 +81,9 @@ from shared.image_gen import (  # noqa: E402
     generate_image_streaming,
 )
 
-# Matches the action label "Adjust image for social media ❤️" and any similar
+# Matches the action label "Enhance image for social media ❤️" and any similar
 # user-typed phrasing so those requests bypass the full LLM prompt builder.
-_SOCIAL_MEDIA_RE = re.compile(r"\badjust\b.{0,30}?\bsocial\b", re.IGNORECASE)
+_SOCIAL_MEDIA_RE = re.compile(r"\b(?:adjust|enhance)\b.{0,30}?\bsocial\b", re.IGNORECASE)
 from shared.indexing import index_documents  # noqa: E402
 from shared.logging_utils import configure_safe_logging  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402

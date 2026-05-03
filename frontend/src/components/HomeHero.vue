@@ -60,6 +60,7 @@
     <p class="home-subtitle">
       <!-- v-html is safe here: content comes exclusively from the static
            homeMessages map under our control (no user input). -->
+      <!-- eslint-disable vue/no-v-html -->
       <span v-html="t.subtitleP1Html"></span><br />
       <span v-html="t.subtitleP1bHtml"></span><br /><br />
       <span class="desktop-subtitle">
@@ -70,6 +71,7 @@
         <span v-html="t.subtitleP2MobileLine1Html"></span><br />
         <span v-html="t.subtitleP2MobileLine2Html"></span>
       </span>
+      <!-- eslint-enable vue/no-v-html -->
       <br />
       <span class="home-subtitle-extra">{{ t.subtitleP3 }}</span>
     </p>
@@ -189,10 +191,6 @@ const t = homeT
 }
 
 @media (max-width: 768px) {
-  .home-logo {
-    height: 40px;
-  }
-
   .desktop-subtitle {
     display: none;
   }
