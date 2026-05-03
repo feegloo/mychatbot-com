@@ -545,11 +545,23 @@ _ART_STYLES = [
     "charcoal sketch", "impressionist", "surrealist", "Art Nouveau", "woodcut print",
     "vintage poster", "Japanese woodblock", "concept art", "pencil drawing",
     "geometric abstract", "Gothic etching", "soft pastel", "hyper-realistic render",
-    "ink wash painting", "Art Deco", "Bauhaus design", "pixel art", "linocut print",
+    "ink wash painting", "Art Deco", "Bauhaus design", "linocut print",
     "stained glass illustration", "pointillism", "expressionist", "futurism",
     "photorealistic CGI", "street art / graffiti mural", "flat design illustration",
     "engraving", "collage mixed media", "isometric illustration", "cave painting",
     "neon noir digital painting", "Renaissance oil on panel",
+    # 1990s retro computer / console pixel art — each entry carries enough
+    # context so the image model renders a period-accurate look without extra hints.
+    "16-bit SNES / Mega Drive pixel art — vibrant 256-color palette, chunky character sprites, tiled scrolling background",
+    "1994 DOS VGA pixel art — 320×200 resolution aesthetic, dithered gradients, flat EGA-palette scenes, subtle scanline overlay",
+    "8-bit NES / Famicom pixel art — 4-color-per-tile sprites, side-scroll or top-down perspective, blocky retro look",
+    "Game Boy 4-shade monochrome pixel art — LCD green dot-matrix palette, stark high-contrast silhouettes, handheld screen feel",
+    "retro isometric pixel art RPG tilemap — axonometric 2D grid, classic dungeon or city scene, limited color ramp, Ultima / Syndicate era",
+    # Fun / expressive styles added to widen the variety palette
+    "lo-fi anime sketch — muted washed palette, soft confident linework, 90s indie manga / zine aesthetic",
+    "vaporwave glitch art — hot pink and purple neons, chrome shape distortion, tropical retro-futurism, A E S T H E T I C",
+    "Soviet constructivist propaganda poster — bold flat primary colors, heroic diagonal composition, stylized geometric silhouettes",
+    "noir graphic novel panel — heavy black ink, stark chiaroscuro, selective single-accent color (crimson or gold)",
 ]
 
 _MOODS = [
@@ -584,13 +596,39 @@ _PERSPECTIVES = [
 ]
 
 
+# Substrings that identify pixel / retro-raster styles within _ART_STYLES entries.
+# Stored as a frozenset for O(1) membership checks; each entry is a unique
+# substring present in exactly the pixel/retro style strings above.
+_PIXEL_ART_KEYWORDS: frozenset[str] = frozenset({
+    "pixel art", "8-bit", "16-bit", "Game Boy", "DOS VGA", "NES", "isometric pixel art",
+})
+
+# Extra rendering rules appended whenever a pixel-art style is selected, to
+# ensure the image model renders a period-accurate look (no anti-aliasing,
+# proper dithering, CRT/LCD screen feel, limited palette).
+_PIXEL_ART_RENDERING_RULES = (
+    " PIXEL ART RENDERING RULES: Use a strictly period-accurate, limited color "
+    "palette (4 to 256 colors maximum depending on the platform). Render "
+    "everything with hard-edged square pixels — NO anti-aliasing, NO smooth "
+    "blending, NO gradients (use ordered / Bayer dithering patterns instead). "
+    "Outline sprites with a 1-pixel dark border. Backgrounds must use visible "
+    "repeating tile patterns. Add a subtle CRT scanline or dot-matrix screen "
+    "overlay to reinforce the vintage display feel. The final image should look "
+    "exactly as if it appeared on a real 1990s CRT monitor or handheld LCD screen."
+)
+
+
 def _random_creative_seed() -> str:
-    """Pick one element from each creative dimension to seed unique generation."""
+    """Pick one element from each creative dimension to seed unique generation.
+
+    When a pixel / retro-raster style is selected, extra rendering rules are
+    appended so the image model produces a period-accurate pixel-art look.
+    """
     style = random.choice(_ART_STYLES)
     mood = random.choice(_MOODS)
     lighting = random.choice(_LIGHTING)
     perspective = random.choice(_PERSPECTIVES)
-    return (
+    seed = (
         f"Creative direction suggestion for this image: {style} style, {mood} mood, "
         f"{lighting}, {perspective}. "
         "Treat this as a starting point for variety — but if it conflicts with the "
@@ -599,6 +637,9 @@ def _random_creative_seed() -> str:
         "register you end up in, still find a UNIQUE angle — do NOT produce the "
         "most obvious or generic version of the theme."
     )
+    if any(kw in style for kw in _PIXEL_ART_KEYWORDS):
+        seed += _PIXEL_ART_RENDERING_RULES
+    return seed
 
 
 def build_image_announcement(
