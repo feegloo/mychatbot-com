@@ -783,6 +783,11 @@ def build_social_media_image_prompt() -> dict:
             "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
             "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve, other nice colors) around the subject's wrist, "
             "sitting naturally on the skin. "
+            "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
+            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve, or other nice feminine colors) "
+            "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
+            "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
+            "If the wrist is not visible, or the mood doesn't fit, skip this step, do not overdo it"
             "It should look like a real accessory the person is wearing, not a sticker. "
             "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
             "If the wrist is not visible or the mood doesn't fit, skip this option. "
@@ -796,17 +801,8 @@ def build_social_media_image_prompt() -> dict:
             "Fits: romantic, flirty, playful moods. Skip for: ethereal, edgy, fashion, serious. "
             "If NO: move on without any kiss marks. "
 
-            # --- Step 5: WRIST BAND / SCRUNCHIE — independent random effect ---
-            "FIFTH, decide independently — ~10% chance "
-            "whether to add a delicate wrist accessory. "
-            "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
-            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve, or other nice feminine colors) "
-            "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
-            "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
-            "If the wrist is not visible, or the mood doesn't fit, skip this step, do not overdo it"
-
             # --- Step 6: CREATIVE OVERLAY — independent random effect ---
-            "SIXTH, decide independently — another ~50/50 roll, separate from all prior steps — "
+            "FIFTH, decide independently — another ~50/50 roll, separate from all prior steps — "
             "whether to apply ONE decorative subject-level overlay. "
             "Do NOT apply an overlay every time. "
             "If YES: invent the most fitting overlay for THIS specific photo's mood and composition. "
@@ -819,7 +815,7 @@ def build_social_media_image_prompt() -> dict:
             "If nothing truly fits, skip this step. "
 
             # --- Step 7: EMOJI ACCENT — independent random effect ---
-            "SEVENTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
+            "SIXTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
             "Do NOT add emoji every time. "
             "If YES: invent the best placement, format, and emoji combination for this specific photo. "
             "You may use floating stickers near edges, a frosted bottom strip, a corner pill/badge, "
@@ -829,7 +825,7 @@ def build_social_media_image_prompt() -> dict:
             "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
 
             # --- Effect count distribution ---
-            "EFFECT COUNT: Choose the total number of effects (across steps 2–7) according to this distribution: "
+            "EFFECT COUNT: Choose the total number of effects (across steps 2–6) according to this distribution: "
             "1 effect — 30% of the time (default choice); "
             "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
             "3 effects — 30% of the time (rare, only when the photo is very dynamic or layered); "
