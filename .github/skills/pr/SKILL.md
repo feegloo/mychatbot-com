@@ -1,5 +1,5 @@
 ---
-name: qodo
+name: pr
 description: 'Address all unresolved Qodo Merge AI review comments on a GitHub pull request. Use when: a PR has Qodo review comments you want to fix automatically; you want to apply every Qodo "Agent Prompt" fix without copy-pasting manually; you want a commit + PR comment confirming all Qodo issues were addressed.'
 argument-hint: 'GitHub PR URL, e.g. https://github.com/owner/repo/pull/123'
 ---
