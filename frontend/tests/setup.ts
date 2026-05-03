@@ -50,7 +50,7 @@ config.global.stubs = {
       expose({ hide: vDropdownHideSpy, show: () => {} })
       // Fragment root so the trigger stays a direct child of its parent
       // (e.g. ``.welcome-suggested-questions > .question-pill`` selectors).
-      return () => h(Fragment, null, [slots.default?.(), slots.popper?.()])
+      return () => h(Fragment, null, [slots.default?.(), slots.popper?.({ hide: vDropdownHideSpy })])
     },
   },
 }

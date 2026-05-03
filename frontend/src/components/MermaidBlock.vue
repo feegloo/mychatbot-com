@@ -392,6 +392,14 @@ async function renderDiagram() {
 
 function switchToDiagram() {
   mode.value = 'diagram'
+  // When returning to diagram mode after a failed render (renderError set) or
+  // when there's no SVG yet, trigger a fresh render immediately.
+  // We can't rely solely on the mode-watcher because Vue de-duplicates watcher
+  // jobs – if mode was already 'diagram' before switching to 'text', the
+  // watcher sees no net change and won't fire.
+  if (renderError.value || !renderedSvg.value) {
+    renderDiagram()
+  }
 }
 
 function downloadSvg() {
@@ -416,8 +424,10 @@ onBeforeUnmount(() => {
 })
 
 // Re-render when switching to diagram mode (diagram el must be in DOM first).
+// Guard against double-render with switchToDiagram: if renderDiagram was
+// already called (ready becomes false), skip the watch-triggered render.
 watch(mode, (m) => {
-  if (m === 'diagram' && !renderedSvg.value) renderDiagram()
+  if (m === 'diagram' && !renderedSvg.value && ready.value) renderDiagram()
 }, { flush: 'post' })
 
 // Re-render when the code prop changes, after Vue has updated the DOM.

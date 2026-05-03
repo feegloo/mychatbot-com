@@ -58,6 +58,12 @@ function allTextStrings(): string[] {
   );
 }
 
+// drawWrappedLine calls doc.text once per inline piece (word/space/etc.).
+// Join with empty string to reconstruct readable runs for content assertions.
+function allJoinedText(): string {
+  return allTextStrings().join('');
+}
+
 describe('printContentAsPdf', () => {
   it('loads fonts and registers them on the doc', async () => {
     await printContentAsPdf('Hello world', 'test');
@@ -79,9 +85,8 @@ describe('printContentAsPdf', () => {
   it('renders headings', async () => {
     await printContentAsPdf('# Main Title\n\nSome paragraph', 'test');
 
-    const texts = allTextStrings();
-    expect(texts.some((t) => t.includes('Main Title'))).toBe(true);
-    expect(texts.some((t) => t.includes('Some paragraph'))).toBe(true);
+    expect(allJoinedText()).toContain('Main Title');
+    expect(allJoinedText()).toContain('Some paragraph');
   });
 
   it('renders unordered list items with bullet', async () => {
@@ -89,8 +94,8 @@ describe('printContentAsPdf', () => {
 
     const texts = allTextStrings();
     expect(texts.some((t) => t === '•')).toBe(true);
-    expect(texts.some((t) => t.includes('Item one'))).toBe(true);
-    expect(texts.some((t) => t.includes('Item two'))).toBe(true);
+    expect(allJoinedText()).toContain('Item one');
+    expect(allJoinedText()).toContain('Item two');
   });
 
   it('renders ordered list items', async () => {
@@ -119,7 +124,7 @@ describe('printContentAsPdf', () => {
   it('strips source citations and action markers', async () => {
     await printContentAsPdf('Answer text [source: 1, 2] [action: follow-up]', 'test');
 
-    const allText = allTextStrings().join(' ');
+    const allText = allJoinedText();
     expect(allText).not.toContain('[source:');
     expect(allText).not.toContain('[action:');
     expect(allText).toContain('Answer text');
@@ -139,9 +144,8 @@ describe('printContentAsPdf', () => {
   it('renders checklists', async () => {
     await printContentAsPdf('- [x] Done task\n- [ ] Pending task', 'test');
 
-    const texts = allTextStrings();
-    expect(texts.some((t) => t.includes('Done task'))).toBe(true);
-    expect(texts.some((t) => t.includes('Pending task'))).toBe(true);
+    expect(allJoinedText()).toContain('Done task');
+    expect(allJoinedText()).toContain('Pending task');
     expect(mockDoc.rect).toHaveBeenCalled();
   });
 
