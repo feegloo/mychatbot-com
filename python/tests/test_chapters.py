@@ -30,6 +30,7 @@ pytestmark_real_pdf = pytest.mark.skipif(
 
 
 @pytestmark_real_pdf
+@pytest.mark.slow
 class TestChapterDetectionWithRealPdf:
     """Test chapter detection against the Mroz Chylka PDF (266 pages, 4 chapters)."""
 

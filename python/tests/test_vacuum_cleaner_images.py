@@ -27,7 +27,6 @@ VACUUM_PDF = (
     / "en_US_BKS_9316_EN.pdf"
 )
 
-
 @pytest.fixture
 def output_dir(tmp_path):
     d = tmp_path / "images"
@@ -38,6 +37,7 @@ def output_dir(tmp_path):
 # ── Sanity check ─────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 def test_vacuum_pdf_exists():
     assert VACUUM_PDF.exists(), f"Test PDF not found: {VACUUM_PDF}"
 
@@ -72,6 +72,7 @@ class TestAspectRatioFilter:
         # (PyMuPDF does not embed drawn lines as image xrefs)
         assert isinstance(results, list)
 
+    @pytest.mark.slow
     def test_vacuum_pdf_images_pass_aspect_ratio(self, output_dir):
         """All images extracted from the real PDF should not be extreme-aspect-ratio."""
         results = _extract_and_save_images(VACUUM_PDF, output_dir)
@@ -291,6 +292,7 @@ class TestImageChunks:
 # ── End-to-end extraction from real PDF ─────────────────────────────
 
 
+@pytest.mark.slow
 class TestVacuumPDFExtraction:
     def test_extracts_at_least_one_image(self, output_dir):
         results = _extract_and_save_images(VACUUM_PDF, output_dir)
