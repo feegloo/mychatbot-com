@@ -81,9 +81,13 @@ from shared.image_gen import (  # noqa: E402
     generate_image_streaming,
 )
 
-# Matches the action label "Enhance image for social media ❤️" and any similar
-# user-typed phrasing so those requests bypass the full LLM prompt builder.
-_SOCIAL_MEDIA_RE = re.compile(r"\b(?:adjust|enhance)\b.{0,30}?\bsocial\b", re.IGNORECASE)
+# Matches the action label "Enhance image for social media ❤️" / Polish
+# "Ulepsz obrazek pod social media ❤️" and any similar user-typed phrasing
+# so those requests bypass the full LLM prompt builder.
+_SOCIAL_MEDIA_RE = re.compile(
+    r"\b(?:adjust|enhance|ulepsz)\b.{0,30}?\bsocial\b",
+    re.IGNORECASE,
+)
 from shared.indexing import index_documents  # noqa: E402
 from shared.logging_utils import configure_safe_logging  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
@@ -532,6 +536,7 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
             from shared.lang_detect import detect_language
             from shared.suggested_questions import suggest_questions_from_chunks
             from shared.vector_store import upsert_chunks
+            from shared.wiki import build_conversation_wiki
 
             # 1. Fetch HTML
             logger.info(f"🌐 Fetching URL: {req.url}")
@@ -542,7 +547,7 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
             visible_text = _extract_visible_text(html)
             detected_language = detect_language(visible_text[:2000])
 
-            # 3. Generate description
+            # 3. Generate description (includes embedded [mindmap]...[/mindmap])
             logger.info("📝 Generating URL description...")
             welcome_message = describe_url(req.url, html, language=detected_language)
 
@@ -569,7 +574,7 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
                 welcome_message=welcome_message,
             )
 
-            return {
+            result = {
                 "welcome_message": welcome_message,
                 "suggested_questions": suggested_questions,
                 "detected_language": detected_language,
@@ -578,6 +583,26 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
                 "url": req.url,
                 **upsert_result,
             }
+
+            # 6. Build internal wiki (Karpathy-style idea file) — best-effort
+            try:
+                from urllib.parse import urlparse as _urlparse
+                page_title = _urlparse(req.url).netloc or req.url
+                wiki_text = build_conversation_wiki(
+                    conversation_id=req.conversation_id,
+                    collection_name=req.collection_name,
+                    conversation_title=page_title,
+                    welcome_message=welcome_message,
+                    storage_dir=None,
+                    language=detected_language,
+                )
+                if wiki_text:
+                    result["wiki_message"] = wiki_text
+                    logger.info("📚 Wiki generated for URL conversation")
+            except Exception as exc:
+                logger.warning("📚 Wiki step failed (url=%s): %s", req.url, exc)
+
+            return result
 
         result = await asyncio.to_thread(_process_url)
         return result

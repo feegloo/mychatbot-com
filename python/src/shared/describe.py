@@ -1250,13 +1250,18 @@ def _describes_woman_nonprofessional(text: str) -> bool:
     return not any(term in clean for term in professional_terms)
 
 
-def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
+def _inject_social_media_action(welcome: str, images: list[dict], language: str | None = None) -> str:
     """Inject an 'Enhance image for social media' action button into the welcome
     message when the user uploaded a standalone image file (not a PDF page image)
     showing a woman as the primary subject in a non-professional context.
 
     The action uses ``|ref:FILENAME`` so the frontend can pass the original file
     to the image-generation pipeline as a reference image.
+
+    When the conversation language is Polish the label is localised to
+    "Ulepsz obrazek pod social media ❤️" so the button text matches the UI
+    language and the server-side regex still routes it to the social-media
+    image pipeline.
     """
     if not images:
         return welcome
@@ -1282,13 +1287,21 @@ def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
     if not _describes_woman_nonprofessional(welcome):
         return welcome
 
-    action_label = f"Enhance image for social media ❤️|ref:{first_image_file}"
+    is_polish = (language or "").lower().startswith("pl")
+    action_label = (
+        f"Ulepsz obrazek pod social media ❤️|ref:{first_image_file}"
+        if is_polish
+        else f"Enhance image for social media ❤️|ref:{first_image_file}"
+    )
 
     # Parse existing actions out, insert ours at position 1 (after the first
     # action so the most relevant document question stays first), then re-embed.
     existing = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(welcome)]
-    # Avoid duplicating the action if it was somehow already present.
-    if any("enhance image for social media" in a.lower() for a in existing):
+    # Avoid duplicating the action if it was somehow already present (either language).
+    if any(
+        "enhance image for social media" in a.lower() or "ulepsz obrazek pod social media" in a.lower()
+        for a in existing
+    ):
         return welcome
 
     insert_at = min(1, len(existing))
@@ -1732,7 +1745,7 @@ def describe_documents(
 
     # Inject social media action for standalone image uploads (sets |ref: so
     # the frontend routes it through the image-gen pipeline with the photo).
-    welcome_message = _inject_social_media_action(welcome_message, images)
+    welcome_message = _inject_social_media_action(welcome_message, images, language)
 
     return DescribeResult(
         welcome_message=welcome_message,

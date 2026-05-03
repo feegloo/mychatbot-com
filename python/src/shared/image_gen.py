@@ -728,6 +728,7 @@ def build_social_media_image_prompt() -> dict:
         "prompt": (
             "Take this exact photo and transform it into a fun social media post image. "
             "Keep the original photo as the complete base — do NOT alter the subject, colors, or composition. "
+            "Rule: avoid repeating effects from images references in this conversation — if you added a flower crown last time, do not add another one this time. "
 
             # --- Step 1: read the vibe ---
             "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
@@ -760,7 +761,7 @@ def build_social_media_image_prompt() -> dict:
 
             # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
             "THIRD, choose ONE of the following accent formats — pick what feels most natural "
-            "decide independently — roughly 50/50 — whether to add an accent at all. "
+            "decide independently — roughly 75/25 — whether to add an accent at all. "
             "for THIS specific photo, not the most obvious template: "
             "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
             "near the edges or corners, NOT covering the face. No strip. "
@@ -780,7 +781,7 @@ def build_social_media_image_prompt() -> dict:
             "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
             "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
             "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
-            "💫🐹 (wholesome quirky), 🩵❄️ (cool aesthetic), 🍓💋 (sweet bold), "
+            "💫🐹 (wholesome quirky), 🩵❄️🩷 (cool aesthetic), 🍓💋 (sweet bold), "
             "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
             "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
             "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
@@ -797,13 +798,13 @@ def build_social_media_image_prompt() -> dict:
             "If NO: move on without any kiss marks. "
 
             # --- Step 5: WRIST BAND / SCRUNCHIE — independent random effect ---
-            "FIFTH, decide independently — ~20% chance, separate from step 2 — "
+            "FIFTH, decide independently — ~10% chance "
             "whether to add a delicate wrist accessory. "
             "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
-            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve) "
+            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve, or other nice feminine colors) "
             "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
             "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
-            "If the wrist is not visible, or the mood doesn't fit, skip this step. "
+            "If the wrist is not visible, or the mood doesn't fit, skip this step, do not overdo it"
 
             # --- Step 6: CREATIVE OVERLAY — independent random effect ---
             "SIXTH, decide independently — another ~50/50 roll, separate from all prior steps — "
@@ -841,7 +842,7 @@ def build_social_media_image_prompt() -> dict:
             "not a generic filter dump. Decoration is seasoning, not the main dish. "
             "No watermark. No logos. The subject's face and body must be fully preserved."
         ),
-        "title": "Social Media Edit",
+        "title": "Social Media Effects",
         "source_indices": [],
         "aspect": "square",
     }

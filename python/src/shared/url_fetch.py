@@ -11,12 +11,14 @@ import logging
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
+from urllib.parse import quote, urlparse, urlunparse
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from .lang_detect import detect_language
 from .llm_instrument import traced_llm_call
+from .prompts.welcome import MINDMAP_RULES_EN, MINDMAP_RULES_PL
 from .rag import get_llm
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,73 @@ def _extract_visible_text(html: str) -> str:
     return parser.get_text()
 
 
+class _SectionAnchorParser(HTMLParser):
+    """Collects id attributes from heading elements for page-section navigation."""
+
+    _HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6"}
+
+    def __init__(self):
+        super().__init__()
+        self._anchors: list[dict] = []
+        self._current_id: str | None = None
+        self._current_tag: str | None = None
+        self._current_text: list[str] = []
+        self._in_heading = False
+
+    def handle_starttag(self, tag: str, attrs):
+        tag_lower = tag.lower()
+        if tag_lower in self._HEADING_TAGS:
+            attrs_dict = dict(attrs)
+            element_id = attrs_dict.get("id")
+            if element_id:
+                self._in_heading = True
+                self._current_id = element_id
+                self._current_tag = tag_lower
+                self._current_text = []
+
+    def handle_endtag(self, tag: str):
+        if self._in_heading and tag.lower() == self._current_tag:
+            text = " ".join(self._current_text).strip()
+            if text and self._current_id:
+                self._anchors.append({"id": self._current_id, "text": text, "tag": self._current_tag})
+            self._in_heading = False
+            self._current_id = None
+            self._current_tag = None
+            self._current_text = []
+
+    def handle_data(self, data: str):
+        if self._in_heading:
+            text = data.strip()
+            if text:
+                self._current_text.append(text)
+
+    def get_anchors(self) -> list[dict]:
+        return self._anchors
+
+
+def _extract_section_anchors(html: str, base_url: str) -> str:
+    """Extract heading id attributes and build a Markdown list of anchor links.
+
+    Returns an empty string when no anchored headings are found.
+    """
+    parser = _SectionAnchorParser()
+    parser.feed(html)
+    anchors = parser.get_anchors()
+    if not anchors:
+        return ""
+
+    # Strip any existing fragment from the base URL
+    parsed = urlparse(base_url)
+    base = urlunparse(parsed._replace(fragment=""))
+
+    lines = []
+    for anchor in anchors:
+        encoded_id = quote(anchor["id"], safe="")
+        url = f"{base}#{encoded_id}"
+        lines.append(f"- [{anchor['text']}]({url})")
+    return "\n".join(lines)
+
+
 def fetch_url(url: str, timeout: int = 15) -> str:
     """Fetch raw HTML from a URL. Returns the HTML string."""
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
@@ -109,6 +178,8 @@ KLUCZOWE NASTAWIENIE: Czytaj HTML jak człowiek przeglądający stronę — NIE 
 3. **O czym możesz pytać** (1–2 zdania): Co użytkownik może wyciągnąć z tej strony.
 
 WAŻNE: Wyciągaj konkretne dane (nazwy produktów, listy składników, ceny, opinie, fragmenty artykułów, tabele danych). NIE opisuj struktury HTML ("jest div z klasą..."). Pisz jak człowiek streszczający to, co właśnie przeczytał na stronie.
+
+4. **Linki do sekcji**: Blok "== SEKCJE STRONY ==" w wiadomości użytkownika zawiera listę sekcji tej strony z ich pełnymi adresami URL (łącznie z kotwicą #id). Gdy opisujesz lub wspominasz konkretną sekcję, linkuj do niej w tekście za pomocą Markdown: [Nazwa sekcji](URL#anchor). Linkuj tylko do sekcji wymienionych w tym bloku — nie wymyślaj adresów URL.
 
 Używaj profesjonalnych emoji oszczędnie (🛒, 💊, 📊, 🧴, ✅, ⭐, 💡, 🔍) — najwyżej 2–3 w całej odpowiedzi.
 Odpowiadaj w tym samym języku co treść strony.
@@ -155,6 +226,8 @@ CRITICAL MINDSET: Read the HTML as if you are a human browsing this website — 
 
 FOCUS: Extract the actual data (product names, ingredient lists, prices, reviews, article text, facts, data tables). Do NOT describe HTML structure ("there is a div with class..."). Write like a human summarizing what they just read on the website.
 
+4. **Section links**: The "== PAGE SECTIONS ==" block in the user message lists this page's sections with their full anchor URLs. When describing or referencing a specific section, link to it inline using Markdown: [Section Name](URL#anchor). Only link to sections explicitly listed in that block — never invent anchor URLs.
+
 Use professional emoji sparingly (🛒, 💊, 📊, 🧴, ✅, ⭐, 💡, 🔍) — at most 2–3 total.
 Reply in the same language as the page content.
 Be thorough for ingredient/specification pages — list ALL items, not just some.
@@ -184,12 +257,23 @@ def describe_url(url: str, html: str, language: str | None = None) -> str:
     # Truncate HTML to budget
     html_truncated = html[:_MAX_HTML_CHARS]
 
-    system_prompt = _SYSTEM_PROMPT_PL if language == "pl" else _SYSTEM_PROMPT_EN
-    human_prompt = (
-        "Cel: opisz co jest na stronie internetowej na podstawie HTML\nURL: {url}\n\nHTML:\n{html}"
-        if language == "pl"
-        else "Goal: describe what is on this web page by reading the HTML as a user would see it\nURL: {url}\n\nHTML:\n{html}"
-    )
+    # Extract navigable section anchors from headings with id attributes
+    section_anchors = _extract_section_anchors(html, url)
+
+    mindmap_rules = MINDMAP_RULES_PL if language == "pl" else MINDMAP_RULES_EN
+    base_prompt = _SYSTEM_PROMPT_PL if language == "pl" else _SYSTEM_PROMPT_EN
+    system_prompt = mindmap_rules + "\n" + base_prompt
+
+    if language == "pl":
+        anchors_block = (
+            f"== SEKCJE STRONY ==\n{section_anchors}\n\n" if section_anchors else ""
+        )
+        human_prompt = "Cel: opisz co jest na stronie internetowej na podstawie HTML\nURL: {url}\n\n" + anchors_block + "HTML:\n{html}"
+    else:
+        anchors_block = (
+            f"== PAGE SECTIONS ==\n{section_anchors}\n\n" if section_anchors else ""
+        )
+        human_prompt = "Goal: describe what is on this web page by reading the HTML as a user would see it\nURL: {url}\n\n" + anchors_block + "HTML:\n{html}"
 
     prompt = ChatPromptTemplate.from_messages(
         [

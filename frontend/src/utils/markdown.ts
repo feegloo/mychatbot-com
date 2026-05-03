@@ -395,4 +395,4 @@ export function renderInlineMarkdown(content: string): string {
  * Polish "wygeneruj obraz" is also matched so users can type it directly
  * without needing the 🎨 emoji.
  */
-export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b|\bwygeneruj\b[^\n]{0,40}?\bobraz\b|\b(?:adjust|enhance)\b[^\n]{0,30}?\bsocial\b/i
+export const IMAGE_GEN_REGEX = /🎨|\b(?:generate|create|new|make|draw)\b[^\n]{0,40}?\bimage\b|\bwygeneruj\b[^\n]{0,40}?\bobraz\b|\b(?:adjust|enhance|ulepsz)\b[^\n]{0,30}?\bsocial\b/i
