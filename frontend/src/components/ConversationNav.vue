@@ -25,6 +25,13 @@
         >
           {{ searchHitByConversationId.get(conv.conversationId)?.matchCount }}
         </span>
+        <span v-if="conv.isLocal" class="conv-nav-local-icon" title="Local / offline conversation">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.5 19H9a7 7 0 01-2.12-13.66"/>
+            <path d="M22 16.74A10 10 0 0012.06 3"/>
+            <line x1="2" y1="2" x2="22" y2="22"/>
+          </svg>
+        </span>
         <span v-if="conv.status === 'processing'" class="conv-nav-dot processing"></span>
         <span v-else-if="conv.status === 'failed'" class="conv-nav-dot failed"></span>
       </router-link>
@@ -70,28 +77,7 @@
     </Transition>
 
     <div class="conv-nav-bottom">
-      <button
-        class="conv-nav-collapse-btn"
-        :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
-        @click.stop="
-          $emit('toggle-collapse');
-          $emit('navigate');
-        "
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline v-if="!collapsed" points="15 18 9 12 15 6" />
-          <polyline v-else points="9 18 15 12 9 6" />
-        </svg>
-      </button>
+      <SettingsMenu :collapsed="collapsed" />
       <DonateWidget />
       <button
         v-if="!collapsed"
@@ -145,6 +131,7 @@ import {
   type SearchableConversation,
 } from '../utils/conversationSearch'
 import DonateWidget from './DonateWidget.vue'
+import SettingsMenu from './SettingsMenu.vue'
 
 const MIN_SEARCH_LENGTH = 4
 const SEARCH_DEBOUNCE_MS = 700
