@@ -405,7 +405,7 @@ function onPasteFile(event: ClipboardEvent) {
 }
 
 .upload-dropzone {
-  padding: 36px;
+  padding: 21px 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -481,7 +481,7 @@ function onPasteFile(event: ClipboardEvent) {
   }
 
   .upload-dropzone {
-    padding: 32px 20px;
+    padding: 17px 20px;
   }
 
   .dropzone-title {
