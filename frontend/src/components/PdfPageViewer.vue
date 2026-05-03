@@ -29,7 +29,7 @@
         class="pdf-tool-btn pdf-tool-btn--text"
         @click="emit('openPdf')"
       >
-        Otwórz PDF
+        Open PDF
       </button>
       <span v-if="showOpenPdf" class="pdf-toolbar-gap" aria-hidden="true" />
 
@@ -962,7 +962,7 @@ watch(
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: transparent;
   color: white;
   font-size: 32px;

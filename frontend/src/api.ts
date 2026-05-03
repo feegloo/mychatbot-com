@@ -431,7 +431,7 @@ export async function generateImageStream(
     } else if (eventName === 'prompt_ready') {
       callbacks.onPromptReady?.(payload as { image_prompt: string; image_title: string })
     } else if (eventName === 'partial') {
-      console.debug(`🎬 Frontend: Calling onPartial callback for index=${(payload as any)?.index}`)
+      console.debug(`🎬 Frontend: Calling onPartial callback for index=${(payload as { index?: number })?.index}`)
       callbacks.onPartial?.(payload as { b64: string; index: number })
     } else if (eventName === 'complete') {
       callbacks.onComplete(payload as Parameters<ImageGenStreamCallbacks['onComplete']>[0])
