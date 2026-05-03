@@ -104,11 +104,13 @@ defineEmits<{
   .image-modal-overlay {
     padding: 0;
     align-items: flex-start;
+    overflow-y: auto;
   }
 
   .image-modal-content {
     width: 100vw;
     max-width: 100vw;
+    max-height: none;
   }
 
   .image-modal-close {
