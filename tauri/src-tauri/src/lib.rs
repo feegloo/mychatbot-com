@@ -1,3 +1,5 @@
+mod tray;
+
 use std::sync::Mutex;
 use tauri::State;
 
@@ -32,6 +34,10 @@ pub async fn check_ollama() -> bool {
 pub fn run() {
     tauri::Builder::default()
         .manage(ModeState::new(DEFAULT_MODE.to_string()))
+        .setup(|app| {
+            tray::setup_tray(app)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_mode, set_mode, check_ollama])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

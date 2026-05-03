@@ -33,6 +33,25 @@ Hovering over a label for **1 second** shows a tooltip:
 
 The chosen mode is persisted in `localStorage` across restarts.
 
+### macOS System Tray
+
+When running as a macOS `.app`, ChatRAG places a monochrome cloud icon in the **menu bar** (system tray). Clicking it shows a dropdown menu:
+
+```
+● Running
+Mode: Cloud ☁️
+──────────────
+Switch to Local 🖥
+──────────────
+Quit ChatRAG
+```
+
+The menu updates immediately when the mode is toggled — no restart required. The implementation (`src-tauri/src/tray.rs`) follows the pattern from [stik_app by 0xMassi](https://github.com/0xMassi/stik_app) using Tauri 2.0's `TrayIconBuilder`:
+
+- `icon_as_template(true)` — adapts to macOS dark/light mode automatically
+- `show_menu_on_left_click(true)` — standard macOS tray behaviour
+- `on_menu_event` — rebuilds the menu after a mode toggle so the labels stay in sync
+
 ### Toggle implementation
 
 The toggle is a self-contained Vue component (`frontend/src/components/TauriModeToggle.vue`) rendered only when the app detects it is running inside a Tauri shell (`window.__TAURI_INTERNALS__` present). It is mounted as a fixed overlay in `App.vue` and is invisible in normal browser usage.
