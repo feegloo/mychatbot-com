@@ -472,7 +472,7 @@ function onPasteFile(event: ClipboardEvent) {
 
 @media (max-width: 768px) {
   .home-page {
-    padding: 24px 16px 120px;
+    padding: 10px 16px 120px;
     justify-content: flex-start;
   }
 
