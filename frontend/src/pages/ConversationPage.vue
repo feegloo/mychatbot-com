@@ -1025,7 +1025,7 @@ function onPasteFile(event: ClipboardEvent) {
   if (pastedText && isUrl(pastedText)) {
     event.preventDefault()
     question.value = pastedText
-    ask()
+    submitQuestion()
     return
   }
 

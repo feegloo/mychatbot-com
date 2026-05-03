@@ -737,6 +737,10 @@ uploadRouter.post('/upload-url', async (ctx) => {
         event: 'error',
         data: { message: error.message },
       })
+      emitConversationEvent(conversationId, {
+        event: 'complete',
+        data: { status: 'failed' },
+      })
     })
 
   ctx.body = {

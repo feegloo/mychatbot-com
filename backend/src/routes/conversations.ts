@@ -557,6 +557,10 @@ conversationsRouter.post('/conversations/:conversationId/add-url', async (ctx) =
         event: 'error',
         data: { message: error.message },
       })
+      emitConversationEvent(conversationId, {
+        event: 'complete',
+        data: { status: 'failed' },
+      })
     })
 
   ctx.body = { conversationId, status: 'processing' }
