@@ -32,9 +32,6 @@ TEST_PDF = (
     / "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf"
 )
 
-pytestmark = pytest.mark.slow
-
-
 @pytest.fixture
 def output_dir(tmp_path):
     return tmp_path / "images"
@@ -48,6 +45,7 @@ def _ensure_output_dir(output_dir):
 # ── Sanity checks ───────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 def test_test_pdf_exists():
     assert TEST_PDF.exists(), f"Test PDF not found: {TEST_PDF}"
 
@@ -60,6 +58,7 @@ def test_num_threads_uses_all_cores():
 # ── Image extraction (CPU-bound, no API) ────────────────────────────
 
 
+@pytest.mark.slow
 class TestExtractAndSaveImages:
     def test_extracts_images_from_real_pdf(self, output_dir):
         results = _extract_and_save_images(TEST_PDF, output_dir)
@@ -291,6 +290,7 @@ class TestDescribeOne:
 
 
 class TestExtractPdfImages:
+    @pytest.mark.slow
     @patch("shared.extractors._describe_image", return_value="Mocked description.")
     def test_end_to_end_with_mocked_api(self, mock_describe, output_dir):
         results = extract_pdf_images(TEST_PDF, output_dir)
@@ -299,17 +299,20 @@ class TestExtractPdfImages:
             assert r["description"] == "Mocked description."
             assert "png_bytes" not in r  # should not leak raw bytes
 
+    @pytest.mark.slow
     @patch("shared.extractors._describe_image", return_value="desc")
     def test_results_sorted_by_page(self, mock_describe, output_dir):
         results = extract_pdf_images(TEST_PDF, output_dir)
         pages = [r["page"] for r in results]
         assert pages == sorted(pages), "Results should be sorted by page"
 
+    @pytest.mark.slow
     @patch("shared.extractors._describe_image", return_value="desc")
     def test_parallel_execution_calls_describe_for_each(self, mock_describe, output_dir):
         results = extract_pdf_images(TEST_PDF, output_dir)
         assert mock_describe.call_count == len(results)
 
+    @pytest.mark.slow
     @patch("shared.extractors._describe_image", return_value="desc")
     def test_output_keys_match_contract(self, mock_describe, output_dir):
         results = extract_pdf_images(TEST_PDF, output_dir)
