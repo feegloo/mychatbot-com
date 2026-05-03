@@ -734,8 +734,9 @@ def build_social_media_image_prompt() -> dict:
             "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
             "Every decoration decision below must be driven by this mood reading. "
 
-            # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
-            "SECOND, choose ONE of the following accent formats — pick what feels most natural "
+            # --- Step 2: bottom accent (pick the RIGHT format, not always a strip) ---
+            "SECOND,decide independently — roughly 50/50 "
+            "choose ONE of the following accent formats — pick what feels most natural "
             "for THIS specific photo, not the most obvious template: "
             "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
             "near the edges or corners, NOT covering the face. No strip. "
@@ -748,13 +749,13 @@ def build_social_media_image_prompt() -> dict:
             "Choose by mood — do NOT default to the strip every time. "
 
             # --- Emoji selection ---
-            "for step THIRD (sticker/strip/tag),"
+            "for step SECOND (sticker/strip/tag),"
             "choose ONE of the following emoji pairs/triplets (use as inspiration, not as a fixed list): "
             ""
-            "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
+            "😇😈 (angelic meets edgy), 🎀🧸 (cozy cute), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
             "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
             "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
-            "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
+            "🩷💋 (romantic), 🌸🦋 (soft nature), ☕️🌙 (moody), "
             "💫🐹 (wholesome quirky), 🩵❄️🩷 (cool aesthetic), 🍓💋 (sweet bold), "
             "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
             "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
@@ -764,7 +765,7 @@ def build_social_media_image_prompt() -> dict:
             "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
 
              # --- Step 2: subject-level overlay (pick ONE that fits) ---
-            "THIRD, apply ONE of the following decorative overlays directly on/around the subject: "
+            "THIRD, decide independently — roughly 50/50, apply ONE of the following decorative overlays directly on/around the subject: "
             "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
             "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
             "Use for: romantic, flirty, playful vibes. "

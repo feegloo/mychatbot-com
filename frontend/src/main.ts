@@ -10,6 +10,23 @@ import './style.css'
 
 const app = createApp(App)
 
+// After a new deployment, hashed chunk filenames change. If the browser has a
+// stale main bundle that references old chunk URLs, dynamic imports will fail
+// with a "Failed to fetch dynamically imported module" TypeError. Reload once
+// to pick up the fresh index.html and updated asset URLs.
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  const isChunkLoadError =
+    event.reason instanceof TypeError &&
+    event.reason.message.includes('Failed to fetch dynamically imported module')
+  if (isChunkLoadError) {
+    const key = 'chunk-reload'
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      window.location.reload()
+    }
+  }
+})
+
 Sentry.init({
   app,
   dsn: import.meta.env.VITE_SENTRY_DSN,

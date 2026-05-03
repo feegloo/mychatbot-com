@@ -27,7 +27,19 @@ import MessageContentAction from './MessageContentAction.vue'
 import MessageContentActionMore from './MessageContentActionMore.vue'
 
 const QuizBlock = defineAsyncComponent(() => import('../QuizBlock.vue'))
-const MermaidBlock = defineAsyncComponent(() => import('../MermaidBlock.vue'))
+const MermaidBlock = defineAsyncComponent({
+  loader: () => import('../MermaidBlock.vue'),
+  // Stale-chunk recovery: reload once if the hashed asset no longer exists.
+  onError(_, __, ___, attempts) {
+    if (attempts <= 1) {
+      const key = 'chunk-reload'
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1')
+        window.location.reload()
+      }
+    }
+  },
+})
 
 const props = defineProps<{
   content: string

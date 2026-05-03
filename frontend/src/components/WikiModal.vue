@@ -39,7 +39,18 @@ import { computed, defineAsyncComponent } from 'vue'
 import { splitContent } from './chat/splitContent'
 import type { ContentPart } from './chat/splitContent'
 
-const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
+const MermaidBlock = defineAsyncComponent({
+  loader: () => import('./MermaidBlock.vue'),
+  onError(_, __, ___, attempts) {
+    if (attempts <= 1) {
+      const key = 'chunk-reload'
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1')
+        window.location.reload()
+      }
+    }
+  },
+})
 
 const props = defineProps<{
   visible: boolean
