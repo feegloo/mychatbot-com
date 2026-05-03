@@ -46,10 +46,7 @@
                 aria-label="Close"
                 @click="$emit('close')"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                &times;
               </button>
             </div>
             <div class="source-modal-doc-body">
@@ -69,17 +66,7 @@
           aria-label="Close"
           @click="$emit('close')"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          &times;
         </button>
 
 
@@ -216,35 +203,33 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
   overflow: hidden;
 }
 
-/* Desktop close: white circle to the right of the PDF */
+/* Desktop close: white × to the right of the PDF — matches ImageModal close */
 .source-modal-close-desktop {
   flex-shrink: 0;
   align-self: flex-start;
   margin-top: 10px;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #fff;
+  color: white;
+  background: transparent;
+  font-size: 32px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: background 0.15s;
 }
 
 @media (hover: hover) {
   .source-modal-close-desktop:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: #334155;
   }
 }
 
 .source-modal-close-desktop:active {
-  background: rgba(255, 255, 255, 0.35);
+  background: #334155;
 }
 
 .source-modal-content--text {
@@ -289,17 +274,18 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
 
 .source-modal-doc-close {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: #374151;
+  font-size: 32px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
 }
 
 .source-modal-doc-close:hover {
