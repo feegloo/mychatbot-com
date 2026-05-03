@@ -3,63 +3,65 @@
     <div v-if="loading" class="shared-loading">Loading…</div>
     <div v-else-if="error" class="shared-error">{{ error }}</div>
     <template v-else-if="message">
-      <div class="shared-header">
-        <span class="shared-label">Shared answer</span>
-        <span v-if="message.displayName" class="shared-conv-name">{{ message.displayName }}</span>
-        <router-link v-if="isOwner" :to="`/c/${message.conversationId}`" class="shared-open-link"
-          >Open full conversation →</router-link
-        >
-      </div>
-      <div class="shared-message-container">
-        <ChatMessageItem
-          :msg="message"
-          :all-messages="message ? [message] : []"
-          :asking="false"
-          :conversation-id="message.conversationId"
-          :is-welcome="sharedIsWelcome"
-          :files="sharedFiles"
-          :no-animation="true"
-          :is-owner="isOwner"
-          @select-question="
-            replyText = $event;
-            startThread();
-          "
-        />
-      </div>
-
-      <!-- Thread replies section -->
-      <div v-if="threads.length" class="threads-section">
-        <div class="threads-header">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      <div class="shared-scroll-area">
+        <div class="shared-header">
+          <span class="shared-label">Shared answer</span>
+          <span v-if="message.displayName" class="shared-conv-name">{{ message.displayName }}</span>
+          <router-link v-if="isOwner" :to="`/c/${message.conversationId}`" class="shared-open-link"
+            >Open full conversation →</router-link
           >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          {{ totalReplies }} {{ totalReplies === 1 ? 'reply' : 'replies' }} in {{ threads.length }}
-          {{ threads.length === 1 ? 'thread' : 'threads' }}
         </div>
-        <div v-for="thread in threads" :key="thread.conversationId" class="thread-bubble">
-          <router-link :to="`/c/${thread.conversationId}`" class="thread-link">
-            <span class="thread-user">{{
-              thread.lastUserId === getUserId() ? 'YOU' : `user${thread.lastUserId}`
-            }}</span>
-            <span class="thread-count"
-              >{{ thread.messageCount }}
-              {{ thread.messageCount === 1 ? 'message' : 'messages' }}</span
+        <div class="shared-message-container">
+          <ChatMessageItem
+            :msg="message"
+            :all-messages="message ? [message] : []"
+            :asking="false"
+            :conversation-id="message.conversationId"
+            :is-welcome="sharedIsWelcome"
+            :files="sharedFiles"
+            :no-animation="true"
+            :is-owner="isOwner"
+            @select-question="
+              replyText = $event;
+              startThread();
+            "
+          />
+        </div>
+
+        <!-- Thread replies section -->
+        <div v-if="threads.length" class="threads-section">
+          <div class="threads-header">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-            <span class="thread-arrow">→</span>
-          </router-link>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            {{ totalReplies }} {{ totalReplies === 1 ? 'reply' : 'replies' }} in {{ threads.length }}
+            {{ threads.length === 1 ? 'thread' : 'threads' }}
+          </div>
+          <div v-for="thread in threads" :key="thread.conversationId" class="thread-bubble">
+            <router-link :to="`/c/${thread.conversationId}`" class="thread-link">
+              <span class="thread-user">{{
+                thread.lastUserId === getUserId() ? 'YOU' : `user${thread.lastUserId}`
+              }}</span>
+              <span class="thread-count"
+                >{{ thread.messageCount }}
+                {{ thread.messageCount === 1 ? 'message' : 'messages' }}</span
+              >
+              <span class="thread-arrow">→</span>
+            </router-link>
+          </div>
         </div>
       </div>
 
-      <!-- Reply input to start a new thread -->
+      <!-- Reply input to start a new thread — always pinned to bottom -->
       <div class="thread-reply-bar">
         <textarea
           ref="replyInput"
@@ -172,8 +174,18 @@ watch(() => props.messageId, load)
 .shared-message-page {
   max-width: 800px;
   justify-content: flex-start;
-  gap: 16px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.shared-scroll-area {
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 12px;
 }
 
 .shared-header {
@@ -286,27 +298,40 @@ watch(() => props.messageId, load)
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 6px;
   margin-top: 12px;
+  margin-bottom: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.thread-reply-bar:focus-within {
+  border-color: rgba(167, 139, 250, 0.4);
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
 }
 
 .thread-reply-textarea {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 6px 8px;
   color: #e2e8f0;
   font-size: 14px;
+  line-height: 1.45;
   resize: none;
-  min-height: 40px;
+  min-height: 28px;
   max-height: 120px;
   outline: none;
-  transition: border-color 0.15s;
   font-family: inherit;
+  overflow-y: auto;
 }
 
 .thread-reply-textarea:focus {
-  border-color: #a78bfa;
+  border-color: transparent;
 }
 
 .thread-reply-textarea::placeholder {
@@ -314,26 +339,33 @@ watch(() => props.messageId, load)
 }
 
 .thread-send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   border: none;
   background: #a78bfa;
   color: white;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: 0.15s;
 }
 
-.thread-send-btn:hover:not(:disabled) {
-  background: #8b5cf6;
+@media (hover: hover) {
+  .thread-send-btn:hover:not(:disabled) {
+    background: #c4b5fd;
+  }
+}
+
+.thread-send-btn:active:not(:disabled) {
+  background: #c4b5fd;
 }
 
 .thread-send-btn:disabled {
-  opacity: 0.4;
+  background: rgba(255, 255, 255, 0.08);
+  color: #475569;
   cursor: not-allowed;
 }
 </style>
