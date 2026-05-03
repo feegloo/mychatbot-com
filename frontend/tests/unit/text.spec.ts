@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanFileName, linkify } from "../../src/utils/text";
+import { cleanFileName, isUrl, linkify } from "../../src/utils/text";
 
 describe("cleanFileName", () => {
   it("strips UUID prefix from filename (legacy format)", () => {
@@ -54,5 +54,35 @@ describe("linkify", () => {
   it("returns plain text unchanged when no URLs", () => {
     const result = linkify("Hello world");
     expect(result).toBe("Hello world");
+  });
+});
+
+describe("isUrl", () => {
+  it("returns true for valid http URL", () => {
+    expect(isUrl("http://example.com")).toBe(true);
+  });
+
+  it("returns true for valid https URL with path and query", () => {
+    expect(isUrl("https://allegro.pl/produkt/foo-bar?id=123#section")).toBe(true);
+  });
+
+  it("returns true when surrounded by whitespace (trimmed internally)", () => {
+    expect(isUrl("  https://example.com  ")).toBe(true);
+  });
+
+  it("returns false for plain text", () => {
+    expect(isUrl("hello world")).toBe(false);
+  });
+
+  it("returns false for text containing a URL with spaces", () => {
+    expect(isUrl("check out https://example.com for more")).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isUrl("")).toBe(false);
+  });
+
+  it("returns false for ftp URL (not http/https)", () => {
+    expect(isUrl("ftp://example.com")).toBe(false);
   });
 });
