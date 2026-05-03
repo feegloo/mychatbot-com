@@ -34,6 +34,7 @@ PDF_PATH = (
 )
 
 pytestmark = [
+    pytest.mark.slow,
     pytest.mark.skipif(
         not PDF_PATH.exists(),
         reason=f"Test PDF not found at {PDF_PATH}",

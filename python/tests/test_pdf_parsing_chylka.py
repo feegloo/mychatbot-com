@@ -29,10 +29,13 @@ PDF_PATH = (
     / "Mroz-Remigiusz-Joanna-Chylka-02-Zaginiecie.pdf"
 )
 
-pytestmark = pytest.mark.skipif(
-    not PDF_PATH.exists(),
-    reason=f"Test PDF not found at {PDF_PATH}",
-)
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        not PDF_PATH.exists(),
+        reason=f"Test PDF not found at {PDF_PATH}",
+    ),
+]
 
 
 class TestPdfBasicProperties:

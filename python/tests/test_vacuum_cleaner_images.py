@@ -27,6 +27,8 @@ VACUUM_PDF = (
     / "en_US_BKS_9316_EN.pdf"
 )
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def output_dir(tmp_path):

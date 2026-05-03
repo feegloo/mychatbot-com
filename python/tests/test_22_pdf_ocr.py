@@ -37,10 +37,13 @@ from shared.streaming_pdf import (
 TEST_PDF = Path(__file__).resolve().parent.parent.parent / "test-files" / "22.pdf"
 OCRED_PDF = Path(__file__).resolve().parent.parent.parent / "test-files" / "22_OCRed.pdf"
 
-pytestmark = pytest.mark.skipif(
-    not TEST_PDF.exists(),
-    reason=f"Test PDF not found: {TEST_PDF}",
-)
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        not TEST_PDF.exists(),
+        reason=f"Test PDF not found: {TEST_PDF}",
+    ),
+]
 
 
 # ---------------------------------------------------------------------------

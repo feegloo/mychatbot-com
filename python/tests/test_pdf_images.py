@@ -32,6 +32,8 @@ TEST_PDF = (
     / "Nikki-Butler-Ultimate-Guide-To-Scar-Treatments.pdf"
 )
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def output_dir(tmp_path):
