@@ -26,7 +26,7 @@ describe('ChatMessage', () => {
     vDropdownHideSpy.mockClear()
   })
 
-  it('renders 1 visible action and collapses the rest into the More dropdown', async () => {
+  it('renders 3 visible actions and collapses the rest into the More dropdown', async () => {
     const content =
       'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth] [action:Fifth]'
     const wrapper = mount(ChatMessage, {
@@ -35,20 +35,20 @@ describe('ChatMessage', () => {
     })
     await nextTick()
 
-    // Regular (non-welcome) limit: 1 visible action.
+    // Regular (non-welcome) limit: 3 visible actions.
     const visibleActions = wrapper.findAll('.actions-row > .message-content-action')
-    expect(visibleActions.length).toBe(1)
-    expect(visibleActions[0].text()).toBe('First')
+    expect(visibleActions.length).toBe(3)
+    expect(visibleActions.map((b) => b.text())).toEqual(['First', 'Second', 'Third'])
 
     // VDropdown stub flattens popper into the same parent, so the overflow
-    // buttons are present in the DOM (4 remaining actions).
+    // buttons are present in the DOM (2 remaining actions).
     const overflow = wrapper.findAll('.more-actions-popper .message-content-action')
-    expect(overflow.length).toBe(4)
-    expect(overflow.map((b) => b.text())).toEqual(['Second', 'Third', 'Fourth', 'Fifth'])
+    expect(overflow.length).toBe(2)
+    expect(overflow.map((b) => b.text())).toEqual(['Fourth', 'Fifth'])
 
-    // The "More… (4)" trigger button is rendered.
+    // The "More… (2)" trigger button is rendered.
     expect(wrapper.find('.more-btn').text()).toContain('More')
-    expect(wrapper.find('.more-btn').text()).toContain('4')
+    expect(wrapper.find('.more-btn').text()).toContain('2')
   })
 
   it('emits select-question when a visible or overflow action is clicked', async () => {

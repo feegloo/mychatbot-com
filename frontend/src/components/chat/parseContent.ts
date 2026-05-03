@@ -93,7 +93,7 @@ export function splitTokens(tokens: ContentToken[], isWelcome: boolean): SplitTo
   // Unused prompt slots are given to actions so image-only messages (0 prompts)
   // still surface 5 action pills before collapsing to More…
   const visiblePrompts = prompts.slice(0, promptLimit)
-  const actionLimit = isWelcome ? Math.max(2, 5 - visiblePrompts.length) : 1
+  const actionLimit = isWelcome ? Math.max(2, 5 - visiblePrompts.length) : 3
   return {
     text,
     visiblePrompts,
