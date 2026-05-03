@@ -61,7 +61,7 @@
 
       <span v-if="showClose" class="pdf-toolbar-gap" aria-hidden="true" />
       <button v-if="showClose" class="pdf-close-btn" aria-label="Close" @click="emit('close')">
-        &times;
+        Close &times;
       </button>
     </div>
   </div>
