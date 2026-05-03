@@ -130,36 +130,39 @@ def _build_filename_identity_section(
     identity_parts: list[str] = []
 
     for original_name in ordered_names:
-        cleaned_name = clean_file_name(original_name)
-        meta = file_metadata.get(original_name, {}) if file_metadata else {}
-        reference_texts = [
-            str(meta.get("title") or ""),
-            str(meta.get("subject") or ""),
-            reference_samples.get(original_name, ""),
-        ]
-        filename_author = _extract_filename_author_hint(cleaned_name, reference_texts)
-        metadata_author = ""
-        if isinstance(meta, dict):
-            metadata_author = str(meta.get("author") or meta.get("artist") or "").strip()
+        try:
+            cleaned_name = clean_file_name(original_name)
+            meta = file_metadata.get(original_name, {}) if file_metadata else {}
+            reference_texts = [
+                str(meta.get("title") or ""),
+                str(meta.get("subject") or ""),
+                reference_samples.get(original_name, ""),
+            ]
+            filename_author = _extract_filename_author_hint(cleaned_name, reference_texts)
+            metadata_author = ""
+            if isinstance(meta, dict):
+                metadata_author = str(meta.get("author") or meta.get("artist") or "").strip()
 
-        identity_payload: dict[str, object] = {
-            "uploaded_filename": original_name,
-            "cleaned_filename": cleaned_name,
-        }
-        if filename_author:
-            identity_payload["preferred_author_from_filename"] = filename_author
-        if metadata_author:
-            identity_payload["embedded_metadata_author"] = metadata_author
-        if filename_author and metadata_author and filename_author != metadata_author:
-            identity_payload["author_conflict"] = True
-            identity_payload["resolution"] = (
-                "Prefer filename-derived author only if it looks like a real person/creator name; if it looks like a URL/site watermark, keep embedded metadata author. Mention the mismatch naturally."
-            )
+            identity_payload: dict[str, object] = {
+                "uploaded_filename": original_name,
+                "cleaned_filename": cleaned_name,
+            }
+            if filename_author:
+                identity_payload["preferred_author_from_filename"] = filename_author
+            if metadata_author:
+                identity_payload["embedded_metadata_author"] = metadata_author
+            if filename_author and metadata_author and filename_author != metadata_author:
+                identity_payload["author_conflict"] = True
+                identity_payload["resolution"] = (
+                    "Prefer filename-derived author only if it looks like a real person/creator name; if it looks like a URL/site watermark, keep embedded metadata author. Mention the mismatch naturally."
+                )
 
-        if len(identity_payload) > 2:
-            identity_parts.append(
-                f"[{original_name}]\n{json.dumps(identity_payload, ensure_ascii=False)}"
-            )
+            if len(identity_payload) > 2:
+                identity_parts.append(
+                    f"[{original_name}]\n{json.dumps(identity_payload, ensure_ascii=False)}"
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ Skipping identity hints for {original_name}: {e}")
 
     if not identity_parts:
         return ""
