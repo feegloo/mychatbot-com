@@ -1215,9 +1215,48 @@ def _make_empty_file_welcome(empty_names: list[str], language: str) -> str:
     return f"{body}\n\n{action_line}"
 
 
+def _describes_woman_nonprofessional(text: str) -> bool:
+    """Return True when the image description indicates a woman is the primary
+    subject and the context is NOT professional/formal.
+
+    Used to gate the 'Enhance image for social media' action so it only appears
+    for casual portraits/selfies of women, not abstract art, landscapes, products,
+    documents, or professional headshots.
+    """
+    text_lower = text.lower()
+
+    # Strip embedded action markers so they don't pollute the analysis
+    clean = _ACTION_MARKER_RE.sub("", text_lower)
+
+    # ── Woman / female primary-subject signals (English + Polish) ──
+    woman_terms = [
+        "woman", "women", "female", "girl", "lady",
+        "kobieta", "kobiet", "kobiety", "kobietą", "kobiecą",
+        "dziewczyn", "pani ", "pani,", "pani.",
+    ]
+    if not any(term in clean for term in woman_terms):
+        return False
+
+    # ── Professional / formal-context exclusions (English + Polish) ──
+    professional_terms = [
+        "professional", "business", "corporate", "office", "headshot",
+        "resume", "cv ", "linkedin", "executive", "ceo", "employee",
+        "formal portrait", "id photo", "id card", "badge", "conference",
+        "blazer", "suit ", " suit,", " suit.",
+        "biznes", "zawodow", "biuro", "korporac",
+        "garnitur", "marynark", "legitymacja", "identyfikator",
+        "profil zawodowy", "zdjęcie profilowe",
+    ]
+    if any(term in clean for term in professional_terms):
+        return False
+
+    return True
+
+
 def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
     """Inject an 'Adjust image for social media' action button into the welcome
-    message when the user uploaded a standalone image file (not a PDF page image).
+    message when the user uploaded a standalone image file (not a PDF page image)
+    showing a woman as the primary subject in a non-professional context.
 
     The action uses ``|ref:FILENAME`` so the frontend can pass the original file
     to the image-generation pipeline as a reference image.
@@ -1238,6 +1277,12 @@ def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
             break
 
     if not first_image_file:
+        return welcome
+
+    # Only offer the social-media enhancement for casual portraits/selfies of
+    # women — not for abstract art, landscapes, products, documents, or
+    # professional headshots.
+    if not _describes_woman_nonprofessional(welcome):
         return welcome
 
     action_label = f"Enhance image for social media ❤️|ref:{first_image_file}"
