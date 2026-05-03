@@ -94,6 +94,7 @@
         rows="1"
         @input="autoResize"
         @keydown.enter.exact.prevent="submitQuestion"
+        @paste="onPasteFile"
       ></textarea>
       <button class="send-btn" :disabled="asking || !question.trim()" @click="submitQuestion">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -125,6 +126,7 @@ import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { homeT } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { extractPastedFiles } from '../composables/useFilePaste'
 
 const t = homeT
 
@@ -354,6 +356,14 @@ function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
+}
+
+function onPasteFile(event: ClipboardEvent) {
+  const files = extractPastedFiles(event)
+  if (files.length === 0) return
+  event.preventDefault()
+  uploadFilesArr.value = files
+  submitUpload()
 }
 </script>
 

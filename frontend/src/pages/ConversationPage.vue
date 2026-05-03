@@ -175,6 +175,7 @@
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
+            @paste="canUpload ? onPasteFile($event) : undefined"
           ></textarea>
           <button class="send-btn" :disabled="asking || !question.trim()" @click="submitQuestion">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -259,6 +260,7 @@ import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
+import { extractPastedFiles } from '../composables/useFilePaste'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
@@ -1008,6 +1010,17 @@ function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
+}
+
+function onPasteFile(event: ClipboardEvent) {
+  // Don't intercept paste while the first assistant message hasn't mounted yet
+  // (firstMessageRef is null during initial load or processing). Returning
+  // without preventDefault lets the browser handle the event normally.
+  if (!firstMessageRef.value) return
+  const files = extractPastedFiles(event)
+  if (files.length === 0) return
+  event.preventDefault()
+  handleUploadFiles(files)
 }
 
 // --- Scroll position persistence ---
