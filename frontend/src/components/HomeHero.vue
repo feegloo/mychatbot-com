@@ -191,10 +191,6 @@ const t = homeT
 }
 
 @media (max-width: 768px) {
-  .home-logo {
-    height: 40px;
-  }
-
   .desktop-subtitle {
     display: none;
   }
