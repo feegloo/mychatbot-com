@@ -7,6 +7,12 @@
  * Returns an empty array when the clipboard carries no supported files so
  * callers can decide whether to call event.preventDefault().
  */
+
+/** Maps base MIME types to canonical file extensions expected by the backend. */
+const MIME_TO_EXT: Record<string, string> = {
+  'text/plain': 'txt',
+}
+
 export function extractPastedFiles(event: ClipboardEvent): File[] {
   const items = event.clipboardData?.items
   if (!items) return []
@@ -21,11 +27,12 @@ export function extractPastedFiles(event: ClipboardEvent): File[] {
     const raw = item.getAsFile()
     if (!raw) continue
     // Screenshots pasted from the OS clipboard have an empty file name.
-    // Derive a readable name from the base MIME subtype.
+    // Derive a readable name using the canonical extension for this MIME type.
     if (raw.name) {
       files.push(raw)
     } else {
-      const ext = baseType.split('/')[1] ?? 'bin'
+      const subtype = baseType.split('/')[1] ?? 'bin'
+      const ext = MIME_TO_EXT[baseType] ?? subtype
       files.push(new File([raw], `pasted-${Date.now()}.${ext}`, { type: raw.type }))
     }
   }

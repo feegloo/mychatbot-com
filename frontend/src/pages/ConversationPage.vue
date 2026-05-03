@@ -1013,6 +1013,10 @@ function autoResize(e: Event) {
 }
 
 function onPasteFile(event: ClipboardEvent) {
+  // Don't intercept paste while the first assistant message hasn't mounted yet
+  // (firstMessageRef is null during initial load or processing). Returning
+  // without preventDefault lets the browser handle the event normally.
+  if (!firstMessageRef.value) return
   const files = extractPastedFiles(event)
   if (files.length === 0) return
   event.preventDefault()
