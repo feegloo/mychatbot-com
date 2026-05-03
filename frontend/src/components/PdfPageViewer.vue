@@ -29,7 +29,7 @@
         class="pdf-tool-btn pdf-tool-btn--text"
         @click="emit('openPdf')"
       >
-        Otwórz PDF
+        Open PDF
       </button>
       <span v-if="showOpenPdf" class="pdf-toolbar-gap" aria-hidden="true" />
 
