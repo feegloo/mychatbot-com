@@ -28,7 +28,12 @@
           </svg>
           Download
         </button>
-
+        <button class="mermaid-tool-btn" @click="openPopup">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+          Expand
+        </button>
       </div>
     </div>
     <div v-else-if="mode === 'text'" class="mermaid-controls-bar mermaid-controls-bar--text">
@@ -105,12 +110,13 @@
           @pointerup="onPopupPointerUp"
           @pointercancel="onPopupPointerUp"
         >
-          <!-- eslint-disable-next-line vue/no-v-html -->
+          <!-- eslint-disable vue/no-v-html -- renderedSvg is sanitized Mermaid output, no user content -->
           <div
             class="mermaid-popup-svg-inner"
             :style="{ transform: `translate(${popupPanX}px, ${popupPanY}px) scale(${popupScale})`, transformOrigin: 'top left' }"
             v-html="renderedSvg"
           />
+          <!-- eslint-enable vue/no-v-html -->
         </div>
       </div>
     </div>
@@ -152,9 +158,9 @@ const svgTransform = computed(
 const canZoomIn = computed(() => scale.value < MAX_SCALE)
 const canZoomOut = computed(() => scale.value > MIN_SCALE)
 
-const ZOOM_STEP = 0.2
+const ZOOM_STEP = 1.0
 const MIN_SCALE = 0.2
-const MAX_SCALE = 5
+const MAX_SCALE = 7
 
 // ── Popup state ─────────────────────────────────────────────────────────────
 const popupOpen = ref(false)
@@ -172,7 +178,7 @@ let popupDragStartPanY = 0
 
 const POPUP_MIN_SCALE = 0.2
 const POPUP_MAX_SCALE = 8
-const POPUP_ZOOM_STEP = 0.25
+const POPUP_ZOOM_STEP = 1.0
 
 function popupZoomIn() {
   popupScale.value = Math.min(POPUP_MAX_SCALE, +(popupScale.value + POPUP_ZOOM_STEP).toFixed(2))
@@ -260,9 +266,6 @@ function fitToWidth() {
   const svgNaturalWidth =
     vb && vb.width > 0 ? vb.width : parseFloat(svg.getAttribute('width') ?? '0')
   if (svgNaturalWidth <= 0) return
-
-  const svgNaturalHeight = vb && vb.height > 0 ? vb.height : parseFloat(svg.getAttribute('height') ?? '0')
-  const viewportHeight = block ? Math.max(block.clientHeight - 32, 0) : 0
 
   if (typeof props.initialZoom === 'number') {
     scale.value = Math.min(Math.max(props.initialZoom, MIN_SCALE), MAX_SCALE)
@@ -389,6 +392,14 @@ async function renderDiagram() {
 
 function switchToDiagram() {
   mode.value = 'diagram'
+  // When returning to diagram mode after a failed render (renderError set) or
+  // when there's no SVG yet, trigger a fresh render immediately.
+  // We can't rely solely on the mode-watcher because Vue de-duplicates watcher
+  // jobs – if mode was already 'diagram' before switching to 'text', the
+  // watcher sees no net change and won't fire.
+  if (renderError.value || !renderedSvg.value) {
+    renderDiagram()
+  }
 }
 
 function downloadSvg() {
@@ -413,8 +424,10 @@ onBeforeUnmount(() => {
 })
 
 // Re-render when switching to diagram mode (diagram el must be in DOM first).
+// Guard against double-render with switchToDiagram: if renderDiagram was
+// already called (ready becomes false), skip the watch-triggered render.
 watch(mode, (m) => {
-  if (m === 'diagram' && !renderedSvg.value) renderDiagram()
+  if (m === 'diagram' && !renderedSvg.value && ready.value) renderDiagram()
 }, { flush: 'post' })
 
 // Re-render when the code prop changes, after Vue has updated the DOM.

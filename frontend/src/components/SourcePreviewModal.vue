@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
-        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg }">
+        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg && !isRasterImage }">
           <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
           <PdfPageViewer
             v-if="isPdf"
@@ -20,8 +20,19 @@
             <img :src="pdfBaseUrl" :alt="citation.fileName" class="source-modal-svg-img" />
           </div>
 
-          <!-- Source text document (non-PDF, non-SVG only) -->
-          <div v-if="!isPdf && !isSvg" class="source-modal-doc">
+          <!-- Raster image preview: show the image and the AI-generated description if available -->
+          <div v-else-if="isRasterImage" class="source-modal-raster">
+            <div class="source-modal-raster-img-wrap">
+              <img :src="pdfBaseUrl" :alt="cleanFileName(citation.fileName)" class="source-modal-raster-img" />
+            </div>
+            <div v-if="citation.text" class="source-modal-raster-desc">
+              <p class="source-modal-raster-desc-label">Image description</p>
+              <p class="source-modal-raster-desc-text">{{ citation.text }}</p>
+            </div>
+          </div>
+
+          <!-- Source text document (non-PDF, non-SVG, non-image only) -->
+          <div v-if="!isPdf && !isSvg && !isRasterImage" class="source-modal-doc">
             <div class="source-modal-doc-header">
               <svg
                 width="16"
@@ -46,10 +57,7 @@
                 aria-label="Close"
                 @click="$emit('close')"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                &times;
               </button>
             </div>
             <div class="source-modal-doc-body">
@@ -69,17 +77,7 @@
           aria-label="Close"
           @click="$emit('close')"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          &times;
         </button>
 
 
@@ -184,6 +182,56 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
   background: white;
 }
 
+.source-modal-raster {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.source-modal-raster-img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 200px;
+  padding: 24px;
+}
+
+.source-modal-raster-img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.source-modal-raster-desc {
+  background: rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px 24px;
+  flex-shrink: 0;
+}
+
+.source-modal-raster-desc-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 6px;
+}
+
+.source-modal-raster-desc-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
 .source-modal-overlay {
   position: fixed;
   inset: 0;
@@ -216,35 +264,33 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
   overflow: hidden;
 }
 
-/* Desktop close: white circle to the right of the PDF */
+/* Desktop close: white × to the right of the PDF — matches ImageModal close */
 .source-modal-close-desktop {
   flex-shrink: 0;
   align-self: flex-start;
   margin-top: 10px;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #fff;
+  color: white;
+  background: transparent;
+  font-size: 32px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: background 0.15s;
 }
 
 @media (hover: hover) {
   .source-modal-close-desktop:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: #334155;
   }
 }
 
 .source-modal-close-desktop:active {
-  background: rgba(255, 255, 255, 0.35);
+  background: #334155;
 }
 
 .source-modal-content--text {
@@ -289,17 +335,18 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
 
 .source-modal-doc-close {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: #374151;
+  font-size: 32px;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
 }
 
 .source-modal-doc-close:hover {

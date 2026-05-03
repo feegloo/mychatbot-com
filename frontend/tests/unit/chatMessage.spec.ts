@@ -42,7 +42,7 @@ describe('ChatMessage', () => {
 
     // VDropdown stub flattens popper into the same parent, so the overflow
     // buttons are present in the DOM (4 remaining actions).
-    const overflow = wrapper.findAll('.more-menu .message-content-action')
+    const overflow = wrapper.findAll('.more-actions-popper .message-content-action')
     expect(overflow.length).toBe(4)
     expect(overflow.map((b) => b.text())).toEqual(['Second', 'Third', 'Fourth', 'Fifth'])
 
@@ -60,7 +60,7 @@ describe('ChatMessage', () => {
     await nextTick()
 
     await wrapper.find('.actions-row > .message-content-action').trigger('click')
-    await wrapper.find('.more-menu .message-content-action').trigger('click')
+    await wrapper.find('.more-actions-popper .message-content-action').trigger('click')
 
     const events = wrapper.emitted('select-question') as string[][] | undefined
     expect(events).toBeDefined()
@@ -86,7 +86,7 @@ describe('ChatMessage', () => {
 
     expect(wrapper.findAll('.prompts-row > button').length).toBe(3)
     expect(wrapper.findAll('.actions-row > .message-content-action').length).toBe(2)
-    expect(wrapper.findAll('.more-menu .message-content-action').length).toBe(2)
+    expect(wrapper.findAll('.more-actions-popper .message-content-action').length).toBe(2)
   })
 
   it('opens the source preview modal when an inline citation button is clicked', async () => {
