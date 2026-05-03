@@ -755,6 +755,12 @@ watch(modalOpen, (open) => {
 const previewOpen = ref(false)
 const previewCitation = ref<NonNullable<ChatMessage['citations']>[number]>()
 
+const RASTER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.heic', '.avif'])
+function isRasterImage(fileName: string) {
+  const lower = fileName.toLowerCase()
+  return [...RASTER_EXTENSIONS].some((ext) => lower.endsWith(ext))
+}
+
 function openCitation(idx: number) {
   const globalN = idx + 1
   // Prefer lookup by citationNumber (set for messages after global-numbering was introduced);
@@ -763,6 +769,14 @@ function openCitation(idx: number) {
     props.msg.citations?.find((c) => c.citationNumber === globalN) ??
     props.msg.citations?.[idx]
   if (citation) {
+    // Raster images open in ImageModal for a consistent fullscreen preview experience
+    if (isRasterImage(citation.fileName)) {
+      openImageModal(
+        getStorageUrl(effectiveStorageId.value, citation.fileName),
+        citation.fileName.replace(/\.[^.]+$/, ''),
+      )
+      return
+    }
     previewCitation.value = citation
     previewOpen.value = true
     return
@@ -772,6 +786,13 @@ function openCitation(idx: number) {
   // source index) from the files associated with this message.
   const file = props.files?.[idx]
   if (file) {
+    if (isRasterImage(file.originalName)) {
+      openImageModal(
+        getStorageUrl(effectiveStorageId.value, file.originalName),
+        file.originalName.replace(/\.[^.]+$/, ''),
+      )
+      return
+    }
     previewCitation.value = {
       fileName: file.originalName,
       chunkId: '',

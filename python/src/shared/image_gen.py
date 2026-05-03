@@ -751,7 +751,7 @@ def build_social_media_image_prompt() -> dict:
             "without covering the face. "
             "Use for: party, celebratory, magical vibes. "
             "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
-            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve) around the subject's wrist, "
+            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve, other nice colors) around the subject's wrist, "
             "sitting naturally on the skin. "
             "It should look like a real accessory the person is wearing, not a sticker. "
             "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
@@ -770,11 +770,12 @@ def build_social_media_image_prompt() -> dict:
             "Use for: playful, casual, Snapchat-story energy. "
             "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
             "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
-            "Use for: fashion, confident, high-contrast shots. "
             "Choose by mood — do NOT default to the strip every time. "
 
             # --- Emoji selection ---
-            "Emoji pairs/triplets (use as inspiration, not as a fixed list): "
+            "for step THIRD (sticker/strip/tag),"
+            "choose ONE of the following emoji pairs/triplets (use as inspiration, not as a fixed list): "
+            ""
             "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
             "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
             "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
@@ -828,12 +829,12 @@ def build_social_media_image_prompt() -> dict:
             "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
 
             # --- Effect count distribution ---
-            "EFFECT COUNT: Choose the total number of effects (across steps 2–5) according to this distribution: "
+            "EFFECT COUNT: Choose the total number of effects (across steps 2–7) according to this distribution: "
             "1 effect — 30% of the time (default choice); "
             "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
             "3 effects — 30% of the time (rare, only when the photo is very dynamic or layered); "
             "4+ effects — 10% of the time (exceptional only, never forced). "
-            "When in doubt, go with 1. Never add an effect just to fill space. "
+            "When in doubt, go with 2. Never add an effect just to fill space. "
 
             # --- Final quality bar ---
             "The result should feel like a careful, intentional Instagram or TikTok story edit — "

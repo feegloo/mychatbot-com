@@ -126,6 +126,7 @@ const t = homeT
 .home-subtitle {
   color: #64748b;
   margin: 0;
+  margin-top: 20px;
   font-size: 15px;
   line-height: 1.5;
 }
