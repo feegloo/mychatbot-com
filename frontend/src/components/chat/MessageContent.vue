@@ -285,13 +285,14 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootEl" class="message-content">
     <template v-for="(part, pi) in parts" :key="pi">
-      <!-- eslint-disable-next-line vue/no-v-html -- sanitized by DOMPurify in renderMarkdown -->
+      <!-- eslint-disable vue/no-v-html -- sanitized by DOMPurify in renderMarkdown -->
       <div
         v-if="part.type === 'text'"
         class="markdown-content"
         @click="onContentClick"
         v-html="part.html"
       ></div>
+      <!-- eslint-enable vue/no-v-html -->
       <QuizBlock
         v-else-if="part.type === 'quiz'"
         :quiz="part.quiz"
