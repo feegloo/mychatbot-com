@@ -53,34 +53,36 @@ all review threads on the PR.
 |-----------|-------|
 | `thread.comments[0].author` | `"qodo-code-review"` |
 | `thread.is_resolved` | `false` |
-| `thread.is_outdated` | `false` (skip outdated threads — the code they refer to no longer exists) |
+| `thread.is_outdated` | `false` — skip outdated threads; the code they reference no longer exists at the same location. Include them in the resolution comment under **"Skipped (outdated thread)"**. |
 
 ### Step 4 — Extract the Agent Prompt from each thread
 
-Each Qodo comment body follows this HTML structure:
+Each Qodo comment body follows this HTML structure (angle-bracket entities written
+literally here for clarity):
 
-```html
+```
 <details>
   <summary><strong>Agent Prompt</strong></summary>
 
-  ```
+  [triple-backtick code fence]
   ## Issue description
   …
 
   ## Fix Focus Areas
   - path/to/file.ts[L1-L2]
   …
-  ```
+  [closing triple-backtick]
 </details>
 ```
 
 **Extraction rules:**
 
-1. Find the `<details>` block whose `<summary>` contains `Agent Prompt`.
-2. Extract the raw text inside the fenced code block (` ``` … ``` `) within that
-   `<details>` block.
-3. That text is the **Agent Prompt** — treat it as a complete, self-contained
-   instruction for fixing the issue.
+1. Find the `<details>` block whose `<summary>` contains the text `Agent Prompt`.
+2. Within that `<details>` block, locate the **triple-backtick fenced code block**
+   (i.e. the region delimited by ` ``` ` on its own line) and extract everything
+   between the opening and closing ` ``` ` delimiters.
+3. That extracted text is the **Agent Prompt** — treat it as a complete,
+   self-contained instruction for fixing the issue.
 4. Also record the comment's `html_url` (needed for the resolution comment) and
    the issue title from the comment body (the bolded first line, e.g.
    `"No tests for paste upload"`).
@@ -129,7 +131,7 @@ comment summarising all addressed issues.
 ```markdown
 ## Qodo review comments addressed
 
-All unresolved Qodo review comments have been fixed in commit <COMMIT_HASH>.
+All actionable unresolved Qodo review comments have been processed in commit <COMMIT_HASH>.
 
 ### Issues resolved
 
@@ -137,10 +139,31 @@ All unresolved Qodo review comments have been fixed in commit <COMMIT_HASH>.
 |---|-------|---------|
 | 1 | <issue-title-1> | <html_url-1> |
 | 2 | <issue-title-2> | <html_url-2> |
-…
 
 Each fix follows the corresponding Agent Prompt provided by Qodo.
+
+<!-- only include sections below when they contain entries -->
+
+### Skipped (outdated thread)
+
+| # | Issue | Comment |
+|---|-------|---------|
+| 1 | <issue-title> | <html_url> |
+
+### Skipped (no Agent Prompt)
+
+| # | Issue | Comment |
+|---|-------|---------|
+| 1 | <issue-title> | <html_url> |
+
+### Not addressed (test failure)
+
+| # | Issue | Comment | Reason |
+|---|-------|---------|--------|
+| 1 | <issue-title> | <html_url> | <brief description of blocking failure> |
 ```
+
+Omit any section that has no entries (remove the heading and table entirely).
 
 Replace `<COMMIT_HASH>` with the short SHA (first 7 characters is fine).
 
@@ -150,10 +173,10 @@ Replace `<COMMIT_HASH>` with the short SHA (first 7 characters is fine).
 
 | Situation | Action |
 |-----------|--------|
-| A thread has `is_outdated: true` | Skip it — the underlying code has changed; the fix would be speculative. Log it in the resolution comment under "Skipped (outdated)". |
+| A thread has `is_outdated: true` | Skip it — the underlying code has changed; the fix would be speculative. Include it in the resolution comment under **"Skipped (outdated thread)"**. |
 | A thread is already `is_resolved: true` | Skip it silently. |
-| A Qodo comment has **no** `<details>Agent Prompt</details>` block | Skip it and note it under "Skipped (no Agent Prompt)" in the resolution comment. |
-| Applying a fix breaks existing tests | Debug and fix until tests pass. If irresolvable, skip that item and document it under "Not addressed (test failure)" in the resolution comment. |
+| A Qodo comment has **no** triple-backtick Agent Prompt block | Skip it and include it under **"Skipped (no Agent Prompt)"** in the resolution comment. |
+| Applying a fix breaks existing tests | Debug and fix until tests pass. If irresolvable, skip that item and include it under **"Not addressed (test failure)"** with a brief reason. |
 | The PR branch cannot be fetched (e.g., merged/deleted) | Inform the user and stop. |
 | No unresolved Qodo comments found | Reply: *"No unresolved Qodo review comments found on this PR."* and stop. |
 
