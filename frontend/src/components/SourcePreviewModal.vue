@@ -117,6 +117,11 @@ defineEmits<{
 
 const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
 const isSvg = computed(() => props.citation.fileName.toLowerCase().endsWith('.svg'))
+const RASTER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.heic', '.avif'])
+const isRasterImage = computed(() => {
+  const lower = props.citation.fileName.toLowerCase()
+  return [...RASTER_EXTENSIONS].some((ext) => lower.endsWith(ext))
+})
 
 const isMobile = computed(() => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
 
@@ -138,7 +143,9 @@ const fetchLoading = ref(false)
 watch(
   () => props.visible,
   async (open) => {
-    if (!open || isPdf.value || isSvg.value || props.citation.text) {
+    // Never try to fetch raw binary files — raster images and SVGs are either
+    // shown via <img> or have indexed text in citation.text already.
+    if (!open || isPdf.value || isSvg.value || isRasterImage.value || props.citation.text) {
       fetchedText.value = ''
       return
     }
