@@ -596,11 +596,15 @@ _PERSPECTIVES = [
 ]
 
 
-# Substrings that identify pixel / retro-raster styles within _ART_STYLES entries.
-# Stored as a frozenset for O(1) membership checks; each entry is a unique
-# substring present in exactly the pixel/retro style strings above.
-_PIXEL_ART_KEYWORDS: frozenset[str] = frozenset({
-    "pixel art", "8-bit", "16-bit", "Game Boy", "DOS VGA", "NES", "isometric pixel art",
+# Exact _ART_STYLES entries that require pixel-art rendering enforcement.
+# Using the full style strings allows a true O(1) set membership check in
+# _random_creative_seed() instead of substring scanning.
+_PIXEL_ART_STYLES: frozenset[str] = frozenset({
+    "16-bit SNES / Mega Drive pixel art — vibrant 256-color palette, chunky character sprites, tiled scrolling background",
+    "1994 DOS VGA pixel art — 320×200 resolution aesthetic, dithered gradients, flat EGA-palette scenes, subtle scanline overlay",
+    "8-bit NES / Famicom pixel art — 4-color-per-tile sprites, side-scroll or top-down perspective, blocky retro look",
+    "Game Boy 4-shade monochrome pixel art — LCD green dot-matrix palette, stark high-contrast silhouettes, handheld screen feel",
+    "retro isometric pixel art RPG tilemap — axonometric 2D grid, classic dungeon or city scene, limited color ramp, Ultima / Syndicate era",
 })
 
 # Extra rendering rules appended whenever a pixel-art style is selected, to
@@ -637,7 +641,7 @@ def _random_creative_seed() -> str:
         "register you end up in, still find a UNIQUE angle — do NOT produce the "
         "most obvious or generic version of the theme."
     )
-    if any(kw in style for kw in _PIXEL_ART_KEYWORDS):
+    if style in _PIXEL_ART_STYLES:
         seed += _PIXEL_ART_RENDERING_RULES
     return seed
 
