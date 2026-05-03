@@ -728,10 +728,13 @@ def build_social_media_image_prompt() -> dict:
             "Maximum 2–3 emoji total. "
             "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
 
-            # --- Hard constraint: cap at 2 effects ---
-            "HARD CONSTRAINT: Apply at most 2 effects in total across steps 2–5. "
-            "If more than 2 random decisions came up YES, keep only the 2 that best fit the mood "
-            "and drop the rest. Zero or one effect is perfectly valid — never add effects just to fill space. "
+            # --- Effect count distribution ---
+            "EFFECT COUNT: Choose the total number of effects (across steps 2–5) according to this distribution: "
+            "1 effect — 70% of the time (default choice); "
+            "2 effects — 25% of the time (only when a second effect clearly adds to the mood); "
+            "3 effects — 4% of the time (rare, only when the photo is very dynamic or layered); "
+            "4 effects — 1% of the time (exceptional only, never forced). "
+            "When in doubt, go with 1. Never add an effect just to fill space. "
 
             # --- Final quality bar ---
             "The result should feel like a careful, intentional Instagram or TikTok story edit — "
