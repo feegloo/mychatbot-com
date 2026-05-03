@@ -243,7 +243,7 @@ import {
   type ChatMessage,
 } from '../api'
 import { runImageGenStream } from '../composables/useImageGenStream'
-import { cleanFileName } from '../utils/text'
+import { cleanFileName, isUrl } from '../utils/text'
 import { getUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
 import { useRoute, useRouter } from 'vue-router'
@@ -857,7 +857,7 @@ async function ask() {
 
   // If the user typed a lone URL, add it to the conversation as a new source
   const trimmed = question.value.trim()
-  if (/^https?:\/\/\S+$/.test(trimmed) && !trimmed.includes(' ')) {
+  if (isUrl(trimmed)) {
     question.value = ''
     asking.value = true
     try {
@@ -1022,7 +1022,7 @@ function onPasteFile(event: ClipboardEvent) {
   // instead of inserting it as typed text. This lets users paste a URL and
   // immediately get it fetched without having to press Enter manually.
   const pastedText = event.clipboardData?.getData('text/plain')?.trim()
-  if (pastedText && /^https?:\/\/\S+$/.test(pastedText) && !pastedText.includes(' ')) {
+  if (pastedText && isUrl(pastedText)) {
     event.preventDefault()
     question.value = pastedText
     ask()

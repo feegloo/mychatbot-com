@@ -126,6 +126,7 @@ import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { homeT } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { isUrl } from '../utils/text'
 import { extractPastedFiles } from '../composables/useFilePaste'
 
 const t = homeT
@@ -226,12 +227,6 @@ function scrollToBottom(smooth = false) {
       behavior: smooth ? 'smooth' : 'instant',
     })
   }
-}
-
-const URL_REGEX = /^https?:\/\/[^\s]+$/i
-
-function isUrl(text: string): boolean {
-  return URL_REGEX.test(text.trim())
 }
 
 async function submitUrlUpload(url: string) {
