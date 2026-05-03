@@ -1254,7 +1254,7 @@ def _describes_woman_nonprofessional(text: str) -> bool:
 
 
 def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
-    """Inject an 'Adjust image for social media' action button into the welcome
+    """Inject an 'Enhance image for social media' action button into the welcome
     message when the user uploaded a standalone image file (not a PDF page image)
     showing a woman as the primary subject in a non-professional context.
 

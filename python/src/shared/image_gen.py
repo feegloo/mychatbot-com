@@ -733,16 +733,55 @@ def build_social_media_image_prompt() -> dict:
             "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
             "Every decoration decision below must be driven by this mood reading. "
 
-            # --- Step 2: KISS MARKS — independent random effect ---
-            "SECOND, decide independently — roughly 50/50 — whether to add kiss marks. "
+             # --- Step 2: subject-level overlay (pick ONE that fits) ---
+            "SECOND, apply ONE of the following decorative overlays directly on/around the subject: "
+            "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
+            "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
+            "Use for: romantic, flirty, playful vibes. "
+            "(b) ANGEL WINGS — add a pair of large, soft white or golden feathered angel wings "
+            "behind the subject's shoulders, as if the person is an angel. "
+            "Wings should look painterly and luminous, not cartoon-flat. "
+            "Use for: ethereal, dreamy, angelic, pure vibes. "
+            "(c) SPARKLE HALO — place a delicate golden halo ring above the subject's head "
+            "with small glowing sparkles radiating outward. "
+            "Use for: angelic, goddess, celestial vibes. "
+            "(d) FLOWER CROWN — overlay a realistic or illustrated flower crown on the subject's head. "
+            "Use for: boho, nature, soft-aesthetic vibes. "
+            "(e) GLITTER SPARKLES — scatter ✨ glitter particle bursts around the subject "
+            "without covering the face. "
+            "Use for: party, celebratory, magical vibes. "
+            "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
+            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve) around the subject's wrist, "
+            "sitting naturally on the skin. "
+            "It should look like a real accessory the person is wearing, not a sticker. "
+            "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
+            "If the wrist is not visible or the mood doesn't fit, skip this option. "
+            "If no overlay clearly fits, skip this step and go straight to the accent. "
+
+            # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
+            "THIRD, choose ONE of the following accent formats — pick what feels most natural "
+            "for THIS specific photo, not the most obvious template: "
+            "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
+            "near the edges or corners, NOT covering the face. No strip. "
+            "Use for: clean/minimal aesthetic, strong subject, fashion or editorial vibe. "
+            "(ii) FROSTED STRIP — a semi-transparent frosted bar across the lower ~20% "
+            "with 1–2 emoji and optionally 1 short word ('vibes ✨', 'soft 🌸', 'mood 💫'). "
+            "Use for: playful, casual, Snapchat-story energy. "
+            "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
+            "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
+            "Use for: fashion, confident, high-contrast shots. "
+            "Choose by mood — do NOT default to the strip every time. "
+
+            # --- Step 4: KISS MARKS — independent random effect ---
+            "FOURTH, decide independently — roughly 50/50 — whether to add kiss marks. "
             "Do NOT apply kiss marks every time. "
             "If YES: scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
             "neck, or shoulder — sized naturally, like Snapchat beauty-filter kisses. "
             "Fits: romantic, flirty, playful moods. Skip for: ethereal, edgy, fashion, serious. "
             "If NO: move on without any kiss marks. "
 
-            # --- Step 3: WRIST BAND / SCRUNCHIE — independent random effect ---
-            "THIRD, decide independently — ~20% chance, separate from step 2 — "
+            # --- Step 5: WRIST BAND / SCRUNCHIE — independent random effect ---
+            "FIFTH, decide independently — ~20% chance, separate from step 2 — "
             "whether to add a delicate wrist accessory. "
             "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
             "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve) "
@@ -750,8 +789,8 @@ def build_social_media_image_prompt() -> dict:
             "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
             "If the wrist is not visible, or the mood doesn't fit, skip this step. "
 
-            # --- Step 4: CREATIVE OVERLAY — independent random effect ---
-            "FOURTH, decide independently — another ~50/50 roll, separate from all prior steps — "
+            # --- Step 6: CREATIVE OVERLAY — independent random effect ---
+            "SIXTH, decide independently — another ~50/50 roll, separate from all prior steps — "
             "whether to apply ONE decorative subject-level overlay. "
             "Do NOT apply an overlay every time. "
             "If YES: invent the most fitting overlay for THIS specific photo's mood and composition. "
@@ -763,8 +802,8 @@ def build_social_media_image_prompt() -> dict:
             "The effect must feel intentional and specific to the vibe you read — not generic. "
             "If nothing truly fits, skip this step. "
 
-            # --- Step 5: EMOJI ACCENT — independent random effect ---
-            "FIFTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
+            # --- Step 7: EMOJI ACCENT — independent random effect ---
+            "SEVENTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
             "Do NOT add emoji every time. "
             "If YES: invent the best placement, format, and emoji combination for this specific photo. "
             "You may use floating stickers near edges, a frosted bottom strip, a corner pill/badge, "
@@ -775,10 +814,10 @@ def build_social_media_image_prompt() -> dict:
 
             # --- Effect count distribution ---
             "EFFECT COUNT: Choose the total number of effects (across steps 2–5) according to this distribution: "
-            "1 effect — 70% of the time (default choice); "
-            "2 effects — 25% of the time (only when a second effect clearly adds to the mood); "
-            "3 effects — 4% of the time (rare, only when the photo is very dynamic or layered); "
-            "4 effects — 1% of the time (exceptional only, never forced). "
+            "1 effect — 40% of the time (default choice); "
+            "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
+            "3 effects — 20% of the time (rare, only when the photo is very dynamic or layered); "
+            "4+ effects — 10% of the time (exceptional only, never forced). "
             "When in doubt, go with 1. Never add an effect just to fill space. "
 
             # --- Final quality bar ---

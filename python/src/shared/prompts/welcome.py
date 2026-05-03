@@ -33,6 +33,7 @@ Zasady:
 - Pierwsze 3 to naturalne pytania o treść dokumentu (krótkie, konkretne, klikalne) — BEZ emoji, ALE NADAL w `[action:...]`
 - Jeśli dokument jest autorstwa lub dotyczy znanej osoby, JEDNO z pierwszych 3 pytań MUSI brzmieć "Kim był [Imię Nazwisko]?" (jeśli nie żyje) lub "Kim jest [Imię Nazwisko]?" (jeśli żyje)
 - Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz nowy inspirowany wiersz 📜")
+- WYMUSZANIE EMOJI: Każdy prompt akcji (pozycje 4–10) MUSI kończyć się odpowiednim emoji — bez wyjątków. Dotyczy to WSZYSTKICH typów dokumentów, w tym zdjęć, obrazów i zrzutów ekranu. Przed zakończeniem linii akcji przeskanuj każdą etykietę akcji: jeśli jakikolwiek prompt po pozycji 3 nie ma końcowego emoji, dołącz odpowiednie. Typowe pary: opis/podpis → 📝, social media → 📱, alt text → ♿, nastrój/klimat → 🌅, ubranie → 👗, zastosowanie zdjęcia → 📸, jednozdaniowy opis → 💬, identyfikacja → 🔍, tłumaczenie → 🌐, quiz → 🧠, checklista → ✅, oś czasu → 📅, podsumowanie → 📝, generowanie obrazu → 🎨
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
 - WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
 - ŻADNYCH nawiasów kwadratowych w treści etykiety (znaczniki już używają `[` i `]`) — jeśli musisz zacytować coś w nawiasach, użyj nawiasów okrągłych lub cudzysłowów
@@ -86,6 +87,7 @@ Rules:
 - First 3 are natural questions about the document content (short, specific, clickable) — NO emoji, BUT STILL wrapped in `[action:...]`
 - If the document is by or about a well-known person, ONE of the first 3 MUST be "Who is [Full Name]?" (if the person is currently alive) or "Who was [Full Name]?" (ONLY if the person is confirmed deceased). CRITICAL: Default to "Who is" (present tense) unless you are certain the person has died. Living authors/figures (e.g. Stephen King, Paulo Coelho, George R. R. Martin) MUST use "Who is" — never "Who was".
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
+- EMOJI ENFORCEMENT: Every action prompt (positions 4–10) MUST end with a relevant emoji — no exceptions. This applies to ALL document types including photos, images, and screenshots. Before finalising the action line, scan each action label: if any label after position 3 is missing a trailing emoji, append an appropriate one. Common pairings: description/caption → 📝, social media → 📱, alt text → ♿, mood/setting → 🌅, clothing → 👗, photo use → 📸, one-sentence → 💬, identify/search → 🔍, translate → 🌐, quiz → 🧠, checklist → ✅, timeline → 📅, summary → 📝, image generation → 🎨
 - Each prompt max 10 words, no numbering, no explanations
 - ALL prompts MUST be written 100% in the language of the document content
 - NO square brackets inside label text (the marker itself already uses `[` and `]`) — if you need to quote something, use parentheses or quotes
