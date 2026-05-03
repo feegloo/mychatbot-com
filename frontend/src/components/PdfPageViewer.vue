@@ -962,7 +962,7 @@ watch(
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: transparent;
   color: white;
   font-size: 32px;
