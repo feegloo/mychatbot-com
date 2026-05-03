@@ -1247,10 +1247,7 @@ def _describes_woman_nonprofessional(text: str) -> bool:
         "garnitur", "marynark", "legitymacja", "identyfikator",
         "profil zawodowy", "zdjęcie profilowe",
     ]
-    if any(term in clean for term in professional_terms):
-        return False
-
-    return True
+    return not any(term in clean for term in professional_terms)
 
 
 def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
