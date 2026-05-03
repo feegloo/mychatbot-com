@@ -175,8 +175,15 @@ export default defineConfig({
     sourcemap: 'hidden',
     rollupOptions: {
       output: {
-        manualChunks: {
-          sentry: ['@sentry/vue'],
+        // Bundle all mermaid-related modules (including mermaid's own internal
+        // dynamic sub-imports like mermaid.core) into a single chunk.
+        // Without this, Vite splits mermaid into several lazy sub-chunks that
+        // mermaid loads at runtime via its own import() calls; if any of those
+        // chunks are missing from the deployment nginx returns a 404 (text/html)
+        // which the browser rejects as an invalid module script.
+        manualChunks(id: string) {
+          if (id.includes('mermaid')) return 'mermaid'
+          if (id.includes('@sentry/')) return 'sentry'
         },
       },
     },

@@ -167,7 +167,7 @@ KLUCZOWE NASTAWIENIE: Czytaj HTML jak człowiek przeglądający stronę — NIE 
 
    - **Strony produktowe (sklep, e-commerce)**: pełna nazwa produktu, marka, WSZYSTKIE składniki (szczególnie suplementy/żywność — wymień każdy składnik z dawką!), wartości odżywcze, dawkowanie, cena, ocena, liczba opinii, kluczowe cechy, skład opakowania
      Przykład z HTML: `<h1>Kolagen Włosy 500ml</h1><ul><li>Kolagen rybny 5000mg</li><li>Biotyna 10mg</li><li>MSM 2000mg</li></ul><span>49,99 zł</span>`
-     → Suplement w płynie **Kolagen Włosy 500ml** zawiera: **Kolagen rybny 5000mg**, **Biotyna 10mg**, **MSM 2000mg** — cena **49,99 zł**. Opinie: ⭐ 4,7 (328 opinii).
+     → Suplement w płynie Kolagen Włosy 500ml zawiera: Kolagen rybny 5000mg, Biotyna 10mg, MSM 2000mg — cena 49,99 zł. Opinie: ⭐ 4,7 (328 opinii).
 
    - **Artykuły / newsy**: nagłówek, autor, data, główna teza, kluczowe fakty i liczby
 
@@ -181,7 +181,7 @@ KLUCZOWE NASTAWIENIE: Czytaj HTML jak człowiek przeglądający stronę — NIE 
 
 3. **O czym możesz pytać** (1–2 zdania): Co użytkownik może wyciągnąć z tej strony.
 
-WAŻNE: Wyciągaj konkretne dane (nazwy produktów, listy składników, ceny, opinie, fragmenty artykułów, tabele danych). NIE opisuj struktury HTML ("jest div z klasą..."). Pisz jak człowiek streszczający to, co właśnie przeczytał na stronie.
+WAŻNE: Wyciągaj konkretne dane (nazwy produktów, listy składników, ceny, opinie, fragmenty artykułów, tabele danych). NIE opisuj struktury HTML ("jest div z klasą..."). Pisz jak człowiek streszczający to, co właśnie przeczytał na stronie. Nie używaj **pogrubienia** w tekście — żadnych gwiazdek wokół słów.
 
 4. **Linki do sekcji**: Blok "== SEKCJE STRONY ==" w wiadomości użytkownika zawiera listę sekcji tej strony z ich pełnymi adresami URL (łącznie z kotwicą #id). Gdy opisujesz lub wspominasz konkretną sekcję, linkuj do niej w tekście za pomocą Markdown: [Nazwa sekcji](URL#anchor). Linkuj tylko do sekcji wymienionych w tym bloku — nie wymyślaj adresów URL.
 
@@ -218,7 +218,7 @@ CRITICAL MINDSET: Read the HTML as if you are a human browsing this website — 
 
    - **Product pages (shop, e-commerce)**: exact product name, brand, ALL ingredients (especially for supplements/food — list every ingredient with dosage!), nutritional info, dosage instructions, price, rating, review count, key features
      Example from HTML: `<h1>Collagen Hair 500ml</h1><ul><li>Fish collagen 5000mg</li><li>Biotin 10mg</li><li>MSM 2000mg</li></ul><span>$19.99</span>`
-     → Liquid supplement **Collagen Hair 500ml** contains: **Fish collagen 5000mg**, **Biotin 10mg**, **MSM 2000mg** — priced at **$19.99**. Rated ⭐ 4.7 (328 reviews).
+     → Liquid supplement Collagen Hair 500ml contains: Fish collagen 5000mg, Biotin 10mg, MSM 2000mg — priced at $19.99. Rated ⭐ 4.7 (328 reviews).
 
    - **News / articles**: headline, author, date, main argument, key facts and figures
 
@@ -232,7 +232,7 @@ CRITICAL MINDSET: Read the HTML as if you are a human browsing this website — 
 
 3. **What you can ask about this page** (1–2 sentences): Brief guide to what questions can be answered.
 
-FOCUS: Extract the actual data (product names, ingredient lists, prices, reviews, article text, facts, data tables). Do NOT describe HTML structure ("there is a div with class..."). Write like a human summarizing what they just read on the website.
+FOCUS: Extract the actual data (product names, ingredient lists, prices, reviews, article text, facts, data tables). Do NOT describe HTML structure ("there is a div with class..."). Write like a human summarizing what they just read on the website. Do not use **bold** formatting anywhere in the text — no asterisks around words.
 
 4. **Section links**: The "== PAGE SECTIONS ==" block in the user message lists this page's sections with their full anchor URLs. When describing or referencing a specific section, link to it inline using Markdown: [Section Name](URL#anchor). Only link to sections explicitly listed in that block — never invent anchor URLs.
 
