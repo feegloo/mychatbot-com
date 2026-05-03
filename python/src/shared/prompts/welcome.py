@@ -308,7 +308,8 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
     ConceptName(Label)     = rounded square: process / mechanism / action
     ConceptName[Label]     = square: concrete fact / entity / object
     ConceptName((Label))   = circle: key concept / protagonist / core idea
-- 0-4 second-level branches under each main concept: specific details, EVERY second-level node MUST start with a thematically appropriate emoji — as shown in the example above
+- 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
+- 0-2 third-level branches (last level — leaf nodes): very specific details only when important; EVERY second-level node MUST start with a thematically appropriate emoji — as shown in the example above
 - Important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth

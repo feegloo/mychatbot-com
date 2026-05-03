@@ -62,18 +62,18 @@
       </div>
 
       <!-- Reply input to start a new thread — always pinned to bottom -->
-      <div class="thread-reply-bar">
+      <div class="chat-input-bar thread-reply-bar">
         <textarea
           ref="replyInput"
           v-model="replyText"
-          class="thread-reply-textarea"
+          class="chat-textarea thread-reply-textarea"
           placeholder="Reply to start a new thread..."
           rows="1"
           @input="autoResize"
           @keydown.enter.exact.prevent="startThread"
         ></textarea>
         <button
-          class="thread-send-btn"
+          class="send-btn"
           :disabled="creatingThread || !replyText.trim()"
           @click="startThread"
         >
@@ -292,80 +292,17 @@ watch(() => props.messageId, load)
   font-size: 14px;
 }
 
-/* Reply bar */
+/* Reply bar — margin/gap overrides on top of shared chat-input-bar / chat-textarea / send-btn */
 .thread-reply-bar {
   width: 100%;
-  display: flex;
   gap: 8px;
-  align-items: flex-end;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 6px;
   margin-top: 12px;
   margin-bottom: 10px;
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.thread-reply-bar:focus-within {
-  border-color: rgba(167, 139, 250, 0.4);
-  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-}
-
+/* Only keep non-default size overrides; font-size 16px on mobile is inherited from .chat-textarea */
 .thread-reply-textarea {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 6px 8px;
-  color: #e2e8f0;
-  font-size: 14px;
-  line-height: 1.45;
-  resize: none;
   min-height: 28px;
   max-height: 120px;
-  outline: none;
-  font-family: inherit;
-  overflow-y: auto;
-}
-
-.thread-reply-textarea:focus {
-  border-color: transparent;
-}
-
-.thread-reply-textarea::placeholder {
-  color: #64748b;
-}
-
-.thread-send-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: #a78bfa;
-  color: white;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: 0.15s;
-}
-
-@media (hover: hover) {
-  .thread-send-btn:hover:not(:disabled) {
-    background: #c4b5fd;
-  }
-}
-
-.thread-send-btn:active:not(:disabled) {
-  background: #c4b5fd;
-}
-
-.thread-send-btn:disabled {
-  background: rgba(255, 255, 255, 0.08);
-  color: #475569;
-  cursor: not-allowed;
 }
 </style>

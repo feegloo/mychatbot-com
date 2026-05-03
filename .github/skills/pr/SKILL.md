@@ -1,17 +1,17 @@
 ---
 name: pr
-description: 'Address all unresolved Qodo Merge AI review comments on a GitHub pull request. Use when: a PR has Qodo review comments you want to fix automatically; you want to apply every Qodo "Agent Prompt" fix without copy-pasting manually; you want a commit + PR comment confirming all Qodo issues were addressed.'
+description: 'Address all unresolved AI review comments (Qodo Merge and GitHub Copilot) on a GitHub pull request. Use when: a PR has Qodo or Copilot review comments you want to fix automatically; you want to apply every Qodo "Agent Prompt" fix without copy-pasting manually; you want to resolve Copilot inline review suggestions; you want a commit + PR comment confirming all AI issues were addressed.'
 argument-hint: 'GitHub PR URL, e.g. https://github.com/owner/repo/pull/123'
 ---
 
-# Address Qodo Review Comments
+# Address AI Review Comments (Qodo + Copilot)
 
 **Trigger:** `/pr {URL}` — pass a GitHub PR URL as the argument.
 
-Reads every unresolved **Qodo** reviewer comment on the given pull request, applies
-the embedded "Agent Prompt" fix for each issue, runs lint and tests, commits the
-result, replies to each Qodo thread with the short commit hash, and posts a
-summary resolution comment in the PR.
+Reads every unresolved **Qodo** and **GitHub Copilot** reviewer comment on the
+given pull request, applies each fix, runs lint and tests, commits the result,
+replies to each thread with the short commit hash, and posts a summary resolution
+comment in the PR.
 
 ---
 
@@ -45,23 +45,35 @@ git fetch origin <head-branch>
 git checkout <head-branch>
 ```
 
-### Step 3 — Collect Qodo review threads
+### Step 3 — Collect AI review threads
 
-Use the `pull_request_read` tool with `method: "get_review_comments"` to retrieve
-all review threads on the PR.
+Use the `mcp_gitkraken_pull_request_get_comments` tool to retrieve all review
+comments and threads on the PR. This returns both `prComments` (inline code
+review comments) and `reviewComments` (PR-level review summaries).
 
-**Filter criteria — keep a thread if ALL of the following are true:**
+**Sources to process:**
+
+1. **Qodo threads** — filter `reviewComments` (or inline threads) where the first
+   comment's author matches `"qodo-code-review"`. These contain a structured
+   Agent Prompt block (see Step 5).
+
+2. **Copilot inline comments** — filter `prComments` where `author` is
+   `"Copilot"` or `"copilot-pull-request-reviewer[bot]"`. These are plain-text
+   suggestions without an Agent Prompt block; treat the full comment body as the
+   fix instruction.
+
+**Filter criteria — keep a comment/thread if ALL of the following are true:**
 
 | Criterion | Value |
 |-----------|-------|
-| `thread.comments[0].author` | `"qodo-code-review"` |
-| `thread.is_resolved` | `false` |
-| `thread.is_outdated` | `false` — skip outdated threads; the code they reference no longer exists at the same location. Include them in the resolution comment under **"Skipped (outdated thread)"**. |
+| `author` | `"qodo-code-review"`, `"Copilot"`, or `"copilot-pull-request-reviewer[bot]"` |
+| `is_resolved` | `false` (skip already-resolved threads) |
+| `is_outdated` | `false` — skip outdated threads; include them under **"Skipped (outdated thread)"** in the resolution comment |
 
 ### Step 4 — Announce intent on each thread
 
-Before applying any fix, post a reply comment on **each** qualifying Qodo review
-thread (using the GitHub MCP comment tool):
+Before applying any fix, post a reply comment on **each** qualifying thread
+(using the GitHub MCP comment tool):
 
 ```
 @copilot apply changes based on the comments in this thread
@@ -70,9 +82,9 @@ thread (using the GitHub MCP comment tool):
 This mirrors what GitHub's "Fix batch with Copilot" button does and creates an
 audit trail showing the agent is processing the thread.
 
-### Step 5 — Extract the Agent Prompt from each thread
+### Step 5 — Extract fix instructions from each comment
 
-Each Qodo comment body follows this HTML structure:
+**For Qodo comments** — each body follows this HTML structure:
 
 ```
 <details>
@@ -89,24 +101,31 @@ Each Qodo comment body follows this HTML structure:
 </details>
 ```
 
-**Extraction rules:**
-
+Extraction rules:
 1. Find the `<details>` block whose `<summary>` contains the text `Agent Prompt`.
-2. Within that `<details>` block, locate the triple-backtick fenced code block and
-   extract everything between the opening and closing ` ``` ` delimiters.
+2. Within that block, locate the triple-backtick fenced code block and extract
+   everything between the opening and closing ` ``` ` delimiters.
 3. That extracted text is the **Agent Prompt** — treat it as a complete,
    self-contained instruction for fixing the issue.
-4. Also record the comment's `html_url` and the issue title from the comment body
-   (the bolded first line, e.g. `"No tests for paste upload"`).
+4. Also record the comment's `url` and derive an issue title from the bolded
+   first line of the comment body (e.g. `"No tests for paste upload"`).
+
+**For Copilot comments** — the full comment `content` field is the fix
+instruction. There is no Agent Prompt block. Use the comment `url` and derive a
+title from the first sentence or the file/line context. The comment body describes
+both the problem and the required fix in plain English — apply it literally.
 
 ### Step 6 — Apply every fix
 
-Work through each extracted Agent Prompt **one at a time**:
+Work through all collected fix instructions **one at a time** (Qodo Agent Prompts
+first, then Copilot comments):
 
-1. Read the "Fix Focus Areas" to understand which files need changes.
-2. Apply the minimum code change that resolves the issue described in the prompt.
-   Follow all conventions from `.github/copilot-instructions.md`.
-3. Stage the changed files: `git add <changed-files>`.
+1. **Qodo:** Read "Fix Focus Areas" to find the target files. Apply the minimum
+   change that resolves the issue.
+2. **Copilot:** The comment body directly describes the problem and what to
+   change. Read the referenced file and line range, then apply the described fix.
+3. Follow all conventions from `.github/copilot-instructions.md`.
+4. Stage the changed files: `git add <changed-files>`.
 
 > **Important:** Do **not** commit after each individual fix. Accumulate all
 > staged changes and commit once in Step 7.
@@ -149,7 +168,7 @@ Once lint and tests are fully green, commit **all** staged changes in a single
 commit:
 
 ```bash
-git commit -m "fix: address Qodo review comments on PR #<pull_number>"
+git commit -m "fix: address AI review comments on PR #<pull_number>"
 ```
 
 Record the short SHA (first 7 characters) as `COMMIT_HASH`.
@@ -163,10 +182,10 @@ git push origin <head-branch>
 (Alternatively, use the `report_progress` tool to push and update the PR
 description simultaneously.)
 
-### Step 9 — Reply to each Qodo thread with the commit hash
+### Step 9 — Reply to each resolved thread with the commit hash
 
-For every thread that was **resolved** in Step 6, post a follow-up reply
-containing only the short commit hash:
+For every thread (Qodo or Copilot) that was **resolved** in Step 6, post a
+follow-up reply containing only the short commit hash:
 
 ```
 <COMMIT_HASH>
@@ -183,18 +202,18 @@ outcomes.
 **Comment format:**
 
 ```markdown
-## Qodo review comments addressed
+## AI review comments addressed
 
-All actionable unresolved Qodo review comments have been processed in commit <COMMIT_HASH>.
+All actionable unresolved AI review comments (Qodo + Copilot) have been processed in commit <COMMIT_HASH>.
 
 ### Issues resolved
 
-| # | Issue | Comment |
-|---|-------|---------|
-| 1 | <issue-title-1> | <html_url-1> |
-| 2 | <issue-title-2> | <html_url-2> |
+| # | Source | Issue | Comment |
+|---|--------|-------|---------|
+| 1 | Qodo | <issue-title-1> | <html_url-1> |
+| 2 | Copilot | <issue-title-2> | <html_url-2> |
 
-Each fix follows the corresponding Agent Prompt provided by Qodo.
+Qodo fixes follow the embedded Agent Prompt. Copilot fixes address the inline suggestion as described in each comment.
 
 <!-- only include sections below when they contain entries -->
 
@@ -228,10 +247,11 @@ Omit any section that has no entries (remove the heading and table entirely).
 | A thread has `is_outdated: true` | Skip it — the underlying code has changed; the fix would be speculative. Include it under **"Skipped (outdated thread)"**. |
 | A thread is already `is_resolved: true` | Skip it silently. |
 | A Qodo comment has **no** Agent Prompt block | Skip it and include it under **"Skipped (no Agent Prompt)"**. |
+| A Copilot comment body is ambiguous or references a line that no longer exists | Skip it and include it under **"Skipped (outdated thread)"**. |
 | `npm run lint` reports errors that `--fix` cannot resolve automatically | Fix them manually as part of the staged changes, then re-run lint to confirm green. |
 | Applying a fix breaks existing tests | Debug and revise until tests pass. If irresolvable, revert that fix and list it under **"Not addressed (test failure)"** with a brief reason. |
 | The PR branch cannot be fetched (e.g., merged/deleted) | Inform the user and stop. |
-| No unresolved Qodo comments found | Reply: *"No unresolved Qodo review comments found on this PR."* and stop. |
+| No unresolved AI comments found | Reply: *"No unresolved AI review comments (Qodo or Copilot) found on this PR."* and stop. |
 
 ---
 
@@ -239,9 +259,11 @@ Omit any section that has no entries (remove the heading and table entirely).
 
 - Always follow project conventions from `.github/copilot-instructions.md` when
   generating fixes.
-- Prefer minimal, surgical changes — fix exactly what the Agent Prompt describes;
-  do not refactor unrelated code.
-- If multiple Agent Prompts touch the same file, apply them together so the file
-  is only edited once, reducing conflicts.
+- Prefer minimal, surgical changes — fix exactly what the Agent Prompt or Copilot
+  comment describes; do not refactor unrelated code.
+- If multiple comments touch the same file, apply them together so the file is
+  only edited once, reducing conflicts.
+- Copilot inline comments describe the problem in plain text; read the referenced
+  file and line context before applying the fix to avoid misinterpretation.
 - The `report_progress` tool can be used instead of a bare `git push` to push the
   commit and update the PR description simultaneously.
