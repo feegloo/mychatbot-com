@@ -760,6 +760,7 @@ def build_social_media_image_prompt() -> dict:
 
             # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
             "THIRD, choose ONE of the following accent formats — pick what feels most natural "
+            "decide independently — roughly 50/50 — whether to add an accent at all. "
             "for THIS specific photo, not the most obvious template: "
             "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
             "near the edges or corners, NOT covering the face. No strip. "
@@ -771,6 +772,20 @@ def build_social_media_image_prompt() -> dict:
             "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
             "Use for: fashion, confident, high-contrast shots. "
             "Choose by mood — do NOT default to the strip every time. "
+
+            # --- Emoji selection ---
+            "Emoji pairs/triplets (use as inspiration, not as a fixed list): "
+            "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
+            "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
+            "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
+            "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
+            "💫🐹 (wholesome quirky), 🩵❄️ (cool aesthetic), 🍓💋 (sweet bold), "
+            "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
+            "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
+            "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
+            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
+            "🌸 🌈 🦋 🎶 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
+            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
 
             # --- Step 4: KISS MARKS — independent random effect ---
             "FOURTH, decide independently — roughly 50/50 — whether to add kiss marks. "
@@ -814,9 +829,9 @@ def build_social_media_image_prompt() -> dict:
 
             # --- Effect count distribution ---
             "EFFECT COUNT: Choose the total number of effects (across steps 2–5) according to this distribution: "
-            "1 effect — 40% of the time (default choice); "
+            "1 effect — 30% of the time (default choice); "
             "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
-            "3 effects — 20% of the time (rare, only when the photo is very dynamic or layered); "
+            "3 effects — 30% of the time (rare, only when the photo is very dynamic or layered); "
             "4+ effects — 10% of the time (exceptional only, never forced). "
             "When in doubt, go with 1. Never add an effect just to fill space. "
 
