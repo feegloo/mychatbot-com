@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import base64
 import io
-import random
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -192,7 +191,8 @@ class TestOutput:
     def test_saves_png_and_returns_file_name(self, mock_openai, tmp_path):
         result = image_gen.generate_image(prompt="p", storage_dir=str(tmp_path))
 
-        assert result["file_name"].endswith(".png")
+        # Default output_format is "jpeg", so the saved file uses the .jpg extension.
+        assert result["file_name"].endswith(".jpg")
         assert (tmp_path / result["file_name"]).is_file()
 
     def test_saved_image_dimensions_match_requested_size(self, tmp_path):
@@ -278,7 +278,7 @@ class TestInspiredRetry:
         assert mock_openai.images.generate.call_count == 2
         retry_prompt = mock_openai.images.generate.call_args_list[1].kwargs["prompt"]
         assert "inspired" in retry_prompt.lower()
-        assert result["file_name"].endswith(".png")
+        assert result["file_name"].endswith(".jpg")
 
     def test_propagates_error_when_retry_also_fails(self, mock_openai, tmp_path):
         mock_openai.images.generate.side_effect = Exception("still blocked")

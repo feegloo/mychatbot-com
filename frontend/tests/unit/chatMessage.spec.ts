@@ -89,6 +89,25 @@ describe('ChatMessage', () => {
     expect(wrapper.findAll('.more-actions-popper .message-content-action').length).toBe(2)
   })
 
+  it('shows 5 actions visible on welcome messages with no prompts (image uploads)', async () => {
+    const content =
+      'Welcome!\n\n' +
+      '[action:A1] [action:A2] [action:A3] [action:A4] [action:A5] [action:A6] [action:A7]'
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        ...baseProps(),
+        isWelcome: true,
+        msg: { role: 'assistant' as const, content },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('.prompts-row > button').length).toBe(0)
+    expect(wrapper.findAll('.actions-row > .message-content-action').length).toBe(5)
+    expect(wrapper.findAll('.more-actions-popper .message-content-action').length).toBe(2)
+  })
+
   it('opens the source preview modal when an inline citation button is clicked', async () => {
     const wrapper = mount(ChatMessage, {
       attachTo: document.body,

@@ -81,7 +81,6 @@ export interface SplitTokens {
 
 export function splitTokens(tokens: ContentToken[], isWelcome: boolean): SplitTokens {
   const promptLimit = isWelcome ? 3 : 2
-  const actionLimit = isWelcome ? 2 : 1
   const text: Array<{ type: 'text'; value: string }> = []
   const prompts: string[] = []
   const actions: ActionToken[] = []
@@ -90,9 +89,14 @@ export function splitTokens(tokens: ContentToken[], isWelcome: boolean): SplitTo
     else if (t.type === 'prompt') prompts.push(t.label)
     else actions.push({ label: t.label, refFileName: t.refFileName })
   }
+  // For welcome messages: keep total visible at 5 (positions 1-5 per spec).
+  // Unused prompt slots are given to actions so image-only messages (0 prompts)
+  // still surface 5 action pills before collapsing to More…
+  const visiblePrompts = prompts.slice(0, promptLimit)
+  const actionLimit = isWelcome ? Math.max(2, 5 - visiblePrompts.length) : 1
   return {
     text,
-    visiblePrompts: prompts.slice(0, promptLimit),
+    visiblePrompts,
     visibleActions: actions.slice(0, actionLimit),
     overflowActions: actions.slice(actionLimit),
   }

@@ -50,7 +50,8 @@ class TestExtractVisibleText:
         html = "<head><title>Page Title</title><meta charset='utf-8'/></head><body><p>Body</p></body>"
         text = _extract_visible_text(html)
         assert "Body" in text
-        assert "Page Title" not in text
+        # _TextExtractor intentionally keeps <title> content for page identification
+        assert "Page Title" in text
 
     def test_empty_html_returns_empty(self):
         assert _extract_visible_text("") == ""

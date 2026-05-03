@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Overflow group for `[action:Label]` items beyond the visible-action
- * limit (welcome: 2, regular: 1). Uses floating-vue `VDropdown` for
+ * limit (welcome: up to 5 depending on visible prompts, regular: 1). Uses floating-vue `VDropdown` for
  * positioning + outside-click handling so we don't reinvent the wheel.
  */
 import MessageContentAction from './MessageContentAction.vue'
