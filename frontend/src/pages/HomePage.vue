@@ -359,6 +359,15 @@ function autoResize(e: Event) {
 }
 
 function onPasteFile(event: ClipboardEvent) {
+  // If pasted text is a standalone URL, treat it as a URL upload immediately
+  const pastedText = event.clipboardData?.getData('text/plain')?.trim()
+  if (pastedText && isUrl(pastedText)) {
+    event.preventDefault()
+    question.value = pastedText
+    submitQuestion()
+    return
+  }
+
   const files = extractPastedFiles(event)
   if (files.length === 0) return
   event.preventDefault()

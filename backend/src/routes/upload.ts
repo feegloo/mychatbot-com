@@ -711,19 +711,32 @@ uploadRouter.post('/upload-url', async (ctx) => {
   })
     .then(async (result) => {
       const welcomeMessage = result.parsedJson?.welcome_message || ''
+      const suggestedQuestions: string[] = result.parsedJson?.suggested_questions || []
       const fallbackMessage =
         welcomeMessage ||
         `## ${parsed.hostname}\n\nWebsite loaded and ready. Ask me anything about this page.`
-      await insertConversationMessage({
+      const messageId = await insertConversationMessage({
         conversationId,
         role: 'assistant',
         content: fallbackMessage,
         citations: { _sourceUrl: url },
       })
       await updateConversationStatus(conversationId, 'ready')
+      emitConversationEvent(conversationId, {
+        event: 'welcome_message',
+        data: { messageId, suggestedQuestions },
+      })
+      emitConversationEvent(conversationId, {
+        event: 'complete',
+        data: { suggestedQuestions },
+      })
     })
     .catch(async (error) => {
       await updateConversationStatus(conversationId, 'failed', error.message)
+      emitConversationEvent(conversationId, {
+        event: 'error',
+        data: { message: error.message },
+      })
     })
 
   ctx.body = {

@@ -1017,6 +1017,18 @@ function onPasteFile(event: ClipboardEvent) {
   // (firstMessageRef is null during initial load or processing). Returning
   // without preventDefault lets the browser handle the event normally.
   if (!firstMessageRef.value) return
+
+  // If the pasted text is a standalone URL, auto-submit it as a URL source
+  // instead of inserting it as typed text. This lets users paste a URL and
+  // immediately get it fetched without having to press Enter manually.
+  const pastedText = event.clipboardData?.getData('text/plain')?.trim()
+  if (pastedText && /^https?:\/\/\S+$/.test(pastedText) && !pastedText.includes(' ')) {
+    event.preventDefault()
+    question.value = pastedText
+    ask()
+    return
+  }
+
   const files = extractPastedFiles(event)
   if (files.length === 0) return
   event.preventDefault()

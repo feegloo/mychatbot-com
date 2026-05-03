@@ -30,7 +30,7 @@ import {
 import { createStorageProvider } from '../storage/index.js'
 import { generateShortId } from '../utils/id.js'
 import { describeUrl, indexConversation } from '../python/indexing.js'
-import { onConversationEvent } from '../events.js'
+import { onConversationEvent, emitConversationEvent } from '../events.js'
 import { getConversationToken } from '../utils/request.js'
 import { deriveToken } from '../security.js'
 import { SHORT_ID_RE, MAX_FILE_SIZE } from '../constants.js'
@@ -530,20 +530,33 @@ conversationsRouter.post('/conversations/:conversationId/add-url', async (ctx) =
   })
     .then(async (result) => {
       const welcomeMessage: string = result.parsedJson?.welcome_message || ''
+      const suggestedQuestions: string[] = result.parsedJson?.suggested_questions || []
       const fallbackMessage =
         welcomeMessage ||
         `## ${parsed.hostname}\n\nWebsite loaded and ready. Ask me anything about this page.`
-      await insertConversationMessage({
+      const messageId = await insertConversationMessage({
         conversationId,
         role: 'assistant',
         content: fallbackMessage,
         citations: { _sourceUrl: url },
       })
       await updateConversationStatus(conversationId, 'ready')
+      emitConversationEvent(conversationId, {
+        event: 'welcome_message',
+        data: { messageId, suggestedQuestions },
+      })
+      emitConversationEvent(conversationId, {
+        event: 'complete',
+        data: { suggestedQuestions },
+      })
     })
     .catch(async (error: Error) => {
       logger.error({ err: error.message, conversationId }, 'add-url indexing error')
       await updateConversationStatus(conversationId, 'failed', error.message)
+      emitConversationEvent(conversationId, {
+        event: 'error',
+        data: { message: error.message },
+      })
     })
 
   ctx.body = { conversationId, status: 'processing' }
