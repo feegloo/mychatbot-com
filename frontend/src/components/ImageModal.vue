@@ -103,7 +103,7 @@ defineEmits<{
 @media (max-width: 768px) {
   .image-modal-overlay {
     padding: 0;
-    align-items: flex-start;
+    align-items: center;
     overflow-y: auto;
   }
 
@@ -111,6 +111,7 @@ defineEmits<{
     width: 100vw;
     max-width: 100vw;
     max-height: none;
+    margin: auto 0;
   }
 
   .image-modal-close {
