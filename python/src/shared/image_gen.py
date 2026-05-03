@@ -671,82 +671,71 @@ def build_image_announcement(
 def build_social_media_image_prompt() -> dict:
     """Return a direct image-edit prompt for social-media-style photo overlays.
 
-    No LLM call needed — the effect is always the same family: a decorative
-    bottom strip with emoji pairs *plus* optional subject-level overlays
-    (kiss marks on cheeks, angel wings behind the subject, sparkles, etc.)
-    chosen to match the photo's mood. The model should read the vibe first,
-    then pick the most fitting combination from the menu below.
+    Four independent, randomly-applied effects — each decided separately:
+      1. Kiss marks on skin           (~50% chance)
+      2. Wrist band / scrunchie       (~50% chance, only if wrist visible)
+      3. Creative subject overlay     (~50% chance, model invents what fits best)
+      4. Emoji accent                 (~50% chance, model invents placement/format)
+
+    Hard cap: at most 2 effects total. Zero or one is also perfectly fine.
     """
     return {
         "prompt": (
-            "Take this exact photo and transform it into a fun, vibrant social media post image. "
+            "Take this exact photo and transform it into a fun social media post image. "
             "Keep the original photo as the complete base — do NOT alter the subject, colors, or composition. "
 
             # --- Step 1: read the vibe ---
             "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
-            "Use that mood to drive ALL decoration choices below. "
+            "Every decoration decision below must be driven by this mood reading. "
 
-            # --- Step 2: subject-level overlay (pick ONE that fits) ---
-            "SECOND, apply ONE of the following decorative overlays directly on/around the subject: "
-            "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
-            "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
-            "Use for: romantic, flirty, playful vibes. "
-            "(b) ANGEL WINGS — add a pair of large, soft white or golden feathered angel wings "
-            "behind the subject's shoulders, as if the person is an angel. "
-            "Wings should look painterly and luminous, not cartoon-flat. "
-            "Use for: ethereal, dreamy, angelic, pure vibes. "
-            "(c) SPARKLE HALO — place a delicate golden halo ring above the subject's head "
-            "with small glowing sparkles radiating outward. "
-            "Use for: angelic, goddess, celestial vibes. "
-            "(d) FLOWER CROWN — overlay a realistic or illustrated flower crown on the subject's head. "
-            "Use for: boho, nature, soft-aesthetic vibes. "
-            "(e) GLITTER SPARKLES — scatter ✨ glitter particle bursts around the subject "
-            "without covering the face. "
-            "Use for: party, celebratory, magical vibes. "
-            "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
-            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve) around the subject's wrist, "
-            "sitting naturally on the skin. "
-            "It should look like a real accessory the person is wearing, not a sticker. "
-            "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
-            "If the wrist is not visible or the mood doesn't fit, skip this option. "
-            "If no overlay clearly fits, skip this step and go straight to the accent. "
+            # --- Step 2: KISS MARKS — independent random effect ---
+            "SECOND, decide independently — roughly 50/50 — whether to add kiss marks. "
+            "Do NOT apply kiss marks every time. "
+            "If YES: scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
+            "neck, or shoulder — sized naturally, like Snapchat beauty-filter kisses. "
+            "Fits: romantic, flirty, playful moods. Skip for: ethereal, edgy, fashion, serious. "
+            "If NO: move on without any kiss marks. "
 
-            # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
-            "THIRD, choose ONE of the following accent formats — pick what feels most natural "
-            "for THIS specific photo, not the most obvious template: "
-            "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
-            "near the edges or corners, NOT covering the face. No strip. "
-            "Use for: clean/minimal aesthetic, strong subject, fashion or editorial vibe. "
-            "(ii) FROSTED STRIP — a semi-transparent frosted bar across the lower ~20% "
-            "with 1–2 emoji and optionally 1 short word ('vibes ✨', 'soft 🌸', 'mood 💫'). "
-            "Use for: playful, casual, Snapchat-story energy. "
-            "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
-            "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
-            "Use for: fashion, confident, high-contrast shots. "
-            "Choose by mood — do NOT default to the strip every time. "
+            # --- Step 3: WRIST BAND / SCRUNCHIE — independent random effect ---
+            "THIRD, decide independently — another ~50/50 roll, separate from step 2 — "
+            "whether to add a delicate wrist accessory. "
+            "Do NOT apply it every time. Only apply if the subject's wrist is clearly visible. "
+            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve) "
+            "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
+            "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
+            "If the wrist is not visible, or the mood doesn't fit, skip this step. "
 
-            # --- Emoji selection ---
-            "Emoji pairs/triplets (use as inspiration, not as a fixed list): "
-            "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
-            "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
-            "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
-            "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
-            "💫🐹 (wholesome quirky), 🩵❄️ (cool aesthetic), 🍓💋 (sweet bold), "
-            "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
-            "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
-            "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
-            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
-            "🌸 🌈 🦋 🎶 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
-            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
+            # --- Step 4: CREATIVE OVERLAY — independent random effect ---
+            "FOURTH, decide independently — another ~50/50 roll, separate from all prior steps — "
+            "whether to apply ONE decorative subject-level overlay. "
+            "Do NOT apply an overlay every time. "
+            "If YES: invent the most fitting overlay for THIS specific photo's mood and composition. "
+            "You are NOT limited to a menu — use your own creative judgment. "
+            "Examples of what is possible (use as inspiration only): "
+            "feathered angel wings, a sparkle halo, a flower crown, glitter burst, light leak, "
+            "watercolour wash, golden-hour glow, soft bokeh overlay, frosted vignette, "
+            "illustrated accessories, neon outline, paint drips, film grain, etc. "
+            "The effect must feel intentional and specific to the vibe you read — not generic. "
+            "If nothing truly fits, skip this step. "
+
+            # --- Step 5: EMOJI ACCENT — independent random effect ---
+            "FIFTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
+            "Do NOT add emoji every time. "
+            "If YES: invent the best placement, format, and emoji combination for this specific photo. "
+            "You may use floating stickers near edges, a frosted bottom strip, a corner pill/badge, "
+            "or any other format that feels right — choose based on the photo's composition and mood. "
+            "Pick emoji that genuinely match the vibe; avoid generic hearts-and-sparkles defaults. "
+            "Maximum 2–3 emoji total. "
+            "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
+
+            # --- Hard constraint: cap at 2 effects ---
+            "HARD CONSTRAINT: Apply at most 2 effects in total across steps 2–5. "
+            "If more than 2 random decisions came up YES, keep only the 2 that best fit the mood "
+            "and drop the rest. Zero or one effect is perfectly valid — never add effects just to fill space. "
 
             # --- Final quality bar ---
-            "IMPORTANT: keep the edit minimal — use only 1–2 accents total (overlay + accent format). "
-            "Think of the decoration as a seasoning, not the main dish — it should enhance the photo, not overpower it. "
-            "Less is more — the edit should feel intentional and personal, "
-            "NOT like a generic filter was applied. When in doubt, go more minimal. "
-            "Avoid combining too many effects. "
-            "The result should look like a polished Instagram or TikTok story edit — "
-            "high quality, cohesive, minimal, and specific to this photo's vibe. "
+            "The result should feel like a careful, intentional Instagram or TikTok story edit — "
+            "not a generic filter dump. Decoration is seasoning, not the main dish. "
             "No watermark. No logos. The subject's face and body must be fully preserved."
         ),
         "title": "Social Media Edit",
