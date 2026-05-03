@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
-        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg }">
+        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg && !isRasterImage }">
           <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
           <PdfPageViewer
             v-if="isPdf"
@@ -20,8 +20,19 @@
             <img :src="pdfBaseUrl" :alt="citation.fileName" class="source-modal-svg-img" />
           </div>
 
-          <!-- Source text document (non-PDF, non-SVG only) -->
-          <div v-if="!isPdf && !isSvg" class="source-modal-doc">
+          <!-- Raster image preview: show the image and the AI-generated description if available -->
+          <div v-else-if="isRasterImage" class="source-modal-raster">
+            <div class="source-modal-raster-img-wrap">
+              <img :src="pdfBaseUrl" :alt="cleanFileName(citation.fileName)" class="source-modal-raster-img" />
+            </div>
+            <div v-if="citation.text" class="source-modal-raster-desc">
+              <p class="source-modal-raster-desc-label">Image description</p>
+              <p class="source-modal-raster-desc-text">{{ citation.text }}</p>
+            </div>
+          </div>
+
+          <!-- Source text document (non-PDF, non-SVG, non-image only) -->
+          <div v-if="!isPdf && !isSvg && !isRasterImage" class="source-modal-doc">
             <div class="source-modal-doc-header">
               <svg
                 width="16"
@@ -169,6 +180,56 @@ const displayText = computed(() => props.citation.text || fetchedText.value)
   object-fit: contain;
   border-radius: 8px;
   background: white;
+}
+
+.source-modal-raster {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.source-modal-raster-img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 200px;
+  padding: 24px;
+}
+
+.source-modal-raster-img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.source-modal-raster-desc {
+  background: rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px 24px;
+  flex-shrink: 0;
+}
+
+.source-modal-raster-desc-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 0 6px;
+}
+
+.source-modal-raster-desc-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
 }
 
 .source-modal-overlay {

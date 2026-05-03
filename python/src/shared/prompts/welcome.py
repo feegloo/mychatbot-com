@@ -146,9 +146,12 @@ mindmap
   root((Główny Temat))
     Pojęcie1{{Kategoria 1}}
       🔑 Szczegół A
+        🏷️ Podszegół A1
+        📎 Podszegół A2
       📌 Szczegół B
     Pojęcie2(Proces 2)
       ⚙️ Szczegół C
+        🔧 Podszegół C1
       🔄 Szczegół D
     Pojęcie3[Encja 3]
       📍 Szczegół I
@@ -165,6 +168,7 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
     NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
     NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
+- 0-2 gałęzie trzeciego poziomu (ostatni poziom — węzły-liście): bardzo szczegółowe dane tylko jeśli ważne; KAŻDY węzeł trzeciego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
 - Ważne: każda gałąź pierwszego poziomu jest niezależna, czyli może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych gałęzi pierwszego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego głównego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej gałęzi drugiego poziomu.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
@@ -294,9 +298,12 @@ mindmap
   root((Main Topic))
     Concept1{{Category 1}}
       🔑 Detail A
+        🏷️ Subdetail A1
+        📎 Subdetail A2
       📌 Detail B
     Concept2(Process 2)
       ⚙️ Detail C
+        🔧 Subdetail C1
       🔄 Detail D
     Concept3[Entity 3]
       📍 Detail I
@@ -313,6 +320,7 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
     ConceptName[Label]     = square: concrete fact / entity / object
     ConceptName((Label))   = circle: key concept / protagonist / core idea
 - 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
+- 0-2 third-level branches (last level — leaf nodes): very specific details only when important; EVERY third-level node MUST start with a thematically appropriate emoji — as shown in the example above
 - Important: each first-level branch is independent, meaning it can have 0-4 second-level branches regardless of other first-level branches. You don't have to invent 4 second-level branches for every main concept — if the document doesn't contain that many details, generate fewer second-level branches.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
@@ -439,9 +447,12 @@ mindmap
   root((Główny Temat))
     Pojęcie1{{Kategoria 1}}
       🔑 Szczegół A
+        🏷️ Podszegół A1
+        📎 Podszegół A2
       📌 Szczegół B
     Pojęcie2(Proces 2)
       ⚙️ Szczegół C
+        🔧 Podszegół C1
       🔄 Szczegół D
     Pojęcie3[Encja 3]
       📍 Szczegół I
@@ -458,6 +469,7 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
     NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
     NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
+- 0-2 gałęzie trzeciego poziomu (ostatni poziom — węzły-liście): bardzo szczegółowe dane tylko jeśli ważne; KAŻDY węzeł trzeciego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
 - każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu. Nie musisz wymyślać 4 gałęzi drugiego poziomu dla każdego pojęcia.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
@@ -475,9 +487,12 @@ mindmap
   root((Main Topic))
     Concept1{{Category 1}}
       🔑 Detail A
+        🏷️ Subdetail A1
+        📎 Subdetail A2
       📌 Detail B
     Concept2(Process 2)
       ⚙️ Detail C
+        🔧 Subdetail C1
       🔄 Detail D
     Concept3[Entity 3]
       📍 Detail I
@@ -494,6 +509,7 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
     ConceptName[Label]     = square: concrete fact / entity / object
     ConceptName((Label))   = circle: key concept / protagonist / core idea
 - 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
+- 0-2 third-level branches (last level — leaf nodes): very specific details only when important; EVERY third-level node MUST start with a thematically appropriate emoji — as shown in the example above
 - each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth

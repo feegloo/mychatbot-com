@@ -697,9 +697,9 @@ def build_social_media_image_prompt() -> dict:
             "If NO: move on without any kiss marks. "
 
             # --- Step 3: WRIST BAND / SCRUNCHIE — independent random effect ---
-            "THIRD, decide independently — another ~50/50 roll, separate from step 2 — "
+            "THIRD, decide independently — ~20% chance, separate from step 2 — "
             "whether to add a delicate wrist accessory. "
-            "Do NOT apply it every time. Only apply if the subject's wrist is clearly visible. "
+            "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
             "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve) "
             "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
             "Fits: soft, feminine, aesthetic, cozy, editorial moods. "

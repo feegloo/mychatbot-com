@@ -24,7 +24,7 @@
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-if="part.type === 'text'" class="wiki-text" :class="{ 'wiki-text--first': i === 0 }" v-html="part.html" />
               <div v-else-if="part.type === 'mermaid'" class="wiki-mermaid-wrap">
-                <MermaidBlock :code="(part as Extract<ContentPart, { type: 'mermaid' }>).code" />
+                <MermaidBlock :code="(part as Extract<ContentPart, { type: 'mermaid' }>).code" :initialZoom="7" />
               </div>
             </template>
           </template>
