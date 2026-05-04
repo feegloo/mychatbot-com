@@ -28,6 +28,7 @@ select = [
 "src/shared/page_worker.py" = ["E501"]
 "src/shared/indexing.py" = ["E501", "B023"]
 "src/shared/chapters.py" = ["E501"]
+"src/shared/url_fetch.py" = ["E501"]
 # Test files — grouping imports near the test class/function is intentional
 "tests/*.py" = ["E501", "E402"]
 

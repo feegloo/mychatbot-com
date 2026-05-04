@@ -28,7 +28,11 @@ const router = createRouter({
 // Keep canonical / OG / Twitter URL meta tags in sync with the current route
 // so that iOS Safari's native share sheet copies the actual page URL instead
 // of the hardcoded root from index.html.
-router.afterEach(() => {
+router.afterEach((to) => {
+  if (to.path === '/') {
+    document.title = 'chatrag.app'
+  }
+
   const url = window.location.href
 
   const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')

@@ -1,0 +1,35 @@
+name: Slow Tests (Scheduled)
+
+on:
+  schedule:
+    # Run at 08:00 UTC every day
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  python-slow:
+    name: Python Full Test Suite (incl. slow)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Full test suite
+        run: python -m pytest
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

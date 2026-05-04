@@ -51,6 +51,8 @@ def _collect_test_files() -> list[Path]:
 _files = _collect_test_files()
 _skip = pytest.mark.skipif(not _files, reason="No test-files directory")
 
+pytestmark = pytest.mark.slow
+
 # Tabular/spreadsheet files where sentence-boundary heuristics don't apply
 _TABULAR_FILES = {"Siłownia - tabelka z treningami.docx"}
 

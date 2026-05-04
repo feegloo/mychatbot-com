@@ -94,6 +94,7 @@
         rows="1"
         @input="autoResize"
         @keydown.enter.exact.prevent="submitQuestion"
+        @paste="onPasteFile"
       ></textarea>
       <button class="send-btn" :disabled="asking || !question.trim()" @click="submitQuestion">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -125,6 +126,8 @@ import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
 import { homeT } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
+import { isUrl } from '../utils/text'
+import { extractPastedFiles } from '../composables/useFilePaste'
 
 const t = homeT
 
@@ -224,12 +227,6 @@ function scrollToBottom(smooth = false) {
       behavior: smooth ? 'smooth' : 'instant',
     })
   }
-}
-
-const URL_REGEX = /^https?:\/\/[^\s]+$/i
-
-function isUrl(text: string): boolean {
-  return URL_REGEX.test(text.trim())
 }
 
 async function submitUrlUpload(url: string) {
@@ -337,7 +334,7 @@ async function submitQuestion() {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      const openaiMessage = (err as any)?.openaiMessage
+      const openaiMessage = (err as { openaiMessage?: string })?.openaiMessage
       reactiveMsg.content = openaiMessage
         ? `${t.value.imageGenError}\n\n> ${openaiMessage}`
         : t.value.imageGenError
@@ -354,6 +351,23 @@ function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
+}
+
+function onPasteFile(event: ClipboardEvent) {
+  // If pasted text is a standalone URL, treat it as a URL upload immediately
+  const pastedText = event.clipboardData?.getData('text/plain')?.trim()
+  if (pastedText && isUrl(pastedText)) {
+    event.preventDefault()
+    question.value = pastedText
+    submitQuestion()
+    return
+  }
+
+  const files = extractPastedFiles(event)
+  if (files.length === 0) return
+  event.preventDefault()
+  uploadFilesArr.value = files
+  submitUpload()
 }
 </script>
 
@@ -391,7 +405,7 @@ function autoResize(e: Event) {
 }
 
 .upload-dropzone {
-  padding: 36px;
+  padding: 21px 36px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -467,7 +481,7 @@ function autoResize(e: Event) {
   }
 
   .upload-dropzone {
-    padding: 32px 20px;
+    padding: 17px 20px;
   }
 
   .dropzone-title {

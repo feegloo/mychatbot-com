@@ -191,7 +191,8 @@ class TestOutput:
     def test_saves_png_and_returns_file_name(self, mock_openai, tmp_path):
         result = image_gen.generate_image(prompt="p", storage_dir=str(tmp_path))
 
-        assert result["file_name"].endswith(".png")
+        # Default output_format is "jpeg", so the saved file uses the .jpg extension.
+        assert result["file_name"].endswith(".jpg")
         assert (tmp_path / result["file_name"]).is_file()
 
     def test_saved_image_dimensions_match_requested_size(self, tmp_path):
@@ -277,7 +278,7 @@ class TestInspiredRetry:
         assert mock_openai.images.generate.call_count == 2
         retry_prompt = mock_openai.images.generate.call_args_list[1].kwargs["prompt"]
         assert "inspired" in retry_prompt.lower()
-        assert result["file_name"].endswith(".png")
+        assert result["file_name"].endswith(".jpg")
 
     def test_propagates_error_when_retry_also_fails(self, mock_openai, tmp_path):
         mock_openai.images.generate.side_effect = Exception("still blocked")
@@ -349,3 +350,47 @@ class TestAspectFraming:
         assert captured_messages[1]["content"]
         assert "true 3:2 landscape rectangle" in captured_messages[1]["content"]
         assert "solid black matte bars above and below" in captured_messages[1]["content"]
+
+
+class TestRandomCreativeSeed:
+    """Verify that pixel-art styles inject rendering rules; others don't."""
+
+    # One representative from each pixel-art style (exact strings from _PIXEL_ART_STYLES).
+    _PIXEL_STYLES = [
+        "16-bit SNES / Mega Drive pixel art — vibrant 256-color palette, chunky character sprites, tiled scrolling background",
+        "1994 DOS VGA pixel art — 320×200 resolution aesthetic, dithered gradients, flat EGA-palette scenes, subtle scanline overlay",
+        "8-bit NES / Famicom pixel art — 4-color-per-tile sprites, side-scroll or top-down perspective, blocky retro look",
+        "Game Boy 4-shade monochrome pixel art — LCD green dot-matrix palette, stark high-contrast silhouettes, handheld screen feel",
+        "retro isometric pixel art RPG tilemap — axonometric 2D grid, classic dungeon or city scene, limited color ramp, Ultima / Syndicate era",
+    ]
+
+    # Non-pixel styles that must NOT trigger the rendering rules.
+    _NON_PIXEL_STYLES = [
+        "oil painting",
+        "watercolor",
+        "vaporwave glitch art — hot pink and purple neons, chrome shape distortion, tropical retro-futurism, A E S T H E T I C",
+        "noir graphic novel panel — heavy black ink, stark chiaroscuro, selective single-accent color (crimson or gold)",
+    ]
+
+    def _seed_for_style(self, style: str) -> str:
+        """Call _random_creative_seed() with a deterministic style choice."""
+        choices = iter([style, "melancholic", "golden hour sunlight", "wide panoramic shot"])
+        with patch("shared.image_gen.random.choice", side_effect=choices):
+            return image_gen._random_creative_seed()
+
+    @pytest.mark.parametrize("style", _PIXEL_STYLES)
+    def test_pixel_art_style_appends_rendering_rules(self, style: str):
+        seed = self._seed_for_style(style)
+        assert "PIXEL ART RENDERING RULES" in seed
+
+    @pytest.mark.parametrize("style", _NON_PIXEL_STYLES)
+    def test_non_pixel_style_omits_rendering_rules(self, style: str):
+        seed = self._seed_for_style(style)
+        assert "PIXEL ART RENDERING RULES" not in seed
+
+    def test_all_pixel_art_styles_are_present_in_art_styles_list(self):
+        """Guard: every entry in _PIXEL_ART_STYLES must exist in _ART_STYLES."""
+        for style in image_gen._PIXEL_ART_STYLES:
+            assert style in image_gen._ART_STYLES, (
+                f"_PIXEL_ART_STYLES entry not found in _ART_STYLES: {style!r}"
+            )

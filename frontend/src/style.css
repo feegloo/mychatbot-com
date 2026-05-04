@@ -1319,7 +1319,7 @@ li:has(.checklist-box) {
 .markdown-content table th,
 .markdown-content table td {
   min-width: 80px;
-  max-width: 600px;
+  max-width: 300px;
 }
 
 .markdown-content .markdown-table-scroll {

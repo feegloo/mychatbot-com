@@ -1,5 +1,9 @@
 name: Lint & Test
-on: [pull_request]
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -40,4 +44,4 @@ jobs:
         with: { python-version: '3.11' }
       - run: pip install -r requirements.txt ruff
       - run: ruff check .
-      - run: python -m pytest
+      - run: python -m pytest -m "not slow"

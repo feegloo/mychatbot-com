@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../api'
-import { announceImage, generateImageStream } from '../api'
+import { announceImage, generateImageStream, getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 
 export type ImageGenStreamResponse = {
@@ -125,6 +125,15 @@ export async function runImageGenStream(options: {
           reactiveMsg.imageTitle = data.generatedImage.imageTitle
         }
         clearTimeout(timeoutHandle)
+
+        // When no streaming partial frames were received, synthesise a brief
+        // preview from the final image so the UI has something to morph into
+        // before the message settles.
+        if (firstPartialAt === null && data.generatedImage?.fileName) {
+          reactiveMsg.imagePartialDataUrl = getStorageUrl(conversationId, data.generatedImage.fileName)
+          reactiveMsg.imagePartialIndex = 0
+          firstPartialAt = Date.now()
+        }
 
         settleAfterMinMorph(resolve, data)
       },

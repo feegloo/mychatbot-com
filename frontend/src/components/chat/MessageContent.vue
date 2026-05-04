@@ -27,7 +27,19 @@ import MessageContentAction from './MessageContentAction.vue'
 import MessageContentActionMore from './MessageContentActionMore.vue'
 
 const QuizBlock = defineAsyncComponent(() => import('../QuizBlock.vue'))
-const MermaidBlock = defineAsyncComponent(() => import('../MermaidBlock.vue'))
+const MermaidBlock = defineAsyncComponent({
+  loader: () => import('../MermaidBlock.vue'),
+  // Stale-chunk recovery: reload once if the hashed asset no longer exists.
+  onError(_, __, ___, attempts) {
+    if (attempts <= 1) {
+      const key = 'chunk-reload'
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1')
+        window.location.reload()
+      }
+    }
+  },
+})
 
 const props = defineProps<{
   content: string
@@ -285,13 +297,14 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootEl" class="message-content">
     <template v-for="(part, pi) in parts" :key="pi">
-      <!-- eslint-disable-next-line vue/no-v-html -- sanitized by DOMPurify in renderMarkdown -->
+      <!-- eslint-disable vue/no-v-html -- sanitized by DOMPurify in renderMarkdown -->
       <div
         v-if="part.type === 'text'"
         class="markdown-content"
         @click="onContentClick"
         v-html="part.html"
       ></div>
+      <!-- eslint-enable vue/no-v-html -->
       <QuizBlock
         v-else-if="part.type === 'quiz'"
         :quiz="part.quiz"

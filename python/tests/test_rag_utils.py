@@ -98,21 +98,21 @@ class TestBuildContext:
         assert "None" not in result
 
     def test_similarity_score_computed_from_distance(self):
-        # distance=0.0 → similarity=1.0
+        # distance=0.0 → HNSW score=1.0
         rows = [self._row(distance=0.0)]
         result = build_context(rows)
-        assert "Similarity: 1.00" in result
+        assert "HNSW: 1.00" in result
 
     def test_similarity_clamps_at_zero(self):
         # distance=2.5 → 1 - 2.5/2 = -0.25, clamped to 0.0
         rows = [self._row(distance=2.5)]
         result = build_context(rows)
-        assert "Similarity: 0.00" in result
+        assert "HNSW: 0.00" in result
 
     def test_similarity_typical_value(self):
         rows = [self._row(distance=0.4)]
         result = build_context(rows)
-        assert "Similarity: 0.80" in result
+        assert "HNSW: 0.80" in result
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +135,8 @@ class TestNormalizeSourceTags:
         assert "[source:1]" in result
         assert "[source:2]" in result
         assert "[source:3]" in result
-        assert "a" not in result.split("[source:1]")[1].split("[")[0]
+        assert "[source:1a]" not in result
+        assert "[source:3b]" not in result
 
     def test_comma_separated_not_affected(self):
         # Comma-separated tags have no letter suffix; should pass through unchanged

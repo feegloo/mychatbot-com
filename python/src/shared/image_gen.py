@@ -545,11 +545,23 @@ _ART_STYLES = [
     "charcoal sketch", "impressionist", "surrealist", "Art Nouveau", "woodcut print",
     "vintage poster", "Japanese woodblock", "concept art", "pencil drawing",
     "geometric abstract", "Gothic etching", "soft pastel", "hyper-realistic render",
-    "ink wash painting", "Art Deco", "Bauhaus design", "pixel art", "linocut print",
+    "ink wash painting", "Art Deco", "Bauhaus design", "linocut print",
     "stained glass illustration", "pointillism", "expressionist", "futurism",
     "photorealistic CGI", "street art / graffiti mural", "flat design illustration",
     "engraving", "collage mixed media", "isometric illustration", "cave painting",
     "neon noir digital painting", "Renaissance oil on panel",
+    # 1990s retro computer / console pixel art — each entry carries enough
+    # context so the image model renders a period-accurate look without extra hints.
+    "16-bit SNES / Mega Drive pixel art — vibrant 256-color palette, chunky character sprites, tiled scrolling background",
+    "1994 DOS VGA pixel art — 320×200 resolution aesthetic, dithered gradients, flat EGA-palette scenes, subtle scanline overlay",
+    "8-bit NES / Famicom pixel art — 4-color-per-tile sprites, side-scroll or top-down perspective, blocky retro look",
+    "Game Boy 4-shade monochrome pixel art — LCD green dot-matrix palette, stark high-contrast silhouettes, handheld screen feel",
+    "retro isometric pixel art RPG tilemap — axonometric 2D grid, classic dungeon or city scene, limited color ramp, Ultima / Syndicate era",
+    # Fun / expressive styles added to widen the variety palette
+    "lo-fi anime sketch — muted washed palette, soft confident linework, 90s indie manga / zine aesthetic",
+    "vaporwave glitch art — hot pink and purple neons, chrome shape distortion, tropical retro-futurism, A E S T H E T I C",
+    "Soviet constructivist propaganda poster — bold flat primary colors, heroic diagonal composition, stylized geometric silhouettes",
+    "noir graphic novel panel — heavy black ink, stark chiaroscuro, selective single-accent color (crimson or gold)",
 ]
 
 _MOODS = [
@@ -584,13 +596,43 @@ _PERSPECTIVES = [
 ]
 
 
+# Exact _ART_STYLES entries that require pixel-art rendering enforcement.
+# Using the full style strings allows a true O(1) set membership check in
+# _random_creative_seed() instead of substring scanning.
+_PIXEL_ART_STYLES: frozenset[str] = frozenset({
+    "16-bit SNES / Mega Drive pixel art — vibrant 256-color palette, chunky character sprites, tiled scrolling background",
+    "1994 DOS VGA pixel art — 320×200 resolution aesthetic, dithered gradients, flat EGA-palette scenes, subtle scanline overlay",
+    "8-bit NES / Famicom pixel art — 4-color-per-tile sprites, side-scroll or top-down perspective, blocky retro look",
+    "Game Boy 4-shade monochrome pixel art — LCD green dot-matrix palette, stark high-contrast silhouettes, handheld screen feel",
+    "retro isometric pixel art RPG tilemap — axonometric 2D grid, classic dungeon or city scene, limited color ramp, Ultima / Syndicate era",
+})
+
+# Extra rendering rules appended whenever a pixel-art style is selected, to
+# ensure the image model renders a period-accurate look (no anti-aliasing,
+# proper dithering, CRT/LCD screen feel, limited palette).
+_PIXEL_ART_RENDERING_RULES = (
+    " PIXEL ART RENDERING RULES: Use a strictly period-accurate, limited color "
+    "palette (4 to 256 colors maximum depending on the platform). Render "
+    "everything with hard-edged square pixels — NO anti-aliasing, NO smooth "
+    "blending, NO gradients (use ordered / Bayer dithering patterns instead). "
+    "Outline sprites with a 1-pixel dark border. Backgrounds must use visible "
+    "repeating tile patterns. Add a subtle CRT scanline or dot-matrix screen "
+    "overlay to reinforce the vintage display feel. The final image should look "
+    "exactly as if it appeared on a real 1990s CRT monitor or handheld LCD screen."
+)
+
+
 def _random_creative_seed() -> str:
-    """Pick one element from each creative dimension to seed unique generation."""
+    """Pick one element from each creative dimension to seed unique generation.
+
+    When a pixel / retro-raster style is selected, extra rendering rules are
+    appended so the image model produces a period-accurate pixel-art look.
+    """
     style = random.choice(_ART_STYLES)
     mood = random.choice(_MOODS)
     lighting = random.choice(_LIGHTING)
     perspective = random.choice(_PERSPECTIVES)
-    return (
+    seed = (
         f"Creative direction suggestion for this image: {style} style, {mood} mood, "
         f"{lighting}, {perspective}. "
         "Treat this as a starting point for variety — but if it conflicts with the "
@@ -599,6 +641,9 @@ def _random_creative_seed() -> str:
         "register you end up in, still find a UNIQUE angle — do NOT produce the "
         "most obvious or generic version of the theme."
     )
+    if style in _PIXEL_ART_STYLES:
+        seed += _PIXEL_ART_RENDERING_RULES
+    return seed
 
 
 def build_image_announcement(
@@ -671,23 +716,56 @@ def build_image_announcement(
 def build_social_media_image_prompt() -> dict:
     """Return a direct image-edit prompt for social-media-style photo overlays.
 
-    No LLM call needed — the effect is always the same family: a decorative
-    bottom strip with emoji pairs *plus* optional subject-level overlays
-    (kiss marks on cheeks, angel wings behind the subject, sparkles, etc.)
-    chosen to match the photo's mood. The model should read the vibe first,
-    then pick the most fitting combination from the menu below.
+    Four independent, randomly-applied effects — each decided separately:
+      1. Kiss marks on skin           (~50% chance)
+      2. Wrist band / scrunchie       (~50% chance, only if wrist visible)
+      3. Creative subject overlay     (~50% chance, model invents what fits best)
+      4. Emoji accent                 (~50% chance, model invents placement/format)
+
+    Hard cap: at most 2 effects total. Zero or one is also perfectly fine.
     """
     return {
         "prompt": (
-            "Take this exact photo and transform it into a fun, vibrant social media post image. "
+            "Take this exact photo and transform it into a fun social media post image. "
             "Keep the original photo as the complete base — do NOT alter the subject, colors, or composition. "
+            "Rule: avoid repeating effects from images references in this conversation — if you added a flower crown last time, do not add another one this time. "
 
             # --- Step 1: read the vibe ---
             "FIRST, analyse the mood of the photo (romantic, playful, ethereal, edgy, fashion, cozy, etc.). "
-            "Use that mood to drive ALL decoration choices below. "
+            "Every decoration decision below must be driven by this mood reading. "
 
-            # --- Step 2: subject-level overlay (pick ONE that fits) ---
-            "SECOND, apply ONE of the following decorative overlays directly on/around the subject: "
+            # --- Step 2: bottom accent (pick the RIGHT format, not always a strip) ---
+            "SECOND,decide independently — roughly 50/50 "
+            "choose ONE of the following accent formats — pick what feels most natural "
+            "for THIS specific photo, not the most obvious template: "
+            "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
+            "near the edges or corners, NOT covering the face. No strip. "
+            "Use for: clean/minimal aesthetic, strong subject, fashion or editorial vibe. "
+            "(ii) FROSTED STRIP — a semi-transparent frosted bar across the lower ~20% "
+            "with 1–2 emoji and optionally 1 short word ('vibes ✨', 'soft 🌸', 'mood 💫'). "
+            "Use for: playful, casual, Snapchat-story energy. "
+            "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
+            "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
+            "Choose by mood — do NOT default to the strip every time. "
+
+            # --- Emoji selection ---
+            "for step SECOND (sticker/strip/tag),"
+            "choose ONE of the following emoji pairs/triplets (use as inspiration, not as a fixed list): "
+            ""
+            "😇😈 (angelic meets edgy), 🎀🧸 (cozy cute), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
+            "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
+            "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
+            "🩷💋 (romantic), 🌸🦋 (soft nature), ☕️🌙 (moody), "
+            "💫🐹 (wholesome quirky), 🩵❄️🩷 (cool aesthetic), 🍓💋 (sweet bold), "
+            "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
+            "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
+            "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
+            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
+            "🌸 🌈 🦋 🎶 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
+            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
+
+             # --- Step 2: subject-level overlay (pick ONE that fits) ---
+            "THIRD, decide independently — roughly 50/50, apply ONE of the following decorative overlays directly on/around the subject: "
             "(a) KISS MARKS — scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
             "neck or shoulder, sized naturally like Snapchat beauty-filter kisses. "
             "Use for: romantic, flirty, playful vibes. "
@@ -704,52 +782,63 @@ def build_social_media_image_prompt() -> dict:
             "without covering the face. "
             "Use for: party, celebratory, magical vibes. "
             "(f) HAIR TIE / SCRUNCHIE BRACELET ON WRIST — add a delicate satin or silk scrunchie "
-            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve) around the subject's wrist, "
+            "worn as a bracelet (soft blush, dusty rose, ivory, or muted mauve, other nice colors) around the subject's wrist, "
             "sitting naturally on the skin. "
+            "Apply it rarely — only when the wrist is clearly visible AND the mood is a strong fit. "
+            "If YES: place a soft satin or silk scrunchie bracelet (blush, dusty rose, ivory, or muted mauve, or other nice feminine colors) "
+            "sitting naturally on the wrist — it must look like a real worn accessory, not a sticker. "
+            "Fits: soft, feminine, aesthetic, cozy, editorial moods. "
+            "If the wrist is not visible, or the mood doesn't fit, skip this step, do not overdo it"
             "It should look like a real accessory the person is wearing, not a sticker. "
             "Use for: soft, feminine, aesthetic, cozy, editorial vibes. "
             "If the wrist is not visible or the mood doesn't fit, skip this option. "
             "If no overlay clearly fits, skip this step and go straight to the accent. "
 
-            # --- Step 3: bottom accent (pick the RIGHT format, not always a strip) ---
-            "THIRD, choose ONE of the following accent formats — pick what feels most natural "
-            "for THIS specific photo, not the most obvious template: "
-            "(i) FLOATING STICKER CLUSTER — scatter 2–3 large emoji as floating stickers "
-            "near the edges or corners, NOT covering the face. No strip. "
-            "Use for: clean/minimal aesthetic, strong subject, fashion or editorial vibe. "
-            "(ii) FROSTED STRIP — a semi-transparent frosted bar across the lower ~20% "
-            "with 1–2 emoji and optionally 1 short word ('vibes ✨', 'soft 🌸', 'mood 💫'). "
-            "Use for: playful, casual, Snapchat-story energy. "
-            "(iii) CORNER TAG — a small pill/badge in one corner (e.g. bottom-right) "
-            "with a single emoji or a tight 2-emoji pair. Very subtle, editorial. "
-            "Use for: fashion, confident, high-contrast shots. "
-            "Choose by mood — do NOT default to the strip every time. "
+            # --- Step 4: KISS MARKS — independent random effect ---
+            "FOURTH, decide independently — roughly 50/50 — whether to add kiss marks. "
+            "Do NOT apply kiss marks every time. "
+            "If YES: scatter 2–4 soft lipstick kiss-print stickers (💋) on the subject's cheeks, "
+            "neck, or shoulder — sized naturally, like Snapchat beauty-filter kisses. "
+            "Fits: romantic, flirty, playful moods. Skip for: ethereal, edgy, fashion, serious. "
+            "If NO: move on without any kiss marks. "
 
-            # --- Emoji selection ---
-            "Emoji pairs/triplets (use as inspiration, not as a fixed list): "
-            "😇😈 (angelic meets edgy), 🫦🔥 (bold/sensual), 💕😈 (sweet but dark), "
-            "✨😘 (soft flirty), 😋🍒 (playful cute), 👄🔥 (fierce), 💅🛍️ (fashion), "
-            "🥂😘 (celebration), 🍸😈 (night-out), 💖😏 (confident), 😈🔥 (edgy), "
-            "🩷💋 (romantic), 🌸🦋 (soft nature), 🎀🧸 (cozy cute), ☕️🌙 (moody), "
-            "💫🐹 (wholesome quirky), 🩵❄️ (cool aesthetic), 🍓💋 (sweet bold), "
-            "🌙✨ (dreamy), 📸💃 (lively energy), 🍑😏 (confident summer), "
-            "🥹💞 (tender emotional), 🦋🌈 (free spirit), 💎👑 (luxe/boss). "
-            "Full palette if needed: ❤️ 🩷 🩵 💖 💕 💗 💓 💞 💘 😘 😍 🥰 🥹 🥺 💋 👄 🫦 😇 "
-            "🙈 🙉 🙊 😏 😜 😝 😉 😚 😈 🔥 💅 ✨ 💫 "
-            "🌸 🌈 🦋 🎶 👗 👠 🛍️ 🎀 🧸 💄 🐈‍⬛ 🐹 "
-            "🍒 🍑 🍓 🍭 🍰 ☕️ 🥂 🍸 🍬 📸 💃🕺 💎 👑 🌙 ❄️. "
+            # --- Step 6: CREATIVE OVERLAY — independent random effect ---
+            "FIFTH, decide independently — another ~50/50 roll, separate from all prior steps — "
+            "whether to apply ONE decorative subject-level overlay. "
+            "Do NOT apply an overlay every time. "
+            "If YES: invent the most fitting overlay for THIS specific photo's mood and composition. "
+            "You are NOT limited to a menu — use your own creative judgment. "
+            "Examples of what is possible (use as inspiration only): "
+            "feathered angel wings, a sparkle halo, a flower crown, glitter burst, light leak, "
+            "watercolour wash, golden-hour glow, soft bokeh overlay, frosted vignette, "
+            "illustrated accessories, neon outline, paint drips, film grain, etc. "
+            "The effect must feel intentional and specific to the vibe you read — not generic. "
+            "If nothing truly fits, skip this step. "
+
+            # --- Step 7: EMOJI ACCENT — independent random effect ---
+            "SIXTH, decide independently — a final ~50/50 roll — whether to add a single emoji accent. "
+            "Do NOT add emoji every time. "
+            "If YES: invent the best placement, format, and emoji combination for this specific photo. "
+            "You may use floating stickers near edges, a frosted bottom strip, a corner pill/badge, "
+            "or any other format that feels right — choose based on the photo's composition and mood. "
+            "Pick emoji that genuinely match the vibe; avoid generic hearts-and-sparkles defaults. "
+            "Maximum 2–3 emoji total. "
+            "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
+
+            # --- Effect count distribution ---
+            "EFFECT COUNT: Choose the total number of effects (across steps 2–6) according to this distribution: "
+            "1 effect — 30% of the time (default choice); "
+            "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
+            "3 effects — 30% of the time (rare, only when the photo is very dynamic or layered); "
+            "4+ effects — 10% of the time (exceptional only, never forced). "
+            "When in doubt, go with 2. Never add an effect just to fill space. "
 
             # --- Final quality bar ---
-            "IMPORTANT: keep the edit minimal — use only 1–2 accents total (overlay + accent format). "
-            "Think of the decoration as a seasoning, not the main dish — it should enhance the photo, not overpower it. "
-            "Less is more — the edit should feel intentional and personal, "
-            "NOT like a generic filter was applied. When in doubt, go more minimal. "
-            "Avoid combining too many effects. "
-            "The result should look like a polished Instagram or TikTok story edit — "
-            "high quality, cohesive, minimal, and specific to this photo's vibe. "
+            "The result should feel like a careful, intentional Instagram or TikTok story edit — "
+            "not a generic filter dump. Decoration is seasoning, not the main dish. "
             "No watermark. No logos. The subject's face and body must be fully preserved."
         ),
-        "title": "Social Media Edit",
+        "title": "Social Media Effects",
         "source_indices": [],
         "aspect": "square",
     }

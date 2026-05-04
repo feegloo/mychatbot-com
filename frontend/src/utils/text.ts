@@ -11,6 +11,11 @@ export function cleanFileName(name: string): string {
   return cleaned.replace(/_[0-9A-Za-z]{16}$/, '')
 }
 
+/** Returns true when the trimmed text is a standalone HTTP/HTTPS URL. */
+export function isUrl(text: string): boolean {
+  return /^https?:\/\/\S+$/i.test(text.trim())
+}
+
 /** Convert URLs, bare domains and email addresses to clickable HTML links */
 export function linkify(text: string): string {
   const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

@@ -29,7 +29,7 @@
         class="pdf-tool-btn pdf-tool-btn--text"
         @click="emit('openPdf')"
       >
-        Otwórz PDF
+        Open PDF
       </button>
       <span v-if="showOpenPdf" class="pdf-toolbar-gap" aria-hidden="true" />
 
@@ -60,8 +60,8 @@
       </button>
 
       <span v-if="showClose" class="pdf-toolbar-gap" aria-hidden="true" />
-      <button v-if="showClose" class="pdf-close-btn" aria-label="Close" @click="emit('close')">
-        &times;
+      <button v-if="showClose" class="pdf-tool-btn pdf-tool-btn--text pdf-close-btn" aria-label="Close" @click="emit('close')">
+        Close &times;
       </button>
     </div>
   </div>
@@ -959,19 +959,6 @@ watch(
 }
 
 .pdf-close-btn {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: white;
-  font-size: 32px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
   flex-shrink: 0;
 }
 

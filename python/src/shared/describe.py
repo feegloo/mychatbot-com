@@ -132,36 +132,39 @@ def _build_filename_identity_section(
     identity_parts: list[str] = []
 
     for original_name in ordered_names:
-        cleaned_name = clean_file_name(original_name)
-        meta = file_metadata.get(original_name, {}) if file_metadata else {}
-        reference_texts = [
-            str(meta.get("title") or ""),
-            str(meta.get("subject") or ""),
-            reference_samples.get(original_name, ""),
-        ]
-        filename_author = _extract_filename_author_hint(cleaned_name, reference_texts)
-        metadata_author = ""
-        if isinstance(meta, dict):
-            metadata_author = str(meta.get("author") or meta.get("artist") or "").strip()
+        try:
+            cleaned_name = clean_file_name(original_name)
+            meta = file_metadata.get(original_name, {}) if file_metadata else {}
+            reference_texts = [
+                str(meta.get("title") or ""),
+                str(meta.get("subject") or ""),
+                reference_samples.get(original_name, ""),
+            ]
+            filename_author = _extract_filename_author_hint(cleaned_name, reference_texts)
+            metadata_author = ""
+            if isinstance(meta, dict):
+                metadata_author = str(meta.get("author") or meta.get("artist") or "").strip()
 
-        identity_payload: dict[str, object] = {
-            "uploaded_filename": original_name,
-            "cleaned_filename": cleaned_name,
-        }
-        if filename_author:
-            identity_payload["preferred_author_from_filename"] = filename_author
-        if metadata_author:
-            identity_payload["embedded_metadata_author"] = metadata_author
-        if filename_author and metadata_author and filename_author != metadata_author:
-            identity_payload["author_conflict"] = True
-            identity_payload["resolution"] = (
-                "Prefer filename-derived author only if it looks like a real person/creator name; if it looks like a URL/site watermark, keep embedded metadata author. Mention the mismatch naturally."
-            )
+            identity_payload: dict[str, object] = {
+                "uploaded_filename": original_name,
+                "cleaned_filename": cleaned_name,
+            }
+            if filename_author:
+                identity_payload["preferred_author_from_filename"] = filename_author
+            if metadata_author:
+                identity_payload["embedded_metadata_author"] = metadata_author
+            if filename_author and metadata_author and filename_author != metadata_author:
+                identity_payload["author_conflict"] = True
+                identity_payload["resolution"] = (
+                    "Prefer filename-derived author only if it looks like a real person/creator name; if it looks like a URL/site watermark, keep embedded metadata author. Mention the mismatch naturally."
+                )
 
-        if len(identity_payload) > 2:
-            identity_parts.append(
-                f"[{original_name}]\n{json.dumps(identity_payload, ensure_ascii=False)}"
-            )
+            if len(identity_payload) > 2:
+                identity_parts.append(
+                    f"[{original_name}]\n{json.dumps(identity_payload, ensure_ascii=False)}"
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ Skipping identity hints for {original_name}: {e}")
 
     if not identity_parts:
         return ""
@@ -1217,12 +1220,53 @@ def _make_empty_file_welcome(empty_names: list[str], language: str) -> str:
     return f"{body}\n\n{action_line}"
 
 
-def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
-    """Inject an 'Adjust image for social media' action button into the welcome
-    message when the user uploaded a standalone image file (not a PDF page image).
+def _describes_woman_nonprofessional(text: str) -> bool:
+    """Return True when the image description indicates a woman is the primary
+    subject and the context is NOT professional/formal.
+
+    Used to gate the 'Enhance image for social media' action so it only appears
+    for casual portraits/selfies of women, not abstract art, landscapes, products,
+    documents, or professional headshots.
+    """
+    text_lower = text.lower()
+
+    # Strip embedded action markers so they don't pollute the analysis
+    clean = _ACTION_MARKER_RE.sub("", text_lower)
+
+    # ── Woman / female primary-subject signals (English + Polish) ──
+    woman_terms = [
+        "woman", "women", "female", "girl", "lady",
+        "kobieta", "kobiet", "kobiety", "kobietą", "kobiecą",
+        "dziewczyn", "pani ", "pani,", "pani.",
+    ]
+    if not any(term in clean for term in woman_terms):
+        return False
+
+    # ── Professional / formal-context exclusions (English + Polish) ──
+    professional_terms = [
+        "professional", "business", "corporate", "office", "headshot",
+        "resume", "cv ", "linkedin", "executive", "ceo", "employee",
+        "formal portrait", "id photo", "id card", "badge", "conference",
+        "blazer", "suit ", " suit,", " suit.",
+        "biznes", "zawodow", "biuro", "korporac",
+        "garnitur", "marynark", "legitymacja", "identyfikator",
+        "profil zawodowy", "zdjęcie profilowe",
+    ]
+    return not any(term in clean for term in professional_terms)
+
+
+def _inject_social_media_action(welcome: str, images: list[dict], language: str | None = None) -> str:
+    """Inject an 'Enhance image for social media' action button into the welcome
+    message when the user uploaded a standalone image file (not a PDF page image)
+    showing a woman as the primary subject in a non-professional context.
 
     The action uses ``|ref:FILENAME`` so the frontend can pass the original file
     to the image-generation pipeline as a reference image.
+
+    When the conversation language is Polish the label is localised to
+    "Ulepsz obrazek pod social media ❤️" so the button text matches the UI
+    language and the server-side regex still routes it to the social-media
+    image pipeline.
     """
     if not images:
         return welcome
@@ -1242,13 +1286,27 @@ def _inject_social_media_action(welcome: str, images: list[dict]) -> str:
     if not first_image_file:
         return welcome
 
-    action_label = f"Adjust image for social media ❤️|ref:{first_image_file}"
+    # Only offer the social-media enhancement for casual portraits/selfies of
+    # women — not for abstract art, landscapes, products, documents, or
+    # professional headshots.
+    if not _describes_woman_nonprofessional(welcome):
+        return welcome
+
+    is_polish = (language or "").lower().startswith("pl")
+    action_label = (
+        f"Ulepsz obrazek pod social media ❤️|ref:{first_image_file}"
+        if is_polish
+        else f"Enhance image for social media ❤️|ref:{first_image_file}"
+    )
 
     # Parse existing actions out, insert ours at position 1 (after the first
     # action so the most relevant document question stays first), then re-embed.
     existing = [m.group(1).strip() for m in _ACTION_MARKER_RE.finditer(welcome)]
-    # Avoid duplicating the action if it was somehow already present.
-    if any("adjust image for social media" in a.lower() for a in existing):
+    # Avoid duplicating the action if it was somehow already present (either language).
+    if any(
+        "enhance image for social media" in a.lower() or "ulepsz obrazek pod social media" in a.lower()
+        for a in existing
+    ):
         return welcome
 
     insert_at = min(1, len(existing))
@@ -1704,7 +1762,7 @@ def describe_documents(
 
     # Inject social media action for standalone image uploads (sets |ref: so
     # the frontend routes it through the image-gen pipeline with the photo).
-    welcome_message = _inject_social_media_action(welcome_message, images)
+    welcome_message = _inject_social_media_action(welcome_message, images, language)
 
     return DescribeResult(
         welcome_message=welcome_message,

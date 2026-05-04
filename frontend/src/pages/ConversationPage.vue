@@ -175,6 +175,7 @@
             rows="1"
             @input="autoResize"
             @keydown.enter.exact.prevent="submitQuestion"
+            @paste="canUpload ? onPasteFile($event) : undefined"
           ></textarea>
           <button class="send-btn" :disabled="asking || !question.trim()" @click="submitQuestion">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -242,7 +243,7 @@ import {
   type ChatMessage,
 } from '../api'
 import { runImageGenStream } from '../composables/useImageGenStream'
-import { cleanFileName } from '../utils/text'
+import { cleanFileName, isUrl } from '../utils/text'
 import { getUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
 import { useRoute, useRouter } from 'vue-router'
@@ -259,6 +260,7 @@ import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
+import { extractPastedFiles } from '../composables/useFilePaste'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
@@ -373,6 +375,8 @@ const displayedMessages = computed<MessageWithRenderKey<ChatMessage>[]>(() => {
   }
   return messages.value
 })
+
+const hasUserMessages = computed(() => messages.value.some((m) => m.role === 'user'))
 
 // Welcome message content used as TTS tone instructions
 const welcomeMessageContent = computed(() => {
@@ -855,7 +859,7 @@ async function ask() {
 
   // If the user typed a lone URL, add it to the conversation as a new source
   const trimmed = question.value.trim()
-  if (/^https?:\/\/\S+$/.test(trimmed) && !trimmed.includes(' ')) {
+  if (isUrl(trimmed)) {
     question.value = ''
     asking.value = true
     try {
@@ -975,7 +979,7 @@ async function ask() {
     reactiveMsg.generatingImage = false
     reactiveMsg.imageDetailedPrompt = undefined
     if (IMAGE_GEN_REGEX.test(currentQuestion)) {
-      const openaiMessage = (err as any)?.openaiMessage
+      const openaiMessage = (err as { openaiMessage?: string })?.openaiMessage
       reactiveMsg.content = openaiMessage
         ? `Sorry, there was an error during generating image. Refresh page or try again.\n\n> ${openaiMessage}`
         : 'Sorry, there was an error during generating image. Refresh page or try again.'
@@ -1008,6 +1012,29 @@ function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
+}
+
+function onPasteFile(event: ClipboardEvent) {
+  // Don't intercept paste while the first assistant message hasn't mounted yet
+  // (firstMessageRef is null during initial load or processing). Returning
+  // without preventDefault lets the browser handle the event normally.
+  if (!firstMessageRef.value) return
+
+  // If the pasted text is a standalone URL, auto-submit it as a URL source
+  // instead of inserting it as typed text. This lets users paste a URL and
+  // immediately get it fetched without having to press Enter manually.
+  const pastedText = event.clipboardData?.getData('text/plain')?.trim()
+  if (pastedText && isUrl(pastedText)) {
+    event.preventDefault()
+    question.value = pastedText
+    submitQuestion()
+    return
+  }
+
+  const files = extractPastedFiles(event)
+  if (files.length === 0) return
+  event.preventDefault()
+  handleUploadFiles(files)
 }
 
 // --- Scroll position persistence ---
@@ -1051,12 +1078,11 @@ let welcomeReadTriggered = false
 watch(
   () => status.value.status,
   (newStatus) => {
-    const hasUserMessages = messages.value.some((m) => m.role === 'user')
     if (
       newStatus === 'ready' &&
       !welcomeReadTriggered &&
       messages.value.length > 0 &&
-      !hasUserMessages
+      !hasUserMessages.value
     ) {
       welcomeReadTriggered = true
       readWelcomeIfEnabled()
@@ -1068,8 +1094,12 @@ watch(
   () => messages.value.length,
   (newLen) => {
     if (conversationReady.value && newLen > prevMessageCount) {
-      // Show user question at top so the response streams into view below it
-      scrollToBottom(false, false, true)
+      // Skip scroll when the new message is a welcome/upload message arriving
+      // dynamically (no user messages yet). Only scroll for real Q&A responses.
+      if (hasUserMessages.value || !isUploadMessage(newLen - 1)) {
+        // Show user question at top so the response streams into view below it
+        scrollToBottom(false, false, true)
+      }
     }
     prevMessageCount = newLen
 

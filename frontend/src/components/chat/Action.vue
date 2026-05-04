@@ -13,6 +13,7 @@ const renderedLabel = computed(() => marked.parseInline(props.label) as string)
 </script>
 
 <template>
+  <!-- eslint-disable-next-line vue/no-v-html -- renderedLabel is inline markdown parsed from static action labels, no user HTML input -->
   <button class="action" type="button" @click="emit('select', label)" v-html="renderedLabel" />
 </template>
 

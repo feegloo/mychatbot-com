@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Overflow group for `[action:Label]` items beyond the visible-action
- * limit (welcome: 2, regular: 1). Uses floating-vue `VDropdown` for
+ * limit (welcome: up to 5 depending on visible prompts, regular: 3). Uses floating-vue `VDropdown` for
  * positioning + outside-click handling so we don't reinvent the wheel.
  */
 import MessageContentAction from './MessageContentAction.vue'
@@ -12,7 +12,7 @@ const emit = defineEmits<{ select: [label: string] }>()
 
 <template>
   <VDropdown v-if="actions.length" theme="more-questions" :distance="6">
-    <button class="more-btn" type="button">Więcej… ({{ actions.length }})</button>
+    <button class="more-btn" type="button">More… ({{ actions.length }})</button>
     <template #popper="{ hide }">
       <div class="more-actions-popper">
         <MessageContentAction

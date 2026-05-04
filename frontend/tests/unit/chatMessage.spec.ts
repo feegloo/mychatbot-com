@@ -26,7 +26,7 @@ describe('ChatMessage', () => {
     vDropdownHideSpy.mockClear()
   })
 
-  it('renders 1 visible action and collapses the rest into the More dropdown', async () => {
+  it('renders 3 visible actions and collapses the rest into the More dropdown', async () => {
     const content =
       'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth] [action:Fifth]'
     const wrapper = mount(ChatMessage, {
@@ -35,20 +35,20 @@ describe('ChatMessage', () => {
     })
     await nextTick()
 
-    // Regular (non-welcome) limit: 1 visible action.
+    // Regular (non-welcome) limit: 3 visible actions.
     const visibleActions = wrapper.findAll('.actions-row > .message-content-action')
-    expect(visibleActions.length).toBe(1)
-    expect(visibleActions[0].text()).toBe('First')
+    expect(visibleActions.length).toBe(3)
+    expect(visibleActions.map((b) => b.text())).toEqual(['First', 'Second', 'Third'])
 
     // VDropdown stub flattens popper into the same parent, so the overflow
-    // buttons are present in the DOM (4 remaining actions).
-    const overflow = wrapper.findAll('.more-menu .message-content-action')
-    expect(overflow.length).toBe(4)
-    expect(overflow.map((b) => b.text())).toEqual(['Second', 'Third', 'Fourth', 'Fifth'])
+    // buttons are present in the DOM (2 remaining actions).
+    const overflow = wrapper.findAll('.more-actions-popper .message-content-action')
+    expect(overflow.length).toBe(2)
+    expect(overflow.map((b) => b.text())).toEqual(['Fourth', 'Fifth'])
 
-    // The "More… (4)" trigger button is rendered.
+    // The "More… (2)" trigger button is rendered.
     expect(wrapper.find('.more-btn').text()).toContain('More')
-    expect(wrapper.find('.more-btn').text()).toContain('4')
+    expect(wrapper.find('.more-btn').text()).toContain('2')
   })
 
   it('emits select-question when a visible or overflow action is clicked', async () => {
@@ -60,7 +60,7 @@ describe('ChatMessage', () => {
     await nextTick()
 
     await wrapper.find('.actions-row > .message-content-action').trigger('click')
-    await wrapper.find('.more-menu .message-content-action').trigger('click')
+    await wrapper.find('.more-actions-popper .message-content-action').trigger('click')
 
     const events = wrapper.emitted('select-question') as string[][] | undefined
     expect(events).toBeDefined()
@@ -86,7 +86,26 @@ describe('ChatMessage', () => {
 
     expect(wrapper.findAll('.prompts-row > button').length).toBe(3)
     expect(wrapper.findAll('.actions-row > .message-content-action').length).toBe(2)
-    expect(wrapper.findAll('.more-menu .message-content-action').length).toBe(2)
+    expect(wrapper.findAll('.more-actions-popper .message-content-action').length).toBe(2)
+  })
+
+  it('shows 5 actions visible on welcome messages with no prompts (image uploads)', async () => {
+    const content =
+      'Welcome!\n\n' +
+      '[action:A1] [action:A2] [action:A3] [action:A4] [action:A5] [action:A6] [action:A7]'
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        ...baseProps(),
+        isWelcome: true,
+        msg: { role: 'assistant' as const, content },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.findAll('.prompts-row > button').length).toBe(0)
+    expect(wrapper.findAll('.actions-row > .message-content-action').length).toBe(5)
+    expect(wrapper.findAll('.more-actions-popper .message-content-action').length).toBe(2)
   })
 
   it('opens the source preview modal when an inline citation button is clicked', async () => {
@@ -271,6 +290,143 @@ describe('ChatMessage — openFilePreview SVG stretch', () => {
     const img = document.body.querySelector('.image-modal-img')
     expect(img).not.toBeNull()
     expect(img!.classList.contains('image-modal-img--stretch')).toBe(false)
+  })
+})
+
+describe('ChatMessage — shareMessage (Udostępnij button)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  /** Flush pending microtasks (e.g. resolved/rejected Promises) */
+  const flushMicrotasks = () => new Promise<void>((r) => setTimeout(r, 0))
+
+  /**
+   * happy-dom doesn't implement document.execCommand — ensure it exists
+   * as a configurable stub so vi.spyOn can override it.
+   */
+  function ensureExecCommand() {
+    if (!document.execCommand) {
+      Object.defineProperty(document, 'execCommand', {
+        value: () => false,
+        writable: true,
+        configurable: true,
+      })
+    }
+  }
+
+  function mountShare(msgId?: string) {
+    return mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        msg: { role: 'assistant' as const, content: 'Hello.', id: msgId },
+        asking: false,
+        conversationId: 'conv1',
+      },
+    })
+  }
+
+  it('copies the share URL via clipboard API and shows success state', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/m/msg42'))
+    expect(btn.text()).toContain('Skopiowano link!')
+  })
+
+  it('falls back to execCommand when clipboard.writeText rejects, and shows success state', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+      configurable: true,
+    })
+    ensureExecCommand()
+    const execCommand = vi.spyOn(document, 'execCommand').mockReturnValue(true)
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    expect(btn.text()).toContain('Skopiowano link!')
+  })
+
+  it('opens the URL in a new tab when both clipboard paths fail', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+      configurable: true,
+    })
+    ensureExecCommand()
+    vi.spyOn(document, 'execCommand').mockReturnValue(false)
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/m/msg42'),
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(btn.text()).not.toContain('Skopiowano link!')
+  })
+
+  it('cancels the previous reset timer when clicked twice in quick succession', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+    const btn = wrapper.find('.msg-action-btn')
+
+    // First click
+    await btn.trigger('click')
+    await Promise.resolve()
+    expect(btn.text()).toContain('Skopiowano link!')
+
+    // Advance 1 second (still within the 2-second window)
+    vi.advanceTimersByTime(1000)
+
+    // Second click before the first timer fires
+    await btn.trigger('click')
+    await Promise.resolve()
+
+    // Advance 1 more second — first timer would have fired at t=2s, but was cancelled
+    vi.advanceTimersByTime(1000)
+    await nextTick()
+    // Still showing success because the second timer (reset at t=1s) expires at t=3s
+    expect(btn.text()).toContain('Skopiowano link!')
+
+    // Advance to the second timer's expiry
+    vi.advanceTimersByTime(1000)
+    await nextTick()
+    expect(btn.text()).not.toContain('Skopiowano link!')
+
+    vi.useRealTimers()
   })
 })
 

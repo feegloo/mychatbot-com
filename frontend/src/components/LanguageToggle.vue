@@ -139,6 +139,8 @@ type MarkerInfo = {
   kind: 'source' | 'action' | 'image' | 'poem' | 'quiz'
   original: string
   label?: string // only for action markers; gets replaced with translated label
+  // |ref:filename suffix — opaque, must survive translation verbatim
+  refSuffix?: string
 }
 
 function extractMarkers(texts: string[]): {
@@ -175,7 +177,19 @@ function extractMarkers(texts: string[]): {
         kind: kind.toLowerCase() === 'action' ? 'action' : 'source',
         original: match,
       }
-      if (info.kind === 'action') info.label = inner.trim()
+      if (info.kind === 'action') {
+        const trimmed = inner.trim()
+        const refIdx = trimmed.indexOf('|ref:')
+        if (refIdx !== -1) {
+          // Split translatable display label from the opaque |ref:filename suffix.
+          // Only the display part is sent to the translation service; the filename
+          // must reach the frontend intact so image-to-image generation works.
+          info.label = trimmed.slice(0, refIdx).trim()
+          info.refSuffix = trimmed.slice(refIdx)
+        } else {
+          info.label = trimmed
+        }
+      }
       found.push(info)
       return placeholder
     })
@@ -193,7 +207,7 @@ function restoreMarkers(translations: string[], markers: Map<number, MarkerInfo[
     for (const info of m) {
       const replacement =
         info.kind === 'action' && info.label !== undefined
-          ? `[action:${info.label}]`
+          ? `[action:${info.label}${info.refSuffix ?? ''}]`
           : info.original
       // Exact match first (cheap, common case). Fall back to a tolerant
       // regex when the translator has nudged whitespace or casing around

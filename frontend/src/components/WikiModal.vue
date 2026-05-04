@@ -24,7 +24,7 @@
               <!-- eslint-disable-next-line vue/no-v-html -->
               <div v-if="part.type === 'text'" class="wiki-text" :class="{ 'wiki-text--first': i === 0 }" v-html="part.html" />
               <div v-else-if="part.type === 'mermaid'" class="wiki-mermaid-wrap">
-                <MermaidBlock :code="(part as Extract<ContentPart, { type: 'mermaid' }>).code" />
+                <MermaidBlock :code="(part as Extract<ContentPart, { type: 'mermaid' }>).code" :initial-zoom="7" />
               </div>
             </template>
           </template>
@@ -39,7 +39,18 @@ import { computed, defineAsyncComponent } from 'vue'
 import { splitContent } from './chat/splitContent'
 import type { ContentPart } from './chat/splitContent'
 
-const MermaidBlock = defineAsyncComponent(() => import('./MermaidBlock.vue'))
+const MermaidBlock = defineAsyncComponent({
+  loader: () => import('./MermaidBlock.vue'),
+  onError(_, __, ___, attempts) {
+    if (attempts <= 1) {
+      const key = 'chunk-reload'
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1')
+        window.location.reload()
+      }
+    }
+  },
+})
 
 const props = defineProps<{
   visible: boolean
