@@ -25,13 +25,21 @@ const emit = defineEmits<{ open: [file: File] }>()
 const index = ref(0)
 const current = computed<File | undefined>(() => props.files[index.value] ?? props.files[0])
 const hasMultiple = computed(() => props.files.length > 1)
-const currentIsPdf = computed(() => (current.value ? isPdf(current.value) : false))
+const currentIsPdf = computed(() => (current.value ? isDocument(current.value) : false))
 
 function isImage(f: File) {
   return f.mimeType?.startsWith('image/') ?? false
 }
 function isPdf(f: File) {
   return f.mimeType === 'application/pdf'
+}
+const DOCUMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+])
+function isDocument(f: File) {
+  return DOCUMENT_MIME_TYPES.has(f.mimeType ?? '')
 }
 
 function next(event: Event) {
@@ -68,7 +76,7 @@ function prev(event: Event) {
         @open="emit('open', current!)"
       />
       <PreviewPdf
-        v-else-if="isPdf(current)"
+        v-else-if="isDocument(current)"
         :conversation-id="props.conversationId"
         :file-name="current.originalName"
         :name="current.originalName"

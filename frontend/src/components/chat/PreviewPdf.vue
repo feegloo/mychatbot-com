@@ -1,14 +1,10 @@
 <script setup lang="ts">
 /**
- * PDF preview tile. Uses <object> so the browser's native PDF viewer
- * handles zoom/scroll; falls back to an icon when the browser rejects
- * inline PDF embedding. Parent handles click-to-open.
- *
- * The embed URL is resolved asynchronously via `/storage/:id/:name/url`
- * and always resolves to a stable same-origin `/api/storage/:id/:name` link,
- * which keeps previews consistent and avoids expiring signed URLs.
+ * Document preview tile (PDF, DOCX, PPTX). Uses <object> for PDFs so the
+ * browser's native PDF viewer handles the thumbnail; shows a file-type icon
+ * directly for other supported document formats. Parent handles click-to-open.
  */
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { resolveStorageUrl } from '../../api'
 
 const props = defineProps<{ conversationId: string; fileName: string; name: string }>()
@@ -16,11 +12,13 @@ const emit = defineEmits<{ open: [] }>()
 
 const embedUrl = ref<string | null>(null)
 
+const isPdf = computed(() => props.fileName.toLowerCase().endsWith('.pdf'))
+
 watch(
   () => [props.conversationId, props.fileName] as const,
   async ([conversationId, fileName]) => {
     embedUrl.value = null
-    if (!conversationId || !fileName) return
+    if (!conversationId || !fileName || !isPdf.value) return
     try {
       embedUrl.value = await resolveStorageUrl(conversationId, fileName)
     } catch (err) {

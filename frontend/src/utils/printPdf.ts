@@ -1103,8 +1103,20 @@ async function renderMarkdownBlock(
         tableLines.push(lines[i])
         i++
       }
-      yRef.y = renderTable(doc, tableLines, layout.marginLeft, layout.contentWidth, yRef.y, (needed) =>
-        ensureNewPage(doc, yRef, layout, needed),
+      yRef.y = renderTable(
+        doc,
+        tableLines,
+        layout.marginLeft,
+        layout.contentWidth,
+        yRef.y,
+        (currentY, needed) => {
+          if (currentY + needed > layout.pageHeight - layout.marginBottom) {
+            doc.addPage()
+            yRef.y = 20
+            return 20
+          }
+          return currentY
+        },
       )
       yRef.y += 4
       continue
@@ -1308,7 +1320,7 @@ function renderTable(
   marginLeft: number,
   contentWidth: number,
   startY: number,
-  checkNewPage: (needed: number) => void,
+  checkNewPage: (currentY: number, needed: number) => number,
 ): number {
   // Parse table rows (skip separator line)
   const rows: string[][] = []
@@ -1349,7 +1361,8 @@ function renderTable(
     }
     const rowHeight = maxLines * lineHeight + cellPaddingY * 2
 
-    checkNewPage(rowHeight + 2)
+    // Update y after potential page break (new page resets position to 20).
+    y = checkNewPage(y, rowHeight + 2)
 
     const rowTop = y - lineHeight
 
