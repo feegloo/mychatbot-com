@@ -27,6 +27,7 @@ from __future__ import annotations
 from .action_content_types import ACTION_CONTENT_TYPES_EN, ACTION_CONTENT_TYPES_PL
 from .emoji_and_dash import EMOJI_AND_DASH_RULES
 from .labels_actions import LABELS_ACTIONS_RULES, QUIZ_ACTIONS_RULES
+from .professor import PROFESSOR_PROMPT
 from .quiz import QUIZ_PROMPT
 from .response_formats import RESPONSE_FORMATS_RULES
 from .voice_tone import VOICE_TONE_RULES
@@ -42,6 +43,7 @@ __all__ = [
     "ACTION_CONTENT_TYPES_PL",
     "EMOJI_AND_DASH_RULES",
     "LABELS_ACTIONS_RULES",
+    "PROFESSOR_PROMPT",
     "QUIZ_ACTIONS_RULES",
     "QUIZ_PROMPT",
     "RESPONSE_FORMATS_RULES",

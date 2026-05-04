@@ -32,6 +32,15 @@ ACTION_CONTENT_TYPES_PL = r"""Obowiązkowe akcje dla typów treści:
   Akcje z emoji: "Lista kroków do rozwiązania problemu ✅", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów 📋", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
 - Inne typy (WYŁĄCZNIE dla dokumentów kreatywnych/literackich/rozrywkowych — powieści, poezja, blogi, scenariusze) → dobierz kreatywne akcje wg priorytetu (wyżej = ważniejsze, dopasowanie kontekstowe jako czynnik dodatkowy): wygeneruj obraz 🎨, napisz nowy inspirowany rozdział ✏️, napisz nowy inspirowany wiersz 📜, bajka 🧚, napisz nowe cytaty 💬, quiz 🧠, checklista ✅, diagram mermaid 🖼️, podsumowanie 📝, oś czasu 📅, mapa myśli 💡, fiszki 🃏, notatki do nauki 📓, FAQ ❓, prezentacja 📽️, wyjaśnij jak dla dziecka 👶, za i przeciw ⚖️, debata 💬, słownik pojęć 📖, post na social media 📱, recenzja ⭐, streszczenie wykonawcze 🎯, tabela porównawcza 📊, plan działania 🚩, szkic emaila 📧, list motywacyjny 💼, dialog 🎤, infografika 📊, piosenka 🎵, przetłumacz [flaga docelowego języka, np. 🇬🇧 🇵🇱 🇩🇪]
 - Nie zawsze wybieraj quiz — bądź kreatywny i zróżnicowany
+- MATEMATYKA / FIZYKA / EKONOMIA / ĆWICZENIA AKADEMICKIE (przesłane zdjęcia lub dokumenty wyraźnie zawierają równania, wzory, numerowane zadania, zadania egzaminacyjne, zadania tekstowe z fizyki, modele ekonomiczne lub inne akademickie zestawy problemów — z rozwiązaniami użytkownika lub bez):
+  * OBOWIĄZKOWO: umieść akcję trybu profesora na POZYCJI 3 (pierwszym widocznym slocie rich), wybraną według kontekstu:
+    - Jeśli użytkownik dołączył własne rozwiązanie lub pracę → "Sprawdź rozwiązania zadań 🤓"
+    - Jeśli nie widać rozwiązania użytkownika → "Rozwiąż równania 🤓"
+    - Dostosuj etykietę do dziedziny, gdy czyni to akcję wyraźniejszą: "Rozwiąż zadania z fizyki 🤓", "Sprawdź moje odpowiedzi z ekonomii 🤓", itp.
+  * Emoji 🤓 jest JEDYNYM wyzwalaczem trybu profesora — etykieta MUSI kończyć się 🤓 (nigdy nie używaj 🤓 dla innych akcji).
+  * Pozycje 1–2 (zwykłe pytania, bez emoji): konkretne pytania uzupełniające dotyczące treści, np. "Jaki wzór jest użyty w Zadaniu 2?", "Jakich jednostek należy tu użyć?"
+  * Pozycje 4–7 (Więcej …): dodatkowe analityczne akcje, takie jak wyjaśnienie krok po kroku ✏️, quiz z tematu 🧠, schemat metody 🖼️, zestawienie kluczowych wzorów ☝️, tabela porównawcza metod 📊.
+  * ZABRONIONE dla treści matematycznych/ćwiczeniowych: bajki, wiersze, fikcja, piosenka, obrazy (chyba że są to diagramy/schematy).
 """
 
 ACTION_CONTENT_TYPES_EN = r"""Mandatory actions for content types:
@@ -58,4 +67,13 @@ ACTION_CONTENT_TYPES_EN = r"""Mandatory actions for content types:
   Action prompts with emoji: "Step-by-step action plan ✅", "Draft a response letter to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents 📋", "Consequences of not responding ⚠️", "Action plan: what to do first 🚩", "What can I dispute or negotiate? 💬"
 - Other types (ONLY for creative/literary/entertainment documents — novels, poetry, blogs, screenplays) → pick creative actions by priority (higher = more important, context fit as secondary factor): generate image 🎨, write a new chapter inspired by ✏️, write a new poem inspired by 📜, fairy tale 🧚, write new quotes inspired by 💬, quiz 🧠, checklist ✅, mermaid diagram 🖼️, summary 📝, timeline 📅, mind map 💡, flashcards 🃏, study notes 📓, FAQ ❓, presentation 📽️, explain like I'm 5 👶, pros & cons ⚖️, debate 💬, glossary 📖, social media post 📱, review ⭐, executive summary 🎯, comparison table 📊, action plan 🚩, email draft 📧, cover letter 💼, dialogue 🎤, infographic 📊, song 🎵, translate [target language flag, e.g. 🇬🇧 🇵🇱 🇩🇪]
 - Do NOT always pick quiz — be creative and varied
+- MATH / PHYSICS / ECONOMICS / ACADEMIC EXERCISES (uploaded photos or documents clearly contain equations, formulas, numbered exercises, exam problems, physics word problems, economic models, or any structured academic problem set — with or without the user's own handwritten/typed solution):
+  * MANDATORY: place a professor-mode action at POSITION 3 (first visible rich slot), chosen by context:
+    - If the user included their own solution or working → "Verify exercise solutions 🤓" (EN) / "Sprawdź rozwiązania zadań 🤓" (PL)
+    - If no user solution is visible → "Solve equations 🤓" (EN) / "Rozwiąż równania 🤓" (PL)
+    - Adapt the label to the domain when it makes the action clearer: "Verify physics solutions 🤓", "Check my economics answers 🤓", "Rozwiąż zadania z fizyki 🤓", etc.
+  * The 🤓 emoji is the SOLE trigger for professor mode — the label MUST end with 🤓 (never use 🤓 for other actions).
+  * Positions 1–2 (plain questions, no emoji): sharp follow-up questions about the content, e.g., "Which formula is used for Problem 2?", "What unit should be used here?"
+  * Positions 4–7 (More …): additional analytical actions such as step-by-step explanation ✏️, quiz on the topic 🧠, generate a diagram of the method 🖼️, summary of key formulas ☝️, comparison table of methods 📊.
+  * PROHIBITED for math/exercise content: fairy tales, poems, fiction, song, images unless they are diagrams/schemas.
 """

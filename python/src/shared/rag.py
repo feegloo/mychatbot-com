@@ -16,6 +16,7 @@ from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
 from .prompts.key_facts import KEY_FACTS_PROMPT
 from .prompts.labels_actions import LABELS_ACTIONS_RULES
+from .prompts.professor import PROFESSOR_PROMPT
 from .prompts.quiz import QUIZ_PROMPT
 from .prompts.response_formats import RESPONSE_FORMATS_RULES
 from .prompts.voice_tone import VOICE_TONE_RULES
@@ -54,6 +55,9 @@ _QUIZ_PATTERNS = re.compile(
 
 # Pattern that triggers key-facts list mode — the ☝️ emoji is the reserved trigger.
 _KEY_FACTS_PATTERNS = re.compile(r"☝️")
+
+# Pattern that triggers professor mode — the 🤓 emoji is the reserved trigger.
+_PROFESSOR_PATTERNS = re.compile(r"🤓")
 
 _ANSWER_SYSTEM_TEMPLATE = """You answer questions about the user's uploaded files (books in PDF, images, text, etc.). The context sections below are your PRIMARY source of truth.  You can "fill the information holes" with "common knownledge" and admit it, but don't hallucinate, keep close to source material
 
@@ -604,6 +608,10 @@ def _is_quiz_request(question: str) -> bool:
 
 def _is_key_facts_request(question: str) -> bool:
     return bool(_KEY_FACTS_PATTERNS.search(question))
+
+
+def _is_professor_request(question: str) -> bool:
+    return bool(_PROFESSOR_PATTERNS.search(question))
 
 
 _QUIZ_QUESTION_COUNT_RE = re.compile(
@@ -1199,6 +1207,7 @@ def answer_with_citations(
         # Choose prompt based on request type
         is_quiz = _is_quiz_request(question)
         is_key_facts = not is_quiz and _is_key_facts_request(question)
+        is_professor = not is_quiz and not is_key_facts and _is_professor_request(question)
         if is_quiz:
             logger.info("🧩 Quiz mode detected, using QUIZ_PROMPT")
             # Quiz still uses the old raw_text + page_summaries variables
@@ -1208,6 +1217,8 @@ def answer_with_citations(
             logger.info(f"🧩 Quiz question count: {num_questions}")
         elif is_key_facts:
             logger.info("☝️ Key facts mode detected, using KEY_FACTS_PROMPT")
+        elif is_professor:
+            logger.info("🤓 Professor mode detected, using PROFESSOR_PROMPT")
 
         history_str = _format_chat_history(chat_history)
         welcome_str = _format_welcome_messages(welcome_messages)
@@ -1216,6 +1227,8 @@ def answer_with_citations(
             prompt = QUIZ_PROMPT
         elif is_key_facts:
             prompt = KEY_FACTS_PROMPT
+        elif is_professor:
+            prompt = PROFESSOR_PROMPT
         else:
             prompt = ANSWER_PROMPT
         chain = prompt | llm
@@ -1299,7 +1312,7 @@ def answer_with_citations(
             scope.set_extra("conversation_id", conversation_id)
             scope.set_extra("question", question)
             scope.set_extra("prompt_length", len(rendered_prompt))
-            scope.set_extra("mode", "quiz" if is_quiz else ("key_facts" if is_key_facts else "answer"))
+            scope.set_extra("mode", "quiz" if is_quiz else ("key_facts" if is_key_facts else ("professor" if is_professor else "answer")))
             scope.add_attachment(
                 bytes=rendered_prompt.encode("utf-8"),
                 filename=f"prompt_{conversation_id}.txt",
@@ -1314,7 +1327,7 @@ def answer_with_citations(
             f"🔗 Invoking LLM chain (matched_pages={len(matched_pages) if not is_quiz else 'N/A'} chars, exif={len(exif_str) if not is_quiz else 'N/A'} chars)..."
         )
         model_name = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
-        operation = "rag.quiz" if is_quiz else "rag.answer"
+        operation = "rag.quiz" if is_quiz else ("rag.professor" if is_professor else "rag.answer")
         with sentry_sdk.start_span(op="llm.invoke", name=f"LLM {getattr(llm, 'model', 'unknown')}"):
             answer, usage_meta = traced_llm_call(
                 chain=chain,
@@ -1357,6 +1370,7 @@ def answer_with_citations(
                     "answer_length": len(answer),
                     "chunk_count": len(rows),
                     "is_quiz": is_quiz,
+                    "is_professor": is_professor,
                 },
             )
 
