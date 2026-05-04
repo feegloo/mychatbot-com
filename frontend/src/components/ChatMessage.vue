@@ -661,6 +661,8 @@ const shareUrl = computed(() =>
     ? `${window.location.origin}/m/${props.msg.id}`
     : `${window.location.origin}/c/${props.conversationId}`,
 )
+let shareCopiedTimer: ReturnType<typeof setTimeout> | null = null
+
 async function shareMessage() {
   const url = shareUrl.value
   let success = false
@@ -691,10 +693,15 @@ async function shareMessage() {
   }
 
   if (success) {
+    if (shareCopiedTimer !== null) clearTimeout(shareCopiedTimer)
     shareCopied.value = true
-    setTimeout(() => {
+    shareCopiedTimer = setTimeout(() => {
       shareCopied.value = false
+      shareCopiedTimer = null
     }, 2000)
+  } else {
+    // Both clipboard paths failed — open the URL so the user can copy it manually
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 }
 
