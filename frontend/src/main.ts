@@ -7,6 +7,11 @@ import * as Sentry from '@sentry/vue'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import { initDatabase } from './utils/database'
+import { migrateLocalStorageToIndexedDB } from './utils/migration'
+import { initTokensCache } from './api'
+import { initFingerprintCache } from './utils/fingerprint'
+import { initHomeLang } from './i18n/homeLocale'
 
 const app = createApp(App)
 
@@ -61,4 +66,14 @@ FloatingVue.options.themes['more-questions'] = {
   placement: 'top-start',
 }
 
-app.use(router).use(FloatingVue).mount('#app')
+// Initialize IndexedDB, run one-time LS migration, populate in-memory caches,
+// then mount the app. All synchronous LS reads have been replaced by these
+// cache-backed equivalents — the app only mounts once caches are ready.
+async function bootstrap() {
+  initDatabase()
+  await migrateLocalStorageToIndexedDB()
+  await Promise.all([initTokensCache(), initFingerprintCache(), initHomeLang()])
+  app.use(router).use(FloatingVue).mount('#app')
+}
+
+void bootstrap()

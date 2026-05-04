@@ -1,0 +1,5 @@
+export * as ConfigurationsTable from './configurationsTable'
+export * as TranslationsTable from './translationsTable'
+export * as ConversationTokensTable from './conversationTokensTable'
+export * as ConversationLanguagesTable from './conversationLanguagesTable'
+export * as ChecklistStatesTable from './checklistStatesTable'

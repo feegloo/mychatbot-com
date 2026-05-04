@@ -3,25 +3,23 @@
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
         <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg && !isRasterImage }">
-          <!-- PDF preview: custom pdfjs viewer with text layer + highlight -->
-          <PdfPageViewer
-            v-if="isPdf"
+          <!-- PDF / DOCX / PPTX preview via udoc-viewer -->
+          <UDocViewer
+            v-if="isUDocFile"
             :url="pdfBaseUrl"
             :page="citation.page ?? 1"
             :highlight-text="citation.text"
             :show-close="isMobile"
-            :show-open-pdf="isMobile && isOwner"
             @close="$emit('close')"
-            @open-pdf="openFullPdf"
           />
 
           <!-- SVG image preview -->
-          <div v-else-if="isSvg" class="source-modal-svg">
+          <div v-else-if="isSvg && !isUDocFile" class="source-modal-svg">
             <img :src="pdfBaseUrl" :alt="citation.fileName" class="source-modal-svg-img" />
           </div>
 
           <!-- Raster image preview: show the image and the AI-generated description if available -->
-          <div v-else-if="isRasterImage" class="source-modal-raster">
+          <div v-else-if="isRasterImage && !isUDocFile" class="source-modal-raster">
             <div class="source-modal-raster-img-wrap">
               <img :src="pdfBaseUrl" :alt="cleanFileName(citation.fileName)" class="source-modal-raster-img" />
             </div>
@@ -31,8 +29,8 @@
             </div>
           </div>
 
-          <!-- Source text document (non-PDF, non-SVG, non-image only) -->
-          <div v-if="!isPdf && !isSvg && !isRasterImage" class="source-modal-doc">
+          <!-- Source text document (non-PDF, non-SVG, non-image, non-docx/pptx only) -->
+          <div v-if="!isUDocFile && !isSvg && !isRasterImage" class="source-modal-doc">
             <div class="source-modal-doc-header">
               <svg
                 width="16"
@@ -90,7 +88,7 @@
 import { computed, ref, watch } from 'vue'
 import { getStorageUrl } from '../api'
 import { cleanFileName, linkify } from '../utils/text'
-import PdfPageViewer from './PdfPageViewer.vue'
+import UDocViewer from './UDocViewer.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -113,7 +111,11 @@ defineEmits<{
   close: []
 }>()
 
-const isPdf = computed(() => props.citation.fileName.toLowerCase().endsWith('.pdf'))
+const UDOC_EXTENSIONS = new Set(['.pdf', '.docx', '.pptx'])
+const isUDocFile = computed(() => {
+  const lower = props.citation.fileName.toLowerCase()
+  return [...UDOC_EXTENSIONS].some((ext) => lower.endsWith(ext))
+})
 const isSvg = computed(() => props.citation.fileName.toLowerCase().endsWith('.svg'))
 const RASTER_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.heic', '.avif'])
 const isRasterImage = computed(() => {
@@ -125,11 +127,7 @@ const isMobile = computed(() => /iPhone|iPad|iPod|Android/i.test(navigator.userA
 
 const pdfBaseUrl = computed(() => getStorageUrl(props.conversationId, props.citation.fileName))
 
-function openFullPdf() {
-  window.open(pdfBaseUrl.value, '_blank', 'noopener')
-}
-
-// When opened for a text file (non-PDF) with no pre-fetched citation text,
+// When opened for a text file (non-PDF/docx/pptx) with no pre-fetched citation text,
 // fetch the raw file content from storage so the modal is not empty.
 const fetchedText = ref('')
 const fetchLoading = ref(false)
@@ -141,9 +139,9 @@ const fetchLoading = ref(false)
 watch(
   () => props.visible,
   async (open) => {
-    // Never try to fetch raw binary files — raster images and SVGs are either
-    // shown via <img> or have indexed text in citation.text already.
-    if (!open || isPdf.value || isSvg.value || isRasterImage.value || props.citation.text) {
+    // Never try to fetch raw binary files — udoc documents, images, and SVGs are
+    // either rendered by the viewer or have indexed text in citation.text already.
+    if (!open || isUDocFile.value || isSvg.value || isRasterImage.value || props.citation.text) {
       fetchedText.value = ''
       return
     }

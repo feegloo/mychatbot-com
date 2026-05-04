@@ -1,33 +1,29 @@
-const CONV_LANG_KEY = 'conversation-languages'
+import { ConversationLanguagesTable } from './database'
 
-export function getStoredConversationLanguage(conversationId?: string): string | null {
+export async function getStoredConversationLanguage(
+  conversationId?: string,
+): Promise<string | null> {
   if (!conversationId) return null
   try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
-    const lang = map[conversationId]
-    return typeof lang === 'string' && lang.trim() ? lang : null
+    return await ConversationLanguagesTable.get(conversationId)
   } catch {
     return null
   }
 }
 
-export function storeConversationLanguage(
+export async function storeConversationLanguage(
   conversationId: string | undefined,
   language: string,
   detectedLanguage?: string,
-): void {
+): Promise<void> {
   if (!conversationId) return
   try {
-    const stored = localStorage.getItem(CONV_LANG_KEY)
-    const map = stored ? JSON.parse(stored) : {}
     if (detectedLanguage && language === detectedLanguage) {
-      delete map[conversationId]
+      await ConversationLanguagesTable.remove(conversationId)
     } else {
-      map[conversationId] = language
+      await ConversationLanguagesTable.set(conversationId, language)
     }
-    localStorage.setItem(CONV_LANG_KEY, JSON.stringify(map))
   } catch {
-    // Ignore localStorage errors.
+    // Ignore storage errors.
   }
 }

@@ -144,7 +144,7 @@ function saveState() {
   for (const [qi, opts] of Object.entries(wrongOptions)) {
     wrongData[Number(qi)] = [...opts]
   }
-  setData(key, {
+  void setData(key, {
     selections: data,
     submitted: { ...submitted },
     multiple: isMultiple.value,
@@ -152,11 +152,11 @@ function saveState() {
   })
 }
 
-function loadState() {
+async function loadState() {
   const key = storageKey()
   if (!key) return
   try {
-    const state = getData<{
+    const state = await getData<{
       selections: Record<number, number[]>
       submitted: Record<number, boolean>
       multiple?: boolean

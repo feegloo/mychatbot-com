@@ -849,6 +849,25 @@ def extract_docx(path: Path) -> str:
     return _sanitize_text(result)
 
 
+def extract_pptx(path: Path) -> str:
+    from pptx import Presentation  # type: ignore  # lazy import — python-pptx is optional
+
+    prs = Presentation(str(path))
+    sections: list[str] = []
+    for slide_num, slide in enumerate(prs.slides, 1):
+        texts: list[str] = []
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for para in shape.text_frame.paragraphs:
+                text = ''.join(run.text for run in para.runs).strip()
+                if text:
+                    texts.append(text)
+        if texts:
+            sections.append(f"## Slide {slide_num}\n\n" + "\n".join(texts))
+    return _sanitize_text("\n\n".join(sections))
+
+
 def extract_spreadsheet(path: Path) -> str:
     excel_file = pd.ExcelFile(path)
     sections: list[str] = []
@@ -885,6 +904,8 @@ def extract_text(path_str: str, *, conversation_id: str | None = None) -> str:
         return extract_pdf(path)
     if suffix == ".docx":
         return extract_docx(path)
+    if suffix == ".pptx":
+        return extract_pptx(path)
     if suffix in {".xls", ".xlsx"}:
         return extract_spreadsheet(path)
     if suffix == ".csv":

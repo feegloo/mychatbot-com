@@ -712,16 +712,14 @@ const canDownloadPdf = computed(
 async function downloadMessagePdf() {
   const title = props.conversationName || 'chatrag'
   try {
-    const { printContentAsPdf, printAssistantMessagesAsPdf } = await import('../utils/printPdf')
+    const { printContentAsPdf, printConversationAsPdf } = await import('../utils/printPdf')
 
-    // Welcome-message PDF should export all assistant answers in the conversation.
+    // Welcome-message PDF exports the full conversation: user questions paired
+    // with assistant answers, each pair on its own page.
     if (props.isWelcome) {
-      const assistantMessages = (props.allMessages || [])
-        .filter((m) => m.role === 'assistant' && !!m.content?.trim())
-        .map((m) => ({ content: m.content }))
-
-      if (assistantMessages.length > 0) {
-        await printAssistantMessagesAsPdf(assistantMessages, title, {
+      const allMsgs = (props.allMessages || []).filter((m) => !!m.content?.trim())
+      if (allMsgs.length > 0) {
+        await printConversationAsPdf(allMsgs, title, {
           conversationId: effectiveStorageId.value,
         })
         return

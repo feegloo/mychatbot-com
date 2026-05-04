@@ -1134,7 +1134,8 @@ def _synthesize_welcome_messages(
         else:
             intro_pl = (
                 "Otrzymujesz SZCZEGÓŁOWE STRESZCZENIA różnych CZĘŚCI tego samego dużego dokumentu "
-                "(książki/PDF). Każde streszczenie obejmuje inną sekcję i zawiera gęste, "
+                "(książki/PDF), który jest zbyt duży, aby przetworzyć go w jednym promptcie. "
+                "Każde streszczenie obejmuje inną sekcję i zawiera gęste, "
                 "szczegółowe informacje o treści.\n\n"
                 "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
                 "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
@@ -1147,7 +1148,7 @@ def _synthesize_welcome_messages(
             "fakty, nazwiska, miejsca z WSZYSTKICH części. Używaj **pogrubienia** selektywnie — tylko liczby, nazwy własne i najważniejszy 1-2 termin na akapit.\n"
             "3. **Ekspercki wgląd**: 2-3 zdania wartościowej analizy.\n\n"
             "WAŻNE: Musisz zsyntetyzować informacje z WSZYSTKICH streszczeń, nie tylko pierwszego. "
-            "Celuj w 250-350 słów łącznie (2-5 akapitów, najczęściej 4, czasem 3, rzadko 5). NIE pytaj użytkownika. NIE używaj [source:N]. "
+            "Celuj w 300-350 słów łącznie (2-5 akapitów, najczęściej 4, czasem 3, rzadko 5). NIE pytaj użytkownika. NIE używaj [source:N]. "
             "Używaj emoji profesjonalnie (📖, ⚔️, 🗺️ itp.).\n"
             "Odpowiadaj po polsku."
         ) + WELCOME_QUESTIONS_RULES_PL
@@ -1163,8 +1164,8 @@ def _synthesize_welcome_messages(
         else:
             intro_en = (
                 "You are receiving DETAILED CONDENSED SUMMARIES of different PARTS of the same "
-                "large document (book/PDF). Each summary covers a different section and contains "
-                "dense, detailed information about the content.\n\n"
+                "document (book/PDF), which is too large to process in a single prompt. "
+                "Each summary covers a different section and contains dense, detailed information about the content.\n\n"
                 "You may also receive raw text from the beginning of the document — use it "
                 "to capture the author's voice, tone, and opening context.\n\n"
                 "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
@@ -1175,8 +1176,8 @@ def _synthesize_welcome_messages(
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
             "facts, names, places from ALL parts. Use **bold** selectively — only for exact numbers, proper names, and the most critical 1-2 terms per paragraph.\n"
             "3. **Expert insight**: 1-2 sentences of valuable analysis.\n\n"
-            "IMPORTANT: Synthesize information from ALL summaries, not just the first. "
-            "Aim for 250-300 words total (2-5 paragraphs, usually 3, sometimes 4, rarely 5). Do NOT ask the user anything. Do NOT use [source:N]. "
+            "IMPORTANT: Synthesize information (and do meta-analysis) from ALL summaries, not just the first. "
+            "Aim for 300-350 words total (2-5 paragraphs, usually 3, sometimes 4, rarely 5). Do NOT ask the user anything. Do NOT use [source:N]. "
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         ) + WELCOME_QUESTIONS_RULES_EN
@@ -1283,7 +1284,7 @@ def _describes_woman_nonprofessional(text: str) -> bool:
         "resume", "cv ", "linkedin", "executive", "ceo", "employee",
         "formal portrait", "id photo", "id card", "badge", "conference",
         "blazer", "suit ", " suit,", " suit.",
-        "biznes", "zawodow", "biuro", "korporac",
+        "biznes", "zawodow", "biuro", "korporacja",
         "garnitur", "marynark", "legitymacja", "identyfikator",
         "profil zawodowy", "zdjęcie profilowe",
     ]

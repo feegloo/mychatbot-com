@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios'
+import { ConversationTokensTable } from './utils/database'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -24,38 +25,32 @@ export function extractError(err: unknown): { message: string; raw: string } {
   return { message, raw: parts.join(' — ') }
 }
 
-const TOKENS_STORAGE_KEY = 'conversation-token'
+// In-memory cache of conversationId → token, backed by IndexedDB.
+// Synchronous reads are safe after initTokensCache() has resolved.
+const tokensCache = new Map<string, string>()
 
-type TokensMap = {
-  [conversationId: string]: string
+/** Load all conversation tokens from IndexedDB into in-memory cache. Call once at app startup. */
+export async function initTokensCache(): Promise<void> {
+  const ids = await ConversationTokensTable.getAllIds()
+  await Promise.all(
+    ids.map(async (id) => {
+      const token = await ConversationTokensTable.get(id)
+      if (token) tokensCache.set(id, token)
+    }),
+  )
 }
 
-function getTokensMap(): TokensMap {
-  try {
-    const stored = localStorage.getItem(TOKENS_STORAGE_KEY)
-    return stored ? JSON.parse(stored) : {}
-  } catch {
-    return {}
-  }
+export function saveConversationToken(conversationId: string, token: string): void {
+  tokensCache.set(conversationId, token)
+  void ConversationTokensTable.set(conversationId, token)
 }
 
-function saveTokensMap(tokens: TokensMap) {
-  localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens))
-}
-
-export function saveConversationToken(conversationId: string, token: string) {
-  const tokens = getTokensMap()
-  tokens[conversationId] = token
-  saveTokensMap(tokens)
-}
-
-export function getConversationToken(conversationId: string) {
-  const tokens = getTokensMap()
-  return tokens[conversationId] || ''
+export function getConversationToken(conversationId: string): string {
+  return tokensCache.get(conversationId) ?? ''
 }
 
 export function getStoredConversationIds(): string[] {
-  return Object.keys(getTokensMap())
+  return [...tokensCache.keys()]
 }
 
 export type ConversationSummary = {
@@ -66,8 +61,7 @@ export type ConversationSummary = {
 }
 
 export async function listMyConversations(): Promise<ConversationSummary[]> {
-  const tokens = getTokensMap()
-  const ids = Object.keys(tokens)
+  const ids = getStoredConversationIds()
   if (!ids.length) return []
 
   const response = await api.post('/conversations/batch', { conversationIds: ids })
@@ -78,9 +72,10 @@ export async function listMyConversations(): Promise<ConversationSummary[]> {
   const returnedIds = new Set(conversations.map((c) => c.conversationId))
   const staleIds = ids.filter((id) => !returnedIds.has(id))
   if (staleIds.length && returnedIds.size > 0) {
-    const updated = getTokensMap()
-    for (const id of staleIds) delete updated[id]
-    saveTokensMap(updated)
+    for (const id of staleIds) {
+      tokensCache.delete(id)
+      void ConversationTokensTable.remove(id)
+    }
   }
 
   return conversations

@@ -7,45 +7,51 @@
  *
  * - On first visit, the language follows the browser (pl → 'pl', else 'en').
  * - The user can override via the home-page flag toggle; the choice is
- *   persisted in localStorage and restored on subsequent loads.
+ *   persisted in IndexedDB and restored on subsequent loads.
  */
 import { computed, ref } from 'vue'
+import { ConfigurationsTable } from '../utils/database'
 
 export type HomeLang = 'en' | 'pl'
 
-export const HOME_LANG_STORAGE_KEY = 'homePageLang'
+export const HOME_LANG_KEY = 'homePageLang'
 const SUPPORTED: readonly HomeLang[] = ['en', 'pl'] as const
 
 function isSupported(value: unknown): value is HomeLang {
   return value === 'en' || value === 'pl'
 }
 
-function detectInitial(): HomeLang {
-  try {
-    const saved = localStorage.getItem(HOME_LANG_STORAGE_KEY)
-    if (isSupported(saved)) return saved
-  } catch {
-    // localStorage may be unavailable (private mode / SSR); fall through.
-  }
+function browserDefaultLang(): HomeLang {
   const browser =
     typeof navigator !== 'undefined' && navigator.language ? navigator.language.toLowerCase() : 'en'
   return browser.startsWith('pl') ? 'pl' : 'en'
 }
 
-export const homeLang = ref<HomeLang>(detectInitial())
+// Start with browser default; updated from IndexedDB by initHomeLang() at app startup.
+export const homeLang = ref<HomeLang>(browserDefaultLang())
 
-export function setHomeLang(lang: HomeLang): void {
+/** Load persisted home language from IndexedDB. Call once at app startup, after initDatabase(). */
+export async function initHomeLang(): Promise<void> {
+  try {
+    const saved = await ConfigurationsTable.get<string>(HOME_LANG_KEY)
+    if (isSupported(saved)) homeLang.value = saved
+  } catch {
+    // Non-fatal; browser default stays active.
+  }
+}
+
+export async function setHomeLang(lang: HomeLang): Promise<void> {
   if (!SUPPORTED.includes(lang)) return
   homeLang.value = lang
   try {
-    localStorage.setItem(HOME_LANG_STORAGE_KEY, lang)
+    await ConfigurationsTable.set(HOME_LANG_KEY, lang)
   } catch {
     // Ignore storage errors (e.g. quota exceeded, private mode).
   }
 }
 
 export function toggleHomeLang(): void {
-  setHomeLang(homeLang.value === 'pl' ? 'en' : 'pl')
+  void setHomeLang(homeLang.value === 'pl' ? 'en' : 'pl')
 }
 
 export interface HomeMessages {
@@ -92,7 +98,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💬 PDF 📄 mermaid diagram 💡 recipe 🍝 checklist ✅ and more!',
     dropzoneHeading: 'Upload',
     dropzoneTitle: 'click or drag & drop',
-    dropzoneHint: 'PDF, images, URL, .doc, other text files',
+    dropzoneHint: 'PDF, DOCX, PPTX, images, URL, other text files',
     askPlaceholder: 'Ask your question ...',
     viewerReplyPlaceholder: 'Reply to start your own thread ...',
     videoNotSupported: 'Video files are not supported.',
@@ -117,7 +123,7 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 checklistę ✅ i więcej!',
     dropzoneHeading: 'Prześlij',
     dropzoneTitle: 'kliknij lub przeciągnij i upuść',
-    dropzoneHint: 'PDF, obrazy, URL, .doc, inne pliki tekstowe',
+    dropzoneHint: 'PDF, DOCX, PPTX, obrazy, URL, inne pliki tekstowe',
     askPlaceholder: 'Zadaj swoje pytanie ...',
     viewerReplyPlaceholder: 'Odpowiedz, aby rozpocząć własny wątek ...',
     videoNotSupported: 'Pliki wideo nie są obsługiwane.',

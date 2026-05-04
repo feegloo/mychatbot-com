@@ -28,11 +28,11 @@
           </svg>
           Download
         </button>
-        <button class="mermaid-tool-btn" aria-label="Expand diagram" title="Expand" @click="openPopup">
+        <button class="mermaid-tool-btn" aria-label="Fullscreen diagram" title="Fullscreen" @click="openPopup">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
           </svg>
-          Expand
+          Fullscreen
         </button>
       </div>
     </div>
@@ -95,7 +95,7 @@
             </button>
           </div>
           <button class="mermaid-popup-close" aria-label="Close" @click="popupOpen = false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -108,7 +108,8 @@
           @pointerdown="onPopupPointerDown"
           @pointermove="onPopupPointerMove"
           @pointerup="onPopupPointerUp"
-          @pointercancel="onPopupPointerUp"
+          @pointercancel="onPopupPointerCancel"
+          @dblclick="onPopupDblClick"
         >
           <!-- eslint-disable vue/no-v-html -- renderedSvg is sanitized Mermaid output, no user content -->
           <div
@@ -176,6 +177,10 @@ let popupDragStartY = 0
 let popupDragStartPanX = 0
 let popupDragStartPanY = 0
 
+let popupLastTapTime = 0
+let popupLastTapX = 0
+let popupLastTapY = 0
+
 const POPUP_MIN_SCALE = 0.2
 const POPUP_MAX_SCALE = 8
 const POPUP_ZOOM_STEP = 1.0
@@ -189,19 +194,32 @@ function popupZoomOut() {
 
 function openPopup() {
   if (!renderedSvg.value) return
-  // Reset to fit-width scale
+  // Fit the diagram to the full viewport height
   const svgEl = diagramEl.value?.querySelector('svg') as SVGSVGElement | null
   if (svgEl) {
     const vb = svgEl.viewBox?.baseVal
-    const naturalW = (vb && vb.width > 0 ? vb.width : parseFloat(svgEl.getAttribute('width') ?? '0')) || 800
-    const viewW = window.innerWidth * 0.88 - 32
-    popupScale.value = Math.min(Math.max(+(viewW / naturalW).toFixed(2), 0.2), 3)
+    const naturalH = (vb && vb.height > 0 ? vb.height : parseFloat(svgEl.getAttribute('height') ?? '0')) || 600
+    const viewH = window.innerHeight - 56 // subtract header height
+    popupScale.value = Math.min(Math.max(+(viewH / naturalH).toFixed(2), POPUP_MIN_SCALE), POPUP_MAX_SCALE)
   } else {
     popupScale.value = 1
   }
   popupPanX.value = 0
   popupPanY.value = 0
   popupOpen.value = true
+}
+
+function zoomPopupAt(clientX: number, clientY: number, delta: number) {
+  const oldScale = popupScale.value
+  const newScale = Math.min(POPUP_MAX_SCALE, Math.max(POPUP_MIN_SCALE, +(oldScale + delta).toFixed(2)))
+  if (newScale === oldScale) return
+  const rect = popupViewportEl.value?.getBoundingClientRect() ?? { left: 0, top: 0 }
+  const lx = clientX - rect.left
+  const ly = clientY - rect.top
+  const ratio = newScale / oldScale
+  popupPanX.value = lx - (lx - popupPanX.value) * ratio
+  popupPanY.value = ly - (ly - popupPanY.value) * ratio
+  popupScale.value = newScale
 }
 
 type DragPointerEvent = {
@@ -239,12 +257,45 @@ function onPopupPointerMove(event: DragPointerEvent) {
   event.preventDefault()
 }
 
-function onPopupPointerUp(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'>) {
+function onPopupPointerUp(event: DragPointerEvent) {
+  if (event.pointerId !== popupActivePointerId) return
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement) currentTarget.releasePointerCapture(event.pointerId)
+
+  const wasTap =
+    Math.abs(event.clientX - popupDragStartX) < 5 &&
+    Math.abs(event.clientY - popupDragStartY) < 5
+
+  popupIsDragging.value = false
+  popupActivePointerId = null
+
+  if (wasTap) {
+    const now = Date.now()
+    const dx = event.clientX - popupLastTapX
+    const dy = event.clientY - popupLastTapY
+    const isDoubleTap = now - popupLastTapTime < 300 && dx * dx + dy * dy < 40 * 40
+    if (isDoubleTap) {
+      zoomPopupAt(event.clientX, event.clientY, POPUP_ZOOM_STEP)
+      popupLastTapTime = 0
+    } else {
+      popupLastTapTime = now
+      popupLastTapX = event.clientX
+      popupLastTapY = event.clientY
+    }
+  }
+}
+
+function onPopupPointerCancel(event: Pick<DragPointerEvent, 'pointerId' | 'currentTarget'>) {
   if (event.pointerId !== popupActivePointerId) return
   const currentTarget = event.currentTarget
   if (currentTarget instanceof HTMLElement) currentTarget.releasePointerCapture(event.pointerId)
   popupIsDragging.value = false
   popupActivePointerId = null
+}
+
+function onPopupDblClick(event: MouseEvent) {
+  // dblclick fires for mouse; touch double-tap is handled via pointer events above
+  zoomPopupAt(event.clientX, event.clientY, POPUP_ZOOM_STEP)
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -662,23 +713,24 @@ watch(() => props.code, renderDiagram, { flush: 'post' })
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 0;
   box-sizing: border-box;
-  cursor: pointer;
+  cursor: default;
 }
 
 .mermaid-popup-dialog {
   background: rgba(10, 13, 22, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
-  width: 100%;
-  max-width: 1100px;
-  max-height: 90vh;
+  border: none;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  box-shadow: none;
   cursor: default;
   overflow: hidden;
 }
@@ -737,15 +789,16 @@ watch(() => props.code, renderDiagram, { flush: 'post' })
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   margin-left: 8px;
+  flex-shrink: 0;
 }
 
 @media (hover: hover) {
@@ -762,6 +815,7 @@ watch(() => props.code, renderDiagram, { flush: 'post' })
   cursor: grab;
   touch-action: none;
   min-height: 300px;
+  background: #fff;
 }
 
 .mermaid-popup-viewport.is-dragging {
