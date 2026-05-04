@@ -159,6 +159,7 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
 - KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase), kształt i etykieta następują bezpośrednio po nim
+- TYLKO JEDEN KORZEŃ: musi istnieć DOKŁADNIE JEDEN węzeł `root((...))` z wcięciem 2 spacji. ŻADEN inny węzeł nie może znajdować się na poziomie 2 spacji — każda gałąź pierwszego poziomu musi mieć wcięcie 4 spacji. Naruszenie tej zasady powoduje błąd renderowania "There can be only one root".
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
 """
@@ -199,6 +200,7 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
 - CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase), shape and label follow immediately after the ID
+- EXACTLY ONE ROOT: there MUST be exactly ONE `root((...))` node at 2-space indent. NO other node may appear at 2-space indentation — every first-level branch must be indented 4 spaces. Violating this causes a "There can be only one root" rendering error.
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
 - IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
 """
