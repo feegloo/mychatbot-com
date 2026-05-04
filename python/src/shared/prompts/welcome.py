@@ -463,3 +463,53 @@ Reply in the same language as the document's primary content (see LANGUAGE DETEC
 
 WELCOME_SYSTEM_PL = _WELCOME_BASE_PL + WELCOME_QUESTIONS_RULES_PL
 WELCOME_SYSTEM_EN = _WELCOME_BASE_EN + WELCOME_QUESTIONS_RULES_EN
+
+# ---------------------------------------------------------------------------
+# Multi-file preamble: prepended to the base prompt when ≥2 files are
+# uploaded simultaneously.  Use .format(num_files=N) before concatenating.
+# ---------------------------------------------------------------------------
+
+WELCOME_MULTI_FILE_PREAMBLE_EN = (
+    "MULTI-FILE UPLOAD — {num_files} FILES UPLOADED SIMULTANEOUSLY\n"
+    "The user uploaded {num_files} files at once. "
+    "You MUST describe ALL {num_files} files in this single welcome message — do NOT focus only on the first file.\n"
+    "The content below is divided into labeled [File: filename] sections (text documents) and "
+    "[Image from filename, page N] sections (images/photos) — one block per uploaded file or image. "
+    "Read every section before composing your response.\n\n"
+    "REQUIRED structure for this multi-file welcome:\n"
+    "1. **Title**: A synthesized title for the collection of files.\n"
+    "   - If the files share an author, series, or clear theme: reflect that "
+    "(e.g. '# Stephen King – Two Dark Tales 👻', '# Annual Reports 2022–2024 📈').\n"
+    "   - If the files are diverse: use a descriptive collection title "
+    "(e.g. '# 3 Medical Documents 🏥', '# Project Files – Design & Spec 💻').\n"
+    "   - Append ONE contextually appropriate emoji.\n"
+    "2. **Description**: One focused paragraph per file or image, explicitly naming the file "
+    "(e.g. **filename.pdf** — …), followed by a final paragraph identifying "
+    "connections: shared themes, how the files relate or complement each other, "
+    "contrasts, or any pattern that ties them together as a collection.\n"
+    "3. **Expert insight**: What unique value or understanding emerges from reading "
+    "these files as a set — something that would not be apparent from any single file alone.\n\n"
+    "All other rules below (mindmap, formatting, action buttons, language detection, etc.) apply as normal.\n\n"
+)
+
+WELCOME_MULTI_FILE_PREAMBLE_PL = (
+    "PRZESŁANIE WIELU PLIKÓW — JEDNOCZEŚNIE PRZESŁANO {num_files} {num_files_word}\n"
+    "Użytkownik przesłał {num_files} {num_files_word} jednocześnie. "
+    "MUSISZ opisać WSZYSTKIE {num_files} {num_files_word} w tej jednej wiadomości powitalnej — nie skupiaj się tylko na pierwszym pliku.\n"
+    "Treść poniżej podzielona jest na sekcje [File: nazwa] (dokumenty tekstowe) oraz "
+    "[Image from nazwa, page N] (obrazy/zdjęcia) — jeden blok na każdy przesłany plik lub obraz. "
+    "Przeczytaj każdą sekcję przed napisaniem odpowiedzi.\n\n"
+    "WYMAGANA struktura dla tej wiadomości z wieloma plikami:\n"
+    "1. **Tytuł**: Zbiorczy tytuł obejmujący wszystkie pliki.\n"
+    "   - Jeśli pliki mają wspólnego autora, serię lub wyraźny temat: odzwierciedl to "
+    "(np. '# Stephen King – Dwie Mroczne Opowieści 👻', '# Raporty Roczne 2022–2024 📈').\n"
+    "   - Jeśli pliki są zróżnicowane: użyj opisowego tytułu kolekcji "
+    "(np. '# 3 Dokumenty Medyczne 🏥', '# Pliki Projektu – Design i Specyfikacja 💻').\n"
+    "   - Dołącz JEDNO tematycznie pasujące emoji.\n"
+    "2. **Opis**: Jeden akapit na każdy plik lub obraz, wprost wymieniając nazwę pliku "
+    "(np. **nazwa.pdf** — …), a następnie akapit o powiązaniach: wspólne tematy, "
+    "jak pliki uzupełniają się lub kontrastują, wzorce łączące je jako kolekcję.\n"
+    "3. **Ekspercki wgląd**: Jaka unikalna wartość lub zrozumienie wynika z lektury "
+    "tych plików łącznie — coś, czego nie widać w żadnym pojedynczym pliku.\n\n"
+    "Wszystkie pozostałe zasady poniżej (mapa myśli, formatowanie, przyciski akcji, wykrywanie języka itp.) obowiązują normalnie.\n\n"
+)

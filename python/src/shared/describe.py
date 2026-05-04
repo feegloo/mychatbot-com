@@ -19,6 +19,8 @@ from .llm_instrument import traced_llm_call
 from .prompts.welcome import (
     MINDMAP_RULES_EN,
     MINDMAP_RULES_PL,
+    WELCOME_MULTI_FILE_PREAMBLE_EN,
+    WELCOME_MULTI_FILE_PREAMBLE_PL,
     WELCOME_QUESTIONS_RULES_EN,
     WELCOME_QUESTIONS_RULES_PL,
     WELCOME_SYSTEM_EN,
@@ -55,6 +57,17 @@ _FILENAME_AUTHOR_STOPWORDS = {
 class DescribeResult(TypedDict):
     welcome_message: str
     suggested_questions: list[str]
+
+
+def _pl_plik(n: int) -> str:
+    """Return the correct Polish noun form of 'plik' (file) for count n."""
+    mod10 = n % 10
+    mod100 = n % 100
+    if n == 1:
+        return "plik"
+    if 2 <= mod10 <= 4 and not (12 <= mod100 <= 14):
+        return "pliki"
+    return "plików"
 
 
 def _tokenize_identity_text(text: str) -> set[str]:
@@ -1032,6 +1045,7 @@ def _synthesize_welcome_messages(
     metadata_section: str,
     raw_beginning: str = "",
     raw_ending: str = "",
+    num_files: int = 1,
 ) -> tuple[str, list[str]]:
     """Synthesize N detailed condensed summaries into one final welcome message.
 
@@ -1040,6 +1054,9 @@ def _synthesize_welcome_messages(
     When raw_beginning is provided, the LLM also receives the first ~200 pages
     of raw book text alongside the condensed summaries — giving it direct access
     to the author's voice, style, and opening content for a smarter result.
+
+    When num_files > 1, the system prompt is adapted to cover multiple uploaded
+    files rather than framing the summaries as sections of one large document.
     """
     if len(partial_messages) == 1 and not raw_beginning:
         return partial_messages[0], []
@@ -1106,15 +1123,25 @@ def _synthesize_welcome_messages(
         raw_block = "\n\n=====\n" + "\n\n-----\n\n".join(raw_parts) + "\n====="
 
     if language == "pl":
-        system_msg = (
-            "Otrzymujesz SZCZEGÓŁOWE STRESZCZENIA różnych CZĘŚCI tego samego dużego dokumentu "
-            "(książki/PDF), który jest zbyt duży, aby przetworzyć go w jednym promptcie. "
-            "Każde streszczenie obejmuje inną sekcję i zawiera gęste, "
-            "szczegółowe informacje o treści.\n\n"
-            "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
-            "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
-            "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
-        ) + MINDMAP_RULES_PL + (
+        if num_files > 1:
+            pl_word = _pl_plik(num_files)
+            intro_pl = (
+                f"Otrzymujesz SZCZEGÓŁOWE STRESZCZENIA treści {num_files} PLIKÓW przesłanych jednocześnie. "
+                "Każde streszczenie obejmuje inną sekcję i zawiera gęste, szczegółowe informacje.\n\n"
+                "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną "
+                f"obejmującą WSZYSTKIE {num_files} {pl_word} — nie tylko pierwszy.\n\n"
+            )
+        else:
+            intro_pl = (
+                "Otrzymujesz SZCZEGÓŁOWE STRESZCZENIA różnych CZĘŚCI tego samego dużego dokumentu "
+                "(książki/PDF), który jest zbyt duży, aby przetworzyć go w jednym promptcie. "
+                "Każde streszczenie obejmuje inną sekcję i zawiera gęste, "
+                "szczegółowe informacje o treści.\n\n"
+                "Dodatkowo możesz otrzymać surowy tekst z początku dokumentu — wykorzystaj go "
+                "aby uchwycić styl autora, ton i kontekst otwierający.\n\n"
+                "Twoim zadaniem jest POŁĄCZYĆ te streszczenia w jedną, spójną wiadomość powitalną.\n\n"
+            )
+        system_msg = intro_pl + MINDMAP_RULES_PL + (
             "\nTwoja odpowiedź MUSI składać się z trzech części:\n"
             "1. **Tytuł**: # Tytuł dokumentu - Autor\n"
             "2. **Opis**: 3-5 zdań podsumowujących CAŁY dokument. Zachowaj najważniejsze "
@@ -1126,14 +1153,24 @@ def _synthesize_welcome_messages(
             "Odpowiadaj po polsku."
         ) + WELCOME_QUESTIONS_RULES_PL
     else:
-        system_msg = (
-            "You are receiving DETAILED CONDENSED SUMMARIES of different PARTS of the same "
-            "document (book/PDF), which is too large to process in a single prompt. "
-            "Each summary covers a different section and contains dense, detailed information about the content.\n\n"
-            "You may also receive raw text from the beginning of the document — use it "
-            "to capture the author's voice, tone, and opening context.\n\n"
-            "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
-        ) + MINDMAP_RULES_EN + (
+        if num_files > 1:
+            intro_en = (
+                f"You are receiving DETAILED CONDENSED SUMMARIES of content from {num_files} FILES "
+                "uploaded simultaneously. Each summary covers a different section of the combined "
+                "content and contains dense, detailed information.\n\n"
+                f"Your job is to MERGE these summaries into one cohesive welcome message that covers "
+                f"ALL {num_files} files — not just the first.\n\n"
+            )
+        else:
+            intro_en = (
+                "You are receiving DETAILED CONDENSED SUMMARIES of different PARTS of the same "
+                "document (book/PDF), which is too large to process in a single prompt. "
+                "Each summary covers a different section and contains dense, detailed information about the content.\n\n"
+                "You may also receive raw text from the beginning of the document — use it "
+                "to capture the author's voice, tone, and opening context.\n\n"
+                "Your job is to MERGE these summaries into one cohesive welcome message.\n\n"
+            )
+        system_msg = intro_en + MINDMAP_RULES_EN + (
             "\nYour response MUST have three parts:\n"
             "1. **Title**: # Document Title 🔖 — after the title (and optional \" - Author Name\"), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 driving, 🔬 science/lab, ⚖️ legal, 📈 finance, 🍳 cooking, 💻 code, 🎭 fiction). Only known author gets appended; do NOT write \"Unknown author\".\n"
             "2. **Description**: 3-5 sentences summarizing the ENTIRE document. Preserve the key "
@@ -1389,6 +1426,13 @@ def describe_documents(
     file_names = [clean_file_name(doc.get("file_name", "")) for doc in extracted]
     file_names += [clean_file_name(img.get("file_name", "")) for img in images]
     file_list = ", ".join(dict.fromkeys(fn for fn in file_names if fn))
+    # Count unique uploads using raw (pre-clean) filenames so that cleaned-name
+    # collisions (e.g. two files whose names reduce to the same base) don't
+    # silently undercount and skip the multi-file system prompt.
+    _raw_upload_names = [doc.get("file_name", "") for doc in extracted] + [
+        img.get("file_name", "") for img in images
+    ]
+    num_unique_files = len(dict.fromkeys(fn for fn in _raw_upload_names if fn))
     all_text = "\n\n---\n\n".join(
         (doc.get("text") or "") for doc in extracted if (doc.get("text") or "").strip()
     )
@@ -1535,7 +1579,8 @@ def describe_documents(
 
         # Synthesize all detailed summaries + raw beginning into one message
         synthesis_msg, synthesis_qs = _synthesize_welcome_messages(
-            messages, file_list, language, metadata_section, raw_beginning=raw_beginning
+            messages, file_list, language, metadata_section, raw_beginning=raw_beginning,
+            num_files=num_unique_files,
         )
         return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
@@ -1679,17 +1724,32 @@ def describe_documents(
     if combined == _NO_TEXT_PLACEHOLDER and _identification_section:
         effective_metadata_section = metadata_section + _identification_section
 
+    # When multiple files are uploaded simultaneously, prepend a preamble that
+    # explicitly instructs the LLM to describe ALL files and find connections.
+    if num_unique_files > 1:
+        if language == "pl":
+            preamble = WELCOME_MULTI_FILE_PREAMBLE_PL.format(
+                num_files=num_unique_files,
+                num_files_word=_pl_plik(num_unique_files),
+            )
+        else:
+            preamble = WELCOME_MULTI_FILE_PREAMBLE_EN.format(num_files=num_unique_files)
+        system_prompt = preamble + (WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN)
+        logger.info(f"📂 Multi-file welcome: using multi-file prompt for {num_unique_files} files")
+    else:
+        system_prompt = WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN
+
     if language == "pl":
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", WELCOME_SYSTEM_PL),
+                ("system", system_prompt),
                 ("human", "Przesłane pliki: {file_list}\n\nTreść:\n{content}{metadata_section}"),
             ]
         )
     else:
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", WELCOME_SYSTEM_EN),
+                ("system", system_prompt),
                 ("human", "Uploaded files: {file_list}\n\nContent:\n{content}{metadata_section}"),
             ]
         )
