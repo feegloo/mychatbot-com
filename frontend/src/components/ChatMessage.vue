@@ -661,12 +661,41 @@ const shareUrl = computed(() =>
     ? `${window.location.origin}/m/${props.msg.id}`
     : `${window.location.origin}/c/${props.conversationId}`,
 )
-function shareMessage() {
-  navigator.clipboard.writeText(shareUrl.value)
-  shareCopied.value = true
-  setTimeout(() => {
-    shareCopied.value = false
-  }, 2000)
+async function shareMessage() {
+  const url = shareUrl.value
+  let success = false
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(url)
+      success = true
+    } catch {
+      // fall through to execCommand fallback
+    }
+  }
+
+  if (!success) {
+    // Fallback for mobile Safari and browsers without Clipboard API
+    const el = document.createElement('textarea')
+    el.value = url
+    el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;'
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    try {
+      success = document.execCommand('copy')
+    } catch {
+      // ignore
+    }
+    document.body.removeChild(el)
+  }
+
+  if (success) {
+    shareCopied.value = true
+    setTimeout(() => {
+      shareCopied.value = false
+    }, 2000)
+  }
 }
 
 const canDownloadPdf = computed(
