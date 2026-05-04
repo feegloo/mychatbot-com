@@ -1319,7 +1319,7 @@ li:has(.checklist-box) {
 .markdown-content table th,
 .markdown-content table td {
   min-width: 80px;
-  max-width: 300px;
+  max-width: 230px;
 }
 
 .markdown-content .markdown-table-scroll {
@@ -1441,7 +1441,7 @@ li:has(.checklist-box) {
 .markdown-content td:first-child {
   white-space: nowrap;
   width: 1%;
-  min-width: 100px;
+  min-width: 80px;
   overflow-wrap: normal;
 }
 

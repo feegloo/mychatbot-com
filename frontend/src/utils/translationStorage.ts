@@ -1,42 +1,52 @@
 /**
- * Per-message translation cache, persisted to localStorage.
+ * Per-message translation cache, persisted to IndexedDB (translations table).
  *
- * Keyed by `translation:{lang}:{messageId}` per the refactor spec. Values are
- * the translated content string. Storage is best-effort — any read/write error
- * (quota exceeded, private-mode, corrupted JSON) is silently ignored so the
- * in-memory cache in LanguageToggle still works as the source of truth.
+ * Keyed by lang + messageId. Values are the translated content string.
+ * Storage is best-effort — any error is silently ignored so the in-memory
+ * cache in LanguageToggle still works as the source of truth.
  *
- * We intentionally do NOT key by source text because the same message may be
- * re-translated into multiple target languages over the conversation
- * lifetime, and messageId gives us a stable per-message identity that
- * survives reload. Messages without an id (streaming-in-flight) fall back to
- * the in-memory cache only.
+ * Messages without an id (streaming-in-flight) fall back to the in-memory
+ * cache only.
  */
+import { TranslationsTable } from './database'
 
-const KEY_PREFIX = 'translation:'
-
-function buildKey(lang: string, messageId: string): string {
-  return `${KEY_PREFIX}${lang}:${messageId}`
-}
-
-export function getStoredTranslation(lang: string, messageId: string): string | null {
+export async function getStoredTranslation(
+  lang: string,
+  messageId: string,
+): Promise<string | null> {
   if (!lang || !messageId) return null
   try {
-    return localStorage.getItem(buildKey(lang, messageId))
+    return await TranslationsTable.get(lang, messageId)
   } catch {
     return null
   }
 }
 
-export function setStoredTranslation(
+export async function setStoredTranslation(
   lang: string,
   messageId: string,
   translated: string,
-): void {
+): Promise<void> {
   if (!lang || !messageId) return
   try {
-    localStorage.setItem(buildKey(lang, messageId), translated)
+    await TranslationsTable.set(lang, messageId, translated)
   } catch {
     // Quota exceeded or storage disabled — skip persistence silently.
+  }
+}
+
+/**
+ * Bulk-fetch cached translations for a list of messages.
+ * Returns a Map of messageId → translated text for all cached entries.
+ */
+export async function getBulkStoredTranslations(
+  lang: string,
+  messageIds: string[],
+): Promise<Map<string, string>> {
+  if (!lang || !messageIds.length) return new Map()
+  try {
+    return await TranslationsTable.getBulk(lang, messageIds)
+  } catch {
+    return new Map()
   }
 }

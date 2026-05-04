@@ -916,7 +916,7 @@ async function ask() {
   hasLocalError.value = false
   const currentQuestion = question.value
   const promptLanguage =
-    currentLanguage.value || getStoredConversationLanguage(conversationId) || undefined
+    currentLanguage.value || (await getStoredConversationLanguage(conversationId)) || undefined
   question.value = ''
   const optimisticUserMessage: MessageWithRenderKey<ChatMessage> = {
     role: 'user',
@@ -1040,20 +1040,20 @@ function onPasteFile(event: ClipboardEvent) {
 // --- Scroll position persistence ---
 const SCROLL_POS_KEY = 'scrollPositions'
 
-function saveScrollPosition() {
+async function saveScrollPosition() {
   if (!chatContainer.value) return
   const c = chatContainer.value
   const maxScroll = c.scrollHeight - c.clientHeight
   if (maxScroll <= 0) return
   const ratio = c.scrollTop / maxScroll
-  const all = getData<Record<string, number>>(SCROLL_POS_KEY) || {}
+  const all = (await getData<Record<string, number>>(SCROLL_POS_KEY)) || {}
   all[conversationId] = ratio
-  setData(SCROLL_POS_KEY, all)
+  void setData(SCROLL_POS_KEY, all)
 }
 
-function restoreScrollPosition(): boolean {
+async function restoreScrollPosition(): Promise<boolean> {
   if (!chatContainer.value) return false
-  const all = getData<Record<string, number>>(SCROLL_POS_KEY)
+  const all = await getData<Record<string, number>>(SCROLL_POS_KEY)
   const ratio = all?.[conversationId]
   if (ratio == null) return false
   const c = chatContainer.value
@@ -1201,7 +1201,7 @@ onMounted(async () => {
   roleLoaded.value = true
   await nextTick()
   // Restore saved scroll position, or fall back to scrolling to bottom
-  if (!restoreScrollPosition()) {
+  if (!(await restoreScrollPosition())) {
     scrollToBottom()
   }
   if (searchTermFromRoute.value) {

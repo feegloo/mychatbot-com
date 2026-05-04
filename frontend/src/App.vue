@@ -40,12 +40,13 @@ import { useRoute } from 'vue-router'
 import ConversationNav from './components/ConversationNav.vue'
 import { getBrowserFingerprint, getUserId, setUserId } from './utils/fingerprint'
 import { resolveFingerprint } from './api'
+import { ConfigurationsTable } from './utils/database'
 
 const sidebarOpen = ref(false)
-const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true')
+const sidebarCollapsed = ref(false)
 const isEmbed = computed(() => route.query.embed === '1')
 
-watch(sidebarCollapsed, (v) => localStorage.setItem('sidebarCollapsed', String(v)))
+watch(sidebarCollapsed, (v) => void ConfigurationsTable.set('sidebarCollapsed', String(v)))
 const route = useRoute()
 
 watch(
@@ -57,11 +58,15 @@ watch(
 
 // Initialize fingerprint and resolve userId on app start
 onMounted(async () => {
+  // Restore sidebar state from IndexedDB (it was loaded into configs cache at startup)
+  const stored = await ConfigurationsTable.get<string>('sidebarCollapsed')
+  if (stored === 'true') sidebarCollapsed.value = true
+
   try {
     if (getUserId() !== null) return // already resolved
     const fingerprint = await getBrowserFingerprint()
     const { userId } = await resolveFingerprint(fingerprint)
-    setUserId(userId)
+    await setUserId(userId)
   } catch (err) {
     console.error('[fingerprint init]', err)
   }

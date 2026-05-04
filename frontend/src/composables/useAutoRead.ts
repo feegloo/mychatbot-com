@@ -185,7 +185,12 @@ export function useAutoRead(
   currentLanguage?: Ref<string>,
 ) {
   const browserLang = navigator.language.split('-')[0]
-  const enabled = ref(getData<boolean>(AUTO_READ_KEY) ?? false)
+  const enabled = ref(false)
+
+  // Load persisted auto-read preference from IndexedDB asynchronously.
+  void getData<boolean>(AUTO_READ_KEY).then((v) => {
+    if (v !== undefined) enabled.value = v
+  })
 
   let currentAudio: HTMLAudioElement | null = null
   let currentBlobUrl: string | null = null
@@ -240,7 +245,7 @@ export function useAutoRead(
 
   function toggle() {
     enabled.value = !enabled.value
-    setData(AUTO_READ_KEY, enabled.value)
+    void setData(AUTO_READ_KEY, enabled.value)
     if (!enabled.value) {
       stop()
     }

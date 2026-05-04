@@ -40,7 +40,11 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
-import { getStoredTranslation, setStoredTranslation } from '../utils/translationStorage'
+import {
+  getStoredTranslation,
+  setStoredTranslation,
+  getBulkStoredTranslations,
+} from '../utils/translationStorage'
 import {
   getStoredConversationLanguage,
   storeConversationLanguage,
@@ -58,8 +62,13 @@ import {
 // - ![alt](url) markdown images are opaque: the URL must never be translated
 //   (e.g. Pollinations URLs embed the prompt in the path, and translating it
 //   produces an unreachable src and a broken-image icon after the v-html swap).
+// - [mindmap]...[/mindmap] blocks are fully opaque: the embedded Mermaid
+//   diagram syntax (keywords like `mindmap`, `root`, shape markers) must never
+//   reach the translation service or it garbles them into the target language
+//   (e.g. "mindmap" → "mapa myśli", "`mermaid" → "syrena") breaking rendering.
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
 const POEM_TAG_RE = /\[\/?(?:poem|quote)\]/gi
+const MINDMAP_BLOCK_RE = /\[mindmap\][\s\S]*?\[\/mindmap\]/gi
 // Markdown image: `![alt](url "optional title")`. Uses negated character
 // classes so the match stops at the first closing `]` / `)` rather than
 // spanning over adjacent links on the same line.
@@ -136,7 +145,7 @@ function placeholderRegex(placeholder: string): RegExp {
 
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz'
+  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz' | 'mindmap'
   original: string
   label?: string // only for action markers; gets replaced with translated label
   // |ref:filename suffix — opaque, must survive translation verbatim
@@ -158,9 +167,18 @@ function extractMarkers(texts: string[]): {
     for (const q of quizFound) {
       found.push({ placeholder: q.placeholder, kind: 'quiz', original: q.original })
     }
+    // Extract [mindmap]...[/mindmap] blocks entirely — the Mermaid diagram
+    // syntax inside must never be sent to the translation service. Keywords
+    // like `mindmap`, `root`, and shape markers would be translated into the
+    // target language (e.g. Polish: "mapa myśli", "korzeń"), breaking Mermaid.
+    const afterMindmap = afterQuiz.replace(MINDMAP_BLOCK_RE, (match) => {
+      const placeholder = makePlaceholder(i, counterRef.value++)
+      found.push({ placeholder, kind: 'mindmap', original: match })
+      return placeholder
+    })
     // Extract markdown images so their `[alt]` brackets don't collide
     // with the [source:…]/[action:…] marker regex on the following pass.
-    let result = afterQuiz.replace(IMAGE_MD_RE, (match) => {
+    let result = afterMindmap.replace(IMAGE_MD_RE, (match) => {
       const placeholder = makePlaceholder(i, counterRef.value++)
       found.push({ placeholder, kind: 'image', original: match })
       return placeholder
@@ -342,12 +360,12 @@ const translatedUpToIndex = ref(-1)
 const showDropdown = ref(false)
 const wrapRef = ref<HTMLElement | null>(null)
 
-function getStoredLanguage(): string | null {
+function getStoredLanguage(): Promise<string | null> {
   return getStoredConversationLanguage(props.conversationId)
 }
 
-function storeLanguage(lang: string) {
-  storeConversationLanguage(props.conversationId, lang, detectedLang.value)
+async function storeLanguage(lang: string) {
+  await storeConversationLanguage(props.conversationId, lang, detectedLang.value)
 }
 
 const LANG_FLAGS: Record<string, string> = {
@@ -441,15 +459,41 @@ watch(
     const firstAssistant = msgs.find((m) => m.role === 'assistant' && m.content.length > 20)
     if (!firstAssistant) return
     detectionAttempted.value = true
+
+    // Fast path: if a stored language exists and translations are cached, apply
+    // them immediately — before waiting for the language detection API call.
+    // This ensures the page renders in the user's chosen language on refresh.
+    const storedLang = await getStoredLanguage()
+    if (storedLang) {
+      const messageIds = msgs.filter((m) => m.id).map((m) => m.id!)
+      const cachedByMessageId = await getBulkStoredTranslations(storedLang, messageIds)
+      if (cachedByMessageId.size > 0) {
+        const translations = new Map<number, string>()
+        msgs.forEach((msg, i) => {
+          if (msg.id) {
+            const t = cachedByMessageId.get(msg.id)
+            if (t) {
+              translations.set(i, t)
+              translationCache.value.set(`${msg.content}→${storedLang}`, t)
+            }
+          }
+        })
+        if (translations.size > 0) {
+          currentLang.value = storedLang
+          translatedUpToIndex.value = msgs.length - 1
+          emit('translated', translations)
+        }
+      }
+    }
+
     try {
       const result = await detectLanguage(firstAssistant.content)
       detectedLang.value = result.language
-      currentLang.value = result.language
+      // Only reset currentLang to detected if we haven't already applied a stored translation
+      if (!currentLang.value) currentLang.value = result.language
 
-      // Auto-translate if there's a stored language preference different from detected
-      const storedLang = getStoredLanguage()
-      if (storedLang && storedLang !== result.language) {
-        // Defer until Vue has rendered the detected language before translating
+      // If stored lang differs from detected and wasn't already applied via cache, translate now
+      if (storedLang && storedLang !== result.language && currentLang.value !== storedLang) {
         await nextTick()
         translateTo(storedLang)
       }
@@ -500,6 +544,12 @@ async function translateNewMessagesBack(): Promise<Map<number, string>> {
   const result = new Map<number, string>()
   const toTranslateBack: { index: number; content: string; id?: string }[] = []
 
+  // Bulk-load any stored back-translations up front so forEach stays sync.
+  const candidateIds = props.messages
+    .filter((m, i) => i > translatedUpToIndex.value && m.content.trim() && m.id)
+    .map((m) => m.id!)
+  const storedMap = await getBulkStoredTranslations(detectedLang.value, candidateIds)
+
   props.messages.forEach((msg, i) => {
     if (i <= translatedUpToIndex.value) return
     if (!msg.content.trim()) return
@@ -510,7 +560,7 @@ async function translateNewMessagesBack(): Promise<Map<number, string>> {
       return
     }
     if (msg.id) {
-      const stored = getStoredTranslation(detectedLang.value, msg.id)
+      const stored = storedMap.get(msg.id)
       if (stored) {
         result.set(i, stored)
         translationCache.value.set(memKey, stored)
@@ -532,17 +582,23 @@ async function translateNewMessagesBack(): Promise<Map<number, string>> {
       result.set(item.index, t)
       translationCache.value.set(`${item.content}→${detectedLang.value}`, t)
       translationCache.value.set(`${t}→${currentLang.value}`, item.content)
-      if (item.id) setStoredTranslation(detectedLang.value, item.id, t)
+      if (item.id) void setStoredTranslation(detectedLang.value, item.id, t)
     })
   }
   return result
 }
 
 // Build the translated payload (messages + title) for a foreign target.
-// Uses in-memory and localStorage caches to skip messages already translated.
+// Uses in-memory and IndexedDB caches to skip messages already translated.
 async function buildTranslation(targetLang: string): Promise<PendingTranslation> {
   const translations = new Map<number, string>()
   const toTranslate: { index: number; content: string; id?: string }[] = []
+
+  // Bulk-load any stored translations for this target language up front.
+  const candidateIds = props.messages
+    .filter((m) => m.content.trim() && m.id && !translationCache.value.has(`${m.content}→${targetLang}`))
+    .map((m) => m.id!)
+  const storedMap = await getBulkStoredTranslations(targetLang, candidateIds)
 
   props.messages.forEach((msg, i) => {
     if (!msg.content.trim()) return
@@ -554,7 +610,7 @@ async function buildTranslation(targetLang: string): Promise<PendingTranslation>
     }
     // Persisted per-message cache survives reload.
     if (msg.id) {
-      const stored = getStoredTranslation(targetLang, msg.id)
+      const stored = storedMap.get(msg.id)
       if (stored) {
         translations.set(i, stored)
         translationCache.value.set(cacheKey, stored)
@@ -584,7 +640,7 @@ async function buildTranslation(targetLang: string): Promise<PendingTranslation>
           if (t === undefined) return
           translations.set(item.index, t)
           translationCache.value.set(`${item.content}→${targetLang}`, t)
-          if (item.id) setStoredTranslation(targetLang, item.id, t)
+          if (item.id) void setStoredTranslation(targetLang, item.id, t)
         })
       }),
     )
@@ -624,12 +680,12 @@ async function translateTo(targetLang: string) {
     try {
       const newMsgTranslations = await translateNewMessagesBack()
       currentLang.value = detectedLang.value
-      storeLanguage(detectedLang.value)
+      await storeLanguage(detectedLang.value)
       emit('restored', newMsgTranslations)
     } catch (err) {
       console.error('Translation failed:', err)
       currentLang.value = detectedLang.value
-      storeLanguage(detectedLang.value)
+      await storeLanguage(detectedLang.value)
       emit('restored', new Map())
     } finally {
       pendingLang.value = ''
@@ -685,7 +741,7 @@ async function translateTo(targetLang: string) {
     if (result.title) emit('title-translated', result.title)
     translatedUpToIndex.value = props.messages.length - 1
     currentLang.value = targetLang
-    storeLanguage(targetLang)
+    await storeLanguage(targetLang)
     emit('translated', result.translations)
   } catch (err) {
     console.error('Translation failed:', err)

@@ -157,26 +157,26 @@ function onContentClick(e: MouseEvent) {
   }
 }
 
-// --- Checklist localStorage persistence ----------------------------------
-function checklistStorageKey(): string | null {
-  return props.messageId ? `checklist:${props.messageId}` : null
+// --- Checklist IndexedDB persistence ----------------------------------
+function checklistMessageId(): string | null {
+  return props.messageId ?? null
 }
 
 function saveChecklistState() {
-  const key = checklistStorageKey()
-  if (!key || !rootEl.value) return
+  const messageId = checklistMessageId()
+  if (!messageId || !rootEl.value) return
   const boxes = rootEl.value.querySelectorAll<HTMLElement>('.checklist-box')
   const checkedIndices: number[] = []
   boxes.forEach((box, i) => {
     if (box.classList.contains('checked')) checkedIndices.push(i)
   })
-  setData(key, checkedIndices)
+  void setData(`checklist:${messageId}`, checkedIndices)
 }
 
-function restoreChecklistState() {
-  const key = checklistStorageKey()
-  if (!key || !rootEl.value) return
-  const checkedIndices = getData<number[]>(key)
+async function restoreChecklistState() {
+  const messageId = checklistMessageId()
+  if (!messageId || !rootEl.value) return
+  const checkedIndices = await getData<number[]>(`checklist:${messageId}`)
   if (!checkedIndices?.length) return
   const boxes = rootEl.value.querySelectorAll<HTMLElement>('.checklist-box')
   const indexSet = new Set(checkedIndices)
@@ -249,7 +249,7 @@ watch(
     nextTick(() => {
       if (!isMounted.value) return
       setupTooltips()
-      restoreChecklistState()
+      void restoreChecklistState()
     })
   },
   { immediate: true, flush: 'post' },
