@@ -1312,7 +1312,15 @@ def answer_with_citations(
             scope.set_extra("conversation_id", conversation_id)
             scope.set_extra("question", question)
             scope.set_extra("prompt_length", len(rendered_prompt))
-            scope.set_extra("mode", "quiz" if is_quiz else ("key_facts" if is_key_facts else ("professor" if is_professor else "answer")))
+            if is_quiz:
+                _mode = "quiz"
+            elif is_key_facts:
+                _mode = "key_facts"
+            elif is_professor:
+                _mode = "professor"
+            else:
+                _mode = "answer"
+            scope.set_extra("mode", _mode)
             scope.add_attachment(
                 bytes=rendered_prompt.encode("utf-8"),
                 filename=f"prompt_{conversation_id}.txt",

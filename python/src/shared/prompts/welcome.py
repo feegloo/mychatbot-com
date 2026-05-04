@@ -364,7 +364,7 @@ When the uploaded material contains exercises, equations, or problems to solve:
   b) If the user included their own solution — give a brief preliminary verdict in the welcome message for each problem:
      - Solution appears correct → [c:green]✅ Correct[/c]
      - Solution appears wrong → [c:red]❌ Incorrect[/c]
-     Example: "I reviewed 4 problems. Problems 1 and 3 look [c:green]✅ correct[/c]; Problems 2 and 4 contain [c:red]❌ errors[/c] (full analysis available via the action button below)."
+     Example: "I reviewed 4 problems. Problems 1 and 3 look [c:green]✅ correct[/c]. Problems 2 and 4 contain [c:red]❌ errors[/c] (full analysis available via the action button below)."
   c) If no user solution is visible — briefly describe what the problems cover and invite a full solution via the action button.
   d) Do NOT provide full solutions in the welcome message — reserve them for the 🤓 action button.
 """
