@@ -183,6 +183,11 @@ type ExportableAssistantMessage = {
   content: string
 }
 
+type ExportableConversationMessage = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 // ── Quiz types (mirror QuizBlock.vue to avoid circular imports) ────────────
 
 type QuizQuestion = {
@@ -831,11 +836,36 @@ async function renderMarkdownBlock(
   yRef: YRef,
   options?: PdfPrintOptions,
 ) {
-  // Extract and render mermaid blocks.
+  // ── 1. Extract and render mindmap blocks ─────────────────────────────────
+  // [mindmap]...[/mindmap] (or Polish alias [mapa myśli]) are converted to
+  // mermaid mindmap diagrams and embedded as full-width PNG images.
+  const MINDMAP_BLOCK_RE = /\[(?:mindmap|mapa myśli)\]\s*\n?([\s\S]*?)\[\/(?:mindmap|mapa myśli)\]/g
+  const mindmapCodes: string[] = []
+  let mindmapMatch: RegExpExecArray | null
+  while ((mindmapMatch = MINDMAP_BLOCK_RE.exec(markdown)) !== null) {
+    const raw = mindmapMatch[1]
+      .replace(/\\n/g, '\n')
+      .trim()
+      .replace(/^```mermaid\n?/, '')
+      .replace(/\n?```$/, '')
+    // Ensure the mermaid `mindmap` keyword is the first line.
+    const code = /^\s*mindmap\s*$/m.test(raw) ? raw : `mindmap\n${raw}`
+    mindmapCodes.push(code)
+  }
+  const mindmapImages = await Promise.all(
+    mindmapCodes.map((code) => renderMermaidToPng(code, layout.contentWidth)),
+  )
+  let mindmapPlaceholderIdx = 0
+  const withMindmapPlaceholders = markdown.replace(
+    /\[(?:mindmap|mapa myśli)\][\s\S]*?\[\/(?:mindmap|mapa myśli)\]/g,
+    () => `[MINDMAP_BLOCK_${mindmapPlaceholderIdx++}]`,
+  )
+
+  // ── 2. Extract and render mermaid blocks ─────────────────────────────────
   const mermaidBlockRe = /```mermaid\s*\n([\s\S]*?)```/g
   const mermaidCodes: string[] = []
   let mermaidMatch: RegExpExecArray | null
-  while ((mermaidMatch = mermaidBlockRe.exec(markdown)) !== null) {
+  while ((mermaidMatch = mermaidBlockRe.exec(withMindmapPlaceholders)) !== null) {
     mermaidCodes.push(mermaidMatch[1].trim())
   }
   const mermaidImages = await Promise.all(
@@ -843,7 +873,7 @@ async function renderMarkdownBlock(
   )
 
   let mermaidPlaceholderIdx = 0
-  const withMermaidPlaceholders = markdown.replace(/```mermaid\s*\n[\s\S]*?```/g, () => {
+  const withMermaidPlaceholders = withMindmapPlaceholders.replace(/```mermaid\s*\n[\s\S]*?```/g, () => {
     return `[MERMAID_DIAGRAM_${mermaidPlaceholderIdx++}]`
   })
 
@@ -917,6 +947,30 @@ async function renderMarkdownBlock(
 
     if (line.trim() === '') {
       yRef.y += 3
+      i++
+      continue
+    }
+
+    const mindmapPlaceholder = line.trim().match(/^\[MINDMAP_BLOCK_(\d+)\]$/)
+    if (mindmapPlaceholder) {
+      const idx = parseInt(mindmapPlaceholder[1], 10)
+      const img = mindmapImages[idx]
+      if (img) {
+        // Scale mindmap to full content width.
+        const scale = layout.contentWidth / img.width
+        const drawW = layout.contentWidth
+        const drawH = img.height * scale
+        ensureNewPage(doc, yRef, layout, drawH + 4)
+        doc.addImage(img.dataUrl, 'PNG', layout.marginLeft, yRef.y, drawW, drawH)
+        yRef.y += drawH + 4
+      } else {
+        ensureNewPage(doc, yRef, layout, 6)
+        doc.setFont(PDF_FONT, 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(120, 120, 120)
+        doc.text('[Mindmap could not be rendered]', layout.marginLeft, yRef.y)
+        yRef.y += 6
+      }
       i++
       continue
     }
@@ -1289,6 +1343,71 @@ export async function printAssistantMessagesAsPdf(
     if (idx > 0) doc.addPage()
     const yRef: YRef = { y: 20 }
     await renderMarkdownBlock(doc, nonEmptyMessages[idx], layout, yRef, options)
+  }
+
+  applyWatermark(doc)
+  savePdf(doc, title)
+}
+
+/**
+ * Generates a PDF from the full conversation: pairs of user question + assistant answer
+ * on the same page, separated by a horizontal rule. A new page is started for each pair.
+ * Standalone assistant messages (e.g. the welcome summary) get their own page.
+ */
+export async function printConversationAsPdf(
+  messages: ExportableConversationMessage[],
+  title: string,
+  options?: PdfPrintOptions,
+) {
+  const nonEmpty = messages.filter((m) => !!m.content?.trim())
+  if (!nonEmpty.length) return
+
+  const [{ default: jsPDF }] = await Promise.all([import('jspdf'), ensureFontsLoaded()])
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  registerFonts(doc)
+  const layout = createLayout(doc)
+
+  let pageIndex = 0
+  let i = 0
+
+  while (i < nonEmpty.length) {
+    const msg = nonEmpty[i]
+    if (pageIndex > 0) doc.addPage()
+    pageIndex++
+    const yRef: YRef = { y: 20 }
+
+    if (msg.role === 'user') {
+      // Render user question in a subtle highlighted box.
+      const questionText = msg.content.trim()
+      doc.setFont(PDF_FONT, 'italic')
+      doc.setFontSize(10.5)
+      doc.setTextColor(60, 60, 80)
+      const questionLines = doc.splitTextToSize(questionText, layout.contentWidth - 8)
+      const boxH = questionLines.length * 5 + 8
+      doc.setFillColor(245, 245, 250)
+      doc.setDrawColor(200, 200, 215)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(layout.marginLeft, yRef.y, layout.contentWidth, boxH, 2, 2, 'FD')
+      doc.text(questionLines, layout.marginLeft + 4, yRef.y + 5)
+      yRef.y += boxH + 5
+
+      // Separator line between question and answer.
+      doc.setDrawColor(180, 180, 180)
+      doc.setLineWidth(0.3)
+      doc.line(layout.marginLeft, yRef.y, layout.pageWidth - layout.marginRight, yRef.y)
+      yRef.y += 8
+
+      i++
+      // Render the following assistant answer on the same page.
+      if (i < nonEmpty.length && nonEmpty[i].role === 'assistant') {
+        await renderMarkdownBlock(doc, nonEmpty[i].content, layout, yRef, options)
+        i++
+      }
+    } else {
+      // Standalone assistant message (welcome summary or orphaned).
+      await renderMarkdownBlock(doc, msg.content, layout, yRef, options)
+      i++
+    }
   }
 
   applyWatermark(doc)
