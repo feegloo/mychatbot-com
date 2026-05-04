@@ -414,7 +414,25 @@ class TestEdgeCases:
 
         system_text = _get_system_message_text(mock_llm)
         assert "WIELU PLIKÓW" in system_text
-        assert "2 PLIKI" in system_text
+        # After pluralization fix, {num_files_word} resolves to "pliki" for n=2
+        assert "2 pliki" in system_text
+
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="pl")
+    def test_multi_file_polish_plural_five_files(self, _mock_lang, mock_get_llm):
+        """For 5+ files, Polish pluralization must use 'plików' (not 'pliki')."""
+        mock_llm = _make_mock_llm("# Pięć Plików\nOpis.")
+        mock_get_llm.return_value = mock_llm
+
+        extracted = [
+            {"file_name": f"doc{i}.pdf", "text": f"Content of document {i}."}
+            for i in range(1, 6)
+        ]
+
+        describe_documents(extracted, [], language="pl")
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "5 plików" in system_text
 
     @patch("shared.describe.get_llm")
     @patch("shared.describe.detect_language", return_value="en")
@@ -429,13 +447,74 @@ class TestEdgeCases:
         system_text = _get_system_message_text(mock_llm)
         assert "MULTI-FILE UPLOAD" not in system_text
 
+    @patch("shared.describe.get_llm")
+    @patch("shared.describe.detect_language", return_value="en")
+    def test_multi_file_raw_filename_used_for_count(self, _mock_lang, mock_get_llm):
+        """num_unique_files must use raw filenames so cleaned-name collisions don't undercount."""
+        mock_llm = _make_mock_llm("# Two Files\nBoth covered.")
+        mock_get_llm.return_value = mock_llm
+
+        # Two files whose cleaned names are identical but raw names differ —
+        # the multi-file preamble must still be injected.
+        extracted = [
+            {"file_name": "report_v1 (1).pdf", "text": "Version one content."},
+            {"file_name": "report_v1 (2).pdf", "text": "Version two content."},
+        ]
+
+        describe_documents(extracted, [], language="en")
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "MULTI-FILE UPLOAD" in system_text
+
+
+# ---------------------------------------------------------------------------
+# _synthesize_welcome_messages multi-file system prompt
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeWelcomeMultiFile:
+    """Tests that _synthesize_welcome_messages adapts its system prompt for multi-file uploads."""
+
+    @patch("shared.describe.get_llm")
+    def test_single_file_synthesis_uses_one_document_framing(self, mock_get_llm):
+        """Default (num_files=1) must frame summaries as parts of the same document."""
+        from shared.describe import _synthesize_welcome_messages
+
+        mock_llm = _make_mock_llm("# Title\nDesc.")
+        mock_get_llm.return_value = mock_llm
+
+        _synthesize_welcome_messages(
+            ["Summary A.", "Summary B."], "file.pdf", "en", "", num_files=1
+        )
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "same" in system_text.lower() or "large document" in system_text.lower()
+        assert "simultaneously" not in system_text.lower()
+
+    @patch("shared.describe.get_llm")
+    def test_multi_file_synthesis_uses_multi_file_framing(self, mock_get_llm):
+        """num_files>1 must replace the 'one large document' framing with a multi-file framing."""
+        from shared.describe import _synthesize_welcome_messages
+
+        mock_llm = _make_mock_llm("# Two Files\nBoth covered.")
+        mock_get_llm.return_value = mock_llm
+
+        _synthesize_welcome_messages(
+            ["Summary of file A.", "Summary of file B."],
+            "a.pdf, b.pdf",
+            "en",
+            "",
+            num_files=2,
+        )
+
+        system_text = _get_system_message_text(mock_llm)
+        assert "simultaneously" in system_text.lower()
+        assert "2 FILES" in system_text or "2 files" in system_text
+
 
 # ---------------------------------------------------------------------------
 # Retry logic
 # ---------------------------------------------------------------------------
-
-
-class TestInvokeWithRetry:
     """Tests for _invoke_with_retry: exponential backoff on 429 errors."""
 
     def test_succeeds_on_first_attempt(self):
