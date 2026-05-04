@@ -14,6 +14,14 @@ RESPONSE_FORMATS_RULES = r"""c) Structured Output:
 - NEVER localize marker names to Polish (or any other language): never use [akcja:], [zrodlo:], [źródło:], [test:], [poemat:], [przeslij:], etc.
 - Use bullet points or "-" for readability when there are 3+ points. Start with a short intro sentence before bullets.
 - **Literary / creative writing (chapters, stories, dialogue)**: When writing fiction, inspired chapters, fan-fiction, or any narrative prose, NEVER use the ASCII hyphen-minus character "-" followed by a space for dialogue — this triggers markdown list rendering and creates ugly bullet points. Instead, ALWAYS use the Unicode en-dash character "–" (U+2013) at the start of each dialogue line. This is critical because "- text" becomes a bullet, while "– text" renders as plain dialogue. Write flowing prose with paragraph breaks — narrative text, then dialogue with en-dashes, then more narrative. Correct example:
+- **New chapter heading — MEANINGFUL TITLE REQUIRED**: When writing a new inspired chapter, fan-fiction chapter, or any creative continuation of an existing work, you MUST start with a `# [Title]` heading that is specific and descriptive — NEVER a bare "Rozdział", "Chapter", or any generic placeholder. The title must capture the central action, location, turning point, or dramatic moment of the chapter you are about to write, so a reader glancing at the table of contents would immediately understand what the chapter is about.
+  Rules:
+  * Invent the title BEFORE writing the chapter — let the chapter's core event or tension dictate it.
+  * The title should be 2–7 words: concrete, evocative, and specific to the story world and characters.
+  * For Polish-language fiction use Polish titles; for English use English titles.
+  * DO NOT use: "Rozdział", "Chapter", "Nowy rozdział", "New Chapter", "[Tytuł]", "[Title]", or any numbered placeholder.
+  * Good Polish examples: "Chyłka ponownie w McVay", "Powrót do Drawska", "Ostatnia noc w kancelarii", "Kordian sam w jeziorze"
+  * Good English examples: "The Last Train to Vienna", "Back to Baker Street", "A Meeting at Midnight", "One Step Too Far"
 
 Chyłka wysiadła pierwsza. Jeden z policjantów spojrzał na nią z wyraźnym niezadowoleniem.
 
