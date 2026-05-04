@@ -304,6 +304,47 @@
       />
     </div>
   </div>
+
+  <!-- File preview navigation: prev/next arrows overlay when a file-preview modal
+       is open and there are 2+ uploaded files to navigate between. -->
+  <Teleport to="body">
+    <template v-if="hasFilePreviewNav">
+      <button
+        class="file-nav-arrow file-nav-arrow--left"
+        aria-label="Previous file"
+        @click="navigateFilePreview(-1)"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+      <button
+        class="file-nav-arrow file-nav-arrow--right"
+        aria-label="Next file"
+        @click="navigateFilePreview(1)"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </template>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -885,9 +926,25 @@ function getFileUrl(file: FileInfo) {
   return getStorageUrl(effectiveStorageId.value, file.originalName)
 }
 
-// Clicking a welcome-message file preview opens ImageModal for images,
-// SourcePreviewModal for PDFs and other file types.
-function openFilePreview(file: FileInfo) {
+// --- File preview modal navigation ----------------------------------------
+// Tracks which file in the uploaded-files list is currently shown in a modal,
+// so prev/next arrows can cycle through all files.
+const filePreviewIndex = ref(-1)
+const filePreviewFiles = computed(() => props.files ?? [])
+
+const hasFilePreviewNav = computed(
+  () =>
+    filePreviewIndex.value >= 0 &&
+    filePreviewFiles.value.length > 1 &&
+    (modalOpen.value || previewOpen.value),
+)
+
+// Reset navigation state when both modals are closed.
+watch([modalOpen, previewOpen], ([mo, po]) => {
+  if (!mo && !po) filePreviewIndex.value = -1
+})
+
+function openFileInModal(file: FileInfo) {
   // Detect SVG by extension first so that files with a missing or incorrect
   // MIME type (e.g. application/octet-stream from older uploads) still open
   // in ImageModal with stretch=true rather than falling through to SourcePreviewModal.
@@ -904,6 +961,27 @@ function openFilePreview(file: FileInfo) {
     page: 1,
   }
   previewOpen.value = true
+}
+
+// Clicking a welcome-message file preview opens ImageModal for images,
+// SourcePreviewModal for PDFs and other file types.
+function openFilePreview(file: FileInfo) {
+  filePreviewIndex.value = filePreviewFiles.value.indexOf(file)
+  openFileInModal(file)
+}
+
+function navigateFilePreview(delta: number) {
+  const total = filePreviewFiles.value.length
+  if (total < 2 || filePreviewIndex.value < 0) return
+  const newIdx = (filePreviewIndex.value + delta + total) % total
+  const file = filePreviewFiles.value[newIdx]
+  if (!file) return
+  filePreviewIndex.value = newIdx
+  // Close the currently-open modal before opening the next one so that
+  // switching between image and document types works cleanly.
+  modalOpen.value = false
+  previewOpen.value = false
+  openFileInModal(file)
 }
 </script>
 
@@ -1295,5 +1373,41 @@ function openFilePreview(file: FileInfo) {
   background: rgba(253, 186, 116, 0.15);
   color: #fdba74;
   border: 1px solid rgba(253, 186, 116, 0.3);
+}
+
+/* File preview navigation arrows – rendered via Teleport above the modal. */
+.file-nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10000;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (hover: hover) {
+  .file-nav-arrow:hover {
+    background: rgba(0, 0, 0, 0.75);
+  }
+}
+
+.file-nav-arrow:active {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.file-nav-arrow--left {
+  left: 16px;
+}
+
+.file-nav-arrow--right {
+  right: 16px;
 }
 </style>
