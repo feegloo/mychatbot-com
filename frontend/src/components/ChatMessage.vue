@@ -947,13 +947,14 @@ watch([modalOpen, previewOpen], ([mo, po]) => {
 
 // Keyboard navigation: left/right arrows while a file-preview nav is active.
 function onFileNavKeyDown(e: KeyboardEvent) {
-  if (e.key === 'ArrowLeft') navigateFilePreview(-1)
-  else if (e.key === 'ArrowRight') navigateFilePreview(1)
+  if (e.key === 'ArrowLeft') { e.preventDefault(); navigateFilePreview(-1) }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); navigateFilePreview(1) }
 }
 
 watch(hasFilePreviewNav, (active) => {
+  // Always remove first to prevent duplicate listeners if the computed re-triggers.
+  document.removeEventListener('keydown', onFileNavKeyDown)
   if (active) document.addEventListener('keydown', onFileNavKeyDown)
-  else document.removeEventListener('keydown', onFileNavKeyDown)
 })
 
 function openFileInModal(file: FileInfo) {
@@ -992,10 +993,9 @@ function navigateFilePreview(delta: number) {
   const isSvg =
     file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
   const nextIsImage = isSvg || !!file.mimeType?.startsWith('image/')
-  // Only close the opposing modal when switching between types; same-type
-  // navigation just updates the open modal's content in place.
-  if (nextIsImage && previewOpen.value) previewOpen.value = false
-  if (!nextIsImage && modalOpen.value) modalOpen.value = false
+  // Close only the opposing modal type; same-type navigation updates in place.
+  if (nextIsImage) previewOpen.value = false
+  else modalOpen.value = false
   openFileInModal(file)
 }
 </script>
