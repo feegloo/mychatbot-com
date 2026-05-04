@@ -376,6 +376,8 @@ const displayedMessages = computed<MessageWithRenderKey<ChatMessage>[]>(() => {
   return messages.value
 })
 
+const hasUserMessages = computed(() => messages.value.some((m) => m.role === 'user'))
+
 // Welcome message content used as TTS tone instructions
 const welcomeMessageContent = computed(() => {
   const idx = messages.value.findIndex((_, i) => isUploadMessage(i))
@@ -1076,12 +1078,11 @@ let welcomeReadTriggered = false
 watch(
   () => status.value.status,
   (newStatus) => {
-    const hasUserMessages = messages.value.some((m) => m.role === 'user')
     if (
       newStatus === 'ready' &&
       !welcomeReadTriggered &&
       messages.value.length > 0 &&
-      !hasUserMessages
+      !hasUserMessages.value
     ) {
       welcomeReadTriggered = true
       readWelcomeIfEnabled()
@@ -1095,8 +1096,7 @@ watch(
     if (conversationReady.value && newLen > prevMessageCount) {
       // Skip scroll when the new message is a welcome/upload message arriving
       // dynamically (no user messages yet). Only scroll for real Q&A responses.
-      const hasUserMessages = messages.value.some((m) => m.role === 'user')
-      if (hasUserMessages || !isUploadMessage(newLen - 1)) {
+      if (hasUserMessages.value || !isUploadMessage(newLen - 1)) {
         // Show user question at top so the response streams into view below it
         scrollToBottom(false, false, true)
       }
