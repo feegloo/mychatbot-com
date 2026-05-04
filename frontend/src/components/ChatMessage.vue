@@ -612,6 +612,7 @@ watch(finalGeneratedImageUrl, () => {
 
 onBeforeUnmount(() => {
   clearMorphSwapTimers()
+  document.removeEventListener('keydown', onFileNavKeyDown)
 })
 
 const senderLabel = computed(() => {
@@ -944,6 +945,17 @@ watch([modalOpen, previewOpen], ([mo, po]) => {
   if (!mo && !po) filePreviewIndex.value = -1
 })
 
+// Keyboard navigation: left/right arrows while a file-preview nav is active.
+function onFileNavKeyDown(e: KeyboardEvent) {
+  if (e.key === 'ArrowLeft') navigateFilePreview(-1)
+  else if (e.key === 'ArrowRight') navigateFilePreview(1)
+}
+
+watch(hasFilePreviewNav, (active) => {
+  if (active) document.addEventListener('keydown', onFileNavKeyDown)
+  else document.removeEventListener('keydown', onFileNavKeyDown)
+})
+
 function openFileInModal(file: FileInfo) {
   // Detect SVG by extension first so that files with a missing or incorrect
   // MIME type (e.g. application/octet-stream from older uploads) still open
@@ -977,10 +989,13 @@ function navigateFilePreview(delta: number) {
   const file = filePreviewFiles.value[newIdx]
   if (!file) return
   filePreviewIndex.value = newIdx
-  // Close the currently-open modal before opening the next one so that
-  // switching between image and document types works cleanly.
-  modalOpen.value = false
-  previewOpen.value = false
+  const isSvg =
+    file.mimeType === 'image/svg+xml' || file.originalName.toLowerCase().endsWith('.svg')
+  const nextIsImage = isSvg || !!file.mimeType?.startsWith('image/')
+  // Only close the opposing modal when switching between types; same-type
+  // navigation just updates the open modal's content in place.
+  if (nextIsImage && previewOpen.value) previewOpen.value = false
+  if (!nextIsImage && modalOpen.value) modalOpen.value = false
   openFileInModal(file)
 }
 </script>
