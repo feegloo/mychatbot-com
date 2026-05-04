@@ -293,3 +293,140 @@ describe('ChatMessage — openFilePreview SVG stretch', () => {
   })
 })
 
+describe('ChatMessage — shareMessage (Udostępnij button)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  /** Flush pending microtasks (e.g. resolved/rejected Promises) */
+  const flushMicrotasks = () => new Promise<void>((r) => setTimeout(r, 0))
+
+  /**
+   * happy-dom doesn't implement document.execCommand — ensure it exists
+   * as a configurable stub so vi.spyOn can override it.
+   */
+  function ensureExecCommand() {
+    if (!document.execCommand) {
+      Object.defineProperty(document, 'execCommand', {
+        value: () => false,
+        writable: true,
+        configurable: true,
+      })
+    }
+  }
+
+  function mountShare(msgId?: string) {
+    return mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        msg: { role: 'assistant' as const, content: 'Hello.', id: msgId },
+        asking: false,
+        conversationId: 'conv1',
+      },
+    })
+  }
+
+  it('copies the share URL via clipboard API and shows success state', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/m/msg42'))
+    expect(btn.text()).toContain('Skopiowano link!')
+  })
+
+  it('falls back to execCommand when clipboard.writeText rejects, and shows success state', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+      configurable: true,
+    })
+    ensureExecCommand()
+    const execCommand = vi.spyOn(document, 'execCommand').mockReturnValue(true)
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    expect(btn.text()).toContain('Skopiowano link!')
+  })
+
+  it('opens the URL in a new tab when both clipboard paths fail', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+      configurable: true,
+    })
+    ensureExecCommand()
+    vi.spyOn(document, 'execCommand').mockReturnValue(false)
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/m/msg42'),
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(btn.text()).not.toContain('Skopiowano link!')
+  })
+
+  it('cancels the previous reset timer when clicked twice in quick succession', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const wrapper = mountShare('msg42')
+    await nextTick()
+    const btn = wrapper.find('.msg-action-btn')
+
+    // First click
+    await btn.trigger('click')
+    await Promise.resolve()
+    expect(btn.text()).toContain('Skopiowano link!')
+
+    // Advance 1 second (still within the 2-second window)
+    vi.advanceTimersByTime(1000)
+
+    // Second click before the first timer fires
+    await btn.trigger('click')
+    await Promise.resolve()
+
+    // Advance 1 more second — first timer would have fired at t=2s, but was cancelled
+    vi.advanceTimersByTime(1000)
+    await nextTick()
+    // Still showing success because the second timer (reset at t=1s) expires at t=3s
+    expect(btn.text()).toContain('Skopiowano link!')
+
+    // Advance to the second timer's expiry
+    vi.advanceTimersByTime(1000)
+    await nextTick()
+    expect(btn.text()).not.toContain('Skopiowano link!')
+
+    vi.useRealTimers()
+  })
+})
+
