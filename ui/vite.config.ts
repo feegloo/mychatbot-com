@@ -12,6 +12,10 @@ export default defineConfig({
       '@frontend-home-hero': fileURLToPath(
         new URL('../frontend/src/components/HomeHero.vue', import.meta.url),
       ),
+      // dexie is used by frontend/src components imported via @frontend-home-hero.
+      // Since frontend/src lives outside ui/, rolldown cannot walk up to ui/node_modules,
+      // so we explicitly point the specifier at the installed package.
+      'dexie': fileURLToPath(new URL('node_modules/dexie', import.meta.url)),
     },
   },
   server: {
