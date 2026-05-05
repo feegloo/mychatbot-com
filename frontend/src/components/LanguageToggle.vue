@@ -694,11 +694,22 @@ async function buildTranslation(targetLang: string): Promise<PendingTranslation>
   const jobs: Promise<void>[] = []
 
   if (toTranslate.length) {
-    // Group by per-message source language so each unique source→target pair
-    // is a separate API batch (e.g. en→pl and de→pl do not share a request).
+    // Group by the language each message is written in (detectedLang for
+    // assistant/welcome messages; falls back to detectedLang for user messages
+    // unless they carry an explicit per-message [language] tag distinct from
+    // the source-document tag on the welcome).
+    // NOTE: the [language]xx[/language] tag on the *welcome* message marks the
+    // source-document language, not the message's written language — the welcome
+    // is always written in detectedLang (the user's browser language). We
+    // therefore only use extractMessageSourceLang() for messages that are NOT
+    // the welcome (i.e. they have no source-doc tag or their tag matches their
+    // actual written language), and fall back to detectedLang for everything else.
     const groups = new Map<string, typeof toTranslate>()
     for (const item of toTranslate) {
-      const msgSrcLang = extractMessageSourceLang(item.content) || detectedLang.value || ''
+      // Use detectedLang as the authoritative written language for all messages.
+      // The [language] tag in the welcome encodes source-document lang, not
+      // response lang, so we must not use it as the translation source.
+      const msgSrcLang = detectedLang.value || ''
       if (!groups.has(msgSrcLang)) groups.set(msgSrcLang, [])
       groups.get(msgSrcLang)!.push(item)
     }
