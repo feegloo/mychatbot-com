@@ -1,6 +1,7 @@
 import Router from '@koa/router'
 import multer from '@koa/multer'
 import path from 'node:path'
+import fs from 'node:fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 import * as Sentry from '@sentry/node'
 import { generateShortId } from '../utils/id.js'
@@ -15,6 +16,7 @@ import {
   resolveConversationRole,
   updateConversationMessageContent,
   getMessageById,
+  deleteConversation,
 } from '../repositories/conversations.js'
 import { config } from '../config.js'
 import { indexConversationStream, describeUrl } from '../python/indexing.js'
@@ -81,6 +83,41 @@ function resolveIndexingError(data: Record<string, any>): IndexingError {
     )
   }
   return new IndexingError(raw)
+}
+
+/**
+ * Best-effort cleanup when a moderation rejection occurs after files have already
+ * been saved.  Deletes the conversation record (CASCADE removes uploaded_files,
+ * messages, etc.) and removes the physical files from local storage.  Errors
+ * are logged but never re-thrown so they don't mask the original rejection.
+ */
+async function cleanupRejectedUpload(
+  conversationId: string,
+  absolutePaths: string[],
+): Promise<void> {
+  // 1. Remove conversation + all child rows (CASCADE on uploaded_files etc.)
+  try {
+    await deleteConversation(conversationId)
+  } catch (err: any) {
+    logger.error({ conversationId, err: err.message }, 'cleanup: failed to delete conversation')
+  }
+
+  // 2. Remove physical files from local disk (avoids orphaned storage).
+  //    Only delete paths that resolve inside the configured storage root to
+  //    guard against any accidental path-traversal in the stored name.
+  const storageRoot = path.resolve(config.storageRoot)
+  for (const filePath of absolutePaths) {
+    const resolved = path.resolve(filePath)
+    if (!resolved.startsWith(storageRoot + path.sep)) {
+      logger.debug({ filePath }, 'cleanup: skipping path outside storage root')
+      continue
+    }
+    try {
+      await fs.unlink(resolved)
+    } catch (err: any) {
+      logger.debug({ filePath, err: err.message }, 'cleanup: could not delete file')
+    }
+  }
 }
 
 uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
@@ -339,11 +376,19 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
           }
         }
       } catch (error: any) {
-        await updateConversationStatus(conversationId, 'failed', error.message)
-        emitConversationEvent(conversationId, {
-          event: 'error',
-          data: { message: error.message },
-        })
+        if (error instanceof IndexingError && error.code === 'sexual_content') {
+          await cleanupRejectedUpload(conversationId, absolutePaths)
+          emitConversationEvent(conversationId, {
+            event: 'error',
+            data: { message: error.message },
+          })
+        } else {
+          await updateConversationStatus(conversationId, 'failed', error.message)
+          emitConversationEvent(conversationId, {
+            event: 'error',
+            data: { message: error.message },
+          })
+        }
       }
     })()
   }
@@ -674,11 +719,19 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           }
         }
       } catch (error: any) {
-        await updateConversationStatus(conversationId, 'failed', error.message)
-        emitConversationEvent(conversationId, {
-          event: 'error',
-          data: { message: error.message },
-        })
+        if (error instanceof IndexingError && error.code === 'sexual_content') {
+          await cleanupRejectedUpload(conversationId, absolutePaths)
+          emitConversationEvent(conversationId, {
+            event: 'error',
+            data: { message: error.message },
+          })
+        } else {
+          await updateConversationStatus(conversationId, 'failed', error.message)
+          emitConversationEvent(conversationId, {
+            event: 'error',
+            data: { message: error.message },
+          })
+        }
       }
     })()
   }

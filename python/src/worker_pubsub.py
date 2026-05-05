@@ -254,10 +254,25 @@ def _process_message(message) -> None:
             on_progress("error", {"error": f"Processing timed out after {elapsed}s"})
             message.ack()
         except Exception as e:
-            logger.exception(f"❌ Job {payload.job_id} failed: {e}")
-            sentry_sdk.capture_exception(e)
-            on_progress("error", {"error": str(e)[:500]})
-            message.nack()
+            from shared.moderation import SexualContentError
+
+            if isinstance(e, SexualContentError):
+                # Permanent content-policy rejection: emit a typed error event and
+                # ack the message so Pub/Sub does not redeliver it as a transient failure.
+                logger.warning(f"🚫 Job {payload.job_id} rejected — sexual content detected")
+                on_progress(
+                    "error",
+                    {
+                        "error": str(e)[:500],
+                        "error_code": "sexual_content",
+                    },
+                )
+                message.ack()
+            else:
+                logger.exception(f"❌ Job {payload.job_id} failed: {e}")
+                sentry_sdk.capture_exception(e)
+                on_progress("error", {"error": str(e)[:500]})
+                message.nack()
         finally:
             executor.shutdown(wait=False)
 

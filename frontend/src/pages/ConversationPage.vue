@@ -70,7 +70,8 @@
 
     <ErrorDetail
       v-if="status.status === 'failed'"
-      :message="status.errorMessage || 'Something went wrong while processing your files. Please try uploading again.'"
+      :message="failureMessage"
+      :raw="SAFE_ERROR_MESSAGES.has(status.errorMessage ?? '') ? undefined : (status.errorMessage ?? undefined)"
     />
 
     <div class="grid" style="grid-template-columns: 1fr">
@@ -376,6 +377,17 @@ const displayedMessages = computed<MessageWithRenderKey<ChatMessage>[]>(() => {
 })
 
 const hasUserMessages = computed(() => messages.value.some((m) => m.role === 'user'))
+
+// Known user-friendly error messages produced by the moderation layer.
+// Only these are shown verbatim; all other failures fall back to the generic message.
+const SAFE_ERROR_MESSAGES = new Set([
+  'This file contains sexual or explicit content and cannot be uploaded.',
+])
+const failureMessage = computed(() =>
+  status.value.errorMessage && SAFE_ERROR_MESSAGES.has(status.value.errorMessage)
+    ? status.value.errorMessage
+    : 'Something went wrong while processing your files. Please try uploading again.',
+)
 
 // Welcome message content used as TTS tone instructions
 const welcomeMessageContent = computed(() => {

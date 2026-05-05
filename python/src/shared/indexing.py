@@ -19,11 +19,11 @@ from .describe import DescribeResult, describe_documents
 from .extractors import _MIME_TYPES, IMAGE_EXTENSIONS, clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
-from .moderation import check_content_moderation
+from .moderation import SexualContentError, check_content_moderation
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
 from .suggested_questions import suggest_questions_from_chunks
 from .telemetry import log_processing_event, trace_step
-from .vector_store import upsert_chunks
+from .vector_store import delete_collection, upsert_chunks
 from .wiki import build_conversation_wiki
 
 logger = logging.getLogger(__name__)
@@ -839,32 +839,40 @@ def _index_documents_inline(
 
         file_results.append(result)
 
-    # ── Content moderation: block sexual content before indexing ─────────────
-    # Runs after text extraction so we have content to check.  SexualContentError
-    # propagates up through index_documents() and is emitted as an error event
-    # by the /index-stream endpoint, marking the conversation as failed.
-    for fr in file_results:
-        p = Path(fr.file_path)
-        suffix = p.suffix.lower()
-        image_bytes: bytes | None = None
-        mime_type = "image/png"
+    # ── Content moderation: block sexual content before bulk upsert ──────────
+    # Runs after text extraction so we have content to check.  In cloud streaming
+    # mode some chunks may already be in Chroma (upserted per-page).
+    # SexualContentError deletes the entire Chroma collection so no searchable
+    # data is left behind, then propagates up so the caller marks the
+    # conversation as failed and the user sees the error message.
+    try:
+        for fr in file_results:
+            p = Path(fr.file_path)
+            suffix = p.suffix.lower()
+            image_bytes: bytes | None = None
+            mime_type = "image/png"
 
-        if suffix in IMAGE_EXTENSIONS:
-            try:
-                image_bytes = p.read_bytes()
-                mime_type = _MIME_TYPES.get(suffix, "image/png")
-            except OSError as read_err:
-                logger.warning(
-                    "⚠️ Could not read image for moderation check (%s): %s",
-                    fr.file_name,
-                    read_err,
-                )
+            if suffix in IMAGE_EXTENSIONS:
+                try:
+                    image_bytes = p.read_bytes()
+                    mime_type = _MIME_TYPES.get(suffix, "image/png")
+                except OSError as read_err:
+                    logger.warning(
+                        "⚠️ Could not read image for moderation check (%s): %s",
+                        fr.file_name,
+                        read_err,
+                    )
 
-        check_content_moderation(
-            fr.full_text or "",
-            image_bytes=image_bytes,
-            mime_type=mime_type,
-        )
+            check_content_moderation(
+                fr.full_text or "",
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+            )
+    except SexualContentError:
+        # Remove any chunks that were already upserted during streaming so
+        # the rejected content is not searchable.
+        delete_collection(collection_name)
+        raise
 
     # Aggregate chunks, images, text across all files
     all_chunks: list[Chunk] = []

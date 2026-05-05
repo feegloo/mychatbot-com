@@ -207,6 +207,24 @@ def _embed_single_cached(text: str) -> tuple[float, ...]:
     return tuple(embed_texts([text])[0])
 
 
+def delete_collection(collection_name: str) -> None:
+    """Delete a Chroma collection and all its chunks.
+
+    No-op if the collection does not exist.  Used by the moderation layer
+    to remove already-upserted chunks when a file is rejected after streaming
+    indexing has already written pages to Chroma.
+    """
+    client = get_client()
+    try:
+        client.delete_collection(name=collection_name)
+        logger.info("🗑️ Deleted Chroma collection: %s", collection_name)
+    except Exception as exc:
+        # Chroma raises ValueError when the collection doesn't exist; other
+        # exceptions indicate genuine connection/permission issues — log them
+        # so they're not silently swallowed.
+        logger.debug("delete_collection(%s) had no effect: %s", collection_name, exc)
+
+
 def collection_count(collection_name: str) -> int:
     """Return the number of documents in a collection (0 if it doesn't exist)."""
     client = get_client()
