@@ -184,6 +184,7 @@ let popupLastTapY = 0
 const POPUP_MIN_SCALE = 0.2
 const POPUP_MAX_SCALE = 8
 const POPUP_ZOOM_STEP = 1.0
+const POPUP_INITIAL_SCALE = 4
 
 function popupZoomIn() {
   popupScale.value = Math.min(POPUP_MAX_SCALE, +(popupScale.value + POPUP_ZOOM_STEP).toFixed(2))
@@ -194,7 +195,7 @@ function popupZoomOut() {
 
 function openPopup() {
   if (!renderedSvg.value) return
-  popupScale.value = 4
+  popupScale.value = Math.min(Math.max(POPUP_INITIAL_SCALE, POPUP_MIN_SCALE), POPUP_MAX_SCALE)
   popupPanX.value = 0
   popupPanY.value = 0
   popupOpen.value = true
