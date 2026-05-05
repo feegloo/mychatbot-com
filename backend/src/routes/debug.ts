@@ -296,3 +296,36 @@ debugRouter.post('/api/debug/sql', async (ctx) => {
     client.release()
   }
 })
+
+/**
+ * POST /debug/reset-stuck
+ *
+ * Resets conversations stuck in 'processing' state for more than N minutes to 'failed'.
+ * Protected by basic auth. Safe to call multiple times (idempotent).
+ */
+debugRouter.post('/api/debug/reset-stuck', async (ctx) => {
+  if (!isAuthorized(ctx)) {
+    ctx.status = 401
+    ctx.body = { error: 'Invalid credentials' }
+    return
+  }
+
+  const body = (ctx.request.body ?? {}) as { olderThanMinutes?: unknown }
+  const olderThanMinutes = Math.max(1, parseInt(String(body.olderThanMinutes ?? '5'), 10) || 5)
+
+  const result = await query(
+    `UPDATE conversations
+     SET status = 'failed',
+         error_message = 'Reset by admin: stuck in processing state',
+         updated_at = NOW()
+     WHERE status = 'processing'
+       AND updated_at < NOW() - ($1 * INTERVAL '1 minute')
+     RETURNING id`,
+    [olderThanMinutes],
+  )
+
+  ctx.body = {
+    reset: result.rows.map((r) => r.id),
+    count: result.rowCount,
+  }
+})

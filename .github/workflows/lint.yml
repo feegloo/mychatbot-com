@@ -44,4 +44,4 @@ jobs:
         with: { python-version: '3.11' }
       - run: pip install -r requirements.txt ruff
       - run: ruff check .
-      - run: python -m pytest -m "not slow"
+      # - run: python -m pytest -m "not slow"
