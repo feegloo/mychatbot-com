@@ -30,6 +30,12 @@ export async function insertConversation(record: ConversationRecord) {
   )
 }
 
+export async function deleteConversation(id: string): Promise<void> {
+  // CASCADE constraints on uploaded_files, conversation_messages, etc. take care
+  // of all child rows automatically.
+  await query('DELETE FROM conversations WHERE id = $1', [id])
+}
+
 export async function updateConversationStatus(
   id: string,
   status: ConversationRecord['status'],

@@ -91,6 +91,7 @@ _SOCIAL_MEDIA_RE = re.compile(
 from shared.indexing import index_documents  # noqa: E402
 from shared.logging_utils import configure_safe_logging  # noqa: E402
 from shared.metadata import enrich_metadata_web  # noqa: E402
+from shared.moderation import SexualContentError  # noqa: E402
 from shared.music_gen import build_music_prompt, generate_music  # noqa: E402
 from shared.rag import answer_with_citations  # noqa: E402
 from shared.telemetry import close_db_pool  # noqa: E402
@@ -402,13 +403,19 @@ async def index_stream(req: IndexRequest):
                     if task.done():
                         exc = task.exception()
                         if exc:
+                            error_data: dict = {"error": str(exc)}
+                            if isinstance(exc, SexualContentError):
+                                error_data["error_code"] = "sexual_content"
                             yield json.dumps(
-                                {"event": "error", "data": {"error": str(exc)}}
+                                {"event": "error", "data": error_data}
                             ) + "\n"
                         break
                     yield "\n"  # keepalive
         except Exception as e:
-            yield json.dumps({"event": "error", "data": {"error": str(e)}}) + "\n"
+            error_data = {"error": str(e)}
+            if isinstance(e, SexualContentError):
+                error_data["error_code"] = "sexual_content"
+            yield json.dumps({"event": "error", "data": error_data}) + "\n"
 
         if not task.done():
             with contextlib.suppress(Exception):

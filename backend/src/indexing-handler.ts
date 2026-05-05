@@ -131,7 +131,11 @@ export async function handleIndexingEvent(
     }
 
     case 'error': {
-      const message = (payload.error as string) || 'Indexing failed'
+      const errorCode = payload.error_code as string | undefined
+      const message =
+        errorCode === 'sexual_content'
+          ? 'This file contains sexual or explicit content and cannot be uploaded.'
+          : (payload.error as string) || 'Indexing failed'
       await updateConversationStatus(conversationId, 'failed', message)
       emitConversationEvent(conversationId, {
         event: 'error',
