@@ -79,7 +79,8 @@ async function bootstrap() {
   // argument as `{ value, modifiers }` and throws when it receives `undefined`.
   // This can happen during rapid reactive updates (e.g. bulk translation from
   // IndexedDB). Patch the hook to silently skip undefined bindings.
-  const dirCtx = (app as any)._context?.directives as Record<string, any> | undefined
+  type DirectiveLike = { beforeMount?: (el: Element, binding: unknown) => void; updated?: (el: Element, binding: unknown) => void }
+  const dirCtx = (app as { _context?: { directives?: Record<string, DirectiveLike> } })._context?.directives
   const origTooltip = dirCtx?.tooltip
   if (origTooltip?.beforeMount && origTooltip?.updated) {
     const safe =

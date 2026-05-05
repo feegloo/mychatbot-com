@@ -646,13 +646,6 @@ async function translateNewMessagesBack(): Promise<Map<number, string>> {
   return result
 }
 
-// Extract the [language]xx[/language] tag from a message's content to determine
-// its source language. Returns null when no tag is present (falls back to detectedLang).
-function extractMessageSourceLang(content: string): string | null {
-  const m = content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
-  return m ? m[1].toLowerCase() : null
-}
-
 // Build the translated payload (messages + title) for a foreign target.
 // Uses in-memory and IndexedDB caches to skip messages already translated.
 async function buildTranslation(targetLang: string): Promise<PendingTranslation> {
