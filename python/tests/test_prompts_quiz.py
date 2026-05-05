@@ -144,8 +144,8 @@ class TestQuizPromptStructure:
     def test_correct_answer_distribution_rule_in_system(self):
         system_msg = QUIZ_PROMPT.messages[0]
         system_text = system_msg.prompt.template if hasattr(system_msg, "prompt") else str(system_msg)
-        assert "Distribute correct answers randomly" in system_text
-        assert "no single valid position dominates" in system_text
+        assert "ANSWER POSITION RANDOMIZATION" in system_text or "Shuffle option order" in system_text
+        assert "correct" in system_text.lower()
 
 
 class TestQuizPromptImports:

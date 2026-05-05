@@ -74,6 +74,7 @@ class TestOcrPrefetchWelcome:
         assert "# Page 1" in extracted[0]["text"]
         assert "# Page 10" in extracted[0]["text"]
 
+    @patch("shared.indexing._OCR_PREFETCH_PAGES", 20)
     @patch("shared.indexing.describe_documents")
     @patch("shared.indexing.ocr_pdf_page")
     @patch("shared.indexing.detect_language", return_value="ar")
@@ -100,17 +101,22 @@ class TestOcrPrefetchWelcome:
     @patch("shared.indexing.describe_documents")
     @patch("shared.indexing.ocr_pdf_page", return_value="x")  # 1 char — below threshold
     @patch("shared.indexing.detect_language", return_value="ar")
-    def test_returns_none_when_ocr_yields_too_little_text(
+    def test_returns_minimal_welcome_when_ocr_yields_too_little_text(
         self, _mock_lang, mock_ocr, mock_describe, tmp_path
     ):
-        """If average OCR chars/page < threshold, skip welcome (don't call LLM)."""
+        """If OCR yields very little text, a minimal 'OCR in progress' welcome is still generated."""
+        mock_describe.return_value = {
+            "welcome_message": _WELCOME_RESPONSE,
+            "suggested_questions": [],
+        }
         pdf_path = _create_image_pdf(tmp_path, 5)
         result = _ocr_prefetch_welcome(
             pdf_path, _DUMMY_FILE_METADATA, _DUMMY_FILE_NAMES, _DUMMY_FILE_TYPES
         )
 
-        assert result is None
-        mock_describe.assert_not_called()
+        # Sparse text triggers a minimal welcome (describe_documents is still called)
+        mock_describe.assert_called_once()
+        assert result is not None
 
     def test_single_page_pdf_returns_none(self, tmp_path):
         """Single-page PDFs skip OCR prefetch (handled by regular describe path)."""
