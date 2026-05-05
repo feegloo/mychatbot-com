@@ -12,6 +12,7 @@ export type ConversationRecord = {
   error_message: string | null
   parent_message_id: string | null
   parent_conversation_id: string | null
+  is_local?: boolean
 }
 
 export type UploadedFileRecord = {

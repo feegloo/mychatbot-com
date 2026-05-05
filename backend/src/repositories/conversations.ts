@@ -14,8 +14,8 @@ import type {
 
 export async function insertConversation(record: ConversationRecord) {
   await query(
-    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id, parent_conversation_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    `INSERT INTO conversations (id, salt, status, storage_namespace, vector_collection_name, indexing_mode, error_message, parent_message_id, parent_conversation_id, is_local)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       record.id,
       record.salt,
@@ -26,6 +26,7 @@ export async function insertConversation(record: ConversationRecord) {
       record.error_message,
       record.parent_message_id || null,
       record.parent_conversation_id || null,
+      record.is_local ?? false,
     ],
   )
 }
@@ -422,8 +423,8 @@ export async function getConversationSummaries(conversationIds: string[]) {
   if (!conversationIds.length) return []
 
   const placeholders = conversationIds.map((_, i) => `$${i + 1}`).join(', ')
-  const result = await query<Pick<ConversationRecord, 'id' | 'display_name' | 'status'>>(
-    `SELECT id, display_name, status
+  const result = await query<Pick<ConversationRecord, 'id' | 'display_name' | 'status' | 'is_local'>>(
+    `SELECT id, display_name, status, is_local
      FROM conversations
      WHERE id IN (${placeholders})
      ORDER BY updated_at DESC`,

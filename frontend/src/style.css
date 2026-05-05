@@ -249,6 +249,14 @@ a {
   background: #f87171;
 }
 
+.conv-nav-local-icon {
+  flex-shrink: 0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  opacity: 0.72;
+}
+
 @keyframes dot-pulse {
   0%,
   100% {
@@ -302,23 +310,32 @@ a {
   padding: 8px 12px;
 }
 
-.donate-currency {
-  color: #94a3b8;
-  font-size: 13px;
-  font-weight: 600;
+.donate-input-wrap {
+  position: relative;
   flex-shrink: 0;
 }
 
+.donate-currency {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .donate-amount-input {
-  width: 44px;
+  width: 34px;
   flex-shrink: 0;
   background: #1e293b;
   border: 1px solid #475569;
   border-radius: 6px;
   color: #e2e8f0;
   font-size: 13px;
-  padding: 6px 4px;
-  text-align: center;
+  padding: 6px 14px 6px 4px;
+  text-align: left;
   -moz-appearance: textfield;
 }
 
@@ -332,7 +349,7 @@ a {
   border-color: #818cf8;
 }
 
-/* ── Sidebar bottom row (Donate + collapse arrow) ── */
+/* ── Sidebar bottom row (Settings | Donate | Search | collapse arrow) ── */
 
 .conv-nav-bottom {
   margin-top: auto;
@@ -431,15 +448,18 @@ a {
 
 @media (min-width: 769px) {
   .conv-nav-bottom .donate-widget {
-    order: 1;
+    order: 2;
     margin-left: 0;
   }
+  .conv-nav-bottom .settings-menu-wrap {
+    order: 1;
+  }
   .conv-nav-collapse-btn {
-    order: 3;
+    order: 4;
     margin-left: 0;
   }
   .conv-nav-search-btn {
-    order: 2;
+    order: 3;
   }
   .conv-nav-collapse-btn:hover {
     color: #e2e8f0;
@@ -481,7 +501,8 @@ a {
       margin-top 0.28s cubic-bezier(0.4, 0, 0.2, 1),
       gap 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .conv-nav.collapsed .donate-widget {
+  .conv-nav.collapsed .donate-widget,
+  .conv-nav.collapsed .settings-menu-wrap {
     opacity: 0;
     pointer-events: none;
     max-height: 0;

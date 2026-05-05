@@ -58,6 +58,7 @@ export type ConversationSummary = {
   displayName: string | null
   status: 'processing' | 'ready' | 'failed'
   fileNames: string[]
+  isLocal?: boolean
 }
 
 export async function listMyConversations(): Promise<ConversationSummary[]> {
@@ -248,8 +249,8 @@ export async function uploadUrl(url: string) {
   }
 }
 
-export async function createConversation() {
-  const response = await api.post('/conversations')
+export async function createConversation(isLocal = false) {
+  const response = await api.post('/conversations', { isLocal })
   return response.data as {
     conversationId: string
     url: string

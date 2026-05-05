@@ -42,6 +42,9 @@ export const conversationsRouter = new Router()
 
 // POST /conversations — create an empty conversation (no files required)
 conversationsRouter.post('/conversations', async (ctx) => {
+  const body = ctx.request.body as Record<string, unknown> | undefined
+  const isLocal = body?.isLocal === true
+
   const conversationId = generateShortId()
   const salt = uuidv4()
   const ownerPassword = deriveToken(conversationId, salt)
@@ -59,6 +62,7 @@ conversationsRouter.post('/conversations', async (ctx) => {
     error_message: null,
     parent_message_id: null,
     parent_conversation_id: null,
+    is_local: isLocal,
   })
 
   await insertAccessToken({
@@ -746,6 +750,7 @@ conversationsRouter.post('/conversations/batch', async (ctx) => {
     displayName: row.display_name || null,
     status: row.status,
     fileNames: row.fileNames,
+    isLocal: row.is_local ?? false,
   }))
 
   ctx.body = { conversations: results }

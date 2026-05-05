@@ -277,4 +277,13 @@ export async function ensureDebugIndexes(): Promise<void> {
       console.warn('[db] ensureWorkersJobsSchema failed:', (err as Error).message)
     }
   }
+  // Add is_local column to conversations — added after initial schema to support
+  // cloud vs. local mode tracking; idempotent so it's safe to run on every startup.
+  try {
+    await pool.query(
+      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_local BOOLEAN NOT NULL DEFAULT FALSE`,
+    )
+  } catch (err) {
+    console.warn('[db] ensureIsLocalColumn failed:', (err as Error).message)
+  }
 }

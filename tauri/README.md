@@ -12,10 +12,102 @@ tauri/
     ├── Cargo.toml
     └── src/
         ├── main.rs       # desktop entry point
-        └── lib.rs        # mobile entry point
+        └── lib.rs        # mobile entry point + Tauri commands
 ```
 
 ---
+
+## Cloud / Local mode
+
+The app ships with an **Apple-style toggle** in the top-centre of the screen that lets users switch between two modes:
+
+| Mode | Label | What it does |
+|------|-------|-------------|
+| ☁️ Cloud | `Cloud` | Connects to **chatrag.app** — uses hosted LLMs and the full ChatRAG cloud backend. |
+| 💻 Local | `Local` | Connects to a **locally running LLM** (Ollama). All data stays on-device — no internet required. |
+
+Hovering over a label for **1 second** shows a tooltip:
+
+- **Cloud** → _"use LLM (models) from chatrag.app"_
+- **Local** → _"use private LLM (models) — "offline mode""_
+
+The chosen mode is persisted in `localStorage` across restarts.
+
+### macOS System Tray
+
+When running as a macOS `.app`, ChatRAG places a monochrome cloud icon in the **menu bar** (system tray). Clicking it shows a dropdown menu:
+
+```
+● Running
+Mode: Cloud ☁️
+──────────────
+Switch to Local 🖥
+──────────────
+Quit ChatRAG
+```
+
+The menu updates immediately when the mode is toggled — no restart required. The implementation (`src-tauri/src/tray.rs`) follows the pattern from [stik_app by 0xMassi](https://github.com/0xMassi/stik_app) using Tauri 2.0's `TrayIconBuilder`:
+
+- `icon_as_template(true)` — adapts to macOS dark/light mode automatically
+- `show_menu_on_left_click(true)` — standard macOS tray behaviour
+- `on_menu_event` — rebuilds the menu after a mode toggle so the labels stay in sync
+
+### Toggle implementation
+
+The toggle is a self-contained Vue component (`frontend/src/components/TauriModeToggle.vue`) rendered only when the app detects it is running inside a Tauri shell (`window.__TAURI_INTERNALS__` present). It is mounted as a fixed overlay in `App.vue` and is invisible in normal browser usage.
+
+The Rust layer (`src-tauri/src/lib.rs`) exposes three Tauri commands:
+
+| Command | Description |
+|---------|-------------|
+| `get_mode` | Returns the current mode string (`"cloud"` or `"local"`). |
+| `set_mode(mode)` | Persists the mode in the Rust process state (in-memory). |
+| `check_ollama` | Probes `http://localhost:11434/api/tags`; returns `true` if Ollama is reachable. |
+
+### Local mode — Ollama setup
+
+1. **Install Ollama** from [ollama.com](https://ollama.com):
+
+   ```bash
+   # macOS
+   brew install ollama
+   # or download the .app from https://ollama.com/download/mac
+   ```
+
+2. **Pull a model** (a small, fast model works well on Apple Silicon):
+
+   ```bash
+   ollama pull llama3.2        # ~2 GB — recommended
+   # or
+   ollama pull phi3            # ~2.3 GB
+   # or
+   ollama pull mistral         # ~4 GB
+   ```
+
+3. **Start Ollama** (it starts automatically as a service after installation):
+
+   ```bash
+   ollama serve   # if not already running; default port 11434
+   ```
+
+4. Launch the ChatRAG Tauri app and flip the toggle to **Local**. The app calls `check_ollama` to confirm the service is reachable before routing queries there.
+
+#### Apple Silicon / MLX note
+
+On M-series Macs, Ollama uses **Apple MLX** automatically for accelerated inference — no extra setup needed. For direct MLX integration (without Ollama as middleware), see:
+
+- [ml-explore/mlx-lm](https://github.com/ml-explore/mlx-lm) — Python bindings for running LLMs with MLX
+- [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) — local inference server with OpenAI-compatible API, supports Metal acceleration
+
+#### iOS / on-device note
+
+Running an LLM fully on-device on iPhone/iPad requires:
+
+- A model quantised to fit in RAM (typically ≤ 4 GB for an iPhone 15 Pro)
+- Integration with Core ML or MLX; the Ollama daemon **does not run on iOS**
+- Alternatively, point "local" mode at an Ollama server running on a Mac on the same Wi-Fi network by changing the endpoint in the app settings
+
+This is tracked as a future enhancement. For now, Local mode on iOS gracefully falls back to Cloud mode when Ollama is unreachable.
 
 ## Prerequisites
 

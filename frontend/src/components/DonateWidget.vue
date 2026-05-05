@@ -19,19 +19,21 @@
 
     <!-- Default donate button with amount picker -->
     <div v-else-if="canDonate" class="donate-amount-row">
-      <span class="donate-currency">$</span>
-      <input
-        v-model.number="donationAmount"
-        type="number"
-        min="1"
-        max="1000"
-        step="1"
-        class="donate-amount-input"
-        @click.stop
-      />
       <button class="conv-nav-donate" :disabled="stripeInitializing" @click="handleDonate">
         {{ stripeInitializing ? '...' : 'Donate' }}
       </button>
+      <div class="donate-input-wrap">
+        <input
+          v-model.number="donationAmount"
+          type="number"
+          min="1"
+          max="1000"
+          step="1"
+          class="donate-amount-input"
+          @click.stop
+        />
+        <span class="donate-currency">$</span>
+      </div>
     </div>
   </div>
 </template>
