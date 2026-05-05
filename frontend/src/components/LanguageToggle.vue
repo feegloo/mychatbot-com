@@ -646,6 +646,13 @@ async function translateNewMessagesBack(): Promise<Map<number, string>> {
   return result
 }
 
+// Extract the [language]xx[/language] tag from a message's content to determine
+// its source language. Returns null when no tag is present (falls back to detectedLang).
+function extractMessageSourceLang(content: string): string | null {
+  const m = content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
+  return m ? m[1].toLowerCase() : null
+}
+
 // Build the translated payload (messages + title) for a foreign target.
 // Uses in-memory and IndexedDB caches to skip messages already translated.
 async function buildTranslation(targetLang: string): Promise<PendingTranslation> {
@@ -687,21 +694,32 @@ async function buildTranslation(targetLang: string): Promise<PendingTranslation>
   const jobs: Promise<void>[] = []
 
   if (toTranslate.length) {
-    jobs.push(
-      translateWithMarkers(
-        toTranslate.map((c) => c.content),
-        targetLang,
-        detectedLang.value || undefined,
-      ).then((result) => {
-        toTranslate.forEach((item, j) => {
-          const t = result.translations[j]
-          if (t === undefined) return
-          translations.set(item.index, t)
-          translationCache.value.set(`${item.content}→${targetLang}`, t)
-          if (item.id) void setStoredTranslation(targetLang, item.id, t)
-        })
-      }),
-    )
+    // Group by per-message source language so each unique source→target pair
+    // is a separate API batch (e.g. en→pl and de→pl do not share a request).
+    const groups = new Map<string, typeof toTranslate>()
+    for (const item of toTranslate) {
+      const msgSrcLang = extractMessageSourceLang(item.content) || detectedLang.value || ''
+      if (!groups.has(msgSrcLang)) groups.set(msgSrcLang, [])
+      groups.get(msgSrcLang)!.push(item)
+    }
+
+    for (const [srcLang, groupItems] of groups) {
+      jobs.push(
+        translateWithMarkers(
+          groupItems.map((c) => c.content),
+          targetLang,
+          srcLang || undefined,
+        ).then((result) => {
+          groupItems.forEach((item, j) => {
+            const t = result.translations[j]
+            if (t === undefined) return
+            translations.set(item.index, t)
+            translationCache.value.set(`${item.content}→${targetLang}`, t)
+            if (item.id) void setStoredTranslation(targetLang, item.id, t)
+          })
+        }),
+      )
+    }
   }
 
   let title: string | undefined = titleCached

@@ -43,11 +43,17 @@ import { resolveFingerprint } from './api'
 import { ConfigurationsTable } from './utils/database'
 
 const sidebarOpen = ref(false)
-const sidebarCollapsed = ref(false)
-const sidebarNoTransition = ref(true)
+// Read synchronously from localStorage so the sidebar renders in the correct
+// state on first paint — avoiding a visible expand→collapse jump on page load.
+const sidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true')
+// Transitions stay off until after the first paint so no animation plays on load.
+const sidebarNoTransition = ref(sidebarCollapsed.value)
 const isEmbed = computed(() => route.query.embed === '1')
 
-watch(sidebarCollapsed, (v) => void ConfigurationsTable.set('sidebarCollapsed', String(v)))
+watch(sidebarCollapsed, (v) => {
+  localStorage.setItem('sidebarCollapsed', String(v))
+  void ConfigurationsTable.set('sidebarCollapsed', String(v))
+})
 const route = useRoute()
 
 watch(
@@ -59,10 +65,14 @@ watch(
 
 // Initialize fingerprint and resolve userId on app start
 onMounted(async () => {
-  // Restore sidebar state from IndexedDB (it was loaded into configs cache at startup)
+  // Restore sidebar state from IndexedDB as source of truth (in case localStorage
+  // diverged, e.g. cleared manually), then sync localStorage back.
   const stored = await ConfigurationsTable.get<string>('sidebarCollapsed')
-  if (stored === 'true') sidebarCollapsed.value = true
-  // Allow one rAF so the DOM reflects the initial state before enabling transitions
+  if (stored !== null && stored !== localStorage.getItem('sidebarCollapsed')) {
+    sidebarCollapsed.value = stored === 'true'
+    localStorage.setItem('sidebarCollapsed', stored)
+  }
+  // Unlock transitions after the initial paint is settled.
   requestAnimationFrame(() => { sidebarNoTransition.value = false })
 
   try {
