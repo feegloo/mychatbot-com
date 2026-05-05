@@ -82,6 +82,15 @@ a {
   overflow: hidden;
 }
 
+/* ── Suppress transitions on initial paint (before stored sidebar state is applied) ── */
+.app-layout.sidebar-no-transition .conv-nav,
+.app-layout.sidebar-no-transition .conv-nav *,
+.app-layout.sidebar-no-transition .conv-nav-new,
+.app-layout.sidebar-no-transition .conv-nav-new *,
+.app-layout.sidebar-no-transition .conv-nav-list {
+  transition: none !important;
+}
+
 /* ── Embed mode: hide sidebar, fill full width for iframe embedding ── */
 .app-layout.embed-mode {
   display: block;
