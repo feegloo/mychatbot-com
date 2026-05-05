@@ -41,7 +41,6 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ISO6391 from 'iso-639-1'
 import { translateTexts, detectLanguage } from '../api'
 import {
-  getStoredTranslation,
   setStoredTranslation,
   getBulkStoredTranslations,
 } from '../utils/translationStorage'

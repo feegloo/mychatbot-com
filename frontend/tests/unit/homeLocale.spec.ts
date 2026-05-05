@@ -1,10 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const STORAGE_KEY = 'homePageLang'
+// In-memory store backing the mocked ConfigurationsTable.
+const configStore = new Map<string, string>()
+
+vi.mock('../../src/utils/database', () => ({
+  ConfigurationsTable: {
+    get: vi.fn(async (key: string) => configStore.get(key) ?? null),
+    set: vi.fn(async (key: string, value: string) => {
+      configStore.set(key, value)
+    }),
+  },
+}))
 
 async function loadModule() {
   // Re-import in isolation so each test sees a fresh `homeLang` initial value
-  // computed from the current localStorage / navigator.language stub.
+  // computed from the current navigator.language stub.
   vi.resetModules()
   return await import('../../src/i18n/homeLocale')
 }
@@ -18,11 +28,11 @@ function setBrowserLanguage(lang: string) {
 
 describe('homeLocale', () => {
   beforeEach(() => {
-    localStorage.clear()
+    configStore.clear()
   })
 
   afterEach(() => {
-    localStorage.clear()
+    configStore.clear()
   })
 
   it("defaults to 'pl' when browser language is Polish and nothing stored", async () => {
@@ -37,24 +47,26 @@ describe('homeLocale', () => {
     expect(homeLang.value).toBe('en')
   })
 
-  it('prefers the saved localStorage value over the browser language', async () => {
+  it('prefers the saved value over the browser language when initHomeLang is called', async () => {
     setBrowserLanguage('pl-PL')
-    localStorage.setItem(STORAGE_KEY, 'en')
-    const { homeLang } = await loadModule()
-    expect(homeLang.value).toBe('en')
+    configStore.set('homePageLang', 'en') // pre-seed IndexedDB with saved preference
+    const { homeLang, initHomeLang } = await loadModule()
+    expect(homeLang.value).toBe('pl') // starts with browser default before init
+    await initHomeLang() // loads from (mocked) IndexedDB
+    expect(homeLang.value).toBe('en') // overridden by persisted preference
   })
 
-  it('setHomeLang persists to localStorage and updates messages', async () => {
+  it('setHomeLang updates homeLang and messages', async () => {
     setBrowserLanguage('en-US')
     const { homeLang, homeT, setHomeLang } = await loadModule()
     expect(homeLang.value).toBe('en')
     expect(homeT.value.askPlaceholder).toBe('Ask your question ...')
 
-    setHomeLang('pl')
+    await setHomeLang('pl')
 
     expect(homeLang.value).toBe('pl')
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('pl')
-    expect(homeT.value.askPlaceholder).toBe('Zadaj swoje pytanie ...')  })
+    expect(homeT.value.askPlaceholder).toBe('Zadaj swoje pytanie ...')
+  })
 
   it('toggleHomeLang flips between en and pl', async () => {
     setBrowserLanguage('en-US')
@@ -75,6 +87,6 @@ describe('homeLocale', () => {
     // than relying on the compile-time HomeLang union.
     setHomeLang('fr' as unknown as 'en')
     expect(homeLang.value).toBe('en')
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    expect(configStore.get('homePageLang')).toBeUndefined()
   })
 })
