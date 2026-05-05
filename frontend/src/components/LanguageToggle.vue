@@ -527,19 +527,18 @@ watch(
       sourceLang.value = langTagMatch[1].toLowerCase()
       // detectedLang = user's browser language (content was generated in that language)
       detectedLang.value = browserLang.value
-      // Prefer stored lang → homePageLang preference → browser lang as the initial display language.
+      // Prefer stored lang → homePageLang preference over plain browser lang.
       // This ensures that if the user has set a home page language (e.g. 'en') that differs
       // from their browser language (e.g. 'pl'), the conversation defaults to their preference.
       const preferredLang = storedLang || homeLang.value
-      const fastPathApplied = !!currentLang.value
-      // Always initialise currentLang to the actual content language (browserLang) so
-      // translateTo() doesn't short-circuit its `targetLang === currentLang` guard.
-      // The flag will flip to preferredLang via pendingLang once translateTo starts.
-      if (!currentLang.value) currentLang.value = browserLang.value
-
-      if (!fastPathApplied && preferredLang !== browserLang.value) {
-        await nextTick()
-        translateTo(preferredLang)
+      if (!currentLang.value) {
+        // Fast-path (cached translations) was not applied — initialise currentLang to the actual
+        // content language so translateTo() doesn't short-circuit its targetLang === currentLang guard.
+        currentLang.value = browserLang.value
+        if (preferredLang !== browserLang.value) {
+          await nextTick()
+          translateTo(preferredLang)
+        }
       }
       return
     }

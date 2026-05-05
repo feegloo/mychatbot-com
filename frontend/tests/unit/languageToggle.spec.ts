@@ -1002,10 +1002,6 @@ describe("LanguageToggle", () => {
       // User explicitly chose English as their home page language
       homeLangRef.value = 'en'
 
-      translateTextsMock.mockImplementation(async (texts: string[]) => ({
-        translations: texts.map(t => `EN: ${t}`),
-      }));
-
       // Document is English, welcome was generated in Polish (browser lang)
       const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the uploaded English document.";
       const wrapper = mount(LanguageToggle, {
