@@ -386,6 +386,7 @@ async def index_stream(req: IndexRequest):
                 conversation_id=req.conversation_id,
                 collection_name=req.collection_name,
                 file_paths=req.file_paths,
+                on_progress=on_progress,
                 user_language=req.normalized_user_language(),
             )
         )
