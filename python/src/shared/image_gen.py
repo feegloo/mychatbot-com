@@ -822,16 +822,16 @@ def build_social_media_image_prompt() -> dict:
             "You may use floating stickers near edges, a frosted bottom strip, a corner pill/badge, "
             "or any other format that feels right — choose based on the photo's composition and mood. "
             "Pick emoji that genuinely match the vibe; avoid generic hearts-and-sparkles defaults. "
-            "Maximum 2–3 emoji total. "
+            "Maximum 1-2 emoji total. "
             "If NO: leave the photo clean — no emoji accent is the right call more often than you think. "
 
             # --- Effect count distribution ---
             "EFFECT COUNT: Choose the total number of effects (across steps 2–6) according to this distribution: "
-            "1 effect — 30% of the time (default choice); "
-            "2 effects — 30% of the time (only when a second effect clearly adds to the mood); "
-            "3 effects — 30% of the time (rare, only when the photo is very dynamic or layered); "
+            "1 effect — 40% of the time (default choice); "
+            "2 effects — 25% of the time (only when a second effect clearly adds to the mood); "
+            "3 effects — 25% of the time (rare, only when the photo is very dynamic or layered); "
             "4+ effects — 10% of the time (exceptional only, never forced). "
-            "When in doubt, go with 2. Never add an effect just to fill space. "
+            "When in doubt, go with 1. Never add an effect just to fill space. "
 
             # --- Final quality bar ---
             "The result should feel like a careful, intentional Instagram or TikTok story edit — "

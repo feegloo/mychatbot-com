@@ -1108,8 +1108,11 @@ watch(
       // Skip scroll when the new message is a welcome/upload message arriving
       // dynamically (no user messages yet). Only scroll for real Q&A responses.
       if (hasUserMessages.value || !isUploadMessage(newLen - 1)) {
-        // Show user question at top so the response streams into view below it
-        scrollToBottom(false, false, true)
+        // Defer so the DOM has fully laid out the new message row before we
+        // measure element positions. flush:'post' guarantees the vdom patch is
+        // done, but CSS layout (heights, fonts) may still be pending — the
+        // setTimeout gives the browser one extra paint cycle to settle.
+        setTimeout(() => scrollToBottom(false, false, true), 150)
       }
     }
     prevMessageCount = newLen
