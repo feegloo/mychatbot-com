@@ -1,17 +1,35 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { 
-  saveConversationToken, 
-  getConversationToken, 
-  getStoredConversationIds 
-} from '../../src/api';
+
+// Mock the database module so the fire-and-forget IndexedDB writes in
+// saveConversationToken() don't throw "database not initialized" in tests.
+vi.mock('../../src/utils/database', () => ({
+  ConversationTokensTable: {
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => {}),
+    getAllIds: vi.fn(async () => []),
+    remove: vi.fn(async () => {}),
+  },
+}))
 
 describe('Conversation Token Management', () => {
-  beforeEach(() => {
+  // Module-level tokensCache in api.ts persists across tests, so we reset
+  // modules in beforeEach to get a fresh Map for each test.
+  let saveConversationToken: (id: string, token: string) => void
+  let getConversationToken: (id: string) => string
+  let getStoredConversationIds: () => string[]
+
+  beforeEach(async () => {
     localStorage.clear();
+    vi.resetModules();
+    const api = await import('../../src/api');
+    saveConversationToken = api.saveConversationToken;
+    getConversationToken = api.getConversationToken;
+    getStoredConversationIds = api.getStoredConversationIds;
   });
 
   afterEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it('should save and retrieve a conversation token', () => {
@@ -50,8 +68,7 @@ describe('Conversation Token Management', () => {
     expect(retrieved).toBe('token-new');
   });
 
-  it('should handle localStorage errors gracefully', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('invalid-json');
+  it('should return empty list when no tokens stored', () => {
     const ids = getStoredConversationIds();
     expect(ids).toEqual([]);
   });

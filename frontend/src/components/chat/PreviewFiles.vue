@@ -30,9 +30,6 @@ const currentIsPdf = computed(() => (current.value ? isDocument(current.value) :
 function isImage(f: File) {
   return f.mimeType?.startsWith('image/') ?? false
 }
-function isPdf(f: File) {
-  return f.mimeType === 'application/pdf'
-}
 const DOCUMENT_MIME_TYPES = new Set([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

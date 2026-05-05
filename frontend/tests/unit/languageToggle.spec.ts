@@ -11,6 +11,40 @@ vi.mock("../../src/api", () => ({
   translateTexts: (...args: unknown[]) => translateTextsMock(...args),
 }));
 
+// In-memory stores that back the storage mocks so tests can seed them directly.
+const translationStore = new Map<string, Map<string, string>>()
+const conversationLanguageStore = new Map<string, string>()
+
+vi.mock("../../src/utils/translationStorage", () => ({
+  getStoredTranslation: vi.fn(async (lang: string, msgId: string) =>
+    translationStore.get(lang)?.get(msgId) ?? null,
+  ),
+  setStoredTranslation: vi.fn(async (lang: string, msgId: string, text: string) => {
+    if (!translationStore.has(lang)) translationStore.set(lang, new Map())
+    translationStore.get(lang)!.set(msgId, text)
+  }),
+  getBulkStoredTranslations: vi.fn(async (lang: string, msgIds: string[]) => {
+    const result = new Map<string, string>()
+    const langStore = translationStore.get(lang)
+    if (langStore) {
+      for (const id of msgIds) {
+        const val = langStore.get(id)
+        if (val !== undefined) result.set(id, val)
+      }
+    }
+    return result
+  }),
+}))
+
+vi.mock("../../src/utils/conversationLanguage", () => ({
+  getStoredConversationLanguage: vi.fn(async (convId: string) =>
+    conversationLanguageStore.get(convId) ?? null,
+  ),
+  storeConversationLanguage: vi.fn(async (convId: string, lang: string) => {
+    conversationLanguageStore.set(convId, lang)
+  }),
+}))
+
 import LanguageToggle from "../../src/components/LanguageToggle.vue";
 
 function makeMessages(contents: string[], role = "assistant") {
@@ -20,6 +54,8 @@ function makeMessages(contents: string[], role = "assistant") {
 describe("LanguageToggle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    translationStore.clear()
+    conversationLanguageStore.clear()
     detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
     translateTextsMock.mockImplementation(async (texts: string[]) => ({
       translations: texts.map(t => `[translated] ${t}`),
@@ -894,16 +930,14 @@ describe("LanguageToggle", () => {
       localStorage.clear();
     });
 
-    it("loads persisted translation from localStorage on mount (no API call)", async () => {
+    it("loads persisted translation from storage on mount (no API call)", async () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
       detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
 
       // Pre-seed: conversation chose PL, and message m1 was translated to PL.
-      localStorage.setItem(
-        "conversation-languages",
-        JSON.stringify({ convA: "pl" }),
-      );
-      localStorage.setItem("translation:pl:m1", "Wiadomość po polsku.");
+      conversationLanguageStore.set("convA", "pl")
+      if (!translationStore.has("pl")) translationStore.set("pl", new Map())
+      translationStore.get("pl")!.set("m1", "Wiadomość po polsku.")
 
       const wrapper = mount(LanguageToggle, {
         props: {

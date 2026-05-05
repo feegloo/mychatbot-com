@@ -9,6 +9,13 @@ vi.mock('../../src/api', async (importOriginal) => {
   return { ...actual, getStorageUrl: (_cid: string, name: string) => `/files/${name}` }
 })
 
+// Stub the database so MessageContent.vue's restoreChecklistState() calls don't
+// throw "database not initialized" as unhandled rejections in the test environment.
+vi.mock('../../src/utils/database', () => ({
+  ChecklistStatesTable: { get: vi.fn(async () => undefined), set: vi.fn(async () => {}) },
+  ConfigurationsTable: { get: vi.fn(async () => null), set: vi.fn(async () => {}) },
+}))
+
 function baseProps() {
   return {
     msg: {
