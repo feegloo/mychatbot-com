@@ -163,7 +163,7 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
 - Każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych. Nie musisz wymyślać 4 gałęzi dla każdego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
-- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu z kształtem MUSZĄ być jednym słowem bez spacji (spacje w ID są niedozwolone), kształt i etykieta następują bezpośrednio po nim
+- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu z kształtem MUSZĄ być jednym słowem bez spacji, kształt i etykieta następują bezpośrednio po nim
 - TYLKO JEDEN KORZEŃ: musi istnieć DOKŁADNIE JEDEN węzeł `root((...))` z wcięciem 2 spacji. ŻADEN inny węzeł nie może znajdować się na poziomie 2 spacji — każda gałąź pierwszego poziomu musi mieć wcięcie 4 spacji. Naruszenie tej zasady powoduje błąd renderowania "There can be only one root".
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
