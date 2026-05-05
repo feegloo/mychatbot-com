@@ -302,49 +302,52 @@
         :is-owner="isOwner"
         @close="previewOpen = false"
       />
+      <!-- File preview navigation: prev/next arrows overlay when a file-preview modal
+           is open and there are 2+ uploaded files to navigate between.
+           Placed inside the single root element to avoid a Fragment that uses comment
+           node anchors (which lose their parentNode in some environments). -->
+      <Teleport to="body">
+        <template v-if="hasFilePreviewNav">
+          <button
+            type="button"
+            class="file-nav-arrow file-nav-arrow--left"
+            aria-label="Previous file"
+            @click="navigateFilePreview(-1)"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="file-nav-arrow file-nav-arrow--right"
+            aria-label="Next file"
+            @click="navigateFilePreview(1)"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </template>
+      </Teleport>
     </div>
   </div>
-
-  <!-- File preview navigation: prev/next arrows overlay when a file-preview modal
-       is open and there are 2+ uploaded files to navigate between. -->
-  <Teleport to="body">
-    <template v-if="hasFilePreviewNav">
-      <button
-        class="file-nav-arrow file-nav-arrow--left"
-        aria-label="Previous file"
-        @click="navigateFilePreview(-1)"
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
-      <button
-        class="file-nav-arrow file-nav-arrow--right"
-        aria-label="Next file"
-        @click="navigateFilePreview(1)"
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </button>
-    </template>
-  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -862,20 +865,8 @@ function openCitation(idx: number) {
   // source index) from the files associated with this message.
   const file = props.files?.[idx]
   if (file) {
-    if (isRasterImage(file.originalName)) {
-      openImageModal(
-        getStorageUrl(effectiveStorageId.value, file.originalName),
-        file.originalName.replace(/\.[^.]+$/, ''),
-      )
-      return
-    }
-    previewCitation.value = {
-      fileName: file.originalName,
-      chunkId: '',
-      text: '',
-      page: 1,
-    }
-    previewOpen.value = true
+    // openFilePreview sets filePreviewIndex so the nav arrows activate.
+    openFilePreview(file)
   }
 }
 

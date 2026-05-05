@@ -34,6 +34,13 @@ vi.mock('../src/components/TextFade.vue', () => ({
   }),
 }))
 
+// UDocViewer pulls in @docmentis/udoc-viewer which has a missing internal
+// module in the test environment. Replace it with a transparent stub so
+// SourcePreviewModal (and tests that open it) can load correctly.
+vi.mock('../src/components/UDocViewer.vue', () => ({
+  default: defineComponent({ name: 'UDocViewerStub', template: '<div class="udoc-viewer-stub" />' }),
+}))
+
 /**
  * Spy that tests can import to assert the dropdown was asked to close
  * (the real ChatMessage calls ``welcomeMoreDropdown.value?.hide()``
@@ -53,5 +60,10 @@ config.global.stubs = {
       return () => h(Fragment, null, [slots.default?.(), slots.popper?.({ hide: vDropdownHideSpy })])
     },
   },
+  // Stub built-in Transition to a transparent passthrough. The real Transition
+  // uses comment nodes as anchors which lose their parentNode reference in
+  // happy-dom when reactive updates are triggered outside Vue's scheduler
+  // (e.g. keyboard event handlers registered on document).
+  Transition: { template: '<slot />' },
 }
 

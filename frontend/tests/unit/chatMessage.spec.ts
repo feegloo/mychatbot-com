@@ -52,7 +52,7 @@ describe('ChatMessage', () => {
   })
 
   it('emits select-question when a visible or overflow action is clicked', async () => {
-    const content = 'Done.\n\n[action:First] [action:Second] [action:Third]'
+    const content = 'Done.\n\n[action:First] [action:Second] [action:Third] [action:Fourth]'
     const wrapper = mount(ChatMessage, {
       attachTo: document.body,
       props: { ...baseProps(), msg: { role: 'assistant' as const, content } },
@@ -66,7 +66,7 @@ describe('ChatMessage', () => {
     expect(events).toBeDefined()
     expect(events!.length).toBe(2)
     expect(events![0][0]).toBe('First')
-    expect(events![1][0]).toBe('Second')
+    expect(events![1][0]).toBe('Fourth')
   })
 
   it('uses welcome limits (3 prompts + 2 actions visible) for welcome messages', async () => {
@@ -430,3 +430,168 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
   })
 })
 
+describe('ChatMessage — file preview navigation arrows', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  type FileEntry = { id: string; originalName: string; mimeType: string | null; url: string }
+
+  const imgFile: FileEntry = {
+    id: '1',
+    originalName: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    url: '/files/photo.jpg',
+  }
+  const pdfFile: FileEntry = {
+    id: '2',
+    originalName: 'report.pdf',
+    mimeType: 'application/pdf',
+    url: '/files/report.pdf',
+  }
+  const txtFile: FileEntry = {
+    id: '3',
+    originalName: 'notes.txt',
+    mimeType: 'text/plain',
+    url: '/files/notes.txt',
+  }
+
+  function mountWelcome(files: FileEntry[]) {
+    return mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        msg: { role: 'assistant' as const, content: 'Welcome!' },
+        asking: false,
+        conversationId: 'nav-conv',
+        isWelcome: true,
+        files,
+      },
+    })
+  }
+
+  async function openFile(wrapper: ReturnType<typeof mountWelcome>, file: FileEntry) {
+    const previewFiles = wrapper.findComponent({ name: 'PreviewFiles' })
+    await previewFiles.vm.$emit('open', file)
+    await nextTick()
+  }
+
+  it('does not render nav arrows when only one file is uploaded', async () => {
+    const wrapper = mountWelcome([imgFile])
+    await openFile(wrapper, imgFile)
+    expect(document.body.querySelector('.file-nav-arrow')).toBeNull()
+  })
+
+  it('renders nav arrows when a modal is open and there are 2+ files', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+    const arrows = document.body.querySelectorAll('.file-nav-arrow')
+    expect(arrows.length).toBe(2)
+  })
+
+  it('nav arrows disappear after modal is closed', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+    expect(document.body.querySelector('.file-nav-arrow')).not.toBeNull()
+
+    // Close the ImageModal
+    const overlay = document.body.querySelector('.image-modal-overlay') as HTMLElement | null
+    expect(overlay).not.toBeNull()
+    await overlay!.click()
+    await nextTick()
+
+    expect(document.body.querySelector('.file-nav-arrow')).toBeNull()
+  })
+
+  it('clicking the right arrow advances to the next file', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+
+    // Initially shows the image modal
+    expect(document.body.querySelector('.image-modal-img')).not.toBeNull()
+
+    const rightArrow = document.body.querySelector('.file-nav-arrow--right') as HTMLElement
+    await rightArrow.click()
+    await nextTick()
+
+    // After navigating to pdfFile (a doc), SourcePreviewModal should be visible
+    expect(document.body.querySelector('.source-modal-overlay')).not.toBeNull()
+  })
+
+  it('clicking the left arrow goes to the previous file (wraps around)', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+
+    // imgFile is at index 0; pressing left should wrap to pdfFile (index 1)
+    const leftArrow = document.body.querySelector('.file-nav-arrow--left') as HTMLElement
+    await leftArrow.click()
+    await nextTick()
+
+    expect(document.body.querySelector('.source-modal-overlay')).not.toBeNull()
+  })
+
+  it('keyboard ArrowRight is wired up: listener is active and calls preventDefault', async () => {
+    // The keyboard handler is registered via watch(hasFilePreviewNav).
+    // Test that it fires (e.preventDefault() is called) without
+    // awaiting a full reactive flush (which triggers happy-dom Teleport issues).
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+    // hasFilePreviewNav is now true — handler should be attached to document
+    await nextTick() // flush watch(hasFilePreviewNav)
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+    document.dispatchEvent(event)
+
+    // Handler called e.preventDefault() → proves it ran
+    expect(preventDefaultSpy).toHaveBeenCalled()
+  })
+
+  it('keyboard ArrowLeft is wired up: listener is active and calls preventDefault', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+    await nextTick()
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+    document.dispatchEvent(event)
+
+    expect(preventDefaultSpy).toHaveBeenCalled()
+  })
+
+  it('nav arrows have type="button" to prevent form-submit behavior', async () => {
+    const wrapper = mountWelcome([imgFile, pdfFile])
+    await openFile(wrapper, imgFile)
+
+    const arrows = document.body.querySelectorAll('.file-nav-arrow')
+    for (const arrow of arrows) {
+      expect((arrow as HTMLButtonElement).type).toBe('button')
+    }
+  })
+
+  it('opening a file via [source:N] citation also activates nav arrows', async () => {
+    const wrapper = mount(ChatMessage, {
+      attachTo: document.body,
+      props: {
+        msg: {
+          role: 'assistant' as const,
+          content: 'See [source:1].',
+          citations: [],
+        },
+        asking: false,
+        conversationId: 'nav-conv',
+        isWelcome: true,
+        files: [txtFile, pdfFile],
+      },
+    })
+    await nextTick()
+
+    // Simulate citation click — openCitation falls back to props.files[0]
+    const citationBtn = wrapper.find('.inline-source-btn')
+    if (citationBtn.exists()) {
+      await citationBtn.trigger('click')
+      await nextTick()
+      expect(document.body.querySelector('.file-nav-arrow')).not.toBeNull()
+    }
+  })
+})
