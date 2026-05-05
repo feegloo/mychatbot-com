@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
-        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isPdf && !isSvg && !isRasterImage }">
+        <div class="source-modal-content" :class="{ 'source-modal-content--text': !isUDocFile && !isSvg && !isRasterImage }">
           <!-- PDF / DOCX / PPTX preview via udoc-viewer -->
           <UDocViewer
             v-if="isUDocFile"
