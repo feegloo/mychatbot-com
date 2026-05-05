@@ -163,7 +163,7 @@ export function renderMarkdown(content: string): string {
   // square brackets don't get interpreted as reference links.
   const langTagToken = '\x01LANGTAG\x01'
   let capturedLangCode = ''
-  normalized = normalized.replace(/\[language\]([a-z]{2,3})\[\/language\]\s*/gi, (_, code) => {
+  normalized = normalized.replace(/\[language\]([a-z]{2,3})\[\/language\]/gi, (_, code) => {
     capturedLangCode = code.toLowerCase()
     return langTagToken
   })

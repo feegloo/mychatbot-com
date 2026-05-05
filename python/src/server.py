@@ -182,6 +182,21 @@ class IndexRequest(BaseModel):
     trace_id: str | None = None
     user_language: str | None = None
 
+    def normalized_user_language(self) -> str | None:
+        """Return a normalized ISO 639-1 code (lowercase, no region suffix).
+
+        Accepts raw browser-language strings like ``pl-PL`` or ``EN`` and
+        returns the bare two-letter code (e.g. ``pl``, ``en``).  Returns
+        ``None`` when ``user_language`` is not set or after stripping is empty.
+        """
+        if not self.user_language:
+            return None
+        code = self.user_language.lower().split("-")[0].split("_")[0].strip()
+        # Reject anything that doesn't look like a valid ISO 639-1/639-2 code
+        if not code or not code.isalpha() or not (2 <= len(code) <= 3):
+            return None
+        return code
+
 
 class EnrichMetadataRequest(BaseModel):
     file_paths: list[str]
@@ -330,7 +345,7 @@ async def index(req: IndexRequest):
                 conversation_id=req.conversation_id,
                 collection_name=req.collection_name,
                 file_paths=req.file_paths,
-                user_language=req.user_language,
+                user_language=req.normalized_user_language(),
             )
         sentry_logger.info(
             "Indexing completed for conversation {conversation_id}",
@@ -371,8 +386,7 @@ async def index_stream(req: IndexRequest):
                 conversation_id=req.conversation_id,
                 collection_name=req.collection_name,
                 file_paths=req.file_paths,
-                on_progress=on_progress,
-                user_language=req.user_language,
+                user_language=req.normalized_user_language(),
             )
         )
 

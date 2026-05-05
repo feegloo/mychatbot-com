@@ -926,4 +926,63 @@ describe("LanguageToggle", () => {
       expect(translated?.get(0)).toBe("Wiadomość po polsku.");
     });
   });
+
+  // ── [language]xx[/language] tag in welcome message ──
+
+  describe("[language] tag detection", () => {
+    it("sets sourceLang from [language] tag and detectedLang to browserLang", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+
+      // Welcome message starts with [language]en[/language] — document is English, user is Polish
+      const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the uploaded English document.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      // sourceLang = detected source document language
+      expect(vm.sourceLang).toBe("en");
+      // detectedLang = user browser language (welcome was already generated in user lang)
+      expect(vm.detectedLang).toBe("pl");
+      // Not translated: welcome is already in the user's language
+      expect(vm.isTranslated).toBe(false);
+      // detectLanguage API must NOT be called when [language] tag is present
+      expect(detectLanguageMock).not.toHaveBeenCalled();
+    });
+
+    it("shows toggle with availableLangs = {pl, en} when tag is [language]en[/language] and browser=pl", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+
+      const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the English source document.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      // availableLangs = {pl (browser/detected), en (source), en} → deduplicated = {pl, en}
+      expect(vm.availableLangs).toContain("pl");
+      expect(vm.availableLangs).toContain("en");
+      // Toggle should be visible (2 distinct languages)
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(true);
+    });
+
+    it("hides toggle when [language] tag matches browser lang and no other lang", async () => {
+      Object.defineProperty(navigator, "language", { value: "en", configurable: true });
+
+      // Both browser and document are English — only 1 distinct language in the set
+      const welcome = "[language]en[/language]\n# Some English Doc\n\nA long enough welcome message about an English document uploaded by an English speaker.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      // availableLangs = {en, en} → deduplicated {en} — only 1 language → toggle hidden
+      expect(wrapper.find(".lang-toggle-wrap").exists()).toBe(false);
+    });
+  });
 });

@@ -169,6 +169,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
         traceId,
         sentryTrace,
         baggage,
+        userLanguage: userLanguage ?? null,
       },
     }).catch(async (err: Error) => {
       logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')
@@ -504,6 +505,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
         traceId,
         sentryTrace,
         baggage,
+        userLanguage: userLanguage ?? null,
       },
     }).catch(async (err: Error) => {
       logger.error({ conversationId, err: err.message }, 'publishIndexingJob failed')

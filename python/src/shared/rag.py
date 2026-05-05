@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
+from .languages import LANG_NAMES as _LANG_NAMES
 from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
 from .prompts.key_facts import KEY_FACTS_PROMPT
@@ -19,7 +20,6 @@ from .prompts.labels_actions import LABELS_ACTIONS_RULES
 from .prompts.quiz import QUIZ_PROMPT
 from .prompts.response_formats import RESPONSE_FORMATS_RULES
 from .prompts.voice_tone import VOICE_TONE_RULES
-from .prompts.welcome import LANG_NAMES as _LANG_NAMES
 from .vector_store import query_chunks
 
 logger = logging.getLogger(__name__)
