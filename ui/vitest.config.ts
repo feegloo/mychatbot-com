@@ -10,6 +10,9 @@ export default defineConfig({
       '@frontend-home-hero': fileURLToPath(
         new URL('../frontend/src/components/HomeHero.vue', import.meta.url),
       ),
+      // dexie lives in ui/node_modules but is imported from frontend/src which has no node_modules.
+      // Pin the alias so Vitest can always find it.
+      dexie: fileURLToPath(new URL('./node_modules/dexie/dist/dexie.mjs', import.meta.url)),
     },
   },
   server: {
