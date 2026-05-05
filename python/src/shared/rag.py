@@ -1157,7 +1157,20 @@ def answer_with_citations(
 
     logger.info(f"❓ Answering question: {question[:100]}...")
 
-    with sentry_sdk.start_span(op="rag.answer", name=f"answer: {question[:60]}") as rag_span:
+    # Detect mode early so the outer Sentry span op reflects the actual routing.
+    _is_quiz_early = _is_quiz_request(question)
+    _is_key_facts_early = not _is_quiz_early and _is_key_facts_request(question)
+    _is_professor_early = not _is_quiz_early and not _is_key_facts_early and _is_professor_request(question)
+    if _is_quiz_early:
+        _span_op = "rag.quiz"
+    elif _is_professor_early:
+        _span_op = "rag.professor"
+    elif _is_key_facts_early:
+        _span_op = "rag.key_facts"
+    else:
+        _span_op = "rag.answer"
+
+    with sentry_sdk.start_span(op=_span_op, name=f"answer: {question[:60]}") as rag_span:
         rag_span.set_data("conversation_id", conversation_id)
         rag_span.set_data("question", question[:200])
 

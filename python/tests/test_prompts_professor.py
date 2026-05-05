@@ -10,8 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-import re
-
 from langchain_core.prompts import ChatPromptTemplate
 
 from shared.prompts import PROFESSOR_PROMPT

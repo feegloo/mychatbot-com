@@ -53,7 +53,7 @@ Mark each mistake with [c:red]...[/c] highlighting. Examples of significant mist
 - Skipping a step that changes the result
 If no mistakes: omit this section entirely.]
 
-**✅ Correct solution:**
+**📝 Correct solution:**
 [Full step-by-step correct solution. Skip if the user's answer was 100% correct.
 Show ALL steps. Use $...$ for inline math and $$...$$ for display equations.
 Mark intermediate results that the user got right with [c:green]...[/c].]
