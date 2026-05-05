@@ -68,7 +68,7 @@ onMounted(async () => {
   // Restore sidebar state from IndexedDB as source of truth (in case localStorage
   // diverged, e.g. cleared manually), then sync localStorage back.
   const stored = await ConfigurationsTable.get<string>('sidebarCollapsed')
-  if (stored !== null && stored !== localStorage.getItem('sidebarCollapsed')) {
+  if (stored !== null && stored !== undefined && stored !== localStorage.getItem('sidebarCollapsed')) {
     sidebarCollapsed.value = stored === 'true'
     localStorage.setItem('sidebarCollapsed', stored)
   }
