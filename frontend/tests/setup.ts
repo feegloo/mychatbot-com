@@ -34,9 +34,10 @@ vi.mock('../src/components/TextFade.vue', () => ({
   }),
 }))
 
-// UDocViewer pulls in @docmentis/udoc-viewer which has a missing internal
-// module in the test environment. Replace it with a transparent stub so
-// SourcePreviewModal (and tests that open it) can load correctly.
+// UDocViewer pulls in @docmentis/udoc-viewer whose internal module
+// `@docmentis/udoc-viewer/dist/src/ui/framework/store` is absent in the test
+// environment. Replace it with a transparent stub so SourcePreviewModal (and
+// tests that open it) can load and render correctly.
 vi.mock('../src/components/UDocViewer.vue', () => ({
   default: defineComponent({ name: 'UDocViewerStub', template: '<div class="udoc-viewer-stub" />' }),
 }))

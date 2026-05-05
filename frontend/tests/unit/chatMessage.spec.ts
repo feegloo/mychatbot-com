@@ -532,8 +532,10 @@ describe('ChatMessage — file preview navigation arrows', () => {
 
   it('keyboard ArrowRight is wired up: listener is active and calls preventDefault', async () => {
     // The keyboard handler is registered via watch(hasFilePreviewNav).
-    // Test that it fires (e.preventDefault() is called) without
-    // awaiting a full reactive flush (which triggers happy-dom Teleport issues).
+    // We verify it fires by asserting e.preventDefault() is called rather than
+    // awaiting a full reactive flush: dispatching a keyboard event outside
+    // Vue's scheduler causes happy-dom to lose comment-node parentNode references
+    // during the Teleport patch, throwing TypeError on insertBefore.
     const wrapper = mountWelcome([imgFile, pdfFile])
     await openFile(wrapper, imgFile)
     // hasFilePreviewNav is now true — handler should be attached to document
@@ -586,7 +588,8 @@ describe('ChatMessage — file preview navigation arrows', () => {
     })
     await nextTick()
 
-    // Simulate citation click — openCitation falls back to props.files[0]
+    // Simulate citation click — openCitation calls openFilePreview (sets filePreviewIndex)
+    // when falling back to props.files for welcome-message [source:N] citations.
     const citationBtn = wrapper.find('.inline-source-btn')
     if (citationBtn.exists()) {
       await citationBtn.trigger('click')
