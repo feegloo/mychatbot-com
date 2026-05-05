@@ -144,9 +144,12 @@ export function sanitizeMermaidCode(code: string): string {
     // Use [^\S\n]* instead of \s* so that newlines (which encode indentation
     // hierarchy) are never consumed — only horizontal whitespace is stripped.
     // Also normalise single-brace hexagon nodes {Label} → {{Label}}.
+    // Strip Markdown links [text](url) → text: Mermaid's mindmap lexer treats
+    // `[` as NODE_DSTART, so links inside node labels cause a parse error.
     return withFixedSyntax
       .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
       .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
   }
   return withFixedSyntax
 }

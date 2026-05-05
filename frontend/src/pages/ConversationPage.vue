@@ -260,6 +260,7 @@ import { useSSE } from '../composables/useGlobalSSE'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
+import { getBulkStoredTranslations } from '../utils/translationStorage'
 import { extractPastedFiles } from '../composables/useFilePaste'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
@@ -724,6 +725,25 @@ async function doLoadConversation() {
         messages.value.push(stableServerMessages[i])
       }
     } else if (stableServerMessages.length !== messages.value.length) {
+      // On initial page load (no messages yet): pre-apply any stored translations
+      // so the first render is already in the user's chosen language, preventing
+      // the visible flicker from original → translated content on refresh.
+      if (messages.value.length === 0) {
+        const storedLang = await getStoredConversationLanguage(conversationId)
+        if (storedLang) {
+          const messageIds = stableServerMessages.filter((m) => m.id).map((m) => m.id!)
+          if (messageIds.length > 0) {
+            const cachedByMessageId = await getBulkStoredTranslations(storedLang, messageIds)
+            cachedByMessageId.forEach((translatedContent, msgId) => {
+              const idx = stableServerMessages.findIndex((m) => m.id === msgId)
+              if (idx !== -1) {
+                originalMessages.value.set(idx, stableServerMessages[idx].content)
+                stableServerMessages[idx] = { ...stableServerMessages[idx], content: translatedContent }
+              }
+            })
+          }
+        }
+      }
       messages.value = stableServerMessages
     } else {
       // Sync per-message metadata that may arrive after initial message creation.
@@ -1154,6 +1174,9 @@ async function openC4Modal() {
     .replace(/\n?```$/, '')
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
     .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
+    // Strip Markdown links [text](url) → text: Mermaid's mindmap lexer treats
+    // `[` as NODE_DSTART, so links inside node labels cause a parse error.
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .trim()
   if (!mermaidCode) return
 
