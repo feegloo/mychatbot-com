@@ -10,6 +10,8 @@ export default defineConfig({
       '@frontend-home-hero': fileURLToPath(
         new URL('../frontend/src/components/HomeHero.vue', import.meta.url),
       ),
+      // dexie is a frontend dependency not installed in ui/node_modules; stub it for tests.
+      dexie: fileURLToPath(new URL('./src/__mocks__/dexie.ts', import.meta.url)),
     },
   },
   server: {
