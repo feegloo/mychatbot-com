@@ -22,11 +22,11 @@ async def test_index_stream_passes_on_progress_to_index_documents(monkeypatch):
 
     def _fake_index_documents(
         *,
-        conversation_id,
-        collection_name,
-        file_paths,
+        _conversation_id=None,
+        _collection_name=None,
+        _file_paths=None,
         on_progress,
-        user_language=None,
+        _user_language=None,
         **_,
     ):
         # Simulate the inline pipeline emitting the expected events.
@@ -55,7 +55,12 @@ async def test_index_stream_passes_on_progress_to_index_documents(monkeypatch):
     response = await server.index_stream(req)
 
     async for chunk in response.body_iterator:
-        raw = chunk if isinstance(chunk, str) else chunk.decode()
+        if isinstance(chunk, bytes):
+            raw = chunk.decode("utf-8")
+        elif isinstance(chunk, str):
+            raw = chunk
+        else:
+            continue
         for line in raw.split("\n"):
             if line.strip():
                 received_events.append(json.loads(line))
