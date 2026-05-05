@@ -481,6 +481,13 @@ watch(
         if (translations.size > 0) {
           currentLang.value = storedLang
           translatedUpToIndex.value = msgs.length - 1
+          // Defer until the current render cycle is complete before mutating
+          // message content — same pattern as translateTo() below. Without this
+          // nextTick the emit fires mid-render, causing setupTooltips() in
+          // MessageContent.vue to run while Vue is still patching the DOM,
+          // which produces "Cannot destructure property 'value' of 'undefined'"
+          // errors in floating-vue's v-tooltip directive hook.
+          await nextTick()
           emit('translated', translations)
         }
       }

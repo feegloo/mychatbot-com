@@ -73,7 +73,24 @@ async function bootstrap() {
   initDatabase()
   await migrateLocalStorageToIndexedDB()
   await Promise.all([initTokensCache(), initFingerprintCache(), initHomeLang()])
-  app.use(router).use(FloatingVue).mount('#app')
+  app.use(router).use(FloatingVue)
+
+  // floating-vue 5.2.2: the v-tooltip directive hook destructures its second
+  // argument as `{ value, modifiers }` and throws when it receives `undefined`.
+  // This can happen during rapid reactive updates (e.g. bulk translation from
+  // IndexedDB). Patch the hook to silently skip undefined bindings.
+  const dirCtx = (app as any)._context?.directives as Record<string, any> | undefined
+  const origTooltip = dirCtx?.tooltip
+  if (origTooltip?.beforeMount && origTooltip?.updated) {
+    const safe =
+      (fn: (el: Element, binding: unknown) => void) =>
+      (el: Element, binding: unknown) => {
+        if (binding != null) fn(el, binding)
+      }
+    app.directive('tooltip', { ...origTooltip, beforeMount: safe(origTooltip.beforeMount), updated: safe(origTooltip.updated) })
+  }
+
+  app.mount('#app')
 }
 
 void bootstrap()
