@@ -16,9 +16,10 @@ from .chapters import (
 from .chunkers import Chunk, split_into_chunks
 from .cloud_dispatch import is_cloud_mode
 from .describe import DescribeResult, describe_documents
-from .extractors import clean_file_name, extract_pdf, ocr_pdf_page
+from .extractors import _MIME_TYPES, IMAGE_EXTENSIONS, clean_file_name, extract_pdf, ocr_pdf_page
 from .lang_detect import detect_language
 from .metadata import extract_metadata_many
+from .moderation import check_content_moderation
 from .page_worker import FileProcessingResult, process_pdf_parallel, process_standalone_file
 from .suggested_questions import suggest_questions_from_chunks
 from .telemetry import log_processing_event, trace_step
@@ -837,6 +838,33 @@ def _index_documents_inline(
             result = process_standalone_file(file_path, conversation_id)
 
         file_results.append(result)
+
+    # ── Content moderation: block sexual content before indexing ─────────────
+    # Runs after text extraction so we have content to check.  SexualContentError
+    # propagates up through index_documents() and is emitted as an error event
+    # by the /index-stream endpoint, marking the conversation as failed.
+    for fr in file_results:
+        p = Path(fr.file_path)
+        suffix = p.suffix.lower()
+        image_bytes: bytes | None = None
+        mime_type = "image/png"
+
+        if suffix in IMAGE_EXTENSIONS:
+            try:
+                image_bytes = p.read_bytes()
+                mime_type = _MIME_TYPES.get(suffix, "image/png")
+            except OSError as read_err:
+                logger.warning(
+                    "⚠️ Could not read image for moderation check (%s): %s",
+                    fr.file_name,
+                    read_err,
+                )
+
+        check_content_moderation(
+            fr.full_text or "",
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+        )
 
     # Aggregate chunks, images, text across all files
     all_chunks: list[Chunk] = []

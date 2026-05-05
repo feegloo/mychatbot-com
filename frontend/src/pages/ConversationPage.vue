@@ -70,8 +70,7 @@
 
     <ErrorDetail
       v-if="status.status === 'failed'"
-      :message="'Something went wrong while processing your files. Please try uploading again.'"
-      :raw="status.errorMessage || undefined"
+      :message="status.errorMessage || 'Something went wrong while processing your files. Please try uploading again.'"
     />
 
     <div class="grid" style="grid-template-columns: 1fr">

@@ -56,6 +56,33 @@ async function appendWelcomeUpdate(
   await updateConversationMessageContent(messageId, merged)
 }
 
+/** Typed error raised when the Python indexing pipeline returns an error event. */
+class IndexingError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
+    super(message)
+    this.name = 'IndexingError'
+  }
+}
+
+/**
+ * Extract a user-facing error message from an indexing stream error event.
+ * Recognises the 'sexual_content' error code and returns a clean message.
+ */
+function resolveIndexingError(data: Record<string, any>): IndexingError {
+  const code = data.error_code as string | undefined
+  const raw = (data.error as string) || 'Indexing failed'
+  if (code === 'sexual_content') {
+    return new IndexingError(
+      'This file contains sexual or explicit content and cannot be uploaded.',
+      code,
+    )
+  }
+  return new IndexingError(raw)
+}
+
 uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
   const traceId = getTraceIdHeader(ctx) || (ctx.state.traceId as string | undefined) || ''
   const sentryTrace = ctx.get('sentry-trace') || ''
@@ -308,7 +335,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
               data: { parsed: data.parsed, total: data.total },
             })
           } else if (event === 'error') {
-            throw new Error((data.error as string) || 'Indexing failed')
+            throw resolveIndexingError(data)
           }
         }
       } catch (error: any) {
@@ -643,7 +670,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
               data: { parsed: data.parsed, total: data.total },
             })
           } else if (event === 'error') {
-            throw new Error((data.error as string) || 'Indexing failed')
+            throw resolveIndexingError(data)
           }
         }
       } catch (error: any) {
