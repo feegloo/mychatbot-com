@@ -13,7 +13,6 @@ import threading
 import pytest
 
 from shared import cpu_budget, indexing
-from shared.cpu_budget import MAIN_MAX_CPU
 
 
 @pytest.fixture(autouse=True)
