@@ -194,16 +194,7 @@ function popupZoomOut() {
 
 function openPopup() {
   if (!renderedSvg.value) return
-  // Fit the diagram to the full viewport height
-  const svgEl = diagramEl.value?.querySelector('svg') as SVGSVGElement | null
-  if (svgEl) {
-    const vb = svgEl.viewBox?.baseVal
-    const naturalH = (vb && vb.height > 0 ? vb.height : parseFloat(svgEl.getAttribute('height') ?? '0')) || 600
-    const viewH = window.innerHeight - 56 // subtract header height
-    popupScale.value = Math.min(Math.max(+(viewH / naturalH).toFixed(2), POPUP_MIN_SCALE), POPUP_MAX_SCALE)
-  } else {
-    popupScale.value = 1
-  }
+  popupScale.value = 4
   popupPanX.value = 0
   popupPanY.value = 0
   popupOpen.value = true
