@@ -180,6 +180,7 @@ class IndexRequest(BaseModel):
     collection_name: str
     file_paths: list[str]
     trace_id: str | None = None
+    user_language: str | None = None
 
 
 class EnrichMetadataRequest(BaseModel):
@@ -329,6 +330,7 @@ async def index(req: IndexRequest):
                 conversation_id=req.conversation_id,
                 collection_name=req.collection_name,
                 file_paths=req.file_paths,
+                user_language=req.user_language,
             )
         sentry_logger.info(
             "Indexing completed for conversation {conversation_id}",
@@ -370,6 +372,7 @@ async def index_stream(req: IndexRequest):
                 collection_name=req.collection_name,
                 file_paths=req.file_paths,
                 on_progress=on_progress,
+                user_language=req.user_language,
             )
         )
 

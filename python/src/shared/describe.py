@@ -25,6 +25,7 @@ from .prompts.welcome import (
     WELCOME_QUESTIONS_RULES_PL,
     WELCOME_SYSTEM_EN,
     WELCOME_SYSTEM_PL,
+    build_user_language_addendum,
 )
 from .rag import get_llm
 
@@ -57,6 +58,26 @@ _FILENAME_AUTHOR_STOPWORDS = {
 class DescribeResult(TypedDict):
     welcome_message: str
     suggested_questions: list[str]
+
+
+# ISO 639-1 code → English language name for the user-language addendum.
+_LANG_NAMES: dict[str, str] = {
+    "en": "English", "pl": "Polish", "de": "German", "fr": "French",
+    "es": "Spanish", "it": "Italian", "pt": "Portuguese", "nl": "Dutch",
+    "ru": "Russian", "uk": "Ukrainian", "cs": "Czech", "sk": "Slovak",
+    "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian", "hr": "Croatian",
+    "sl": "Slovenian", "sr": "Serbian", "el": "Greek", "tr": "Turkish",
+    "ar": "Arabic", "he": "Hebrew", "fa": "Persian", "ur": "Urdu",
+    "hi": "Hindi", "bn": "Bengali", "zh": "Chinese", "ja": "Japanese",
+    "ko": "Korean", "vi": "Vietnamese", "th": "Thai", "id": "Indonesian",
+    "ms": "Malay", "sv": "Swedish", "da": "Danish", "fi": "Finnish",
+    "no": "Norwegian", "lt": "Lithuanian", "lv": "Latvian", "et": "Estonian",
+}
+
+
+def _lang_name(code: str) -> str:
+    """Return the English name for a given ISO 639-1 language code."""
+    return _LANG_NAMES.get(code.lower(), code.upper())
 
 
 def _pl_plik(n: int) -> str:
@@ -1046,6 +1067,7 @@ def _synthesize_welcome_messages(
     raw_beginning: str = "",
     raw_ending: str = "",
     num_files: int = 1,
+    user_language: str | None = None,
 ) -> tuple[str, list[str]]:
     """Synthesize N detailed condensed summaries into one final welcome message.
 
@@ -1181,6 +1203,10 @@ def _synthesize_welcome_messages(
             "Use emoji professionally (📖, ⚔️, 🗺️ etc.).\n"
             "Reply in the same language as the content."
         ) + WELCOME_QUESTIONS_RULES_EN
+
+    # Apply user language override when the user's language is known
+    if user_language:
+        system_msg += build_user_language_addendum(user_language, _lang_name(user_language))
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -1362,6 +1388,7 @@ def describe_documents(
     ocr_in_progress: bool = False,
     total_pages_hint: int | None = None,
     ocr_pages_done: int | None = None,
+    user_language: str | None = None,
 ) -> DescribeResult:
     """Generate a welcome message with a # Title, description, and expert insight,
     plus up to 10 suggested questions — all from a single LLM call.
@@ -1522,6 +1549,7 @@ def describe_documents(
                 metadata_section,
                 raw_beginning=all_text[:_SYNTHESIS_RAW_TEXT_CHARS],
                 raw_ending=all_text[-_RAW_ENDING_CHARS:] if len(all_text) > _RAW_ENDING_CHARS else "",
+                user_language=user_language,
             )
             return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
@@ -1581,6 +1609,7 @@ def describe_documents(
         synthesis_msg, synthesis_qs = _synthesize_welcome_messages(
             messages, file_list, language, metadata_section, raw_beginning=raw_beginning,
             num_files=num_unique_files,
+            user_language=user_language,
         )
         return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
@@ -1726,20 +1755,31 @@ def describe_documents(
 
     # When multiple files are uploaded simultaneously, prepend a preamble that
     # explicitly instructs the LLM to describe ALL files and find connections.
+    # Use user_language (if provided) to pick the prompt template; otherwise
+    # fall back to the detected document language.
+    prompt_lang = user_language or language
     if num_unique_files > 1:
-        if language == "pl":
+        if prompt_lang == "pl":
             preamble = WELCOME_MULTI_FILE_PREAMBLE_PL.format(
                 num_files=num_unique_files,
                 num_files_word=_pl_plik(num_unique_files),
             )
         else:
             preamble = WELCOME_MULTI_FILE_PREAMBLE_EN.format(num_files=num_unique_files)
-        system_prompt = preamble + (WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN)
+        system_prompt = preamble + (WELCOME_SYSTEM_PL if prompt_lang == "pl" else WELCOME_SYSTEM_EN)
         logger.info(f"📂 Multi-file welcome: using multi-file prompt for {num_unique_files} files")
     else:
-        system_prompt = WELCOME_SYSTEM_PL if language == "pl" else WELCOME_SYSTEM_EN
+        system_prompt = WELCOME_SYSTEM_PL if prompt_lang == "pl" else WELCOME_SYSTEM_EN
 
-    if language == "pl":
+    # When the user's home-page language is known, append an addendum that:
+    # - overrides the response language to the user's language
+    # - instructs the model to emit [language]code[/language] as the first line
+    # - adds a country flag emoji to the title if source ≠ user language
+    if user_language:
+        system_prompt += build_user_language_addendum(user_language, _lang_name(user_language))
+        logger.info(f"🌐 Welcome will be generated in user language: {user_language}")
+
+    if prompt_lang == "pl":
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),

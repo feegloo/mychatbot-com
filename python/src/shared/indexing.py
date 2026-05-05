@@ -95,6 +95,7 @@ def _ocr_prefetch_welcome(
     file_types: dict[str, str],
     *,
     conversation_id: str | None = None,
+    user_language: str | None = None,
 ) -> DescribeResult | None:
     """OCR-first welcome strategy for scanned / image-based PDFs.
 
@@ -177,6 +178,7 @@ def _ocr_prefetch_welcome(
             ocr_in_progress=True,
             total_pages_hint=total_pages,
             ocr_pages_done=pages_to_ocr,
+            user_language=user_language,
         )
 
     combined = "\n\n".join(
@@ -203,6 +205,7 @@ def _ocr_prefetch_welcome(
         ocr_in_progress=still_processing,
         total_pages_hint=total_pages,
         ocr_pages_done=pages_to_ocr,
+        user_language=user_language,
     )
 
 
@@ -217,6 +220,7 @@ def _maybe_regenerate_heavy_ocr_welcome(
     describe_chapters: list[dict] | None,
     current_welcome: str,
     on_progress: Callable[[str, dict], None] | None,
+    user_language: str | None = None,
 ) -> DescribeResult | None:
     """Regenerate the welcome message for heavy-OCR PDFs once indexing is done.
 
@@ -261,6 +265,7 @@ def _maybe_regenerate_heavy_ocr_welcome(
             file_names=file_name_list,
             file_types=file_types,
             chapters=describe_chapters,
+            user_language=user_language,
         )
     except Exception as e:
         logger.warning(f"⚠️ Welcome regeneration failed: {e}")
@@ -339,10 +344,21 @@ def index_documents(
     *,
     job_metadata: dict | None = None,
     allow_delegation: bool = True,
+    user_language: str | None = None,
 ) -> dict:
     logger.info(
         f"📁 Starting indexing of {len(file_paths)} file(s) for collection: {collection_name}"
     )
+
+    # Resolve user_language: prefer explicit arg, then fall back to job_metadata
+    # (the worker receives job_metadata from the delegated Pub/Sub payload).
+    resolved_user_language = user_language or (job_metadata or {}).get("user_language")
+
+    # When delegating to a worker, embed user_language in job_metadata so it
+    # survives the Pub/Sub serialisation and is available on the worker side.
+    if resolved_user_language and (job_metadata is None or "user_language" not in job_metadata):
+        job_metadata = dict(job_metadata or {})
+        job_metadata["user_language"] = resolved_user_language
 
     # ── CPU budget + delegation decision ─────────────────────────────
     # Main instance caps its own CPU usage at 50% of system cores (see
@@ -367,6 +383,7 @@ def index_documents(
             collection_name=collection_name,
             file_paths=file_paths,
             on_progress=on_progress,
+            user_language=resolved_user_language,
         )
     finally:
         from .cpu_budget import release as _release_cpu
@@ -497,6 +514,7 @@ def _index_documents_inline(
     collection_name: str,
     file_paths: list[str],
     on_progress: Callable[[str, dict], None] | None = None,
+    user_language: str | None = None,
 ) -> dict:
     log_processing_event(
         conversation_id,
@@ -595,6 +613,7 @@ def _index_documents_inline(
                 page_summaries=early_summaries or None,
                 file_names=file_name_list,
                 file_types=file_types,
+                user_language=user_language,
             )
         )
 
@@ -620,6 +639,7 @@ def _index_documents_inline(
                 file_name_list,
                 file_types,
                 conversation_id=conversation_id,
+                user_language=user_language,
             )
 
         quick_chapters = chapters_to_serializable(detect_chapters(file_path))
@@ -642,6 +662,7 @@ def _index_documents_inline(
             file_names=file_name_list,
             file_types=file_types,
             chapters=quick_chapters or None,
+            user_language=user_language,
         )
 
     for file_path in file_paths:
@@ -992,6 +1013,7 @@ def _index_documents_inline(
                 file_names=file_name_list,
                 file_types=file_types,
                 chapters=describe_chapters,
+                user_language=user_language,
             )
             describe_result = describe_future.result()
 
@@ -1051,6 +1073,7 @@ def _index_documents_inline(
         describe_chapters=describe_chapters,
         current_welcome=welcome_message or "",
         on_progress=on_progress,
+        user_language=user_language,
     )
     if regenerated_welcome:
         welcome_message = regenerated_welcome.get("welcome_message") or welcome_message

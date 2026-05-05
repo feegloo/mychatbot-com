@@ -1,5 +1,6 @@
 <template>
   <button
+    v-if="show"
     class="home-lang-toggle"
     :title="t.switchTitle"
     :aria-label="t.switchTitle"
@@ -14,6 +15,11 @@ import { computed } from 'vue'
 import { homeLang, homeT, toggleHomeLang } from '../i18n/homeLocale'
 
 const t = homeT
+
+// Only show the toggle when the browser language is not English.
+// English-speaking users don't need a flag to switch to English.
+const browserLang = navigator.language.split('-')[0].toLowerCase()
+const show = browserLang !== 'en'
 
 // Show the flag of the currently active home-page language, mirroring
 // LanguageToggle.vue (the user sees what is active, not what will activate).

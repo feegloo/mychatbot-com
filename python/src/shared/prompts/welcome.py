@@ -513,3 +513,53 @@ WELCOME_MULTI_FILE_PREAMBLE_PL = (
     "tych plików łącznie — coś, czego nie widać w żadnym pojedynczym pliku.\n\n"
     "Wszystkie pozostałe zasady poniżej (mapa myśli, formatowanie, przyciski akcji, wykrywanie języka itp.) obowiązują normalnie.\n\n"
 )
+
+
+# ---------------------------------------------------------------------------
+# User language override addendum
+#
+# Appended to the system prompt when the user's browser/home-page language
+# is known.  It overrides the "reply in document language" rule and instructs
+# the model to:
+#   1. Write the entire welcome in the user's language.
+#   2. Emit [language]<code>[/language] as the very first line of the response
+#      so the frontend can extract the source document language.
+#   3. Add a country-flag emoji to the title if the source language differs
+#      from the user language.
+# ---------------------------------------------------------------------------
+
+
+def build_user_language_addendum(user_language_code: str, user_language_name: str) -> str:
+    """Return a system prompt addendum that overrides the response language to the user's language.
+
+    The addendum instructs the model to:
+    - Write the entire welcome message in ``user_language_name``.
+    - Emit ``[language]<detected_code>[/language]`` as the very first line.
+    - Append a country flag emoji to the # heading if the source document
+      language differs from the user language.
+    """
+    return (
+        f"\n\n== LANGUAGE OVERRIDE (HIGHEST PRIORITY) ==\n"
+        f"User language: {user_language_name} ({user_language_code})\n"
+        f"Write the ENTIRE welcome message (title, description, expert insight, "
+        f"mindmap labels, action buttons) in {user_language_name}. "
+        f"This overrides any other language rule in this prompt.\n\n"
+        f"REQUIRED — output this as the VERY FIRST LINE of your response "
+        f"(even before [mindmap] and before the # heading):\n"
+        f"[language]DETECTED_CODE[/language]\n"
+        f"Replace DETECTED_CODE with the ISO 639-1 code of the PRIMARY language "
+        f"of the uploaded source document (e.g. 'en' for English, 'de' for German, "
+        f"'ar' for Arabic, 'pl' for Polish, 'fr' for French).\n\n"
+        f"SOURCE LANGUAGE FLAG IN TITLE:\n"
+        f"If the detected source document language differs from the user language "
+        f"({user_language_code}), append the appropriate country flag emoji AFTER "
+        f"the topic emoji at the END of the # heading.\n"
+        f"Examples: 🇬🇧 English, 🇩🇪 German, 🇫🇷 French, 🇵🇱 Polish, 🇸🇦 Arabic, "
+        f"🇨🇳 Chinese, 🇯🇵 Japanese, 🇰🇷 Korean, 🇮🇳 Hindi, 🇷🇺 Russian, "
+        f"🇺🇦 Ukrainian, 🇪🇸 Spanish, 🇮🇹 Italian, 🇵🇹 Portuguese.\n"
+        f"Example: user language is Polish (pl), source is English → "
+        f"# Romeo and Juliet 🎭 🇬🇧\n"
+        f"If the source language matches the user language ({user_language_code}), "
+        f"do NOT add the flag — use only the topic emoji as usual.\n"
+    )
+

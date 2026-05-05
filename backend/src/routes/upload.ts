@@ -72,6 +72,9 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
     return
   }
 
+  // Optional user browser language sent by the frontend for welcome-message generation
+  const userLanguage = (ctx.request.body as Record<string, string>)?.userLanguage || undefined
+
   const videoFiles = files.filter((f) => f.mimetype?.startsWith('video/'))
   if (videoFiles.length) {
     ctx.status = 400
@@ -186,6 +189,7 @@ uploadRouter.post('/upload', upload.array('files'), async (ctx) => {
           collectionName,
           files: absolutePaths,
           traceId,
+          userLanguage,
         })
 
         for await (const { event, data } of stream) {
@@ -407,8 +411,9 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
   const sentryTrace = ctx.get('sentry-trace') || ''
   const baggage = ctx.get('baggage') || ''
 
-  const { conversationId, files: fileEntries } = ctx.request.body as {
+  const { conversationId, files: fileEntries, userLanguage } = ctx.request.body as {
     conversationId?: string
+    userLanguage?: string
     files?: Array<{
       name: string
       mimeType: string
@@ -519,6 +524,7 @@ uploadRouter.post('/upload/finalize', async (ctx) => {
           collectionName,
           files: absolutePaths,
           traceId,
+          userLanguage,
         })
 
         for await (const { event, data } of stream) {

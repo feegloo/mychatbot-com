@@ -1193,6 +1193,12 @@ function openFilePreview(file: FileInfo) {
   border-radius: 8px;
 }
 
+/* Hidden language detection tag — emitted by the model as structured metadata.
+   Invisible to users but preserved in DOM for source-language detection. */
+:deep(.lang-detect-hidden) {
+  display: none;
+}
+
 /* Poem block. */
 :deep(.poem-block) {
   text-align: center;

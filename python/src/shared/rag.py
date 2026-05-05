@@ -61,6 +61,12 @@ CONVERSATION LANGUAGE (HIGHEST PRIORITY): {conversation_language_name}
 Conversation language code: {conversation_language_code}
 Always write the answer and all [action:...] labels in this conversation language.
 
+SOURCE DOCUMENT LANGUAGE (helper info only): {source_document_language}
+This is the language the source material is written in. Use it ONLY as supplementary context —
+for example, when quoting the original text verbatim, or when the user explicitly asks about
+the original language. The user language above has absolute priority over source language for
+generating your answer.
+
 == QUESTION ==
 "{question}"
 
@@ -1117,6 +1123,37 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
+_LANGUAGE_TAG_RE = re.compile(r"\[language\]([a-z]{2,3})\[/language\]", re.IGNORECASE)
+_SOURCE_LANG_NAMES: dict[str, str] = {
+    "en": "English", "pl": "Polish", "de": "German", "fr": "French",
+    "es": "Spanish", "it": "Italian", "pt": "Portuguese", "nl": "Dutch",
+    "ru": "Russian", "uk": "Ukrainian", "cs": "Czech", "sk": "Slovak",
+    "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian", "hr": "Croatian",
+    "el": "Greek", "tr": "Turkish", "ar": "Arabic", "he": "Hebrew",
+    "hi": "Hindi", "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
+    "vi": "Vietnamese", "th": "Thai", "id": "Indonesian", "ms": "Malay",
+    "sv": "Swedish", "da": "Danish", "fi": "Finnish", "no": "Norwegian",
+}
+
+
+def _extract_source_language(welcome_messages: list[str] | None) -> str:
+    """Extract the source document language from [language]xx[/language] tags.
+
+    Returns a human-readable hint like "English (en)" when found, or
+    "unknown (not detected)" when no tag is present (e.g. older conversations
+    generated before this feature).
+    """
+    if not welcome_messages:
+        return "unknown (not detected)"
+    for msg in welcome_messages:
+        m = _LANGUAGE_TAG_RE.search(msg)
+        if m:
+            code = m.group(1).lower()
+            name = _SOURCE_LANG_NAMES.get(code, code.upper())
+            return f"{name} ({code})"
+    return "unknown (not detected)"
+
+
 def answer_with_citations(
     collection_name: str,
     conversation_id: str,
@@ -1266,6 +1303,7 @@ def answer_with_citations(
                 "question": question,
                 "conversation_language_code": conversation_language_code or "unknown",
                 "conversation_language_name": conversation_language_name or "Unknown",
+                "source_document_language": _extract_source_language(welcome_messages),
                 "context": context,
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,

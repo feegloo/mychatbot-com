@@ -87,6 +87,7 @@ export async function* indexConversationStream(options: {
   collectionName: string
   files: string[]
   traceId?: string
+  userLanguage?: string
 }): AsyncGenerator<IndexStreamEvent> {
   const response = await fetch(`${config.pythonServerUrl}/index-stream`, {
     method: 'POST',
@@ -96,6 +97,7 @@ export async function* indexConversationStream(options: {
       collection_name: options.collectionName,
       file_paths: options.files,
       trace_id: options.traceId || null,
+      user_language: options.userLanguage || null,
     }),
   })
 
