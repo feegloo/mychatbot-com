@@ -69,6 +69,9 @@ import {
 const MARKER_RE = /\[(source|action):([^\]]*)\]/gi
 const POEM_TAG_RE = /\[\/?(?:poem|quote)\]/gi
 const MINDMAP_BLOCK_RE = /\[mindmap\][\s\S]*?\[\/mindmap\]/gi
+// Language tag: [language]xx[/language] emitted by the model to indicate source document language.
+// Protected from translation to ensure the tag survives as-is in translated messages.
+const LANGUAGE_TAG_RE = /\[language\][a-z]{2,3}\[\/language\]/gi
 // Markdown image: `![alt](url "optional title")`. Uses negated character
 // classes so the match stops at the first closing `]` / `)` rather than
 // spanning over adjacent links on the same line.
@@ -145,7 +148,7 @@ function placeholderRegex(placeholder: string): RegExp {
 
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz' | 'mindmap'
+  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz' | 'mindmap' | 'langtag'
   original: string
   label?: string // only for action markers; gets replaced with translated label
   // |ref:filename suffix — opaque, must survive translation verbatim
@@ -176,9 +179,17 @@ function extractMarkers(texts: string[]): {
       found.push({ placeholder, kind: 'mindmap', original: match })
       return placeholder
     })
+    // Extract [language]xx[/language] tags — these are structural metadata
+    // emitted by the model to indicate source document language; they must
+    // not be sent to the translation service as the tag itself is not content.
+    const afterLangTag = afterMindmap.replace(LANGUAGE_TAG_RE, (match) => {
+      const placeholder = makePlaceholder(i, counterRef.value++)
+      found.push({ placeholder, kind: 'langtag', original: match })
+      return placeholder
+    })
     // Extract markdown images so their `[alt]` brackets don't collide
     // with the [source:…]/[action:…] marker regex on the following pass.
-    let result = afterMindmap.replace(IMAGE_MD_RE, (match) => {
+    let result = afterLangTag.replace(IMAGE_MD_RE, (match) => {
       const placeholder = makePlaceholder(i, counterRef.value++)
       found.push({ placeholder, kind: 'image', original: match })
       return placeholder
@@ -337,6 +348,12 @@ const emit = defineEmits<{
 }>()
 
 const detectedLang = ref('')
+// Source document language — extracted from [language]xx[/language] tag in the welcome
+// message. For new conversations where the welcome is generated in the user's language,
+// this holds the actual language of the source document (e.g. 'en' for an English PDF
+// uploaded by a Polish-speaking user). For backward-compatible conversations (no tag),
+// it remains empty and detectedLang covers both roles.
+const sourceLang = ref('')
 const browserLang = ref(navigator.language.split('-')[0])
 const currentLang = ref('') // language messages are currently displayed in
 // Target language during an in-flight translation. Used so the flag flips
@@ -413,10 +430,15 @@ function flagFor(code: string) {
   return LANG_FLAGS[code] || '🌐'
 }
 
-// Available target languages: unique set of {detected, browser, 'en'} minus current
+// Available target languages: unique set of {detected, sourceLang, browser, 'en'}
+// - detectedLang: language content was generated in (= user lang for new convos, source for old)
+// - sourceLang: actual source document language (from [language] tag, if present)
+// - browserLang: user's browser language
+// - 'en': always available
 const availableLangs = computed(() => {
   const set = new Set<string>()
   if (detectedLang.value) set.add(detectedLang.value)
+  if (sourceLang.value) set.add(sourceLang.value)
   if (browserLang.value) set.add(browserLang.value)
   set.add('en')
   return [...set]
@@ -493,9 +515,29 @@ watch(
       }
     }
 
+    // Check for [language]xx[/language] tag emitted by the model in the welcome message.
+    // When found, the welcome was generated in the user's browser language, and the tag
+    // holds the actual source document language (e.g. 'en' for an English PDF uploaded
+    // by a Polish-speaking user). We set detectedLang to the browser language so
+    // isTranslated stays false for the initial (untranslated) view.
+    const langTagMatch = firstAssistant.content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
+    if (langTagMatch) {
+      sourceLang.value = langTagMatch[1].toLowerCase()
+      // detectedLang = user's browser language (content was generated in that language)
+      detectedLang.value = browserLang.value
+      if (!currentLang.value) currentLang.value = browserLang.value
+
+      if (storedLang && storedLang !== browserLang.value && currentLang.value !== storedLang) {
+        await nextTick()
+        translateTo(storedLang)
+      }
+      return
+    }
+
     try {
       const result = await detectLanguage(firstAssistant.content)
       detectedLang.value = result.language
+      sourceLang.value = result.language
       // Only reset currentLang to detected if we haven't already applied a stored translation
       if (!currentLang.value) currentLang.value = result.language
 

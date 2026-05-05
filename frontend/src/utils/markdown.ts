@@ -157,6 +157,17 @@ export function renderMarkdown(content: string): string {
   const uploadToken = '\x01UPLOAD\x01'
   normalized = normalized.replace(/\[upload\]/gi, uploadToken)
 
+  // Protect [language]xx[/language] tags from marked — they are emitted by the model
+  // as structured metadata about the source document language, and must be hidden
+  // from the user (rendered as display:none spans). Extract before marked so
+  // square brackets don't get interpreted as reference links.
+  const langTagToken = '\x01LANGTAG\x01'
+  let capturedLangCode = ''
+  normalized = normalized.replace(/\[language\]([a-z]{2,3})\[\/language\]/gi, (_, code) => {
+    capturedLangCode = code.toLowerCase()
+    return langTagToken
+  })
+
   const rawHtml = marked.parse(normalized, { async: false }) as string
   // Replace disabled checkboxes BEFORE DOMPurify (which may strip <input> tags)
   // Use flexible regex to handle any attribute order from marked
@@ -255,10 +266,18 @@ export function renderMarkdown(content: string): string {
       '<line x1="12" y1="3" x2="12" y2="15"/>' +
       '</svg>Upload more files</button>',
   )
+  // Restore [language]xx[/language] placeholders as hidden spans so the tag
+  // is present in the DOM (for future reference) but invisible to users.
+  const withLangTag = capturedLangCode
+    ? withUpload.replace(
+        /\x01LANGTAG\x01/g,
+        `<span class="lang-detect-hidden">[language]${capturedLangCode}[/language]</span>`,
+      )
+    : withUpload.replace(/\x01LANGTAG\x01/g, '')
   // Wrap consecutive action buttons in a block container — the AI outputs all [action:]
   // markers on a single line so they arrive as siblings with only whitespace between them.
   // Using a <div> makes the button row block-level so it sits on its own line after the answer.
-  const withActionsWrapped = withUpload.replace(
+  const withActionsWrapped = withLangTag.replace(
     /(<button class="action-btn"[^>]*>.*?<\/button>(?:\s*<button class="action-btn"[^>]*>.*?<\/button>)*)/g,
     '<div class="action-btns-row">$1</div>',
   )

@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
+from .languages import LANG_NAMES as _LANG_NAMES
 from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
 from .prompts.key_facts import KEY_FACTS_PROMPT
@@ -64,6 +65,12 @@ _ANSWER_SYSTEM_TEMPLATE = """You answer questions about the user's uploaded file
 CONVERSATION LANGUAGE (HIGHEST PRIORITY): {conversation_language_name}
 Conversation language code: {conversation_language_code}
 Always write the answer and all [action:...] labels in this conversation language.
+
+SOURCE DOCUMENT LANGUAGE (helper info only): {source_document_language}
+This is the language the source material is written in. Use it ONLY as supplementary context —
+for example, when quoting the original text verbatim, or when the user explicitly asks about
+the original language. The user language above has absolute priority over source language for
+generating your answer.
 
 == QUESTION ==
 "{question}"
@@ -1125,6 +1132,27 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
     return "\n".join(parts) if parts else "(no file metadata available)"
 
 
+_LANGUAGE_TAG_RE = re.compile(r"\[language\]([a-z]{2,3})\[/language\]", re.IGNORECASE)
+
+
+def _extract_source_language(welcome_messages: list[str] | None) -> str:
+    """Extract the source document language from [language]xx[/language] tags.
+
+    Returns a human-readable hint like "English (en)" when found, or
+    "unknown (not detected)" when no tag is present (e.g. older conversations
+    generated before this feature).
+    """
+    if not welcome_messages:
+        return "unknown (not detected)"
+    for msg in welcome_messages:
+        m = _LANGUAGE_TAG_RE.search(msg)
+        if m:
+            code = m.group(1).lower()
+            name = _LANG_NAMES.get(code, code.upper())
+            return f"{name} ({code})"
+    return "unknown (not detected)"
+
+
 def answer_with_citations(
     collection_name: str,
     conversation_id: str,
@@ -1292,6 +1320,7 @@ def answer_with_citations(
                 "question": question,
                 "conversation_language_code": conversation_language_code or "unknown",
                 "conversation_language_name": conversation_language_name or "Unknown",
+                "source_document_language": _extract_source_language(welcome_messages),
                 "context": context,
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,

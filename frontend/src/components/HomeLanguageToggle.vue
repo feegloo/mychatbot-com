@@ -1,5 +1,6 @@
 <template>
   <button
+    v-if="show"
     class="home-lang-toggle"
     :title="t.switchTitle"
     :aria-label="t.switchTitle"
@@ -14,6 +15,13 @@ import { computed } from 'vue'
 import { homeLang, homeT, toggleHomeLang } from '../i18n/homeLocale'
 
 const t = homeT
+
+// Show the toggle when either the browser language or the currently persisted
+// home-page language is non-English. This ensures users who previously switched
+// to a non-English language can always switch back to English, even if their
+// browser reports 'en'.
+const browserLang = navigator.language.split('-')[0].toLowerCase()
+const show = computed(() => browserLang !== 'en' || homeLang.value !== 'en')
 
 // Show the flag of the currently active home-page language, mirroring
 // LanguageToggle.vue (the user sees what is active, not what will activate).

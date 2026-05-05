@@ -147,14 +147,14 @@ export type ConversationStatus = {
   errorMessage?: string | null
 }
 
-export async function uploadFiles(files: File[]) {
+export async function uploadFiles(files: File[], userLanguage?: string) {
   const DIRECT_UPLOAD_THRESHOLD = 30 * 1024 * 1024 // 30 MB
   const hasLargeFile = files.some((f) => f.size > DIRECT_UPLOAD_THRESHOLD)
 
   // For large files, use direct-to-GCS upload to bypass Cloud Run's 32 MiB proxy limit
   if (hasLargeFile) {
     try {
-      return await uploadFilesViaSignedUrl(files)
+      return await uploadFilesViaSignedUrl(files, userLanguage)
     } catch (err: unknown) {
       // If signed-url endpoint returns 400 (not GCS), fall through to normal upload
       if (err instanceof AxiosError && err.response?.status === 400) {
@@ -167,6 +167,9 @@ export async function uploadFiles(files: File[]) {
 
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
+  if (userLanguage) {
+    formData.append('userLanguage', userLanguage)
+  }
   const response = await api.post('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -178,7 +181,7 @@ export async function uploadFiles(files: File[]) {
   }
 }
 
-async function uploadFilesViaSignedUrl(files: File[]) {
+async function uploadFilesViaSignedUrl(files: File[], userLanguage?: string) {
   // Step 1: Get signed URLs from backend (small JSON request)
   const fileMeta = files.map((f) => ({
     name: f.name,
@@ -223,6 +226,7 @@ async function uploadFilesViaSignedUrl(files: File[]) {
   // Step 3: Tell backend files are uploaded, start indexing
   const finalizePayload = {
     conversationId,
+    userLanguage: userLanguage || undefined,
     files: signedUrls.map((s, i) => ({
       name: s.name,
       mimeType: files[i].type || 'application/octet-stream',

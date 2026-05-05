@@ -5,6 +5,7 @@ Exports:
   WELCOME_QUESTIONS_RULES_PL / EN        — action-button rules only (for synthesis path)
 """
 
+from ..languages import LANG_NAMES
 from .action_content_types import ACTION_CONTENT_TYPES_EN, ACTION_CONTENT_TYPES_PL
 
 # ---------------------------------------------------------------------------
@@ -535,3 +536,69 @@ WELCOME_MULTI_FILE_PREAMBLE_PL = (
     "tych plików łącznie — coś, czego nie widać w żadnym pojedynczym pliku.\n\n"
     "Wszystkie pozostałe zasady poniżej (mapa myśli, formatowanie, przyciski akcji, wykrywanie języka itp.) obowiązują normalnie.\n\n"
 )
+
+
+# ---------------------------------------------------------------------------
+# User language override addendum
+#
+# Appended to the system prompt when the user's browser/home-page language
+# is known.  It overrides the "reply in document language" rule and instructs
+# the model to:
+#   1. Write the entire welcome in the user's language.
+#   2. Emit [language]<code>[/language] as the very first line of the response
+#      so the frontend can extract the source document language.
+#   3. Add a country-flag emoji to the title if the source language differs
+#      from the user language.
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Addendum that overrides the response language to the user's browser language.
+# Called by describe.py when user_language is passed in from the frontend.
+#   1. Generate the entire welcome in the user's language.
+#   2. Emit [language]<code>[/language] as the very first line so the frontend
+#      can extract the source document language from the welcome message.
+#   3. Add a country-flag emoji to the title if the source language differs
+#      from the user language.
+# ---------------------------------------------------------------------------
+
+
+def build_user_language_addendum(user_language_code: str) -> str:
+    """Return a system prompt addendum that overrides the response language to the user's language.
+
+    Normalizes ``user_language_code`` (lowercase, strips any region suffix like
+    ``pl-PL`` → ``pl``) so callers can safely pass raw browser-language strings.
+
+    The addendum instructs the model to:
+    - Write the entire welcome message in the user's language.
+    - Emit ``[language]<detected_code>[/language]`` as the very first line.
+    - Append a country flag emoji to the # heading if the source document
+      language differs from the user language.
+    """
+    # Normalize: lowercase and strip region suffix (e.g. "pl-PL" → "pl")
+    code = user_language_code.lower().split("-")[0].split("_")[0]
+    user_language_name = LANG_NAMES.get(code, code.upper())
+    return (
+        f"\n\n== LANGUAGE OVERRIDE (HIGHEST PRIORITY) ==\n"
+        f"User language: {user_language_name} ({code})\n"
+        f"Write the ENTIRE welcome message (title, description, expert insight, "
+        f"mindmap labels, action buttons) in {user_language_name}. "
+        f"This overrides any other language rule in this prompt.\n\n"
+        f"REQUIRED — output this as the VERY FIRST LINE of your response "
+        f"(even before [mindmap] and before the # heading):\n"
+        f"[language]DETECTED_CODE[/language]\n"
+        f"Replace DETECTED_CODE with the ISO 639-1 code of the PRIMARY language "
+        f"of the uploaded source document (e.g. 'en' for English, 'de' for German, "
+        f"'ar' for Arabic, 'pl' for Polish, 'fr' for French).\n\n"
+        f"SOURCE LANGUAGE FLAG IN TITLE:\n"
+        f"If the detected source document language differs from the user language "
+        f"({code}), append the appropriate country flag emoji AFTER "
+        f"the topic emoji at the END of the # heading.\n"
+        f"Examples: 🇬🇧 English, 🇩🇪 German, 🇫🇷 French, 🇵🇱 Polish, 🇸🇦 Arabic, "
+        f"🇨🇳 Chinese, 🇯🇵 Japanese, 🇰🇷 Korean, 🇮🇳 Hindi, 🇷🇺 Russian, "
+        f"🇺🇦 Ukrainian, 🇪🇸 Spanish, 🇮🇹 Italian, 🇵🇹 Portuguese.\n"
+        f"Example: user language is Polish (pl), source is English → "
+        f"# Romeo and Juliet 🎭 🇬🇧\n"
+        f"If the source language matches the user language ({code}), "
+        f"do NOT add the flag — use only the topic emoji as usual.\n"
+    )

@@ -221,6 +221,37 @@ describe('renderMarkdown phone number linkification', () => {
   })
 })
 
+describe('renderMarkdown [language] tag', () => {
+  it('renders the [language] tag as a display:none hidden span', () => {
+    const html = renderMarkdown('[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧')
+
+    expect(html).toContain('class="lang-detect-hidden"')
+    expect(html).toContain('[language]en[/language]')
+  })
+
+  it('does not show [language] tag content visibly', () => {
+    const html = renderMarkdown('[language]pl[/language]\n# Tytuł')
+
+    // The raw tag text must not appear as undecorated content outside the hidden span
+    expect(html).not.toMatch(/\[language\]pl\[\/language\](?!<\/span>)/)
+  })
+
+  it('preserves the # heading that follows the [language] tag on its own line', () => {
+    const html = renderMarkdown('[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧')
+
+    expect(html).toContain('<h1>')
+    expect(html).toContain('Romeo and Juliet')
+  })
+
+  it('handles the [language] tag mid-message without breaking the heading', () => {
+    const html = renderMarkdown('[language]de[/language]\n# Faust 📖\n\nEin langer Text.')
+
+    expect(html).toContain('<h1>')
+    expect(html).toContain('Faust')
+    expect(html).toContain('lang-detect-hidden')
+  })
+})
+
 describe('renderInlineMarkdown', () => {
   it('renders italic and bold markdown', () => {
     const html = renderInlineMarkdown('What made _The Alchemist_ **famous**?')

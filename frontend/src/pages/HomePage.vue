@@ -124,7 +124,7 @@ import ErrorDetail from '../components/ErrorDetail.vue'
 import HomeHero from '../components/HomeHero.vue'
 import HomeLanguageToggle from '../components/HomeLanguageToggle.vue'
 import UploadingDots from '../components/UploadingDots.vue'
-import { homeT } from '../i18n/homeLocale'
+import { homeT, homeLang } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import { isUrl } from '../utils/text'
 import { extractPastedFiles } from '../composables/useFilePaste'
@@ -179,7 +179,7 @@ async function submitUpload() {
   uploadError.value = { message: '' }
 
   try {
-    const data = await apiUploadFiles(uploadFilesArr.value)
+    const data = await apiUploadFiles(uploadFilesArr.value, homeLang.value)
     if (data.ownerPassword) {
       saveConversationToken(data.conversationId, data.ownerPassword)
       ownerPassword.value = data.ownerPassword
