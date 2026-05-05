@@ -144,6 +144,7 @@ mindmap
       📍 Szczegół I
       🗂️ Szczegół J
     Pojęcie4((Kluczowe))
+      🌟 Szczegół K
 ```
 [/mindmap]
 
@@ -155,7 +156,8 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
     NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
     NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
 - 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
-- 0-2 gałęzie trzeciego poziomu (ostatni poziom — węzły-liście): bardzo szczegółowe dane tylko jeśli ważne; KAŻDY węzeł trzeciego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
+- 0-2 gałęzie trzeciego poziomu (ostatni poziom — zawsze węzły-liście): bardzo szczegółowe dane tylko jeśli ważne; KAŻDY węzeł trzeciego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
+- KRYTYCZNE — EMOJI NA LIŚCIACH: Węzeł-liść to każdy węzeł bez dzieci. KAŻDY węzeł-liść MUSI zaczynać się od tematycznie pasującego emoji — bez wyjątków. Dotyczy to zarówno węzłów drugiego poziomu (gdy nie mają dzieci), jak i WSZYSTKICH węzłów trzeciego poziomu.
 - Każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych. Nie musisz wymyślać 4 gałęzi dla każdego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
@@ -185,6 +187,7 @@ mindmap
       📍 Detail I
       🗂️ Detail J
     Concept4((Key Idea))
+      🌟 Detail K
 ```
 [/mindmap]
 
@@ -196,7 +199,8 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
     ConceptName[Label]     = square: concrete fact / entity / object
     ConceptName((Label))   = circle: key concept / protagonist / core idea
 - 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
-- 0-2 third-level branches (last level — leaf nodes): very specific details only when important; EVERY third-level node MUST start with a thematically appropriate emoji — as shown in the example above
+- 0-2 third-level branches (last level — always leaf nodes): very specific details only when important; EVERY third-level node MUST start with a thematically appropriate emoji — as shown in the example above
+- CRITICAL — EMOJI ON EVERY LEAF: A leaf node is any node with no children. EVERY leaf node MUST start with a thematically appropriate emoji — no exceptions. This applies to second-level nodes that have no children AND to ALL third-level nodes.
 - Each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
