@@ -1,4 +1,4 @@
-name: build-test-lint
+name: lint,test,build
 
 on:
   push:
@@ -11,22 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            frontend:
-              - 'frontend/**'
-            backend:
-              - 'backend/**'
-
   frontend:
     name: Frontend Build, Test, Lint
     runs-on: ubuntu-latest
