@@ -136,9 +136,11 @@ const fetchLoading = ref(false)
 // mounts with visible=true when v-if and :visible are both set in the same
 // tick (openCitation / openFilePreview), so a lazy watch would never see the
 // false→true transition and the fallback fetch would never run.
+// Also watches pdfBaseUrl so switching to a different text file while the
+// modal stays open (same-type navigation) re-fetches the new content.
 watch(
-  () => props.visible,
-  async (open) => {
+  [() => props.visible, pdfBaseUrl],
+  async ([open]) => {
     // Never try to fetch raw binary files — udoc documents, images, and SVGs are
     // either rendered by the viewer or have indexed text in citation.text already.
     if (!open || isUDocFile.value || isSvg.value || isRasterImage.value || props.citation.text) {
