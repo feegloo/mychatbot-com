@@ -48,6 +48,7 @@ import {
   getStoredConversationLanguage,
   storeConversationLanguage,
 } from '../utils/conversationLanguage'
+import { homeLang } from '../i18n/homeLocale'
 
 // Marker handling for translation:
 // - [source:N] markers are fully opaque (numeric id, must not change)
@@ -429,16 +430,18 @@ function flagFor(code: string) {
   return LANG_FLAGS[code] || '🌐'
 }
 
-// Available target languages: unique set of {detected, sourceLang, browser, 'en'}
+// Available target languages: unique set of {detected, sourceLang, browser, homePageLang, 'en'}
 // - detectedLang: language content was generated in (= user lang for new convos, source for old)
 // - sourceLang: actual source document language (from [language] tag, if present)
 // - browserLang: user's browser language
+// - homeLang: user's preferred app language (persisted in IndexedDB as 'homePageLang')
 // - 'en': always available
 const availableLangs = computed(() => {
   const set = new Set<string>()
   if (detectedLang.value) set.add(detectedLang.value)
   if (sourceLang.value) set.add(sourceLang.value)
   if (browserLang.value) set.add(browserLang.value)
+  if (homeLang.value) set.add(homeLang.value)
   set.add('en')
   return [...set]
 })
@@ -524,11 +527,18 @@ watch(
       sourceLang.value = langTagMatch[1].toLowerCase()
       // detectedLang = user's browser language (content was generated in that language)
       detectedLang.value = browserLang.value
-      if (!currentLang.value) currentLang.value = browserLang.value
-
-      if (storedLang && storedLang !== browserLang.value && currentLang.value !== storedLang) {
-        await nextTick()
-        translateTo(storedLang)
+      // Prefer stored lang → homePageLang preference over plain browser lang.
+      // This ensures that if the user has set a home page language (e.g. 'en') that differs
+      // from their browser language (e.g. 'pl'), the conversation defaults to their preference.
+      const preferredLang = storedLang || homeLang.value
+      if (!currentLang.value) {
+        // Fast-path (cached translations) was not applied — initialise currentLang to the actual
+        // content language so translateTo() doesn't short-circuit its targetLang === currentLang guard.
+        currentLang.value = browserLang.value
+        if (preferredLang !== browserLang.value) {
+          await nextTick()
+          translateTo(preferredLang)
+        }
       }
       return
     }
