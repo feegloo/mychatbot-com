@@ -7,7 +7,6 @@ streamed to the caller rather than silently dropped.
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 import pytest
@@ -22,11 +21,11 @@ async def test_index_stream_passes_on_progress_to_index_documents(monkeypatch):
 
     def _fake_index_documents(
         *,
-        _conversation_id=None,
-        _collection_name=None,
-        _file_paths=None,
+        conversation_id=None,
+        collection_name=None,
+        file_paths=None,
         on_progress,
-        _user_language=None,
+        user_language=None,
         **_,
     ):
         # Simulate the inline pipeline emitting the expected events.

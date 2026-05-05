@@ -76,7 +76,7 @@ class TestDescribeUrl:
         system_text = next(
             (m.content for m in messages if hasattr(m, "type") and m.type == "system"), ""
         )
-        assert "polsku" in system_text.lower() or "polish" in system_text.lower()
+        assert "analizujesz" in system_text.lower() or "polsku" in system_text.lower()
 
     @patch("shared.url_fetch.get_llm")
     @patch("shared.url_fetch.detect_language", return_value="en")
@@ -180,6 +180,9 @@ class TestQuizChainMocked:
             chat_history="User: Tell me about Rome.",
             question="Quiz me on Roman history",
             context="[Source 1] File: roman.pdf | Similarity: 0.95\n\"Rome was a republic.\"",
+            conversation_language_name="English",
+            conversation_language_code="en",
+            num_questions=5,
         )
         assert len(msgs) == 2
         human_content = msgs[1].content

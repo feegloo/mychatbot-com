@@ -349,7 +349,8 @@ class TestPromptQuality:
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="desc"))]
+            choices=[MagicMock(message=MagicMock(content="desc"))],
+            usage=None,
         )
 
         _describe_image(b"fake")
@@ -366,7 +367,8 @@ class TestPromptQuality:
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="desc"))]
+            choices=[MagicMock(message=MagicMock(content="desc"))],
+            usage=None,
         )
 
         _describe_image(b"fake")

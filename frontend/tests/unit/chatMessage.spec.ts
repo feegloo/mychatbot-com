@@ -438,7 +438,15 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
 })
 
 describe('ChatMessage — file preview navigation arrows', () => {
-  afterEach(() => {
+  // Track mounted wrapper so afterEach can unmount it before clearing the body.
+  // Without explicit unmount, Vue's async scheduler may try to patch Teleport
+  // comment-node anchors after the body is cleared, causing insertBefore errors.
+  let currentWrapper: ReturnType<typeof mount<typeof ChatMessage>> | undefined
+
+  afterEach(async () => {
+    currentWrapper?.unmount()
+    currentWrapper = undefined
+    await nextTick()
     document.body.innerHTML = ''
     vi.restoreAllMocks()
   })
@@ -465,7 +473,7 @@ describe('ChatMessage — file preview navigation arrows', () => {
   }
 
   function mountWelcome(files: FileEntry[]) {
-    return mount(ChatMessage, {
+    currentWrapper = mount(ChatMessage, {
       attachTo: document.body,
       props: {
         msg: { role: 'assistant' as const, content: 'Welcome!' },
@@ -475,6 +483,7 @@ describe('ChatMessage — file preview navigation arrows', () => {
         files,
       },
     })
+    return currentWrapper
   }
 
   async function openFile(wrapper: ReturnType<typeof mountWelcome>, file: FileEntry) {
@@ -579,7 +588,7 @@ describe('ChatMessage — file preview navigation arrows', () => {
   })
 
   it('opening a file via [source:N] citation also activates nav arrows', async () => {
-    const wrapper = mount(ChatMessage, {
+    currentWrapper = mount(ChatMessage, {
       attachTo: document.body,
       props: {
         msg: {
@@ -597,7 +606,7 @@ describe('ChatMessage — file preview navigation arrows', () => {
 
     // Simulate citation click — openCitation calls openFilePreview (sets filePreviewIndex)
     // when falling back to props.files for welcome-message [source:N] citations.
-    const citationBtn = wrapper.find('.inline-source-btn')
+    const citationBtn = currentWrapper.find('.inline-source-btn')
     if (citationBtn.exists()) {
       await citationBtn.trigger('click')
       await nextTick()
