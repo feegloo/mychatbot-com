@@ -465,7 +465,7 @@ Rules:
 - Total length: scale with document size. Tiny/short docs: ≤ ~2500 tokens (~10 000 chars).
   Medium docs: ≤ ~3500 tokens (~14 000 chars). Large/XL docs: ≤ ~5000 tokens (~20 000 chars).
   Terseness in prose sections; richness and exhaustiveness in the diagram.
-- Write in the SAME LANGUAGE as the welcome message (prose sections only; Mermaid node IDs always English alphanumeric).
+- Write in the SAME LANGUAGE as the welcome message. This applies to ALL human-readable text: prose sections, flowchart node label text (inside `["..."]`), subgraph names, and edge relation labels. EXCEPTION: Mermaid node *identifiers* (the left-hand side ID before `[`, `(`, etc.) must always be short English alphanumeric tokens — they are never shown to the user.
 - No emojis. No [action:...] markers. No [source:N] citations. No URLs.
 - Never invent entities or relationships not supported by the welcome message
   or the chunk sample. If sources contradict, note this in Expert Insights instead
