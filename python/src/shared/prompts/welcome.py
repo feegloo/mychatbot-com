@@ -132,20 +132,20 @@ Na samym początku odpowiedzi, PRZED tytułem, wygeneruj mapę myśli kluczowych
 mindmap
   root((Główny Temat))
     Pojęcie1{{Kategoria 1}}
-      🔑 Szczegół A
-        🏷️ Podszczegół A1
-        📎 Podszczegół A2
-      📌 Szczegół B
+      Szczegół A 🔑
+        Podszczegół A1 🏷️
+        Podszczegół A2 📎
+      Szczegół B 📌
     Pojęcie2(Proces 2)
-      ⚙️ Szczegół C
-        🔧 Podszczegół C1
-      🔄 Szczegół D
+      Szczegół C ⚙️
+        Podszczegół C1 🔧
+      Szczegół D 🔄
     Pojęcie3[Encja 3]
-      📍 Szczegół I
-      🗂️ Szczegół J
+      Szczegół I 📍
+      Szczegół J 🗂️
     Pojęcie4))KluczoweFakty((
-      🌟 Szczegół K
-    💡 MałeAleWażne
+      Szczegół K 🌟
+    MałeAleWażne 💡
 ```
 [/mindmap]
 
@@ -156,10 +156,10 @@ Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkowniki
     NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
     NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
     NazwaWyróżniona))Etykieta((  = ostrosłup/wybuch: wyróżniony fakt, ostrzeżenie, kluczowy wniosek
-- Gałąź pierwszego poziomu MOŻE być sama liściem (bez dzieci) dla małych, ale ważnych pojęć — wtedy używa zwykłego tekstu z emoji zamiast kształtu z nawiasami (np. `💡 MałeAleWażne`). Przykład: jeśli "Transformer" to ważna, ale prosta koncepcja, wpisz ją jako: `💡 Transformer`
-- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: zwykły tekst (bez nawiasów kształtu), KAŻDA MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
-- 0-2 gałęzie trzeciego poziomu (ostatni poziom — zawsze węzły-liście): zwykły tekst (bez nawiasów kształtu), KAŻDY MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
-- KRYTYCZNE — EMOJI NA LIŚCIACH: Węzeł-liść to każdy węzeł bez dzieci. KAŻDY węzeł-liść MUSI zaczynać się od tematycznie pasującego emoji — bez wyjątków. Dotyczy to gałęzi pierwszego poziomu bez dzieci, WSZYSTKICH węzłów drugiego poziomu bez dzieci oraz WSZYSTKICH węzłów trzeciego poziomu.
+- Gałąź pierwszego poziomu MOŻE być sama liściem (bez dzieci) dla małych, ale ważnych pojęć — wtedy używa zwykłego tekstu kończącego się emoji (np. `MałeAleWażne 💡`). Przykład: jeśli "GPU" to ważna, ale prosta koncepcja, wpisz ją jako: `GPU 💡`
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: zwykły tekst (bez nawiasów kształtu), KAŻDA MUSI kończyć się emoji tematycznie pasującym do treści węzła
+- 0-2 gałęzie trzeciego poziomu (ostatni poziom — zawsze węzły-liście): zwykły tekst (bez nawiasów kształtu), KAŻDY MUSI kończyć się emoji tematycznie pasującym do treści — tak jak w przykładzie powyżej
+- KRYTYCZNE — EMOJI NA LIŚCIACH: Węzeł-liść to każdy węzeł bez dzieci. KAŻDY węzeł-liść MUSI kończyć się tematycznie pasującym emoji — bez wyjątków. Dotyczy to gałęzi pierwszego poziomu bez dzieci, WSZYSTKICH węzłów drugiego poziomu bez dzieci oraz WSZYSTKICH węzłów trzeciego poziomu.
 - Każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych. Nie musisz wymyślać 4 gałęzi dla każdego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
@@ -177,20 +177,20 @@ At the very start of your response, BEFORE the title, output a mindmap of key co
 mindmap
   root((Main Topic))
     Concept1{{Category 1}}
-      🔑 Detail A
-        🏷️ Subdetail A1
-        📎 Subdetail A2
-      📌 Detail B
+      Detail A 🔑
+        Subdetail A1 🏷️
+        Subdetail A2 📎
+      Detail B 📌
     Concept2(Process 2)
-      ⚙️ Detail C
-        🔧 Subdetail C1
-      🔄 Detail D
+      Detail C ⚙️
+        Subdetail C1 🔧
+      Detail D 🔄
     Concept3[Entity 3]
-      📍 Detail I
-      🗂️ Detail J
+      Detail I 📍
+      Detail J 🗂️
     Concept4))KeyInsight((
-      🌟 Detail K
-    💡 SmallButImportant
+      Detail K 🌟
+    SmallButImportant 💡
 ```
 [/mindmap]
 
@@ -201,10 +201,10 @@ Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user —
     ConceptName(Label)     = rounded square: process / mechanism / action
     ConceptName[Label]     = square: concrete fact / entity / object
     ConceptName))Label((   = bang/burst: highlighted fact, key warning, standalone insight
-- A first-level branch MAY itself be a leaf (no children) for small but important concepts — use plain text with an emoji instead of a bracketed shape (e.g. `💡 SmallButImportant`). Example: if "Transformer" is an important but simple concept, write it as: `💡 Transformer`
-- 0-4 second-level branches under each main concept: plain text (no shape brackets), EVERY one MUST start with a thematically appropriate emoji
-- 0-2 third-level branches (last level — always leaf nodes): plain text (no shape brackets), EVERY one MUST start with a thematically appropriate emoji — as shown in the example above
-- CRITICAL — EMOJI ON EVERY LEAF: A leaf node is any node with no children. EVERY leaf node MUST start with a thematically appropriate emoji — no exceptions. This applies to first-level branches with no children, ALL second-level nodes with no children, and ALL third-level nodes.
+- A first-level branch MAY itself be a leaf (no children) for small but important concepts — use plain text ending with an emoji (e.g. `SmallButImportant 💡`). Example: if "GPU" is an important but simple concept, write it as: `GPU 💡`
+- 0-4 second-level branches under each main concept: plain text (no shape brackets), EVERY one MUST end with a thematically appropriate emoji
+- 0-2 third-level branches (last level — always leaf nodes): plain text (no shape brackets), EVERY one MUST end with a thematically appropriate emoji — as shown in the example above
+- CRITICAL — EMOJI ON EVERY LEAF: A leaf node is any node with no children. EVERY leaf node MUST end with a thematically appropriate emoji — no exceptions. This applies to first-level branches with no children, ALL second-level nodes with no children, and ALL third-level nodes.
 - Each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
@@ -252,7 +252,7 @@ Gdy przesłany materiał zawiera zadania, równania lub ćwiczenia do rozwiązan
 Twoja odpowiedź MUSI składać się z trzech części:
 
 1. **Tytuł** (pierwsza linia): Tytuł dokumentu. Jeśli autor jest znany, dodaj go po myślniku.
-   Na samym końcu nagłówka (po tytule i opcjonalnym autorze) dołącz JEDNO emoji tematycznie pasujące do dokumentu (np. 🚗 dla instrukcji jazdy, 🔬 dla wyników badań, ⚖️ dla dokumentów prawnych, 📈 dla finansów, 🍳 dla kulinariów, 💻 dla kodu, 🎭 dla literatury pięknej, 🏋️ dla sportu, itp.). Emoji musi pasować do tematu — nigdy nie stawiaj emoji losowego ani dziecinnego.
+   Na samym końcu nagłówka (po tytule i opcjonalnym autorze) dołącz JEDNO emoji tematycznie pasujące do dokumentu (np. 🚗 dla instrukcji jazdy, 🔬 dla artykułów naukowych i prac badawczych, 🧪 dla wyników badań, ⚖️ dla dokumentów prawnych, 📈 dla finansów, 🍳 dla kulinariów, 💻 dla kodu, 🎭 dla literatury pięknej, 🏋️ dla sportu, itp.). Emoji musi pasować do tematu — nigdy nie stawiaj emoji losowego ani dziecinnego.
    Sformatuj jako nagłówek Markdown: # Tytuł dokumentu 🔖
    Jeśli autor jest znany: # Tytuł dokumentu - Imię Nazwisko Autora 🔖
    Na przykład: # Przewodnik po bliznach - Amanda Keyes 🏥
@@ -382,7 +382,7 @@ When the uploaded material contains exercises, equations, or problems to solve:
 Your response MUST have three parts:
 
 1. **Title** (first line): The document title. If the author is known, append a dash and the author name after the title.
-   At the very end of the heading (after the title and optional author), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 for a driving manual, 🔬 for lab results, ⚖️ for legal documents, 📈 for finance, 🍳 for cooking, 💻 for code, 🎭 for fiction, 🏋️ for sports, etc.). The emoji must match the topic — never use a random or childish emoji.
+   At the very end of the heading (after the title and optional author), append ONE contextually appropriate emoji that fits the document topic (e.g. 🚗 for a driving manual, 🔬 for scientific papers and research articles, 🧪 for lab results, ⚖️ for legal documents, 📈 for finance, 🍳 for cooking, 💻 for code, 🎭 for fiction, 🏋️ for sports, etc.). The emoji must match the topic — never use a random or childish emoji.
    Format as a Markdown heading: # Document Title 🔖
    For example (with known author): # Ultimate Guide To Scar Treatments - Amanda Keyes 🏥
    For example (unknown author): # Ultimate Guide To Scar Treatments 🏥
