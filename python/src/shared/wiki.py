@@ -93,7 +93,9 @@ def _build_chunk_correlation_block(
 
     # Build id → embedding map; returned order may differ from requested order.
     emb_by_id: dict[str, list[float]] = {
-        cid: list(emb) for cid, emb in zip(returned_ids, raw_embeddings, strict=False) if emb is not None
+        cid: list(emb)
+        for cid, emb in zip(returned_ids, raw_embeddings, strict=False)
+        if emb is not None
     }
 
     # Align with the original chunk_ids / chunk_labels ordering.
