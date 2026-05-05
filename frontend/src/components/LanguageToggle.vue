@@ -148,7 +148,7 @@ function placeholderRegex(placeholder: string): RegExp {
 
 type MarkerInfo = {
   placeholder: string
-  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz' | 'mindmap'
+  kind: 'source' | 'action' | 'image' | 'poem' | 'quiz' | 'mindmap' | 'langtag'
   original: string
   label?: string // only for action markers; gets replaced with translated label
   // |ref:filename suffix — opaque, must survive translation verbatim
@@ -184,7 +184,7 @@ function extractMarkers(texts: string[]): {
     // not be sent to the translation service as the tag itself is not content.
     const afterLangTag = afterMindmap.replace(LANGUAGE_TAG_RE, (match) => {
       const placeholder = makePlaceholder(i, counterRef.value++)
-      found.push({ placeholder, kind: 'mindmap', original: match })
+      found.push({ placeholder, kind: 'langtag', original: match })
       return placeholder
     })
     // Extract markdown images so their `[alt]` brackets don't collide

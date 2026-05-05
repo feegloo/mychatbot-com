@@ -19,6 +19,7 @@ from .prompts.labels_actions import LABELS_ACTIONS_RULES
 from .prompts.quiz import QUIZ_PROMPT
 from .prompts.response_formats import RESPONSE_FORMATS_RULES
 from .prompts.voice_tone import VOICE_TONE_RULES
+from .prompts.welcome import LANG_NAMES as _LANG_NAMES
 from .vector_store import query_chunks
 
 logger = logging.getLogger(__name__)
@@ -1124,16 +1125,6 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
 
 
 _LANGUAGE_TAG_RE = re.compile(r"\[language\]([a-z]{2,3})\[/language\]", re.IGNORECASE)
-_SOURCE_LANG_NAMES: dict[str, str] = {
-    "en": "English", "pl": "Polish", "de": "German", "fr": "French",
-    "es": "Spanish", "it": "Italian", "pt": "Portuguese", "nl": "Dutch",
-    "ru": "Russian", "uk": "Ukrainian", "cs": "Czech", "sk": "Slovak",
-    "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian", "hr": "Croatian",
-    "el": "Greek", "tr": "Turkish", "ar": "Arabic", "he": "Hebrew",
-    "hi": "Hindi", "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
-    "vi": "Vietnamese", "th": "Thai", "id": "Indonesian", "ms": "Malay",
-    "sv": "Swedish", "da": "Danish", "fi": "Finnish", "no": "Norwegian",
-}
 
 
 def _extract_source_language(welcome_messages: list[str] | None) -> str:
@@ -1149,7 +1140,7 @@ def _extract_source_language(welcome_messages: list[str] | None) -> str:
         m = _LANGUAGE_TAG_RE.search(msg)
         if m:
             code = m.group(1).lower()
-            name = _SOURCE_LANG_NAMES.get(code, code.upper())
+            name = _LANG_NAMES.get(code, code.upper())
             return f"{name} ({code})"
     return "unknown (not detected)"
 

@@ -529,15 +529,37 @@ WELCOME_MULTI_FILE_PREAMBLE_PL = (
 # ---------------------------------------------------------------------------
 
 
-def build_user_language_addendum(user_language_code: str, user_language_name: str) -> str:
+# ---------------------------------------------------------------------------
+# Shared ISO 639-1 code → English name mapping used by welcome prompts
+# and imported by other modules that need a consistent language name lookup.
+# ---------------------------------------------------------------------------
+LANG_NAMES: dict[str, str] = {
+    "en": "English", "pl": "Polish", "de": "German", "fr": "French",
+    "es": "Spanish", "it": "Italian", "pt": "Portuguese", "nl": "Dutch",
+    "ru": "Russian", "uk": "Ukrainian", "cs": "Czech", "sk": "Slovak",
+    "hu": "Hungarian", "ro": "Romanian", "bg": "Bulgarian", "hr": "Croatian",
+    "sl": "Slovenian", "sr": "Serbian", "el": "Greek", "tr": "Turkish",
+    "ar": "Arabic", "he": "Hebrew", "hi": "Hindi", "fa": "Persian",
+    "ur": "Urdu", "bn": "Bengali", "zh": "Chinese", "ja": "Japanese",
+    "ko": "Korean", "vi": "Vietnamese", "th": "Thai", "id": "Indonesian",
+    "ms": "Malay", "sv": "Swedish", "da": "Danish", "fi": "Finnish",
+    "no": "Norwegian", "lt": "Lithuanian", "lv": "Latvian", "et": "Estonian",
+}
+
+
+def build_user_language_addendum(user_language_code: str) -> str:
     """Return a system prompt addendum that overrides the response language to the user's language.
 
+    Accepts only the ISO 639-1 language code; the English name is derived
+    internally from :data:`LANG_NAMES` so callers cannot pass mismatched pairs.
+
     The addendum instructs the model to:
-    - Write the entire welcome message in ``user_language_name``.
+    - Write the entire welcome message in the user's language.
     - Emit ``[language]<detected_code>[/language]`` as the very first line.
     - Append a country flag emoji to the # heading if the source document
       language differs from the user language.
     """
+    user_language_name = LANG_NAMES.get(user_language_code, user_language_code.upper())
     return (
         f"\n\n== LANGUAGE OVERRIDE (HIGHEST PRIORITY) ==\n"
         f"User language: {user_language_name} ({user_language_code})\n"
@@ -562,4 +584,3 @@ def build_user_language_addendum(user_language_code: str, user_language_name: st
         f"If the source language matches the user language ({user_language_code}), "
         f"do NOT add the flag — use only the topic emoji as usual.\n"
     )
-
