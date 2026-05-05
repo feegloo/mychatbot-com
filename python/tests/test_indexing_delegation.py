@@ -30,7 +30,7 @@ def _reset_budget(monkeypatch):
 def test_runs_inline_when_budget_available(monkeypatch):
     called = {}
 
-    def _fake_inline(*, conversation_id, collection_name, file_paths, on_progress):
+    def _fake_inline(*, conversation_id, collection_name, file_paths, on_progress, user_language=None):
         called["ran"] = True
         return {"ok": True}
 
@@ -132,14 +132,14 @@ def test_worker_disables_delegation_runs_inline(monkeypatch):
 def test_releases_slots_after_inline_run(monkeypatch):
     monkeypatch.setattr(cpu_budget, "estimate_slots_for_file", lambda _p: 1)
     monkeypatch.setattr(indexing, "_index_documents_inline", lambda **_: {})
-    assert cpu_budget.available_slots() == MAIN_MAX_CPU  # baseline
+    assert cpu_budget.available_slots() == cpu_budget.MAIN_MAX_CPU  # baseline
 
     indexing.index_documents(
         conversation_id="c1",
         collection_name="col1",
         file_paths=["/tmp/a.pdf"],
     )
-    assert cpu_budget.available_slots() == MAIN_MAX_CPU
+    assert cpu_budget.available_slots() == cpu_budget.MAIN_MAX_CPU
 
 
 def test_releases_slots_even_on_inline_exception(monkeypatch):
@@ -155,4 +155,4 @@ def test_releases_slots_even_on_inline_exception(monkeypatch):
             collection_name="col1",
             file_paths=["/tmp/a.pdf"],
         )
-    assert cpu_budget.available_slots() == MAIN_MAX_CPU
+    assert cpu_budget.available_slots() == cpu_budget.MAIN_MAX_CPU

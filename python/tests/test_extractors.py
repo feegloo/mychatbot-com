@@ -151,6 +151,7 @@ class TestOcrPdfPage:
         mock_choice.message.content = "ok"
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
 
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
@@ -177,6 +178,7 @@ class TestOcrPdfPage:
         mock_choice.message.content = "بسم الله الرحمن الرحيم"
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
 
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
@@ -207,6 +209,7 @@ class TestOcrPdfPage:
         mock_choice.message.content = "بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
 
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
@@ -230,7 +233,8 @@ class TestVisionExtractOrDescribe:
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="ok"))]
+            choices=[MagicMock(message=MagicMock(content="ok"))],
+            usage=None,
         )
 
         result = _vision_extract_or_describe(

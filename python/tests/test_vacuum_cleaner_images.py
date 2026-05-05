@@ -139,7 +139,8 @@ class TestDescribeImageWithContext:
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="A filter replacement diagram."))]
+            choices=[MagicMock(message=MagicMock(content="A filter replacement diagram."))],
+            usage=None,
         )
 
         _describe_image_with_context(
