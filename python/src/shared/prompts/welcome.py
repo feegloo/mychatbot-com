@@ -143,25 +143,27 @@ mindmap
     Pojęcie3[Encja 3]
       📍 Szczegół I
       🗂️ Szczegół J
-    Pojęcie4((Kluczowe))
+    Pojęcie4))KluczoweFakty((
       🌟 Szczegół K
+    💡 MałeAleWażne
 ```
 [/mindmap]
 
 Zasady dla mapy myśli (blok zostanie WYEKSTRAHOWANY i UKRYTY przed użytkownikiem — opisuje przegląd najważniejszych pojęć):
-- root((...)) — centralny temat dokumentu, max 4 słowa; ZAWSZE jako okrąg
-- 3-6 gałęzi pierwszego poziomu używając RÓŻNYCH kształtów semantycznie:
+- root((...)) — centralny temat dokumentu, max 4 słowa; kształt okrągły WYŁĄCZNIE dla korzenia — ŻADEN inny węzeł NIE MOŻE używać `((...))`.
+- 3-6 gałęzi pierwszego poziomu z kształtem (gdy gałąź ma dzieci) — używaj RÓŻNYCH kształtów semantycznie:
     NazwaKategorii{{Etykieta}}   = sześciokąt: kategorie, grupy tematyczne
     NazwaProcesu(Etykieta)       = zaokrąglony kwadrat: procesy, mechanizmy, działania
     NazwaEncji[Etykieta]         = kwadrat: konkretne fakty, encje, obiekty
-    NazwaKluczowa((Etykieta))    = okrąg: kluczowe koncepcje, protagoniści
-- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: konkretne szczegóły, KAŻDA gałąź drugiego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
-- 0-2 gałęzie trzeciego poziomu (ostatni poziom — zawsze węzły-liście): bardzo szczegółowe dane tylko jeśli ważne; KAŻDY węzeł trzeciego poziomu MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
-- KRYTYCZNE — EMOJI NA LIŚCIACH: Węzeł-liść to każdy węzeł bez dzieci. KAŻDY węzeł-liść MUSI zaczynać się od tematycznie pasującego emoji — bez wyjątków. Dotyczy to zarówno węzłów drugiego poziomu (gdy nie mają dzieci), jak i WSZYSTKICH węzłów trzeciego poziomu.
+    NazwaWyróżniona))Etykieta((  = ostrosłup/wybuch: wyróżniony fakt, ostrzeżenie, kluczowy wniosek
+- Gałąź pierwszego poziomu MOŻE być sama liściem (bez dzieci) dla małych, ale ważnych pojęć — wtedy używa zwykłego tekstu z emoji zamiast kształtu z nawiasami (np. `💡 MałeAleWażne`). Przykład: jeśli "Transformer" to ważna, ale prosta koncepcja, wpisz ją jako: `💡 Transformer`
+- 0-4 gałęzie drugiego poziomu pod każdym głównym pojęciem: zwykły tekst (bez nawiasów kształtu), KAŻDA MUSI zaczynać się od emoji tematycznie pasującego do treści węzła
+- 0-2 gałęzie trzeciego poziomu (ostatni poziom — zawsze węzły-liście): zwykły tekst (bez nawiasów kształtu), KAŻDY MUSI zaczynać się od emoji tematycznie pasującego do treści — tak jak w przykładzie powyżej
+- KRYTYCZNE — EMOJI NA LIŚCIACH: Węzeł-liść to każdy węzeł bez dzieci. KAŻDY węzeł-liść MUSI zaczynać się od tematycznie pasującego emoji — bez wyjątków. Dotyczy to gałęzi pierwszego poziomu bez dzieci, WSZYSTKICH węzłów drugiego poziomu bez dzieci oraz WSZYSTKICH węzłów trzeciego poziomu.
 - Każda gałąź pierwszego poziomu jest niezależna — może mieć 0-4 gałęzi drugiego poziomu, niezależnie od innych. Nie musisz wymyślać 4 gałęzi dla każdego pojęcia — jeśli dokument nie zawiera tylu szczegółów, wygeneruj mniej.
 - Etykiety w języku dokumentu, zwięzłe (max 5 słów na węzeł)
 - Wcięcia ścisłe: 2 spacje na każdy poziom głębokości
-- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu MUSZĄ być jednym słowem bez spacji (użyj camelCase), kształt i etykieta następują bezpośrednio po nim
+- KRYTYCZNA SKŁADNIA: ID węzłów pierwszego poziomu z kształtem MUSZĄ być jednym słowem bez spacji (użyj camelCase), kształt i etykieta następują bezpośrednio po nim
 - TYLKO JEDEN KORZEŃ: musi istnieć DOKŁADNIE JEDEN węzeł `root((...))` z wcięciem 2 spacji. ŻADEN inny węzeł nie może znajdować się na poziomie 2 spacji — każda gałąź pierwszego poziomu musi mieć wcięcie 4 spacji. Naruszenie tej zasady powoduje błąd renderowania "There can be only one root".
 - Zacznij od [mindmap] (na osobnej linii), zakończ [/mindmap] (na osobnej linii)
 - NATYCHMIAST po [/mindmap] napisz normalną wiadomość powitalną od nagłówka #
@@ -186,25 +188,27 @@ mindmap
     Concept3[Entity 3]
       📍 Detail I
       🗂️ Detail J
-    Concept4((Key Idea))
+    Concept4))KeyInsight((
       🌟 Detail K
+    💡 SmallButImportant
 ```
 [/mindmap]
 
 Rules for the mindmap (this block will be EXTRACTED and HIDDEN from the user — it is an overview of important concepts):
-- root((...)) — the central topic of the document, max 4 words; ALWAYS a circle
-- 3-6 first-level branches using VARIED shapes semantically:
+- root((...)) — the central topic of the document, max 4 words; circle shape EXCLUSIVELY for the root — NO other node may use `((...))`.
+- 3-6 first-level branches with a shape (when the branch has children) — use VARIED shapes semantically:
     ConceptName{{Label}}   = hexagon: category / thematic group
     ConceptName(Label)     = rounded square: process / mechanism / action
     ConceptName[Label]     = square: concrete fact / entity / object
-    ConceptName((Label))   = circle: key concept / protagonist / core idea
-- 0-4 second-level branches under each main concept: specific details, EVERY second-level branch MUST start with a thematically appropriate emoji
-- 0-2 third-level branches (last level — always leaf nodes): very specific details only when important; EVERY third-level node MUST start with a thematically appropriate emoji — as shown in the example above
-- CRITICAL — EMOJI ON EVERY LEAF: A leaf node is any node with no children. EVERY leaf node MUST start with a thematically appropriate emoji — no exceptions. This applies to second-level nodes that have no children AND to ALL third-level nodes.
+    ConceptName))Label((   = bang/burst: highlighted fact, key warning, standalone insight
+- A first-level branch MAY itself be a leaf (no children) for small but important concepts — use plain text with an emoji instead of a bracketed shape (e.g. `💡 SmallButImportant`). Example: if "Transformer" is an important but simple concept, write it as: `💡 Transformer`
+- 0-4 second-level branches under each main concept: plain text (no shape brackets), EVERY one MUST start with a thematically appropriate emoji
+- 0-2 third-level branches (last level — always leaf nodes): plain text (no shape brackets), EVERY one MUST start with a thematically appropriate emoji — as shown in the example above
+- CRITICAL — EMOJI ON EVERY LEAF: A leaf node is any node with no children. EVERY leaf node MUST start with a thematically appropriate emoji — no exceptions. This applies to first-level branches with no children, ALL second-level nodes with no children, and ALL third-level nodes.
 - Each first-level branch is independent — it can have 0-4 second-level branches regardless of others. Don't invent branches if the document lacks that detail.
 - Labels in the document's language, concise (max 5 words per node)
 - Strict indentation: 2 spaces per level of depth
-- CRITICAL SYNTAX: first-level node IDs MUST be a single word without spaces (use camelCase), shape and label follow immediately after the ID
+- CRITICAL SYNTAX: first-level node IDs with a shape MUST be a single word without spaces (use camelCase), shape and label follow immediately after the ID
 - EXACTLY ONE ROOT: there MUST be exactly ONE `root((...))` node at 2-space indent. NO other node may appear at 2-space indentation — every first-level branch must be indented 4 spaces. Violating this causes a "There can be only one root" rendering error.
 - Start with [mindmap] on its own line, end with [/mindmap] on its own line
 - IMMEDIATELY after [/mindmap], write the normal welcome message starting with the # heading
