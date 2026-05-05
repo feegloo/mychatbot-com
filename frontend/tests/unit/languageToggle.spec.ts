@@ -45,6 +45,14 @@ vi.mock("../../src/utils/conversationLanguage", () => ({
   }),
 }))
 
+// Reactive ref that backs the homeLocale mock so individual tests can override
+// the user's persisted home-page language (homePageLang from IndexedDB).
+const homeLangRef = vi.hoisted(() => ({ value: 'en' as 'en' | 'pl' }))
+
+vi.mock("../../src/i18n/homeLocale", () => ({
+  homeLang: homeLangRef,
+}))
+
 import LanguageToggle from "../../src/components/LanguageToggle.vue";
 
 function makeMessages(contents: string[], role = "assistant") {
@@ -56,6 +64,7 @@ describe("LanguageToggle", () => {
     vi.clearAllMocks();
     translationStore.clear()
     conversationLanguageStore.clear()
+    homeLangRef.value = 'en'
     detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
     translateTextsMock.mockImplementation(async (texts: string[]) => ({
       translations: texts.map(t => `[translated] ${t}`),
@@ -966,6 +975,8 @@ describe("LanguageToggle", () => {
   describe("[language] tag detection", () => {
     it("sets sourceLang from [language] tag and detectedLang to browserLang", async () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      // Polish user whose homePageLang matches their browser — no auto-translate expected
+      homeLangRef.value = 'pl'
 
       // Welcome message starts with [language]en[/language] — document is English, user is Polish
       const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the uploaded English document.";
@@ -980,9 +991,37 @@ describe("LanguageToggle", () => {
       expect(vm.sourceLang).toBe("en");
       // detectedLang = user browser language (welcome was already generated in user lang)
       expect(vm.detectedLang).toBe("pl");
-      // Not translated: welcome is already in the user's language
+      // Not translated: welcome is already in the user's language and homePageLang matches
       expect(vm.isTranslated).toBe(false);
       // detectLanguage API must NOT be called when [language] tag is present
+      expect(detectLanguageMock).not.toHaveBeenCalled();
+    });
+
+    it("auto-translates to homePageLang when it differs from browser lang ([language] tag path)", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      // User explicitly chose English as their home page language
+      homeLangRef.value = 'en'
+
+      translateTextsMock.mockImplementation(async (texts: string[]) => ({
+        translations: texts.map(t => `EN: ${t}`),
+      }));
+
+      // Document is English, welcome was generated in Polish (browser lang)
+      const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the uploaded English document.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.sourceLang).toBe("en");
+      expect(vm.detectedLang).toBe("pl");
+      // homePageLang='en' differs from browserLang='pl' → auto-translated to English
+      expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(true);
+      expect(translateTextsMock).toHaveBeenCalled();
+      expect(wrapper.emitted("translated")).toBeTruthy();
       expect(detectLanguageMock).not.toHaveBeenCalled();
     });
 
