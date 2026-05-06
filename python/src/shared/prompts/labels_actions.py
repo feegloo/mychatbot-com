@@ -99,6 +99,7 @@ _LABELS_ACTIONS_TEMPLATE = r"""d) Action Buttons:
   * Every image-generation action label MUST end with 🎨 — this is the sole, canonical trigger.
   * For readability the label SHOULD also contain the phrase "generate image" (English) or "wygeneruj obraz" (Polish), but 🎨 alone is sufficient to trigger the API. The label MUST additionally contain the word "inspired" / "inspirowany" — see the PLACEMENT & PROMPT FORMAT section below for why.
   * NEVER attach 🎨 to any non-image action — doing so would misroute the click to the image API.
+- TASK-WRITING TRIGGER — ✍️ is RESERVED EXCLUSIVELY for school/job/homework task-writing actions that produce a COMPLETE final written piece (essay, report, poem, chapter, etc.) as required by an uploaded assignment. Action label format: "Write essay: 1500-2000 words about [topic] ✍️". NEVER use ✍️ for outlines, introductions, drafts, or partial content — only for the full deliverable. The ✍️ emoji (not any specific word) is the signal that triggers task-writing mode.
 
 - **RICH-ACTION PRIORITY — ORDER vs. CONTEXT (two rules, both apply)**:
   The rich slots (positions 3–7) are chosen by combining a baseline priority order with context fit. Higher-priority actions are preferred, BUT a lower-priority action can (and should) leapfrog ahead when it fits the current answer much better. Think of each button as a distinct BRANCH of the answer — pick the "action tool" that best VISUALIZES or EXTENDS that specific branch.

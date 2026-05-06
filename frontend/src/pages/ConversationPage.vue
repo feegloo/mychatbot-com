@@ -16,6 +16,7 @@
     >
       <template #language-toggle>
         <LanguageToggle
+          ref="languageToggleRef"
           :messages="messages"
           :title="conversationTitle"
           :conversation-id="conversationId"
@@ -156,7 +157,7 @@
           </div>
         </div>
 
-        <div v-if="roleLoaded && canReply" class="chat-input-bar">
+        <div v-if="roleLoaded && canReply" class="chat-input-bar" :class="{ 'is-asking': asking }">
           <div
             v-if="canUpload"
             class="upload-plus-btn"
@@ -263,6 +264,8 @@ import { homeT, homeLang } from '../i18n/homeLocale'
 import { getStoredConversationLanguage } from '../utils/conversationLanguage'
 import { getBulkStoredTranslations } from '../utils/translationStorage'
 import { extractPastedFiles } from '../composables/useFilePaste'
+import { translateMindmapCode } from '../utils/mindmapTranslation'
+import LanguageToggleComponent from '../components/LanguageToggle.vue'
 
 type ProcessingStep = 'generating_welcome' | 'indexing_pages' | ''
 const STEP_LABELS: Record<ProcessingStep, string> = {
@@ -316,6 +319,10 @@ const c4ModalOpen = ref(false)
 const c4SvgCache = ref<string | null>(null)
 // Blob URL for ImageModal lightbox — created from c4SvgCache, revoked on close.
 const c4SvgUrl = ref<string | null>(null)
+// Language the cached SVG was rendered in — used to detect when re-render is needed.
+const c4CachedLang = ref<string>('')
+// Template ref to LanguageToggle so we can read detectedLang (original mindmap language).
+const languageToggleRef = ref<InstanceType<typeof LanguageToggleComponent> | null>(null)
 
 const status = ref<ConversationStatus>({
   conversationId,
@@ -1156,7 +1163,9 @@ async function openWikiModal() {
 
 async function openC4Modal() {
   c4ModalOpen.value = true
-  if (c4SvgCache.value) return  // already rendered, reuse cache
+
+  const targetLang = currentLanguage.value
+  if (c4SvgCache.value && c4CachedLang.value === targetLang) return  // reuse cache for same language
 
   const match = welcomeMessageContent.value.match(/\[(?:mindmap|mapa myśli)\]([\s\S]*?)\[\/(?:mindmap|mapa myśli)\]/)
   if (!match) return
@@ -1182,6 +1191,14 @@ async function openC4Modal() {
     .trim()
   if (!mermaidCode) return
 
+  // Translate mindmap labels when the user's display language differs from
+  // the original mindmap language (detected from the welcome message).
+  const detectedLang: string = languageToggleRef.value?.detectedLang?.value ?? ''
+  const codeToRender =
+    targetLang && detectedLang && targetLang !== detectedLang
+      ? await translateMindmapCode(mermaidCode, targetLang, conversationId, detectedLang)
+      : mermaidCode
+
   try {
     const mod = await import('mermaid')
     const m = mod.default
@@ -1206,8 +1223,9 @@ async function openC4Modal() {
       securityLevel: 'loose',
       suppressErrorRendering: true,
     })
-    const { svg } = await m.render(`mindmap-modal-${Date.now()}`, mermaidCode)
+    const { svg } = await m.render(`mindmap-modal-${Date.now()}`, codeToRender)
     c4SvgCache.value = svg
+    c4CachedLang.value = targetLang
     // Strip fixed width/height from the SVG root so CSS controls sizing.
     // Mermaid outputs absolute pixel values; without this the <img> uses those
     // intrinsic dimensions and appears tiny on narrow screens.

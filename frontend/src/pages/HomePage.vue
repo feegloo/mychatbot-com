@@ -85,7 +85,7 @@
     </div>
 
     <!-- Chat input bar (always visible) -->
-    <div class="chat-input-bar home-chat-input">
+    <div class="chat-input-bar home-chat-input" :class="{ 'is-asking': asking }">
       <textarea
         ref="questionInput"
         v-model="question"

@@ -347,7 +347,7 @@ a {
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
   flex-shrink: 0;
 }
 
@@ -1519,6 +1519,7 @@ textarea.big-input {
 }
 
 .chat-input-bar {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 0;
@@ -1528,6 +1529,35 @@ textarea.big-input {
   padding: 6px;
   margin-top: 18px;
   flex-shrink: 0;
+}
+
+.chat-input-bar.is-asking {
+  border-color: transparent;
+  background-clip: padding-box;
+}
+
+.chat-input-bar.is-asking::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 25px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06),
+    #0f7cda 25%,
+    #60cdff 50%,
+    #0f7cda 75%,
+    rgba(255, 255, 255, 0.06)
+  );
+  background-size: 250% 100%;
+  animation: chat-input-progress 2s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes chat-input-progress {
+  0% { background-position: 120% 50% }
+  100% { background-position: -20% 50% }
 }
 
 .chat-panel > .chat-input-bar {

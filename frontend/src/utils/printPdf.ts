@@ -86,8 +86,33 @@ async function renderMermaidToPng(
     const svgEl = host.querySelector('svg') as SVGSVGElement | null
     if (!svgEl) return null
 
-    // Strip foreignObject (belt-and-suspenders; htmlLabels:false should prevent them)
-    svgEl.querySelectorAll('foreignObject').forEach((fo) => fo.remove())
+    // Replace foreignObject elements with SVG <text> equivalents.
+    // foreignObject taints the canvas and prevents PNG export; mindmap diagrams
+    // render their node labels inside foreignObject, so we must extract the text
+    // rather than simply removing them (which was silently stripping all node labels).
+    svgEl.querySelectorAll<SVGForeignObjectElement>('foreignObject').forEach((fo) => {
+      const textContent = fo.textContent?.trim()
+      if (!textContent) {
+        fo.remove()
+        return
+      }
+      const foX = parseFloat(fo.getAttribute('x') || '0')
+      const foY = parseFloat(fo.getAttribute('y') || '0')
+      const foW = parseFloat(fo.getAttribute('width') || '0')
+      const foH = parseFloat(fo.getAttribute('height') || '0')
+      const cx = foX + foW / 2
+      const cy = foY + foH / 2
+      const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      textEl.setAttribute('x', String(cx))
+      textEl.setAttribute('y', String(cy))
+      textEl.setAttribute('text-anchor', 'middle')
+      textEl.setAttribute('dominant-baseline', 'middle')
+      textEl.setAttribute('fill', '#1a1a1a')
+      textEl.setAttribute('font-size', '14')
+      textEl.setAttribute('font-family', 'sans-serif')
+      textEl.textContent = textContent
+      fo.parentNode?.replaceChild(textEl, fo)
+    })
 
     // Inline every computed style so the serialized SVG does not depend on
     // embedded <style> class resolution or `currentColor` inheritance when

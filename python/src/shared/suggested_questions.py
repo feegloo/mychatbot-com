@@ -200,7 +200,22 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Quiz jest kluczowy dla utrwalenia i sprawdzenia wiedzy językowej.
    Pozostałe akcje dobierz losowo z listy poniżej.
 
-8. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
+8. SZKOLNE / ZAWODOWE / DOMOWE / EGZAMINACYJNE ZADANIE (dokument JEST zadaniem do wykonania przez użytkownika — treść zadania, polecenie egzaminacyjne, instrukcja pracy domowej, wytyczne dotyczące oceny, opis zadania z liczbą słów lub terminem oddania):
+   → OBOWIĄZKOWA POZYCJA 4 (pierwsza widoczna akcja): wygeneruj akcję "napisz wynik zadania". Format:
+     "Napisz [typ_zadania]: [liczba_słów] na temat: [temat] ✍️"
+     - [typ_zadania]: esej, raport, referat, wiersz, prezentacja, analiza, praca dyplomowa, recenzja — dopasuj do polecenia
+     - [liczba_słów]: DODAJ jeśli jest podana w dokumencie (np. "1500-2000 słów", "500 słów") — to jest KLUCZOWE i nie można pominąć gdy podano
+     - [temat]: główny temat z treści zadania, zwięźle (maks. 8 słów)
+     - Emoji ✍️ jest OBOWIĄZKOWE na końcu — to zarezerwowany sygnał trybu "napisz pełne zadanie"
+     - Przykład dla zadania z prawa korporacyjnego z esejem 1500-2000 słów: "Napisz esej: 1500-2000 słów na temat: rola i obowiązki dyrektora spółki ✍️"
+   → Pytania naturalne (pozycje 1-3) MUSZĄ dotyczyć wymagań zadania:
+     - Kluczowe tematy / argumenty, które zadanie poleca omówić
+     - Kryteria oceny, schemat punktowania lub rubryk (jeśli podano)
+     - Liczba słów, formatowanie lub wymagania dotyczące złożenia
+   BEZWZGLĘDNIE ZABRONIONE na pozycjach 4-5 dla tego typu dokumentu: quizy, osie czasu, bajki.
+   Generowanie obrazu MOŻE pojawić się na pozycji 5 tylko jeśli temat zadania ma silny potencjał wizualny.
+
+9. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -458,7 +473,7 @@ Rules:
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
-- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in {output_language_name}. NEVER mix languages. This applies to action labels, topics, and everything else.
+- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in {output_language_name}. NEVER mix languages. This applies to action labels, topics, and everything else. IMPORTANT: the format examples in these rules are shown in English, but you MUST translate them into {output_language_name}. For example, if {output_language_name} is Polish: "Generate an image inspired by X 🎨" → "Wygeneruj obraz inspirowany: X 🎨", "Write a list of key facts ☝️" → "Napisz listę kluczowych faktów ☝️", "Write a new chapter inspired by NAME ✏️" → "Napisz nowy inspirowany rozdział w stylu NAME ✏️".
 
 == "More ..." UI LAYOUT (CRITICAL — understand how your output is shown) ==
 The 10 prompts you emit are split in the UI:
@@ -560,7 +575,23 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Quizzes are essential for language retention and self-check.
    Pick the remaining actions RANDOMLY from the list below.
 
-8. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
+8. SCHOOL / JOB / HOMEWORK / EXAM ASSIGNMENT (document IS a task the user needs to complete — assignment brief, homework question, exam prompt, coursework instructions, assessment sheet, task description with word count or deadline):
+   → MANDATORY POSITION 4 (first visible action): generate the "write the task result" action. Format:
+     "Write [task_type]: [word_count] about [topic] ✍️"
+     - [task_type]: essay, report, chapter, poem, presentation, analysis, case study, dissertation, review — match what is asked
+     - [word_count]: INCLUDE if explicitly stated in the document (e.g. "1500-2000 words", "500 words") — this is CRITICAL and must not be omitted when present
+     - [topic]: the core subject from the assignment question, concise (max 8 words)
+     - ✍️ emoji is MANDATORY at the end — it is the reserved signal for "write full task result" mode
+     - Example for Corporate Law assignment asking for 1500-2000 word essay on director's duties: "Write essay: 1500-2000 words about role of company director ✍️"
+     - Example for English literature poem assignment with 300 words: "Write poem: 300 words inspired by Macbeth ✍️"
+   → Natural questions (positions 1-3) MUST cover the task requirements:
+     - Key topics / arguments the task asks to address
+     - Evaluation criteria, marking scheme, or rubric (if present)
+     - Word count, formatting, or submission requirements
+   ABSOLUTELY PROHIBITED at positions 4-5 for this document type: quizzes, timelines, fairy tales.
+   Image generation MAY appear at position 5 only if the assignment topic has strong visual potential.
+
+9. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
@@ -959,6 +990,61 @@ _AUTHOR_BY_PATTERN = re.compile(
     r"\bby\s+([A-Z][a-zA-Z\xC0-\xFF'\-]+(?:\s+[A-Z][a-zA-Z\xC0-\xFF'\-]+){0,2})"
 )
 
+# Detects school/job assignments, homework, exam questions, or any document that
+# IS a task the user needs to complete. When matched, a "write the task result" action
+# is pinned at the first visible slot (position 4) with the ✍️ emoji.
+_SCHOOL_TASK_PATTERN = re.compile(
+    r"\b("
+    r"essay|assignment|homework|coursework|assessment|submission|task.?sheet|task\s+brief|"
+    r"exam\s+(?:question|task|paper)|question(?:\s+paper)?|"
+    r"[0-9]+\s*[-–—]\s*[0-9]+\s*words?|word\s*count|words\s*required|required\s*words|"
+    r"marks?\s+will\s+be|deadline|due\s+date|submit\s+by|submission\s+date|"
+    r"discuss\s+the|analyze\s+the|critically\s+anal|evaluate\s+the|examine\s+the|"
+    r"wypracowanie|zadanie\s+domowe|esej|praca\s+domowa|referat|oddaj|termin\s+oddania"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _extract_task_word_count_and_type(text: str) -> tuple[str | None, str]:
+    """Extract (word_count_string, task_type) from a school/job assignment document.
+
+    Returns a word-count string like "1500-2000 words" or None if not found,
+    plus the detected task type (essay, report, poem, etc.).
+    """
+    # Word count: "1500 – 2000 words", "500 words", "1,500 words"
+    wc_range = re.search(
+        r"([0-9][0-9,]*)\s*[-–—]\s*([0-9][0-9,]*)\s*words?", text, re.IGNORECASE
+    )
+    if wc_range:
+        lo = wc_range.group(1).replace(",", "")
+        hi = wc_range.group(2).replace(",", "")
+        word_count: str | None = f"{lo}-{hi} words"
+    else:
+        wc_single = re.search(r"([0-9][0-9,]{2,})\s*words?", text, re.IGNORECASE)
+        word_count = (
+            f"{wc_single.group(1).replace(',', '')} words" if wc_single else None
+        )
+
+    # Task type — checked in priority order; first match wins
+    type_patterns = [
+        (r"\bdissertation\b|\bthesis\b", "dissertation"),
+        (r"\breport\b", "report"),
+        (r"\bcase\s+study\b", "case study"),
+        (r"\bpresentation\b", "presentation"),
+        (r"\bpoem\b|\bpoetry\b", "poem"),
+        (r"\bchapter\b", "chapter"),
+        (r"\breview\b|\bcritique\b", "review"),
+        (r"\banalysis\b|\banalyze\b|\banalyse\b", "analysis"),
+        (r"\bessay\b|\bwypracowanie\b|\besej\b", "essay"),
+        (r"\breferat\b", "report"),
+    ]
+    for pattern, ttype in type_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            return word_count, ttype
+
+    return word_count, "essay"  # default fallback
+
 
 def _is_valid_author_name(name: str) -> bool:
     """Return True if the extracted string looks like a real author name.
@@ -1097,10 +1183,22 @@ def _append_contextual_prompts(
     normal_questions = questions[:MAX_NORMAL_QUESTIONS]
     llm_actions = questions[MAX_NORMAL_QUESTIONS:MAX_TOTAL_SUGGESTED_PROMPTS]
 
-    subject = _extract_subject_phrase(welcome_message, description, file_names, language)
+    # Resolve the effective language for hardcoded action labels.
+    # The passed `language` reflects the document language or the user's UI language.
+    # When they differ (e.g. Arabic document + Polish UI), the LLM may generate questions
+    # in the user's language even though `language` is "ar". Detect the actual output
+    # language from the first 3 questions so hardcoded labels stay consistent with the
+    # LLM-generated content.
+    effective_language = language
+    if language != "pl" and questions:
+        detected_output = detect_language(" ".join(q for q in questions[:3] if q))
+        if detected_output == "pl":
+            effective_language = "pl"
+
+    subject = _extract_subject_phrase(welcome_message, description, file_names, effective_language)
     pinned_image_prompt = (
         f"Wygeneruj obraz inspirowany: {subject} 🎨"
-        if language == "pl"
+        if effective_language == "pl"
         else f"Generate an image inspired by: {subject} 🎨"
     )
 
@@ -1127,12 +1225,12 @@ def _append_contextual_prompts(
 
             if ftype == "image":
                 if has_ingredients and len(contextual) < MAX_ACTION_PROMPTS:
-                    if language == "pl":
+                    if effective_language == "pl":
                         contextual.append(f"Stwórz przepis inspirowany: {subject} 🍳")
                     else:
                         contextual.append(f"Create a recipe inspired by {subject} 🍳")
                 if len(contextual) < MAX_ACTION_PROMPTS:
-                    if language == "pl":
+                    if effective_language == "pl":
                         contextual.append(f"Pokaż metadane EXIF dla {short_name} 📷")
                         if has_person and len(contextual) < MAX_ACTION_PROMPTS:
                             if is_woman:
@@ -1157,7 +1255,7 @@ def _append_contextual_prompts(
     # document that happens to contain medical terminology (manuals, textbooks, etc.)
     is_non_medical = bool(_NON_MEDICAL_CONTEXT_PATTERN.search(welcome_message))
     if has_lab_tests and not is_non_medical and len(contextual) < MAX_ACTION_PROMPTS:
-        if language == "pl":
+        if effective_language == "pl":
             contextual.insert(0, "Postaw diagnozę na podstawie wyników 🔬")
         else:
             contextual.insert(0, "Make a diagnosis based on results 🔬")
@@ -1176,6 +1274,37 @@ def _append_contextual_prompts(
     is_language_learning = bool(_LANGUAGE_LEARNING_PATTERN.search(combined_text))
     is_educational_ebook = bool(_EDUCATIONAL_EBOOK_PATTERN.search(combined_text))
 
+    # School / job / homework / exam assignment — detected from document content.
+    # The full document text (chunks joined) is checked as well so that assignments
+    # without a rich welcome message (e.g. a 1-page PDF) are still caught.
+    _chunks_text = " ".join(questions)  # questions carry document vocabulary
+    is_school_task = bool(
+        _SCHOOL_TASK_PATTERN.search(combined_text)
+        or _SCHOOL_TASK_PATTERN.search(_chunks_text)
+    )
+
+    # For school tasks, extract the task type and word count so we can build a
+    # "write the full task" action label at the first visible slot (position 4).
+    pinned_task_prompt: str | None = None
+    if is_school_task:
+        _all_task_text = f"{combined_text} {_chunks_text}"
+        _word_count, _task_type = _extract_task_word_count_and_type(_all_task_text)
+        _subject_for_task = subject if len(subject) <= 40 else subject[:37] + "..."
+        if _word_count:
+            pinned_task_prompt = (
+                f"Napisz {_task_type}: {_word_count} na temat: {_subject_for_task} ✍️"
+                if effective_language == "pl"
+                else f"Write {_task_type}: {_word_count} about {_subject_for_task} ✍️"
+            )
+        else:
+            pinned_task_prompt = (
+                f"Napisz {_task_type} na temat: {_subject_for_task} ✍️"
+                if effective_language == "pl"
+                else f"Write {_task_type} about {_subject_for_task} ✍️"
+            )
+        # School tasks should not trigger unrelated creative pinning
+        pinned_creative_prompt = None
+
     # Threshold for "large" book: 300+ pages (e.g., J.K. Rowling novels)
     _IS_LARGE_BOOK = page_count and page_count >= 300
 
@@ -1184,24 +1313,24 @@ def _append_contextual_prompts(
             # For large books, occasionally suggest "large chapter" to match the epic scope
             pinned_creative_prompt = (
                 f"Napisz nowy inspirowany duży rozdział w stylu {author_name} ✏️"
-                if language == "pl"
+                if effective_language == "pl"
                 else f"Write a new large chapter inspired by {author_name} ✏️"
             )
         else:
             pinned_creative_prompt = (
                 f"Napisz nowy inspirowany rozdział w stylu {author_name} ✏️"
-                if language == "pl"
+                if effective_language == "pl"
                 else f"Write a new chapter inspired by {author_name} ✏️"
             )
     elif is_poetry_quotes and author_name:
         pinned_creative_prompt = (
             f"Napisz nowy inspirowany wiersz w stylu {author_name} 📜"
-            if language == "pl"
+            if effective_language == "pl"
             else f"Write a new poem inspired by {author_name} 📜"
         )
         pinned_quote_prompt = (
             f"Napisz nowy inspirowany cytat w stylu {author_name} 💬"
-            if language == "pl"
+            if effective_language == "pl"
             else f"Write a new quote inspired by {author_name} 💬"
         )
     elif is_selfhelp and author_name:
@@ -1219,7 +1348,7 @@ def _append_contextual_prompts(
             f"Draft 5 real-life scenarios inspired by {author_name} 🎭",
             f"Build a 14-day action plan inspired by {author_name} 📅",
         ]
-        options = _selfhelp_options_pl if language == "pl" else _selfhelp_options_en
+        options = _selfhelp_options_pl if effective_language == "pl" else _selfhelp_options_en
         pinned_creative_prompt = random.choice(options)
 
     # Quiz pinning: educational ebooks / subject-matter guides benefit strongly from
@@ -1230,7 +1359,7 @@ def _append_contextual_prompts(
     # are safe by construction. The language-learning branch is handled separately.
     generic_quiz_prompt = (
         "Stwórz quiz z najważniejszych faktów 🧠"
-        if language == "pl"
+        if effective_language == "pl"
         else "Create a quiz from the key facts 🧠"
     )
 
@@ -1240,7 +1369,7 @@ def _append_contextual_prompts(
     def _language_learning_quiz_prompt() -> str:
         has_grammar = bool(_GRAMMAR_KEYWORD_RE.search(combined_text))
         has_vocabulary = bool(_VOCABULARY_KEYWORD_RE.search(combined_text))
-        if language == "pl":
+        if effective_language == "pl":
             if has_grammar and not has_vocabulary:
                 return "Stwórz quiz z gramatyki 🧠"
             if has_vocabulary and not has_grammar:
@@ -1268,7 +1397,7 @@ def _append_contextual_prompts(
         subject_for_creative = subject if len(subject) <= 45 else subject[:42] + "..."
         pinned_creative_prompt = (
             f"Napisz nowy inspirowany rozdział na podstawie: {subject_for_creative} ✏️"
-            if language == "pl"
+            if effective_language == "pl"
             else f"Write a new chapter inspired by: {subject_for_creative} ✏️"
         )
 
@@ -1278,19 +1407,25 @@ def _append_contextual_prompts(
     # action. This is most valuable for language-learning or educational material.
     doc_lang_tag = _DOC_LANGUAGE_TAG_RE.search(welcome_message)
     doc_lang_code = doc_lang_tag.group(1).lower() if doc_lang_tag else None
-    ui_lang = language or "en"
+    ui_lang = effective_language or "en"
     cross_lang_dialogue_prompt: str | None = None
     if doc_lang_code and doc_lang_code != ui_lang and (is_language_learning or is_educational_ebook):
         doc_lang_name = _LANG_NAMES.get(doc_lang_code, doc_lang_code.upper())
         ui_lang_name = _LANG_NAMES.get(ui_lang, ui_lang.upper())
-        if language == "pl":
+        if effective_language == "pl":
             doc_loc = _LANG_PL_LOCATIVE.get(doc_lang_code, doc_lang_name)
             ui_loc = _LANG_PL_LOCATIVE.get(ui_lang, ui_lang_name)
             cross_lang_dialogue_prompt = f"Stwórz dialog po {doc_loc} i {ui_loc} 💬"
         else:
             cross_lang_dialogue_prompt = f"Create a dialogue in {doc_lang_name} and {ui_lang_name} 💬"
 
-    if is_language_learning:
+    if is_school_task and pinned_task_prompt:
+        # School/job task: task writer first, image second — no quiz in visible slots.
+        # The task writer action is the core of what the user needs (write the essay /
+        # report / poem), so it takes priority over image generation.
+        quiz_prompt = generic_quiz_prompt
+        pinned = [pinned_task_prompt, pinned_image_prompt]
+    elif is_language_learning:
         # Language-learning / teaching materials → quiz is the single most useful action,
         # so it takes the very first slot, ahead of the image prompt.
         quiz_prompt = _language_learning_quiz_prompt()
@@ -1323,10 +1458,15 @@ def _append_contextual_prompts(
 
         llm_actions = [a for a in llm_actions if not _is_quiz_action(a)]
 
+    # When a pinned task-writer action is present, suppress any LLM-generated ✍️
+    # actions so the user doesn't see two task-writer entries.
+    if pinned_task_prompt:
+        llm_actions = [a for a in llm_actions if "✍️" not in a]
+
     # Key facts: include for all text content; skip for image-only conversations
     has_text_content = not file_types or any(v != "image" for v in file_types.values())
     key_facts_prompt: str | None = (
-        ("Napisz listę kluczowych faktów ☝️" if language == "pl" else "Write a list of key facts ☝️")
+        ("Napisz listę kluczowych faktów ☝️" if effective_language == "pl" else "Write a list of key facts ☝️")
         if has_text_content
         else None
     )

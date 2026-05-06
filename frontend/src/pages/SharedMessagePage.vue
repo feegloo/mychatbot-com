@@ -62,7 +62,7 @@
       </div>
 
       <!-- Reply input to start a new thread — always pinned to bottom -->
-      <div class="chat-input-bar thread-reply-bar">
+      <div class="chat-input-bar thread-reply-bar" :class="{ 'is-asking': creatingThread }">
         <textarea
           ref="replyInput"
           v-model="replyText"

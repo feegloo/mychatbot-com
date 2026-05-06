@@ -90,7 +90,7 @@ Rules:
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - EMOJI ENFORCEMENT: Every action prompt (positions 4–10) MUST end with a relevant emoji — no exceptions. This applies to ALL document types including photos, images, and screenshots. Before finalising the action line, scan each action label: if any label after position 3 is missing a trailing emoji, append an appropriate one. Common pairings: description/caption → 📝, social media → 📱, alt text → ♿, mood/setting → 🌅, clothing → 👗, photo use → 📸, one-sentence → 💬, identify/search → 🔍, translate → 🌐, quiz → 🧠, checklist → ✅, timeline → 📅, summary → 📝, image generation → 🎨
 - Each prompt max 10 words, no numbering, no explanations
-- ALL prompts MUST be written 100% in the same language as the rest of your response
+- ALL prompts MUST be written 100% in the same language as the rest of your response. This is ABSOLUTE — never mix languages within the action line. If your welcome text is in Polish, ALL action labels must also be in Polish (e.g. "Wygeneruj obraz inspirowany: X 🎨", "Napisz listę kluczowych faktów ☝️"). If your welcome text is in English, use English labels (e.g. "Generate an image inspired by: X 🎨", "Write a list of key facts ☝️"). The format examples shown in these rules are in English, but you MUST translate them to match your response language.
 - NO square brackets inside label text (the marker itself already uses `[` and `]`) — if you need to quote something, use parentheses or quotes
 - DO NOT use JSON format, separators, or ```json — only [action:...] markers on a single line
 

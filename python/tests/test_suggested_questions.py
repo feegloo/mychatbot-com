@@ -569,3 +569,152 @@ def test_llm_generated_quiz_deduplicated_when_pinned():
 
     quiz_count = sum(1 for q in result if "quiz" in q.lower())
     assert quiz_count == 1, f"Expected exactly 1 quiz prompt, got {quiz_count}: {result}"
+
+
+# ---------------------------------------------------------------------------
+# School / job task writer — _SCHOOL_TASK_PATTERN and pinned ✍️ action
+# ---------------------------------------------------------------------------
+
+from shared.suggested_questions import _SCHOOL_TASK_PATTERN, _extract_task_word_count_and_type
+
+
+def test_school_task_pattern_matches_corporate_law_assignment():
+    """The pattern must match a typical academic assignment / homework PDF content."""
+    text = (
+        "Sri Lanka Institute of Advanced Technological Education. "
+        "Assessment: Corporate Law and Governance. "
+        "Assignment: Write an essay of 1500-2000 words on the role and responsibilities "
+        "of a company director. Submission deadline: 30 June 2025."
+    )
+    assert _SCHOOL_TASK_PATTERN.search(text) is not None
+
+
+def test_school_task_pattern_matches_homework_keyword():
+    text = "Homework assignment: complete the following exercise by Friday."
+    assert _SCHOOL_TASK_PATTERN.search(text) is not None
+
+
+def test_school_task_pattern_matches_exam_task():
+    text = "Final exam question: Analyse the impact of globalisation on local economies."
+    assert _SCHOOL_TASK_PATTERN.search(text) is not None
+
+
+def test_school_task_pattern_does_not_match_fiction_novel():
+    text = (
+        "## The Alchemist by Paulo Coelho\n\n"
+        "A novel about a shepherd named Santiago who dreams of treasure."
+    )
+    assert _SCHOOL_TASK_PATTERN.search(text) is None
+
+
+def test_extract_task_word_count_and_type_essay_with_range():
+    text = "Write an essay of 1500-2000 words on the role of a company director."
+    word_count, task_type = _extract_task_word_count_and_type(text)
+    assert word_count == "1500-2000 words"
+    assert task_type == "essay"
+
+
+def test_extract_task_word_count_and_type_report_minimum():
+    text = "Prepare a report of at least 800 words covering the financial analysis."
+    word_count, task_type = _extract_task_word_count_and_type(text)
+    assert "800" in word_count
+    assert task_type == "report"
+
+
+def test_extract_task_word_count_and_type_no_word_count_returns_empty():
+    text = "Write an essay on the topic of climate change."
+    word_count, task_type = _extract_task_word_count_and_type(text)
+    assert not word_count  # None or "" — no digits in text
+    assert task_type == "essay"
+
+
+def test_extract_task_word_count_and_type_defaults_to_essay():
+    text = "Complete the assignment by Sunday. Submit to the lecturer."
+    word_count, task_type = _extract_task_word_count_and_type(text)
+    assert task_type == "essay"
+
+
+def test_school_task_pins_write_action_at_position_4_english():
+    """A corporate-law assignment PDF should pin the task-writer ✍️ action at slot 4
+    (first action, immediately after 3 questions), not in the More... dropdown."""
+    welcome = (
+        "## Corporate Law and Governance — Assignment\n\n"
+        "Sri Lanka Institute of Advanced Technological Education. "
+        "Write an essay of 1500-2000 words on the role and responsibilities "
+        "of a company director."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What are the responsibilities of a company director?",
+            "What is corporate governance?",
+            "What laws govern company directors in Sri Lanka?",
+            "Draft an introduction for the essay ✍️",
+            "Summarise the key legal duties 📝",
+        ],
+        file_names=["corporate_law_assignment.pdf"],
+        file_types={"corporate_law_assignment.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+
+    # Position 4 (index 3) must be the task-writer ✍️ pinned action
+    assert "✍️" in result[3], f"Expected ✍️ in slot 4, got: {result[3]}"
+    assert "Write" in result[3] or "write" in result[3]
+    # Must NOT be merely a draft/introduction — must reference the full piece
+    assert "draft an introduction" not in result[3].lower()
+    # The action must include word count context from the document
+    assert "1500" in result[3] or "2000" in result[3] or "essay" in result[3].lower()
+
+
+def test_school_task_pins_write_action_at_position_4_polish():
+    """Polish school task assignment should pin the ✍️ action with Polish label at slot 4."""
+    welcome = (
+        "## Zadanie: Prawo korporacyjne\n\n"
+        "Zadanie domowe: napisz esej o długości 1200-1500 słów "
+        "na temat odpowiedzialności dyrektora spółki. Termin: 15 maja."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "Jakie są obowiązki dyrektora spółki?",
+            "Co to jest ład korporacyjny?",
+            "Jakie przepisy regulują odpowiedzialność dyrektora?",
+            "Napisz wstęp do eseju ✍️",
+            "Podsumuj kluczowe obowiązki prawne 📝",
+        ],
+        file_names=["zadanie_prawo.pdf"],
+        file_types={"zadanie_prawo.pdf": "document"},
+        language="pl",
+        welcome_message=welcome,
+    )
+
+    assert "✍️" in result[3], f"Expected ✍️ in slot 4, got: {result[3]}"
+    # Polish task-writer label should start with "Napisz"
+    assert result[3].startswith("Napisz")
+
+
+def test_school_task_write_action_not_duplicated():
+    """The LLM-generated ✍️ action should not appear alongside the pinned one
+    when the pinned version already covers the same intent."""
+    welcome = (
+        "## Research Report Assignment\n\n"
+        "Write a research report of 2000-2500 words about the effects of AI on employment."
+    )
+    result = _append_contextual_prompts(
+        questions=[
+            "What are the effects of AI on jobs?",
+            "Which industries are most at risk?",
+            "What does research say about AI and unemployment?",
+            "Write essay: 2000-2500 words about effects of AI ✍️",
+            "Create an outline 📝",
+        ],
+        file_names=["ai_employment_report.pdf"],
+        file_types={"ai_employment_report.pdf": "document"},
+        language="en",
+        welcome_message=welcome,
+    )
+
+    # Only one ✍️ action should appear
+    task_writer_actions = [q for q in result if "✍️" in q]
+    assert len(task_writer_actions) == 1, (
+        f"Expected exactly 1 ✍️ action, got {len(task_writer_actions)}: {task_writer_actions}"
+    )
