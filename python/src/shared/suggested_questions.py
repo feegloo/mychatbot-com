@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .extractors import clean_file_name
 from .lang_detect import detect_language
+from .languages import LANG_NAMES as _LANG_NAMES
 from .llm_instrument import traced_llm_call
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ Zasady:
 - Każdy prompt powinien być zwięzły (max 10 słów)
 - NIE numeruj, NIE dodawaj wyjaśnień
 - NIE używaj formatu "temat - akcja" ani nawiasów kwadratowych — pisz naturalne zdania
-- KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% w języku treści dokumentu. Jeśli treść jest po francusku, pisz po francusku. Jeśli po niemiecku, pisz po niemiecku. NIGDY nie mieszaj języków. Dotyczy to również nazw akcji.
+- KRYTYCZNE: WSZYSTKIE prompty (pytania i akcje) muszą być w 100% po polsku. NIGDY nie mieszaj języków. Dotyczy to również nazw akcji.
 
 == UKŁAD UI "More ..." (KRYTYCZNE — zrozum jak Twoje wyjście jest pokazywane) ==
 10 promptów, które zwracasz, jest dzielonych w UI:
@@ -434,7 +435,7 @@ Rules:
 - Each prompt should be concise (max 10 words)
 - Do NOT number, do NOT add explanations
 - Do NOT use "topic - action" format or square brackets — write natural sentences
-- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in the language of the document content. If the content is in French, write everything in French. If in German, write in German. NEVER mix languages. This applies to action labels, topics, and everything else.
+- CRITICAL: ALL prompts (questions AND actions) MUST be written 100% in {output_language_name}. NEVER mix languages. This applies to action labels, topics, and everything else.
 
 == "More ..." UI LAYOUT (CRITICAL — understand how your output is shown) ==
 The 10 prompts you emit are split in the UI:
@@ -761,7 +762,9 @@ Document description: {description}""",
     llm = get_llm()
     chain = prompt | llm | StrOutputParser()
     model = getattr(llm, "model", None) or getattr(llm, "model_name", None) or "unknown"
-    params = {"content": sample, "description": description, "file_types_str": _file_types_str}
+    params: dict = {"content": sample, "description": description, "file_types_str": _file_types_str}
+    if language != "pl":
+        params["output_language_name"] = _LANG_NAMES.get(language or "en", (language or "en").upper())
     response, _usage = traced_llm_call(
         chain=chain,
         params=params,

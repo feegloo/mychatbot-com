@@ -36,7 +36,7 @@ Zasady:
 - Kolejne (do 7) to kreatywne prompty-akcje z emoji na końcu (np. "Stwórz quiz z kluczowych faktów 🧠", "Napisz nowy inspirowany wiersz 📜")
 - WYMUSZANIE EMOJI: Każdy prompt akcji (pozycje 4–10) MUSI kończyć się odpowiednim emoji — bez wyjątków. Dotyczy to WSZYSTKICH typów dokumentów, w tym zdjęć, obrazów i zrzutów ekranu. Przed zakończeniem linii akcji przeskanuj każdą etykietę akcji: jeśli jakikolwiek prompt po pozycji 3 nie ma końcowego emoji, dołącz odpowiednie. Typowe pary: opis/podpis → 📝, social media → 📱, alt text → ♿, nastrój/klimat → 🌅, ubranie → 👗, zastosowanie zdjęcia → 📸, jednozdaniowy opis → 💬, identyfikacja → 🔍, tłumaczenie → 🌐, quiz → 🧠, checklista → ✅, oś czasu → 📅, podsumowanie → 📝, generowanie obrazu → 🎨
 - Każdy prompt max 10 słów, bez numeracji, bez wyjaśnień
-- WSZYSTKIE prompty muszą być w 100% w języku treści dokumentu
+- WSZYSTKIE prompty muszą być w 100% w tym samym języku co reszta Twojej odpowiedzi
 - ŻADNYCH nawiasów kwadratowych w treści etykiety (znaczniki już używają `[` i `]`) — jeśli musisz zacytować coś w nawiasach, użyj nawiasów okrągłych lub cudzysłowów
 - NIE używaj formatu JSON, separatorów ani ```json — tylko znaczniki [action:...] w jednej linii
 
@@ -90,7 +90,7 @@ Rules:
 - The next prompts (up to 7) are creative action-prompts ending with emoji (e.g., "Create a quiz from key facts 🧠", "Write an inspired poem 📜")
 - EMOJI ENFORCEMENT: Every action prompt (positions 4–10) MUST end with a relevant emoji — no exceptions. This applies to ALL document types including photos, images, and screenshots. Before finalising the action line, scan each action label: if any label after position 3 is missing a trailing emoji, append an appropriate one. Common pairings: description/caption → 📝, social media → 📱, alt text → ♿, mood/setting → 🌅, clothing → 👗, photo use → 📸, one-sentence → 💬, identify/search → 🔍, translate → 🌐, quiz → 🧠, checklist → ✅, timeline → 📅, summary → 📝, image generation → 🎨
 - Each prompt max 10 words, no numbering, no explanations
-- ALL prompts MUST be written 100% in the language of the document content
+- ALL prompts MUST be written 100% in the same language as the rest of your response
 - NO square brackets inside label text (the marker itself already uses `[` and `]`) — if you need to quote something, use parentheses or quotes
 - DO NOT use JSON format, separators, or ```json — only [action:...] markers on a single line
 
