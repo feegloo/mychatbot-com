@@ -1115,6 +1115,10 @@ a {
   margin-bottom: 0;
 }
 
+.markdown-content > p:first-child {
+  margin-bottom: 0;
+}
+
 .markdown-content strong {
   display: inline;
   font-size: inherit;
