@@ -1129,7 +1129,7 @@ watch(
         // measure element positions. flush:'post' guarantees the vdom patch is
         // done, but CSS layout (heights, fonts) may still be pending — the
         // setTimeout gives the browser one extra paint cycle to settle.
-        setTimeout(() => scrollToBottom(false, false, true), 200)
+        setTimeout(() => scrollToBottom(false, false, true), 300)
       }
     }
     prevMessageCount = newLen
