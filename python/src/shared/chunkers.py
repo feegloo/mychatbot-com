@@ -42,6 +42,18 @@ def _section_label(text: str) -> str | None:
 # Regex matching "# Page N" headers inserted by extract_pdf()
 _PAGE_HEADER_RE = re.compile(r"^# Page (\d+)\b", re.MULTILINE)
 
+# Matches a leading "# Page N" line (with trailing newlines) at the very start of a string
+_PAGE_HEADER_STRIP_RE = re.compile(r"^# Page \d+\s*\n+")
+
+
+def _strip_page_header(text: str) -> str:
+    """Remove a leading '# Page N' header from chunk text.
+
+    The page number is already captured in the ``section`` and ``page`` fields,
+    so embedding it in the stored text is redundant and clutters citation previews.
+    """
+    return _PAGE_HEADER_STRIP_RE.sub("", text)
+
 
 def _extract_page_from_chunk(text: str) -> int | None:
     """Return the page number from the first '# Page N' header in *text*."""
@@ -139,11 +151,16 @@ def split_into_chunks(file_name: str, text: str, *, page_num: int | None = None)
             page = _extract_page_from_chunk(raw.text)
             if page is None:
                 page = _last_page_before(text, raw.start_index)
+        # Strip the "# Page N" header before storing: page info lives in
+        # the section/page fields so we don't need it in the text body.
+        chunk_text = _strip_page_header(raw.text)
+        if not chunk_text.strip():
+            continue
         chunks.append(
             Chunk(
                 chunk_id=f"{_id_prefix}_chunk_{index}",
                 file_name=file_name,
-                text=raw.text,
+                text=chunk_text,
                 section=section,
                 page=page,
                 metadata={},

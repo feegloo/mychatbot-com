@@ -114,6 +114,8 @@ def bench_full_pipeline_simulation(pdf_path: str, total_pages: int, workers: int
         raw = page.get_text() or ""
         doc.close()
         reflowed = _reflow_pdf_text(raw.strip())
+        # Pass the page header so chunkers can detect page boundaries and set
+        # section/page fields; the header itself is stripped from stored text.
         text = _sanitize_text(f"# Page {page_idx + 1}\n\n{reflowed}")
         chunks = split_into_chunks(Path(pdf_path).name, text, page_num=page_idx + 1)
         return len(chunks)

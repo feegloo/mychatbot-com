@@ -198,3 +198,34 @@ class TestSplitIntoChunks:
         combined = " ".join(c.text for c in chunks)
         assert "Section A" in combined
         assert "Section B" in combined
+
+    def test_page_header_stripped_from_chunk_text(self):
+        """'# Page N' prefix must NOT appear in stored chunk text."""
+        text = "# Page 7\n\nSome actual content from page seven."
+        chunks = split_into_chunks("report.pdf", text, page_num=7)
+        assert len(chunks) == 1
+        assert not chunks[0].text.startswith("# Page")
+        assert "actual content" in chunks[0].text
+
+    def test_page_header_stripped_but_section_preserved(self):
+        """section remains '# Page N' even though text has the header removed."""
+        text = "# Page 3\n\nHello from page three, with enough content here."
+        chunks = split_into_chunks("doc.pdf", text, page_num=3)
+        assert len(chunks) == 1
+        assert chunks[0].section == "# Page 3"
+        assert chunks[0].page == 3
+        assert "# Page" not in chunks[0].text
+
+    def test_page_header_only_page_produces_no_chunk(self):
+        """A page whose entire text is just the '# Page N' header produces no chunk."""
+        text = "# Page 1\n\n"
+        chunks = split_into_chunks("empty.pdf", text, page_num=1)
+        assert len(chunks) == 0
+
+    def test_non_page_markdown_header_not_stripped(self):
+        """Regular markdown headers (not '# Page N') are kept in text."""
+        text = "# Introduction\n\nThis is the intro section with useful content."
+        chunks = split_into_chunks("doc.md", text)
+        assert len(chunks) >= 1
+        assert "# Introduction" in chunks[0].text
+

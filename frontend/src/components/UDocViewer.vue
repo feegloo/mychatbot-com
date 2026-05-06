@@ -91,16 +91,30 @@ function extractSearchPhrase(text: string): string {
 
 async function navigateAfterLoad() {
   if (!viewer) return
-  // Search for highlight text first (highlights and selects the citation text).
-  // goToPage is called after search so we always land on the cited page,
-  // regardless of where the first search match is located.
+  const page = props.page ?? 1
+  let navigatedToMatch = false
+
   if (props.highlightText) {
     const phrase = extractSearchPhrase(props.highlightText)
-    await viewer.search(phrase, { fuzzy: true })
+    // Restrict to the cited page (0-based) — faster than scanning the whole doc
+    // and avoids highlighting the same phrase on unrelated pages.
+    const matches = await viewer.search(phrase, {
+      fuzzy: true,
+      pageRange: [page - 1, page - 1],
+    })
+    if (matches.length > 0) {
+      // Scroll the matched text to the center of the viewport so it's immediately visible.
+      viewer.setSearchActiveIndex(0, { scrollAlignment: 'center' })
+      navigatedToMatch = true
+    }
   }
-  if (props.page && props.page > 1) {
-    viewer.goToPage(props.page)
+
+  // Fall back to top-of-page navigation when search found no match
+  // (e.g. the PDF text differs enough that fuzzy matching still fails).
+  if (!navigatedToMatch && page > 1) {
+    viewer.goToPage(page)
   }
+
   // Hide loader only after navigation is complete so user never sees page 1 flash
   loading.value = false
 }
