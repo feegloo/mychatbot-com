@@ -134,15 +134,15 @@ defineEmits<{
   width: 100vw;
   max-width: 100vw;
   height: auto;
-  max-height: 95vh;
+  max-height: 100vh;
 }
 
 @media (min-width: 769px) {
   .image-modal-img--stretch {
     width: auto;
     max-width: 95vw;
-    height: 95vh;
-    max-height: 95vh;
+    height: 100vh;
+    max-height: 100vh;
   }
 }
 

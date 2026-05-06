@@ -592,11 +592,19 @@ def build_user_language_addendum(user_language_code: str) -> str:
     code = user_language_code.lower().split("-")[0].split("_")[0]
     user_language_name = LANG_NAMES.get(code, code.upper())
     return (
-        f"\n\n== LANGUAGE OVERRIDE (HIGHEST PRIORITY) ==\n"
+        f"\n\n== LANGUAGE OVERRIDE (HIGHEST PRIORITY — NON-NEGOTIABLE) ==\n"
         f"User language: {user_language_name} ({code})\n"
-        f"Write the ENTIRE welcome message (title, description, expert insight, "
-        f"mindmap labels, action buttons) in {user_language_name}. "
-        f"This overrides any other language rule in this prompt.\n\n"
+        f"Write the ENTIRE response (title, description, expert insight, "
+        f"mindmap labels, AND every [action:...] button label) in {user_language_name}. "
+        f"This overrides any other language rule in this prompt, including document language.\n\n"
+        f"ACTION BUTTONS LANGUAGE — ABSOLUTE RULE:\n"
+        f"ALL [action:...] labels — including the first 3 natural questions about the document "
+        f"AND all creative action prompts — MUST be written in {user_language_name}. "
+        f"The document may be in a different language; that does NOT affect the label language. "
+        f"Even if the document content is entirely in English, German, Arabic, etc., "
+        f"every single [action:...] label MUST be in {user_language_name}.\n"
+        f"Before finalising the [action:...] line, verify: does every label read naturally "
+        f"in {user_language_name}? If any label is in the wrong language, rewrite it.\n\n"
         f"REQUIRED — output this as the VERY FIRST LINE of your response "
         f"(even before [mindmap] and before the # heading):\n"
         f"[language]{code}[/language]\n"

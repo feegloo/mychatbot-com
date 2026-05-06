@@ -1125,7 +1125,10 @@ def _synthesize_welcome_messages(
     if raw_parts:
         raw_block = "\n\n=====\n" + "\n\n-----\n\n".join(raw_parts) + "\n====="
 
-    if language == "pl":
+    # User's home-page language takes priority over document language for all
+    # user-visible output (welcome text and action button labels).
+    effective_language = user_language or language
+    if effective_language == "pl":
         if num_files > 1:
             pl_word = _pl_plik(num_files)
             intro_pl = (
@@ -1185,7 +1188,10 @@ def _synthesize_welcome_messages(
             "Reply in the same language as the content."
         ) + WELCOME_QUESTIONS_RULES_EN
 
-    # Apply user language override when the user's language is known
+    # Apply user language override when the user's language is known.
+    # For the Polish branch (effective_language == "pl"), this is already the full
+    # Polish template; the addendum is a safety-net reinforcement.
+    # For the English/other branch, the addendum is the primary language override.
     if user_language:
         system_msg += build_user_language_addendum(user_language)
 
@@ -1532,6 +1538,14 @@ def describe_documents(
                 raw_ending=all_text[-_RAW_ENDING_CHARS:] if len(all_text) > _RAW_ENDING_CHARS else "",
                 user_language=user_language,
             )
+            if synthesis_qs:
+                from .suggested_questions import _append_contextual_prompts
+                synthesis_qs = _append_contextual_prompts(
+                    synthesis_qs, file_names, file_types,
+                    user_language or language,
+                    welcome_message=synthesis_msg, description="",
+                )
+                synthesis_msg = _embed_actions_in_welcome(synthesis_msg, synthesis_qs)
             return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
         logger.warning("⚠️ Book compaction produced no summaries, falling back to split/truncated strategy")
@@ -1592,6 +1606,14 @@ def describe_documents(
             num_files=num_unique_files,
             user_language=user_language,
         )
+        if synthesis_qs:
+            from .suggested_questions import _append_contextual_prompts
+            synthesis_qs = _append_contextual_prompts(
+                synthesis_qs, file_names, file_types,
+                user_language or language,
+                welcome_message=synthesis_msg, description="",
+            )
+            synthesis_msg = _embed_actions_in_welcome(synthesis_msg, synthesis_qs)
         return DescribeResult(welcome_message=synthesis_msg, suggested_questions=synthesis_qs)
 
     whole_book_mode = bool(all_text and estimated_tokens <= _WHOLE_BOOK_MAX_ESTIMATED_TOKENS)

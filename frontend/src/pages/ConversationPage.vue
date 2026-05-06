@@ -1193,7 +1193,7 @@ async function openC4Modal() {
 
   // Translate mindmap labels when the user's display language differs from
   // the original mindmap language (detected from the welcome message).
-  const detectedLang: string = languageToggleRef.value?.detectedLang?.value ?? ''
+  const detectedLang: string = languageToggleRef.value?.detectedLang ?? ''
   const codeToRender =
     targetLang && detectedLang && targetLang !== detectedLang
       ? await translateMindmapCode(mermaidCode, targetLang, conversationId, detectedLang)
