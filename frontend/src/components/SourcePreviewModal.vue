@@ -3,7 +3,7 @@
     <div v-if="visible" class="source-modal-overlay" @click.self="$emit('close')">
       <div class="source-modal-inner">
         <div class="source-modal-content" :class="{ 'source-modal-content--text': !isUDocFile && !isSvg && !isRasterImage }">
-          <!-- PDF / DOCX / PPTX preview via udoc-viewer -->
+          <!-- PDF / DOCX / PPTX / XLSX preview via udoc-viewer -->
           <UDocViewer
             v-if="isUDocFile"
             :url="pdfBaseUrl"
@@ -111,7 +111,7 @@ defineEmits<{
   close: []
 }>()
 
-const UDOC_EXTENSIONS = new Set(['.pdf', '.docx', '.pptx'])
+const UDOC_EXTENSIONS = new Set(['.pdf', '.docx', '.pptx', '.xlsx'])
 const isUDocFile = computed(() => {
   const lower = props.citation.fileName.toLowerCase()
   return [...UDOC_EXTENSIONS].some((ext) => lower.endsWith(ext))
@@ -127,7 +127,7 @@ const isMobile = computed(() => /iPhone|iPad|iPod|Android/i.test(navigator.userA
 
 const pdfBaseUrl = computed(() => getStorageUrl(props.conversationId, props.citation.fileName))
 
-// When opened for a text file (non-PDF/docx/pptx) with no pre-fetched citation text,
+// When opened for a text file (non-PDF/docx/pptx/xlsx) with no pre-fetched citation text,
 // fetch the raw file content from storage so the modal is not empty.
 const fetchedText = ref('')
 const fetchLoading = ref(false)

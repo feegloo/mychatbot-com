@@ -3,12 +3,12 @@
  * Fallback tile for any non-image, non-PDF attachment (docx, txt, csv…).
  * Shows a generic document icon + filename. Click bubbles to parent.
  */
-defineProps<{ name: string }>()
+defineProps<{ name: string; disabled?: boolean }>()
 const emit = defineEmits<{ open: [] }>()
 </script>
 
 <template>
-  <div class="preview-text" @click="emit('open')">
+  <div class="preview-text" :class="{ 'preview-text--disabled': disabled }" @click="!disabled && emit('open')">
     <svg
       width="48"
       height="48"
@@ -27,6 +27,11 @@ const emit = defineEmits<{ open: [] }>()
 </template>
 
 <style scoped>
+.preview-text--disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .preview-text {
   display: flex;
   flex-direction: column;

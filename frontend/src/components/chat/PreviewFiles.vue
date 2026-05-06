@@ -34,9 +34,15 @@ const DOCUMENT_MIME_TYPES = new Set([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
 ])
 function isDocument(f: File) {
   return DOCUMENT_MIME_TYPES.has(f.mimeType ?? '')
+}
+
+// Legacy Office formats (.xls, .ppt) are not supported by the viewer — no preview
+function isLegacyFormat(f: File): boolean {
+  return /\.(xls|ppt)$/i.test(f.originalName ?? '')
 }
 
 function next(event: Event) {
@@ -79,7 +85,12 @@ function prev(event: Event) {
         :name="current.originalName"
         @open="emit('open', current!)"
       />
-      <PreviewText v-else :name="current.originalName" @open="emit('open', current!)" />
+      <PreviewText
+        v-else
+        :name="current.originalName"
+        :disabled="isLegacyFormat(current)"
+        @open="emit('open', current!)"
+      />
     </div>
 
     <button v-if="hasMultiple" class="arrow arrow-right" title="Next" @click="next">
