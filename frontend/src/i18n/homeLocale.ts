@@ -98,14 +98,14 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Generate image 🎨 book chapter 📖 poem 📜 diagnosis 🔬 interactive quiz 🧠 quote 💬 PDF 📄 mermaid diagram 💡 recipe 🍝 checklist ✅ and more!',
     dropzoneHeading: 'Upload',
     dropzoneTitle: 'click or drag & drop',
-    dropzoneHint: 'PDF, DOCX, PPTX, images, URL, other text files',
+    dropzoneHint: 'PDF, images, DOCX, PPTX, other text files',
     askPlaceholder: 'Ask your question ...',
     viewerReplyPlaceholder: 'Reply to start your own thread ...',
     videoNotSupported: 'Video files are not supported.',
     fileTooLarge: 'File too large. Maximum upload size is ~30 MB per file.',
     urlLoadFailed: 'Failed to load URL',
     imageGenError: 'Sorry, there was an error during generating image. Refresh page or try again.',
-    switchTitle: 'Switch home page language',
+    switchTitle: 'Switch UI language',
   },
   pl: {
     subtitleP1Html:
@@ -123,14 +123,14 @@ export const homeMessages: Record<HomeLang, HomeMessages> = {
       'Wygeneruj obraz 🎨 rozdział książki 📖 wiersz 📜 diagnozę 🔬 interaktywny quiz 🧠 cytat 💡 PDF 📄 diagram mermaid 🧩 przepis 🍝 checklistę ✅ i więcej!',
     dropzoneHeading: 'Prześlij',
     dropzoneTitle: 'kliknij lub przeciągnij i upuść',
-    dropzoneHint: 'PDF, DOCX, PPTX, obrazy, URL, inne pliki tekstowe',
+    dropzoneHint: 'PDF, obrazy, DOCX, PPTX, inne pliki tekstowe',
     askPlaceholder: 'Zadaj swoje pytanie ...',
     viewerReplyPlaceholder: 'Odpowiedz, aby rozpocząć własny wątek ...',
     videoNotSupported: 'Pliki wideo nie są obsługiwane.',
     fileTooLarge: 'Plik zbyt duży. Maksymalny rozmiar to ~30 MB na plik.',
     urlLoadFailed: 'Nie udało się wczytać URL',
     imageGenError: 'Przepraszam, wystąpił błąd podczas generowania obrazu. Odśwież stronę lub spróbuj ponownie.',
-    switchTitle: 'Zmień język strony głównej',
+    switchTitle: 'Zmień język interfejsu',
   },
 }
 
