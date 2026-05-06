@@ -881,6 +881,7 @@ async function renderMarkdownBlock(
   const { processed: withQuizPlaceholders, quizData } = extractQuizBlocks(withMermaidPlaceholders)
 
   const cleaned = withQuizPlaceholders
+    .replace(/\[language\][a-z-]+\[\/language\]\s*/gi, '') // strip language markers emitted by the model
     .replace(/\[source:\s*\d+(?:,\s*\d+)*\]/g, '')
     .replace(/\[action:\s*[^\]]+\]/g, '')
     .replace(/<p[^>]*class="image-caption"[^>]*>[\s\S]*?<\/p>/gi, '') // strip HTML image captions
@@ -1257,7 +1258,10 @@ async function renderMarkdownBlock(
       !lines[i + 1].trimStart().match(/^\d+[.)]\s/) &&
       !(lines[i + 1].includes('|') && lines[i + 1].trim().startsWith('|')) &&
       !/^(\s*[-*_]){3,}\s*$/.test(lines[i + 1]) &&
-      !parseMarkdownImageTarget(lines[i + 1])
+      !parseMarkdownImageTarget(lines[i + 1]) &&
+      // Don't merge lines that start with a bold label ("**Word:**") — these are
+      // dialogue / labeled-line formats where each entry should be its own paragraph.
+      !lines[i + 1].trimStart().match(/^\*\*[^*]+:\*\*/)
     ) {
       i++
       paragraph += ' ' + replaceInlineImagesWithAlt(lines[i])

@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from .chapters import ChapterInfo, chapters_from_serializable
 from .config import get_settings
+from .lang_detect import detect_language as _detect_language
 from .languages import LANG_NAMES as _LANG_NAMES
 from .llm_instrument import traced_llm_call
 from .prompts.emoji_and_dash import EMOJI_AND_DASH_RULES
@@ -1296,6 +1297,15 @@ def answer_with_citations(
         chain = prompt | llm
 
         # Build the template variables for this invocation
+        # When the caller did not supply a language, detect it from the question text.
+        # This ensures the LLM sees the correct language for [action:...] label generation
+        # even when the frontend does not pass an explicit language parameter.
+        if not conversation_language_code:
+            detected_lang = _detect_language(question[:500])
+            if detected_lang:
+                conversation_language_code = detected_lang
+                conversation_language_name = _LANG_NAMES.get(detected_lang, detected_lang.upper())
+
         if is_quiz:
             prompt_vars = {
                 "question": question,

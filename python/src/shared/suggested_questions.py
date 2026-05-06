@@ -18,6 +18,17 @@ MAX_TOTAL_SUGGESTED_PROMPTS = 10
 MAX_NORMAL_QUESTIONS = 3
 MAX_ACTION_PROMPTS = 7
 
+# Regex to extract the document language emitted by the model as [language]xx[/language].
+_DOC_LANGUAGE_TAG_RE = re.compile(r'\[language\]([a-z]{2,5})\[/language\]', re.IGNORECASE)
+
+# Polish locative forms ("po X") for the most common languages used in dialogues.
+_LANG_PL_LOCATIVE: dict[str, str] = {
+    "en": "angielsku", "pl": "polsku", "de": "niemiecku", "fr": "francusku",
+    "es": "hiszpańsku", "it": "włosku", "ru": "rosyjsku", "uk": "ukraińsku",
+    "pt": "portugalsku", "nl": "niderlandzku", "cs": "czesku", "sk": "słowacku",
+    "ja": "japońsku", "zh": "chińsku", "ko": "koreańsku",
+}
+
 
 def _sample_chunks(chunks: list[str], max_chunks: int = 8) -> list[str]:
     """Stratified sampling to capture diverse topics throughout the document."""
@@ -404,6 +415,18 @@ am) Przepis 🍝 — sugeruj gdy:
    - zdjęcie pokazuje składniki lub gotowe danie
    - plik dotyczy gotowania, pieczenia chleba, przepisów kulinarnych
    - widoczne są produkty spożywcze na zdjęciu
+
+== WERYFIKACJA JĘZYKA (OSTATNI KROK — OBOWIĄZKOWY) ==
+Przed wyemitowaniem JSON przejrzyj KAŻDY z 10 elementów tablicy i zweryfikuj:
+1. Czy każdy element jest w CAŁOŚCI po polsku?
+2. Jeśli jakikolwiek element zawiera angielskie słowa — np. "Generate", "Write", "Create", "Inspire", "Inspired", "chapter", "quiz", "key facts", "timeline" — NATYCHMIAST go przepisz po polsku.
+Przykłady obowiązkowych korekt:
+  ❌ "Generate an image inspired by: ..." → ✅ "Wygeneruj obraz inspirowany: ..."
+  ❌ "Write a new chapter inspired by ..." → ✅ "Napisz nowy inspirowany rozdział w stylu ..."
+  ❌ "Create a quiz from the key facts" → ✅ "Stwórz quiz z najważniejszych faktów 🧠"
+  ❌ "Write a list of key facts" → ✅ "Napisz listę kluczowych faktów ☝️"
+  ❌ "Create a timeline of events" → ✅ "Zrób oś czasu wydarzeń 📅"
+NIE emituj JSON, dopóki nie sprawdzisz i nie poprawisz każdego elementu.
 Przesłane pliki: {file_types_str}
 Opis dokumentu: {description}""",
                 ),
@@ -1249,11 +1272,31 @@ def _append_contextual_prompts(
             else f"Write a new chapter inspired by: {subject_for_creative} ✏️"
         )
 
+    # Cross-language dialogue action: when the uploaded document is in a different
+    # language than the user's current UI language (e.g. French exercises for an
+    # English-speaking user), suggest creating a bilingual dialogue as the 3rd pinned
+    # action. This is most valuable for language-learning or educational material.
+    doc_lang_tag = _DOC_LANGUAGE_TAG_RE.search(welcome_message)
+    doc_lang_code = doc_lang_tag.group(1).lower() if doc_lang_tag else None
+    ui_lang = language or "en"
+    cross_lang_dialogue_prompt: str | None = None
+    if doc_lang_code and doc_lang_code != ui_lang and (is_language_learning or is_educational_ebook):
+        doc_lang_name = _LANG_NAMES.get(doc_lang_code, doc_lang_code.upper())
+        ui_lang_name = _LANG_NAMES.get(ui_lang, ui_lang.upper())
+        if language == "pl":
+            doc_loc = _LANG_PL_LOCATIVE.get(doc_lang_code, doc_lang_name)
+            ui_loc = _LANG_PL_LOCATIVE.get(ui_lang, ui_lang_name)
+            cross_lang_dialogue_prompt = f"Stwórz dialog po {doc_loc} i {ui_loc} 💬"
+        else:
+            cross_lang_dialogue_prompt = f"Create a dialogue in {doc_lang_name} and {ui_lang_name} 💬"
+
     if is_language_learning:
         # Language-learning / teaching materials → quiz is the single most useful action,
         # so it takes the very first slot, ahead of the image prompt.
         quiz_prompt = _language_learning_quiz_prompt()
         pinned = [quiz_prompt, pinned_image_prompt]
+        if cross_lang_dialogue_prompt:
+            pinned.append(cross_lang_dialogue_prompt)
     else:
         quiz_prompt = generic_quiz_prompt
         pinned = [pinned_image_prompt]
