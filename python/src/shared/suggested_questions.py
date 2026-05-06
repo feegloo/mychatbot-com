@@ -215,7 +215,20 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    BEZWZGLĘDNIE ZABRONIONE na pozycjach 4-5 dla tego typu dokumentu: quizy, osie czasu, bajki.
    Generowanie obrazu MOŻE pojawić się na pozycji 5 tylko jeśli temat zadania ma silny potencjał wizualny.
 
-9. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
+9. RĘCZNIE ROZWIĄZANE ĆWICZENIA / SPRAWDZIANY DO WERYFIKACJI (zdjęcie lub dokument ze ZREALIZOWANYMI zadaniami — uczeń lub student sfotografował rozwiązane zadania domowe, sprawdzian, kartkówkę, zeszyt z obliczeniami; treść zawiera numerowane zadania z zapisanymi wynikami lub krokami rozwiązania, nie zaś same polecenia):
+   SYGNAŁY ROZPOZNAWCZE: wiele ponumerowanych ćwiczeń, wzory z podstawieniami liczbowymi, pośrednie i końcowe wyniki obliczeń, odręcznie zapisane kroki rozwiązania, przedmioty ścisłe lub przyrodnicze (fizyka, matematyka, chemia, biologia).
+   → OBOWIĄZKOWA POZYCJA 4 (pierwsza widoczna akcja): "Sprawdź rozwiązania zadań 🤓"
+   → OBOWIĄZKOWA POZYCJA 5 (druga widoczna akcja): "Wyjaśnij zadanie 1 krok po kroku ✏️"
+   → POZYCJE 6-7: "Wyjaśnij zadanie 2 krok po kroku ✏️", "Wyjaśnij zadanie 3 krok po kroku ✏️" (dostosuj numery do liczby widocznych zadań; jeśli jest ich mniej niż 3, pomiń brakujące)
+   → POZYCJA 8: "Stwórz quiz z najważniejszych pojęć 🧠"
+   → POZYCJE 9-10: generowanie obrazu (🎨) lub inne losowe akcje — TYLKO jeśli treść ma wyraźny potencjał wizualny lub kreatywny.
+   ABSOLUTNIE ZABRONIONE na pozycjach 4-5: generowanie obrazu, pisanie rozdziałów/wierszy, kreacja artystyczna.
+   Pytania naturalne (pozycje 1-3) MUSZĄ dotyczyć konkretnych treści matematycznych/naukowych:
+     - Jakie wzory lub prawa fizyki/matematyki są tu użyte?
+     - Które obliczenia lub wyniki wymagają sprawdzenia?
+     - Czy zastosowane jednostki i znaki są poprawne?
+
+10. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -591,7 +604,20 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    ABSOLUTELY PROHIBITED at positions 4-5 for this document type: quizzes, timelines, fairy tales.
    Image generation MAY appear at position 5 only if the assignment topic has strong visual potential.
 
-9. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
+9. HANDWRITTEN SOLVED EXERCISES / HOMEWORK TO VERIFY (photo or document showing COMPLETED tasks — student photographed solved homework, a test, quiz, or notebook with calculations; content contains numbered exercises with written results or solution steps, NOT bare assignment prompts):
+   DETECTION SIGNALS: multiple numbered exercises, formulas with numerical substitutions, intermediate and final calculation results, handwritten solution steps, STEM subjects (physics, math, chemistry, biology).
+   → MANDATORY POSITION 4 (first visible action): "Check the solutions 🤓"
+   → MANDATORY POSITION 5 (second visible action): "Explain exercise 1 step by step ✏️"
+   → POSITIONS 6-7: "Explain exercise 2 step by step ✏️", "Explain exercise 3 step by step ✏️" (adjust numbers to match the visible exercise count; omit if fewer exercises)
+   → POSITION 8: "Create a quiz from the key concepts 🧠"
+   → POSITIONS 9-10: image generation (🎨) or other random actions — ONLY if content has clear visual or creative potential.
+   ABSOLUTELY PROHIBITED at positions 4-5: image generation, chapter/poem writing, any creative fiction.
+   Natural questions (positions 1-3) MUST cover specific mathematical/scientific content:
+     - What formulas or physical/mathematical laws are used here?
+     - Which calculations or results need checking?
+     - Are the units and signs used correctly?
+
+10. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==
