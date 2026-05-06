@@ -1,6 +1,10 @@
 <template>
   <div class="udoc-viewer-wrapper">
-    <div ref="containerRef" class="udoc-viewer-container" />
+    <div ref="containerRef" class="udoc-viewer-container" :class="{ 'udoc-viewer-container--hidden': loading }" />
+    <!-- Loader overlay shown until document is loaded and navigated to target page -->
+    <div v-if="loading" class="udoc-loader">
+      <div class="udoc-loader-spinner" />
+    </div>
     <!-- Mobile close button: floats over the viewer since udoc-viewer has no built-in close -->
     <button
       v-if="showClose"
@@ -20,6 +24,12 @@ import type { ThemeMode } from '@docmentis/udoc-viewer'
 
 const THEME_STORAGE_KEY = 'udoc-viewer-theme'
 const ZOOM_SNAP_MARGIN = 0.05
+// Maximum length of text used for in-viewer search / text selection.
+// Shorter phrases are more reliable for fuzzy matching; we take the first
+// sentence (up to a period/question-mark) that is at least 20 chars long,
+// capped at 120 chars. If no sentence boundary is found, we use the first
+// 120 chars of the text.
+const SEARCH_TEXT_MAX = 120
 
 const props = withDefaults(
   defineProps<{
@@ -36,6 +46,7 @@ const emit = defineEmits<{
 }>()
 
 const containerRef = ref<HTMLDivElement>()
+const loading = ref(true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let client: any = null
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,17 +73,36 @@ function setupThemeObserver() {
   })
 }
 
+/**
+ * Extract a short, distinctive search phrase from citation text.
+ * Takes the first sentence (up to `.` or `?` or `!`) that is at least
+ * 20 chars long, capped at SEARCH_TEXT_MAX. Falls back to the first
+ * SEARCH_TEXT_MAX characters of the text.
+ */
+function extractSearchPhrase(text: string): string {
+  const cleaned = text.trim()
+  // Try to find a sentence boundary between 20 and SEARCH_TEXT_MAX chars
+  const match = cleaned.slice(0, SEARCH_TEXT_MAX + 60).match(/^(.{20,}?[.!?])(?:\s|$)/)
+  if (match && match[1].length <= SEARCH_TEXT_MAX) {
+    return match[1].trim()
+  }
+  return cleaned.slice(0, SEARCH_TEXT_MAX).trim()
+}
+
 async function navigateAfterLoad() {
   if (!viewer) return
-  // Search for highlight text first (highlights the citation text).
+  // Search for highlight text first (highlights and selects the citation text).
   // goToPage is called after search so we always land on the cited page,
   // regardless of where the first search match is located.
   if (props.highlightText) {
-    await viewer.search(props.highlightText, { fuzzy: true })
+    const phrase = extractSearchPhrase(props.highlightText)
+    await viewer.search(phrase, { fuzzy: true })
   }
   if (props.page && props.page > 1) {
     viewer.goToPage(props.page)
   }
+  // Hide loader only after navigation is complete so user never sees page 1 flash
+  loading.value = false
 }
 
 function snapZoomIfNear100() {
@@ -85,6 +115,7 @@ function snapZoomIfNear100() {
 
 async function initViewer() {
   if (!containerRef.value) return
+  loading.value = true
   try {
     client = await UDocClient.create()
     viewer = await client.createViewer({
@@ -102,6 +133,7 @@ async function initViewer() {
     setupThemeObserver()
   } catch (err) {
     console.error('UDocViewer init failed:', err)
+    loading.value = false
   }
 }
 
@@ -123,6 +155,7 @@ watch(
   () => props.url,
   async (newUrl, oldUrl) => {
     if (newUrl === oldUrl || !viewer) return
+    loading.value = true
     await viewer.load(newUrl)
     await navigateAfterLoad()
   },
@@ -153,6 +186,33 @@ watch(
   height: 100%;
   flex: 1;
   min-height: 0;
+}
+
+.udoc-viewer-container--hidden {
+  visibility: hidden;
+}
+
+.udoc-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface, #1a1a1a);
+  z-index: 10;
+}
+
+.udoc-loader-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  animation: udoc-spin 0.7s linear infinite;
+}
+
+@keyframes udoc-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Mobile close button — floats in the top-right corner over the viewer */

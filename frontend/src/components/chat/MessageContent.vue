@@ -10,7 +10,6 @@
 import {
   computed,
   defineAsyncComponent,
-  nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
@@ -241,18 +240,23 @@ function setupTooltips() {
 // content string changes (new message or translation) and citations array
 // changes (streaming in).
 const isMounted = ref(false)
-onMounted(() => { isMounted.value = true })
+onMounted(() => {
+  isMounted.value = true
+  // Eagerly set up tooltips on mount — covers the case where content and
+  // citations are already set when this instance first mounts (e.g. after
+  // the TextFade key-change remount triggered by msg.id being assigned).
+  setupTooltips()
+  void restoreChecklistState()
+})
 
 watch(
   () => [props.content, props.citations] as const,
   () => {
-    nextTick(() => {
-      if (!isMounted.value) return
-      setupTooltips()
-      void restoreChecklistState()
-    })
+    if (!isMounted.value) return
+    setupTooltips()
+    void restoreChecklistState()
   },
-  { immediate: true, flush: 'post' },
+  { flush: 'post' },
 )
 
 // --- Word-reveal "typing" animation --------------------------------------

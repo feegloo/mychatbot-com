@@ -1450,8 +1450,6 @@ li:has(.checklist-box) {
    character-by-character on narrow viewports. */
 .markdown-content th:first-child,
 .markdown-content td:first-child {
-  white-space: nowrap;
-  width: 1%;
   min-width: 80px;
   overflow-wrap: normal;
 }

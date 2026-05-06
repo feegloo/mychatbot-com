@@ -301,13 +301,23 @@ def _limit_image_rows(rows: list[dict]) -> list[dict]:
     return result
 
 
+def _strip_page_header(text: str) -> str:
+    """Strip leading '# Page N\\n\\n' marker from chunk text.
+
+    The indexer prefixes every page chunk with a markdown heading so the LLM
+    can cite the exact page. The heading is useful for context but clutters the
+    citation tooltip/preview shown to the user.
+    """
+    return re.sub(r"^#\s*Page\s+\d+\s*\n+", "", text, count=1, flags=re.IGNORECASE)
+
+
 def _build_citations(rows: list[dict]) -> list[dict]:
     citations = []
     for row in rows:
         citation = {
             "fileName": row["file_name"],
             "chunkId": row["chunk_id"],
-            "text": row["text"],
+            "text": _strip_page_header(row["text"]),
             "section": row.get("section"),
             "page": row.get("page"),
         }
@@ -410,7 +420,7 @@ def _renumber_citations_globally(
         citation: dict = {
             "fileName": row["file_name"],
             "chunkId": row["chunk_id"],
-            "text": row["text"],
+            "text": _strip_page_header(row["text"]),
             "section": row.get("section"),
             "page": row.get("page"),
             "citationNumber": global_n,
