@@ -19,6 +19,7 @@
           :messages="messages"
           :title="conversationTitle"
           :conversation-id="conversationId"
+          :files="status.files"
           @translated="onTranslated"
           @title-translated="onTitleTranslated"
           @restored="onRestored"

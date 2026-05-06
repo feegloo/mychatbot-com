@@ -564,8 +564,10 @@ WELCOME_MULTI_FILE_PREAMBLE_PL = (
 # Addendum that overrides the response language to the user's browser language.
 # Called by describe.py when user_language is passed in from the frontend.
 #   1. Generate the entire welcome in the user's language.
-#   2. Emit [language]<code>[/language] as the very first line so the frontend
-#      can extract the source document language from the welcome message.
+#   2. Emit [language]<code>[/language] as the very first line where <code> is the
+#      user's (response) language. This tag identifies what language this message is
+#      written in — NOT the source document language (which is stored separately in
+#      file metadata as detected_language).
 #   3. Add a country-flag emoji to the title if the source language differs
 #      from the user language.
 # ---------------------------------------------------------------------------
@@ -579,7 +581,10 @@ def build_user_language_addendum(user_language_code: str) -> str:
 
     The addendum instructs the model to:
     - Write the entire welcome message in the user's language.
-    - Emit ``[language]<detected_code>[/language]`` as the very first line.
+    - Emit ``[language]{code}[/language]`` as the very first line, where ``{code}``
+      is the language this response is written in (the user's language). This tag
+      represents the content/response language, NOT the source document language.
+      Source document language is stored separately in file metadata (detected_language).
     - Append a country flag emoji to the # heading if the source document
       language differs from the user language.
     """
@@ -594,12 +599,10 @@ def build_user_language_addendum(user_language_code: str) -> str:
         f"This overrides any other language rule in this prompt.\n\n"
         f"REQUIRED — output this as the VERY FIRST LINE of your response "
         f"(even before [mindmap] and before the # heading):\n"
-        f"[language]DETECTED_CODE[/language]\n"
-        f"Replace DETECTED_CODE with the ISO 639-1 code of the PRIMARY language "
-        f"of the uploaded source document (e.g. 'en' for English, 'de' for German, "
-        f"'ar' for Arabic, 'pl' for Polish, 'fr' for French).\n\n"
+        f"[language]{code}[/language]\n"
+        f"This tag identifies the language this response is written in ({user_language_name}).\n\n"
         f"SOURCE LANGUAGE FLAG IN TITLE:\n"
-        f"If the detected source document language differs from the user language "
+        f"If the source document language differs from the user language "
         f"({code}), append the appropriate country flag emoji AFTER "
         f"the topic emoji at the END of the # heading.\n"
         f"Examples: 🇬🇧 English, 🇩🇪 German, 🇫🇷 French, 🇵🇱 Polish, 🇸🇦 Arabic, "

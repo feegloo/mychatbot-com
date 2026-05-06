@@ -1135,13 +1135,34 @@ def _format_exif_for_prompt(file_metadata: dict[str, dict] | None) -> str:
 _LANGUAGE_TAG_RE = re.compile(r"\[language\]([a-z]{2,3})\[/language\]", re.IGNORECASE)
 
 
-def _extract_source_language(welcome_messages: list[str] | None) -> str:
-    """Extract the source document language from [language]xx[/language] tags.
+def _extract_source_language(
+    welcome_messages: list[str] | None,
+    file_metadata: dict[str, dict] | None = None,
+) -> str:
+    """Extract the source document language from file metadata or [language] tags (legacy fallback).
 
-    Returns a human-readable hint like "English (en)" when found, or
-    "unknown (not detected)" when no tag is present (e.g. older conversations
-    generated before this feature).
+    Primary source: ``file_metadata[filename]["detected_language"]`` — set during indexing
+    for conversations created after the per-file language detection was added.
+
+    Legacy fallback: ``[language]xx[/language]`` tags in welcome messages. In older
+    conversations these tags held the source document language code. In newer conversations
+    the tag encodes the response/content language instead, so file_metadata is preferred.
     """
+    # Primary: use detected_language from file metadata (set during indexing)
+    if file_metadata:
+        langs: list[str] = []
+        seen: set[str] = set()
+        for meta in file_metadata.values():
+            if isinstance(meta, dict):
+                code = meta.get("detected_language")
+                if code and isinstance(code, str) and code not in seen:
+                    seen.add(code)
+                    name = _LANG_NAMES.get(code.lower(), code.upper())
+                    langs.append(f"{name} ({code})")
+        if langs:
+            return ", ".join(langs)
+
+    # Legacy fallback: parse [language] tags from welcome messages (old format only)
     if not welcome_messages:
         return "unknown (not detected)"
     for msg in welcome_messages:
@@ -1320,7 +1341,7 @@ def answer_with_citations(
                 "question": question,
                 "conversation_language_code": conversation_language_code or "unknown",
                 "conversation_language_name": conversation_language_name or "Unknown",
-                "source_document_language": _extract_source_language(welcome_messages),
+                "source_document_language": _extract_source_language(welcome_messages, file_metadata),
                 "context": context,
                 "chat_history": history_str,
                 "welcome_messages": welcome_str,

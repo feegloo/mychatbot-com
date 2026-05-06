@@ -915,8 +915,16 @@ def _index_documents_inline(
                     }
                 )
 
-        if detected_language is None and fr.full_text:
-            detected_language = detect_language(fr.full_text[:2000])
+        if fr.full_text:
+            fr_lang = detect_language(fr.full_text[:2000])
+            if detected_language is None:
+                detected_language = fr_lang
+            # Store per-file detected language in file_metadata so the backend can
+            # persist it to uploaded_files.metadata_json. This lets the frontend and
+            # RAG engine know the source document language independently of the
+            # [language] tag, which now encodes the response/content language.
+            if fr.file_name in file_metadata:
+                file_metadata[fr.file_name]["detected_language"] = fr_lang
 
     # Add image chunks (description text gets embedded alongside regular chunks)
     if all_images:

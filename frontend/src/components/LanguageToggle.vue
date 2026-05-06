@@ -336,6 +336,7 @@ const props = defineProps<{
   messages: Array<{ id?: string; role: string; content: string }>
   title?: string
   conversationId?: string
+  files?: Array<{ id: string; originalName: string; mimeType: string; sizeBytes: number; metadata?: Record<string, unknown> }>
 }>()
 
 const emit = defineEmits<{
@@ -348,11 +349,9 @@ const emit = defineEmits<{
 }>()
 
 const detectedLang = ref('')
-// Source document language — extracted from [language]xx[/language] tag in the welcome
-// message. For new conversations where the welcome is generated in the user's language,
-// this holds the actual language of the source document (e.g. 'en' for an English PDF
-// uploaded by a Polish-speaking user). For backward-compatible conversations (no tag),
-// it remains empty and detectedLang covers both roles.
+// Source document language — for new conversations read from file metadata (detected_language
+// stored during indexing). For legacy conversations (no metadata) extracted from the
+// [language]xx[/language] tag in the welcome message (old format where tag = source doc lang).
 const sourceLang = ref('')
 const browserLang = ref(navigator.language.split('-')[0])
 const currentLang = ref('') // language messages are currently displayed in
@@ -518,15 +517,22 @@ watch(
     }
 
     // Check for [language]xx[/language] tag emitted by the model in the welcome message.
-    // When found, the welcome was generated in the user's browser language, and the tag
-    // holds the actual source document language (e.g. 'en' for an English PDF uploaded
-    // by a Polish-speaking user). We set detectedLang to the browser language so
-    // isTranslated stays false for the initial (untranslated) view.
+    // Semantics depend on conversation age:
+    //   NEW (file metadata has detected_language): tag = content/response language.
+    //   LEGACY (no metadata): tag = source document language, content is in browser language.
     const langTagMatch = firstAssistant.content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
     if (langTagMatch) {
-      sourceLang.value = langTagMatch[1].toLowerCase()
-      // detectedLang = user's browser language (content was generated in that language)
-      detectedLang.value = browserLang.value
+      const tagLang = langTagMatch[1].toLowerCase()
+      const fileSourceLang = props.files?.[0]?.metadata?.['detected_language'] as string | undefined
+      if (fileSourceLang) {
+        // New format: tag = response language, metadata = source doc language.
+        detectedLang.value = tagLang
+        sourceLang.value = fileSourceLang.toLowerCase()
+      } else {
+        // Legacy format: tag = source doc language, content is in browser language.
+        sourceLang.value = tagLang
+        detectedLang.value = browserLang.value
+      }
       // Prefer stored lang → homePageLang preference over plain browser lang.
       // This ensures that if the user has set a home page language (e.g. 'en') that differs
       // from their browser language (e.g. 'pl'), the conversation defaults to their preference.
@@ -534,8 +540,8 @@ watch(
       if (!currentLang.value) {
         // Fast-path (cached translations) was not applied — initialise currentLang to the actual
         // content language so translateTo() doesn't short-circuit its targetLang === currentLang guard.
-        currentLang.value = browserLang.value
-        if (preferredLang !== browserLang.value) {
+        currentLang.value = detectedLang.value
+        if (preferredLang !== detectedLang.value) {
           await nextTick()
           translateTo(preferredLang)
         }
