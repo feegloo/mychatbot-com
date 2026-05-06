@@ -14,15 +14,10 @@ export async function getStoredConversationLanguage(
 export async function storeConversationLanguage(
   conversationId: string | undefined,
   language: string,
-  detectedLanguage?: string,
 ): Promise<void> {
   if (!conversationId) return
   try {
-    if (detectedLanguage && language === detectedLanguage) {
-      await ConversationLanguagesTable.remove(conversationId)
-    } else {
-      await ConversationLanguagesTable.set(conversationId, language)
-    }
+    await ConversationLanguagesTable.set(conversationId, language)
   } catch {
     // Ignore storage errors.
   }

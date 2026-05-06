@@ -329,7 +329,13 @@ async function translateWithMarkers(texts: string[], targetLang: string, sourceL
   })
 
   const withWhitespace = textTranslations.map((t, i) => leading[i] + t + trailing[i])
-  return { translations: restoreMarkers(withWhitespace, markers) }
+  // Google Translate sometimes inserts a space between ']' and '(' in markdown
+  // links — e.g. "[text] (url)" instead of "[text](url)". Repair these before
+  // restoring markers so hyperlinks remain clickable after translation.
+  const repaired = withWhitespace.map((t) =>
+    t.replace(/\]\s+\((https?:\/\/[^)]+)\)/g, ']($1)'),
+  )
+  return { translations: restoreMarkers(repaired, markers) }
 }
 
 const props = defineProps<{
@@ -381,7 +387,7 @@ function getStoredLanguage(): Promise<string | null> {
 }
 
 async function storeLanguage(lang: string) {
-  await storeConversationLanguage(props.conversationId, lang, detectedLang.value)
+  await storeConversationLanguage(props.conversationId, lang)
 }
 
 const LANG_FLAGS: Record<string, string> = {

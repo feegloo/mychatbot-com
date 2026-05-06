@@ -164,18 +164,31 @@ Te zasady mają NAJWYŻSZY PRIORYTET — jeśli treść pasuje, MUSISZ użyć da
    Przykładowe pytania: "Jaki jest termin na odpowiedź?", "Co dokładnie muszę złożyć i gdzie?", "Czy mogę odwołać się od tej decyzji?", "Jakie konsekwencje grożą za brak działania?", "Co muszę zrobić, by zarejestrować się jako bezrobotny?", "Jakie dokumenty potwierdzają ubezpieczenie zdrowotne?"
    Akcje z emoji: "Lista kroków do rozwiązania problemu 🚩", "Napisz odpowiedź na to pismo 📝", "Jakie mam prawa w tej sytuacji? ⚖️", "Zidentyfikuj kluczowe terminy i deadliny 🗓️", "Stwórz checklistę wymaganych dokumentów ✅", "Analiza konsekwencji braku reakcji ⚠️", "Plan działania krok po kroku 🚩", "Co mogę zakwestionować lub negocjować? 💬"
 
-5. EBOOK / MINIBOOK / PODRĘCZNIK / PRZEWODNIK O KONKRETNYM TEMACIE (np. minibook o granicach, ebook o żywieniu, podręcznik psychologii, przewodnik po ogrodnictwie — książka, która uczy czegoś o danym temacie):
+5. DOKUMENTY INFORMACYJNE URZĘDOWE / REJESTROWE (wypisy, wydruki, zaświadczenia, odpisy z rejestrów publicznych takich jak REGON, KRS, CEIDG, ewidencja gruntów, księgi wieczyste, odpisy aktów stanu cywilnego, certyfikaty, zaświadczenia o niekaralności, decyzje informacyjne bez wymogu działania, wydruki z baz danych urzędowych — dokumenty, które INFORMUJĄ, ale NIE wzywają do natychmiastowego działania):
+   → Akcje MUSZĄ być skoncentrowane na ZROZUMIENIU i PRAKTYCZNYM WYKORZYSTANIU informacji zawartych w dokumencie.
+   Naturalne pytania (bez emoji) MUSZĄ dotyczyć:
+     - co konkretnie stwierdza ten dokument i co z tego wynika
+     - jak użyć tego dokumentu w praktyce (do czego służy, gdzie jest potrzebny)
+     - kto wystawił dokument i jakie ma znaczenie prawne lub administracyjne
+     - jakie informacje identyfikacyjne lub statusowe zawiera
+   Akcje z emoji (pozycje 4-5, WIDOCZNE) MUSZĄ być praktyczne i pomocne:
+     - POZYCJA 4: „Lista kluczowych faktów z tego dokumentu ☝️" lub „Co wynika z tego dokumentu? ☝️" lub „Co mogę zrobić z tym zaświadczeniem? 🚩"
+     - POZYCJA 5: „Wyjaśnij terminy prawne/urzędowe z tego dokumentu 📝" lub „Stwórz checklistę dalszych kroków ✅" lub „Zidentyfikuj kluczowe daty i terminy 🗓️"
+   Akcja generowania obrazu (🎨) MUSI trafić na pozycję 6 lub dalej (do menu "More ...") — nigdy nie może zajmować pozycji 4 ani 5 w tym typie dokumentu.
+   Pozostałe akcje dobierz losowo z listy poniżej.
+
+6. EBOOK / MINIBOOK / PODRĘCZNIK / PRZEWODNIK O KONKRETNYM TEMACIE (np. minibook o granicach, ebook o żywieniu, podręcznik psychologii, przewodnik po ogrodnictwie — książka, która uczy czegoś o danym temacie):
    → OBOWIĄZKOWO jako 3. akcja (zaraz po "Wygeneruj obraz…" i po akcji "Napisz nowy inspirowany rozdział/wskazówki…") DODAJ: "Stwórz quiz z najważniejszych faktów 🧠".
    Przykład dla "Minibook o granicach" Matyldy Kozakiewicz: 4. "Wygeneruj obraz inspirowany: Minibook o granicach 🎨", 5. "Napisz nowy inspirowany rozdział w stylu Matyldy Kozakiewicz ✏️", 6. "Stwórz quiz z najważniejszych faktów 🧠".
    Pozostałe akcje dobierz losowo z listy poniżej.
 
-6. NAUKA JĘZYKA / PODRĘCZNIK JĘZYKOWY / MATERIAŁ DO NAUCZANIA JĘZYKA (podręcznik do angielskiego, kurs niemieckiego, gramatyka hiszpańska, słownictwo, ESL/EFL, TOEFL/IELTS, zeszyt ćwiczeń językowych):
+7. NAUKA JĘZYKA / PODRĘCZNIK JĘZYKOWY / MATERIAŁ DO NAUCZANIA JĘZYKA (podręcznik do angielskiego, kurs niemieckiego, gramatyka hiszpańska, słownictwo, ESL/EFL, TOEFL/IELTS, zeszyt ćwiczeń językowych):
    → NAJWYŻSZY PRIORYTET: quiz MUSI być PIERWSZĄ akcją, PRZED "Wygeneruj obraz…".
    Format: "Stwórz quiz z materiału 🧠", "Stwórz quiz ze słownictwa 🧠" lub "Stwórz quiz z gramatyki 🧠" — dopasuj do treści dokumentu.
    Quiz jest kluczowy dla utrwalenia i sprawdzenia wiedzy językowej.
    Pozostałe akcje dobierz losowo z listy poniżej.
 
-7. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
+8. Jeśli treść NIE pasuje do powyższych — dobierz akcje LOSOWO z poniższej listy.
    NIE zawsze wybieraj quiz — quiz to tylko JEDNA z wielu opcji. Bądź kreatywny i zróżnicowany.
 
 == Wytyczne dotyczące promptów-akcji ==
@@ -499,18 +512,31 @@ These rules have the HIGHEST PRIORITY — if the content matches, you MUST inclu
    Example natural questions: "What is the deadline to respond?", "What exactly do I need to submit and where?", "Can I appeal this decision?", "What happens if I don't respond?", "What do I need to do to register as unemployed?", "What documents prove health insurance coverage?", "Who issued this demand and what authority do they have?", "What are my options if I can't pay?"
    Action prompts with emoji: "Step-by-step action plan 🚩", "Draft a response to this notice 📝", "What are my rights in this situation? ⚖️", "Identify key deadlines and due dates 🗓️", "Checklist of required documents ✅", "Consequences of not responding ⚠️", "What to do in the next 7 days 🚩", "What can I dispute or negotiate? 💬"
 
-5. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
+5. INFORMATIONAL OFFICIAL / REGISTRY DOCUMENTS (extracts, printouts, certificates, excerpts from public registers such as REGON, KRS, CEIDG, land registry, civil status records, criminal record certificates, informational administrative decisions without required action, official database printouts — documents that INFORM but do NOT demand urgent action):
+   → Actions MUST focus on UNDERSTANDING and PRACTICAL USE of the information in the document.
+   Natural questions (no emoji) MUST address:
+     - what this document specifically states and what it means
+     - how to use this document in practice (what it's for, where it's needed)
+     - who issued it and what legal or administrative significance it has
+     - what identifying or status information it contains
+   Action prompts with emoji (positions 4-5, VISIBLE) MUST be practical and helpful:
+     - POSITION 4: "List of key facts from this document ☝️" or "What does this document mean? ☝️" or "What can I do with this certificate? 🚩"
+     - POSITION 5: "Explain the legal/official terms in this document 📝" or "Create a checklist of next steps ✅" or "Identify key dates and deadlines 🗓️"
+   The image-generation action (🎨) MUST be placed at position 6 or later (inside "More ...") — it must NEVER occupy position 4 or 5 for this document type.
+   Pick the remaining actions RANDOMLY from the list below.
+
+6. EBOOK / MINI-BOOK / TEXTBOOK / GUIDE ABOUT A SUBJECT (e.g. a minibook on healthy boundaries, ebook on nutrition, psychology textbook, beginner's gardening guide — any book that teaches something about a concrete topic):
    → MANDATORY: as the 3rd action (right after "Generate an image…" and the "Write a new chapter inspired by/tips…" action) INCLUDE: "Create a quiz from the key facts 🧠".
    Example for "Minibook o granicach" by Matylda Kozakiewicz: 4. "Generate an image inspired by: Minibook about boundaries 🎨", 5. "Write a new chapter inspired by Matylda Kozakiewicz ✏️", 6. "Create a quiz from the key facts 🧠".
    Pick the remaining actions RANDOMLY from the list below.
 
-6. LANGUAGE LEARNING / TEACHING MATERIAL (English grammar book, Spanish course, German vocabulary workbook, ESL/EFL/TOEFL/IELTS prep, language-learning textbook):
+7. LANGUAGE LEARNING / TEACHING MATERIAL (English grammar book, Spanish course, German vocabulary workbook, ESL/EFL/TOEFL/IELTS prep, language-learning textbook):
    → HIGHEST PRIORITY: a quiz MUST be the FIRST action, BEFORE "Generate image…".
    Format: "Create a quiz from the material 🧠", "Create a vocabulary quiz 🧠" or "Create a grammar quiz 🧠" — fit it to the document.
    Quizzes are essential for language retention and self-check.
    Pick the remaining actions RANDOMLY from the list below.
 
-7. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
+8. If the content does NOT match any of the above — pick actions RANDOMLY from the list below.
    Do NOT always pick quiz — quiz is just ONE of many options. Be creative and varied.
 
 == Action Prompt Guidelines ==

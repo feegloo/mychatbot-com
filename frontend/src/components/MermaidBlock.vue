@@ -182,7 +182,7 @@ let popupLastTapX = 0
 let popupLastTapY = 0
 
 const POPUP_MIN_SCALE = 0.2
-const POPUP_MAX_SCALE = 8
+const POPUP_MAX_SCALE = 10
 const POPUP_ZOOM_STEP = 1.0
 const POPUP_INITIAL_SCALE = 4
 
