@@ -1173,8 +1173,9 @@ async function openC4Modal() {
     .trim()
     .replace(/^```mermaid\n?/, '')
     .replace(/\n?```$/, '')
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
-    .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
+    // Normalise single-brace cloud nodes {Label} → {{Label}}.
+    // Use [^\s{}\n] instead of \w so non-ASCII chars (e.g. Polish ć) before { are matched.
+    .replace(/([^\s{}\n])\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
     // Strip Markdown links [text](url) → text: Mermaid's mindmap lexer treats
     // `[` as NODE_DSTART, so links inside node labels cause a parse error.
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')

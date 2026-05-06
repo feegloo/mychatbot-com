@@ -138,17 +138,14 @@ export function sanitizeMermaidCode(code: string): string {
   const withFixedSyntax = fixSubgraphNodeConflicts(
     fixInvalidNodeIdChars(fixUnquotedLabels(fixInvalidStadiumCylinderShape(code))),
   )
-  // Mermaid's mindmap lexer does not support emoji characters (including
-  // variation selectors like U+FE0F). Strip them when the diagram is a mindmap.
   if (/^\s*mindmap\s*$/m.test(withFixedSyntax)) {
-    // Use [^\S\n]* instead of \s* so that newlines (which encode indentation
-    // hierarchy) are never consumed — only horizontal whitespace is stripped.
-    // Also normalise single-brace hexagon nodes {Label} → {{Label}}.
+    // Normalise single-brace cloud nodes {Label} → {{Label}}.
+    // The character before { may be non-ASCII (e.g. Polish ć, ś), so we use
+    // [^\s{}\n] instead of \w which only matches ASCII word characters.
     // Strip Markdown links [text](url) → text: Mermaid's mindmap lexer treats
     // `[` as NODE_DSTART, so links inside node labels cause a parse error.
     return withFixedSyntax
-      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?[^\S\n]*/gu, '')
-      .replace(/(\w)\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
+      .replace(/([^\s{}\n])\{(?!\{)([^{}\n]+)\}(?!\})/g, '$1{{$2}}')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
   }
   return withFixedSyntax

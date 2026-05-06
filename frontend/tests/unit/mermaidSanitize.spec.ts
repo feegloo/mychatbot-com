@@ -165,39 +165,32 @@ describe('sanitizeMermaidCode – stadium/cylinder fix integration', () => {
   })
 })
 
-describe('sanitizeMermaidCode – mindmap emoji stripping', () => {
-  it('strips emoji from mindmap nodes', () => {
+describe('sanitizeMermaidCode – mindmap emoji handling', () => {
+  it('preserves emoji in mindmap node labels', () => {
     const input = [
       'mindmap',
       '  root((Opieka))',
-      '    Karmienie{Posiłki}      🍽️',
-      '    Rejestracja{Wniosek}      📝',
+      '    Karmienie{Posiłki}',
+      '      🍽️ Śniadanie',
+      '    Rejestracja{Wniosek}',
+      '      📝 Formularz',
     ].join('\n')
     const result = sanitizeMermaidCode(input)
-    expect(result).not.toMatch(/🍽/)
-    expect(result).not.toMatch(/📝/)
-    // Single-brace hexagon nodes are normalised to double-brace by sanitizeMermaidCode
+    expect(result).toMatch(/🍽/)
+    expect(result).toMatch(/📝/)
+    // Single-brace cloud nodes are normalised to double-brace
     expect(result).toContain('Karmienie{{Posiłki}}')
     expect(result).toContain('Rejestracja{{Wniosek}}')
   })
 
-  it('strips emoji with variation selector (U+FE0F) from mindmap', () => {
-    const input = 'mindmap\n  root((Test))\n    Node\uD83C\uDF7D\uFE0F'
-    const result = sanitizeMermaidCode(input)
-    expect(result).not.toContain('\uFE0F')
-    expect(result).not.toContain('\uD83C\uDF7D')
-  })
-
-  it('does not strip emoji from non-mindmap diagrams', () => {
+  it('preserves emoji in non-mindmap diagrams', () => {
     const input = 'flowchart LR\n  A[test] --> B'
     const result = sanitizeMermaidCode(input)
     expect(result).toBe(input)
   })
 
-  it('preserves newlines when stripping inline emoji (newline-collapse bug)', () => {
-    // Emoji stripping must NOT consume the newline after an emoji.
-    // If \s* is used instead of [^\S\n]*, the newline + indentation of the
-    // next sibling node is swallowed, collapsing two nodes onto one line.
+  it('keeps emoji on separate lines (no newline collapse)', () => {
+    // Emoji must stay on their own lines so mindmap indentation hierarchy is intact.
     const input = [
       'mindmap',
       '  root((Post Office))',
@@ -206,13 +199,12 @@ describe('sanitizeMermaidCode – mindmap emoji stripping', () => {
       '      🏠 Post Office',
     ].join('\n')
     const result = sanitizeMermaidCode(input)
-    // Each node must still be on its own line
     const lines = result.split('\n')
-    expect(lines.some(l => l.includes('Henry Chinaski'))).toBe(true)
-    expect(lines.some(l => l.includes('Post Office') && l.includes('root'))).toBe(true)
+    expect(lines.some(l => l.includes('📚 Henry Chinaski'))).toBe(true)
+    expect(lines.some(l => l.includes('🏠 Post Office'))).toBe(true)
     // The two data nodes must NOT be on the same line
     const henryLine = lines.find(l => l.includes('Henry Chinaski'))!
-    expect(henryLine).not.toContain('Post Office')
+    expect(henryLine).not.toContain('🏠')
   })
 
   it('normalises single-brace nodes {Label} to {{Label}} in mindmaps', () => {
@@ -226,6 +218,19 @@ describe('sanitizeMermaidCode – mindmap emoji stripping', () => {
     expect(result).toContain('novel{{Novel Form}}')
     // already-valid double-brace nodes must be left as-is
     expect(result).not.toContain('novel{{{')
+  })
+
+  it('normalises single-brace nodes when label starts with non-ASCII char before {', () => {
+    // Polish chars like ć before { were previously skipped by \w (ASCII-only)
+    const input = [
+      'mindmap',
+      '  root((Alchemik))',
+      '    Powieść{Fabuła}',
+      '    Motywy{Tematy}',
+    ].join('\n')
+    const result = sanitizeMermaidCode(input)
+    expect(result).toContain('Powieść{{Fabuła}}')
+    expect(result).toContain('Motywy{{Tematy}}')
   })
 
   it('leaves double-brace {{Label}} hexagon nodes unchanged', () => {

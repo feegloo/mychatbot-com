@@ -1820,7 +1820,7 @@ def describe_documents(
             suggested_questions,
             file_names,
             file_types,
-            language,
+            user_language or language,
             welcome_message=welcome_message,
             description="",
         )

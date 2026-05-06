@@ -1090,7 +1090,7 @@ def _index_documents_inline(
         with trace_step(conversation_id, "*", "generate_suggested_questions"):
             suggested_questions = suggest_questions_from_chunks(
                 chunk_texts,
-                language=detected_language,
+                language=user_language or detected_language,
                 description=welcome_message or "",
                 file_names=file_name_list,
                 file_types=file_types,
