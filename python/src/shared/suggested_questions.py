@@ -1038,30 +1038,35 @@ def _extract_task_word_count_and_type(text: str) -> tuple[str | None, str]:
     Returns a word-count string like "1500-2000 words" or None if not found,
     plus the detected task type (essay, report, poem, etc.).
     """
-    # Word count: "1500 – 2000 words", "500 words", "1,500 words"
+    # Word count: "1500 – 2000 words/słów/słowa", "500 words", "1,500 words"
+    _words_pat = r"words?|s[łl][óo]w[a-z]*"  # English + Polish word-count suffix
     wc_range = re.search(
-        r"([0-9][0-9,]*)\s*[-–—]\s*([0-9][0-9,]*)\s*words?", text, re.IGNORECASE
+        r"([0-9][0-9,]*)\s*[-–—]\s*([0-9][0-9,]*)\s*(?:" + _words_pat + r")",
+        text,
+        re.IGNORECASE,
     )
     if wc_range:
         lo = wc_range.group(1).replace(",", "")
         hi = wc_range.group(2).replace(",", "")
         word_count: str | None = f"{lo}-{hi} words"
     else:
-        wc_single = re.search(r"([0-9][0-9,]{2,})\s*words?", text, re.IGNORECASE)
+        wc_single = re.search(
+            r"([0-9][0-9,]{2,})\s*(?:" + _words_pat + r")", text, re.IGNORECASE
+        )
         word_count = (
             f"{wc_single.group(1).replace(',', '')} words" if wc_single else None
         )
 
     # Task type — checked in priority order; first match wins
     type_patterns = [
-        (r"\bdissertation\b|\bthesis\b", "dissertation"),
-        (r"\breport\b", "report"),
+        (r"\bdissertation\b|\bthesis\b|\bpraca\s+magisterska\b|\bpraca\s+dyplomowa\b", "dissertation"),
+        (r"\breport\b|\braport\b", "report"),
         (r"\bcase\s+study\b", "case study"),
-        (r"\bpresentation\b", "presentation"),
-        (r"\bpoem\b|\bpoetry\b", "poem"),
-        (r"\bchapter\b", "chapter"),
-        (r"\breview\b|\bcritique\b", "review"),
-        (r"\banalysis\b|\banalyze\b|\banalyse\b", "analysis"),
+        (r"\bpresentation\b|\bprezentacja\b", "presentation"),
+        (r"\bpoem\b|\bpoetry\b|\bwiersz\b|\butwór poetycki\b", "poem"),
+        (r"\bchapter\b|\brozdzia[łl]\b", "chapter"),
+        (r"\breview\b|\bcritique\b|\brecenzja\b", "review"),
+        (r"\banalysis\b|\banalyze\b|\banalyse\b|\banaliza\b", "analysis"),
         (r"\bessay\b|\bwypracowanie\b|\besej\b", "essay"),
         (r"\breferat\b", "report"),
     ]
@@ -1316,15 +1321,27 @@ def _append_contextual_prompts(
         _all_task_text = f"{combined_text} {_chunks_text}"
         _word_count, _task_type = _extract_task_word_count_and_type(_all_task_text)
         _subject_for_task = subject if len(subject) <= 40 else subject[:37] + "..."
+        _PL_TASK_TYPES: dict[str, str] = {
+            "essay": "esej",
+            "report": "raport",
+            "dissertation": "pracę dyplomową",
+            "case study": "studium przypadku",
+            "presentation": "prezentację",
+            "poem": "wiersz",
+            "chapter": "rozdział",
+            "review": "recenzję",
+            "analysis": "analizę",
+        }
+        _pl_task_type = _PL_TASK_TYPES.get(_task_type, _task_type)
         if _word_count:
             pinned_task_prompt = (
-                f"Napisz {_task_type}: {_word_count} na temat: {_subject_for_task} ✍️"
+                f"Napisz {_pl_task_type}: {_word_count} na temat: {_subject_for_task} ✍️"
                 if effective_language == "pl"
                 else f"Write {_task_type}: {_word_count} about {_subject_for_task} ✍️"
             )
         else:
             pinned_task_prompt = (
-                f"Napisz {_task_type} na temat: {_subject_for_task} ✍️"
+                f"Napisz {_pl_task_type} na temat: {_subject_for_task} ✍️"
                 if effective_language == "pl"
                 else f"Write {_task_type} about {_subject_for_task} ✍️"
             )
