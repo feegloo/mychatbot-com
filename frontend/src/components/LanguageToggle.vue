@@ -528,8 +528,9 @@ watch(
     // time). The tag represents the RESPONSE language — the language the welcome was generated in.
     //
     // When file metadata has detected_language, we also know the source document language.
-    // When metadata is absent (e.g. image-only uploads), we infer the content language from the
-    // tag, using the user's preferred language as the confirmation signal.
+    // When metadata is absent (e.g. image-only uploads), the tag still tells us the response
+    // language, but we must disambiguate from legacy conversations where the tag encoded the
+    // SOURCE document language instead — in that case the content is in browserLang.
     const langTagMatch = firstAssistant.content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
     if (langTagMatch) {
       const tagLang = langTagMatch[1].toLowerCase()
@@ -540,15 +541,32 @@ watch(
         detectedLang.value = tagLang
         sourceLang.value = fileSourceLang.toLowerCase()
       } else if (tagLang === preferredLang.toLowerCase()) {
-        // No metadata but tag matches the user's preferred language: the content was generated
-        // in that language (userLanguage=homeLang was sent to the backend, e.g. for image uploads).
-        // Treat the content as already in the preferred language — no auto-translate needed.
-        detectedLang.value = tagLang
-        sourceLang.value = tagLang
+        // No metadata and tag matches preferred language — could be:
+        //   NEW: backend generated welcome in userLanguage=preferredLang; content IS in tagLang.
+        //   LEGACY: source doc happens to be in preferredLang; content is in browserLang.
+        // Run detectLanguage on the body to confirm the actual content language.
+        try {
+          const bodyText = firstAssistant.content
+            .replace(LANGUAGE_TAG_RE, '')
+            .replace(MINDMAP_BLOCK_RE, '')
+            .trim()
+          const detected = await detectLanguage(bodyText)
+          if (detected.language === tagLang) {
+            // Confirmed NEW path: content is in the preferred language — no auto-translate needed.
+            detectedLang.value = tagLang
+            sourceLang.value = tagLang
+          } else {
+            // LEGACY path: tag = source doc language, content is in the detected (browser) language.
+            sourceLang.value = tagLang
+            detectedLang.value = detected.language
+          }
+        } catch {
+          // On detection failure, fall back to legacy interpretation.
+          sourceLang.value = tagLang
+          detectedLang.value = browserLang.value
+        }
       } else {
-        // Tag differs from preferred language: source document language in tag, content in
-        // browser language (the backend generated the welcome in the user's browser language
-        // but the tag identifies the source document's language).
+        // Tag differs from preferred language: legacy — tag = source doc language, content in browser language.
         sourceLang.value = tagLang
         detectedLang.value = browserLang.value
       }

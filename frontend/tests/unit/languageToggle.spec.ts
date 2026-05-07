@@ -1001,6 +1001,8 @@ describe("LanguageToggle", () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
       // User explicitly chose English as their home page language
       homeLangRef.value = 'en'
+      // detectLanguage confirms content is in English (new path: backend generated in userLanguage='en')
+      detectLanguageMock.mockResolvedValue({ language: "en", confidence: 0.99 });
 
       // Image was uploaded: backend received userLanguage='en', generated welcome IN English,
       // and the [language]en[/language] tag confirms the response language is English.
@@ -1013,7 +1015,9 @@ describe("LanguageToggle", () => {
       await nextTick();
 
       const vm = wrapper.vm as any;
-      // tag matches homeLang → content language = tag language
+      // detectLanguage called to confirm content language (returns 'en' → new path)
+      expect(detectLanguageMock).toHaveBeenCalled();
+      // tag matches homeLang and detection confirms → content language = tag language
       expect(vm.sourceLang).toBe("en");
       expect(vm.detectedLang).toBe("en");
       // Content is already in English — no translation needed
@@ -1021,7 +1025,34 @@ describe("LanguageToggle", () => {
       expect(vm.isTranslated).toBe(false);
       expect(translateTextsMock).not.toHaveBeenCalled();
       expect(wrapper.emitted("translated")).toBeFalsy();
-      expect(detectLanguageMock).not.toHaveBeenCalled();
+    });
+
+    it("falls back to legacy path when tag matches homeLang but detection reveals content in a different language", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      // Legacy conversation: [language]en[/language] = source doc is English, content was generated
+      // in Polish (browser lang). User later sets homeLang='en', making tag match preferred lang.
+      // detectLanguage reveals the content is actually in Polish → legacy path.
+      homeLangRef.value = 'en'
+      detectLanguageMock.mockResolvedValue({ language: "pl", confidence: 0.95 });
+
+      const welcome = "[language]en[/language]\n# Romeo i Julia 🎭\n\nDługa polska wiadomość witalna opisująca angielski dokument źródłowy.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      // detectLanguage called to disambiguate
+      expect(detectLanguageMock).toHaveBeenCalled();
+      // Detection returned 'pl' ≠ tagLang 'en' → legacy: tag = source lang, content in detected lang
+      expect(vm.sourceLang).toBe("en");
+      expect(vm.detectedLang).toBe("pl");
+      // preferredLang='en' ≠ detectedLang='pl' → auto-translated to English
+      expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(true);
+      expect(translateTextsMock).toHaveBeenCalled();
+      expect(wrapper.emitted("translated")).toBeTruthy();
     });
 
     it("can translate to browser lang (pl) after receiving English content with homeLang=en", async () => {
