@@ -1039,7 +1039,8 @@ async function renderMarkdownBlock(
     const BLOCK_LINE_H = 6
     const BLOCK_QUOTE_MARK_H = 8
     const BLOCK_PADDING = 6
-    // Horizontal padding reserved inside the bubble so text never overflows the border
+    // Total horizontal padding for both sides combined (8 mm per side) so wrapped
+    // text stays within the bubble border on both left and right.
     const BLOCK_TEXT_PADDING = 16
 
     const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)

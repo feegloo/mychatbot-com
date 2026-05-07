@@ -350,3 +350,93 @@ describe('printAssistantMessagesAsPdf – includes quiz messages', () => {
     expect(allText).toContain('Full Conversation Quiz');
   });
 });
+
+// ── Poem/Quote block wrapping ─────────────────────────────────────────────
+// Layout constants (mirror what createLayout computes in tests):
+//   pageWidth=210, marginLeft=20, marginRight=20 → contentWidth=170
+//   BLOCK_TEXT_PADDING=16 → wrap width=154
+//   BLOCK_LINE_H=6, BLOCK_QUOTE_MARK_H=8, BLOCK_PADDING=6
+
+describe('printContentAsPdf – quote block wrapping', () => {
+  it('calls splitTextToSize with contentWidth minus BLOCK_TEXT_PADDING (154)', async () => {
+    await printContentAsPdf('[quote]\nAny quote text here\n[/quote]', 'test')
+
+    const splitCalls = mockDoc.splitTextToSize.mock.calls as [string, number][]
+    expect(splitCalls.some(([, w]) => w === 154)).toBe(true)
+  })
+
+  it('sizes the bubble from wrapped line count, not raw line count', async () => {
+    // Override splitTextToSize: return 2 wrapped lines for the body text
+    mockDoc.splitTextToSize.mockImplementation((text: string, width: number) =>
+      width === 154 ? ['first wrapped line', 'second wrapped line'] : [text],
+    )
+
+    await printContentAsPdf('[quote]\nA very long quote line that exceeds the column width\n[/quote]', 'test')
+
+    // blockH = BLOCK_QUOTE_MARK_H(8) + 2*BLOCK_LINE_H(6) + BLOCK_QUOTE_MARK_H(8) + 2*BLOCK_PADDING(6) = 40
+    const rectCalls = mockDoc.roundedRect.mock.calls as number[][]
+    expect(rectCalls.some((args) => args[3] === 40)).toBe(true)
+  })
+
+  it('renders all wrapped body lines via doc.text()', async () => {
+    mockDoc.splitTextToSize.mockImplementation((text: string, width: number) =>
+      width === 154 ? ['first wrapped line', 'second wrapped line'] : [text],
+    )
+
+    await printContentAsPdf('[quote]\nA long line that wraps\n[/quote]', 'test')
+
+    const texts = allTextStrings()
+    expect(texts).toContain('first wrapped line')
+    expect(texts).toContain('second wrapped line')
+  })
+
+  it('renders opening and closing quotation marks', async () => {
+    await printContentAsPdf('[quote]\nShort quote\n[/quote]', 'test')
+
+    const texts = allTextStrings()
+    expect(texts).toContain('\u201C')
+    expect(texts).toContain('\u201D')
+  })
+})
+
+describe('printContentAsPdf – poem block wrapping', () => {
+  it('calls splitTextToSize with contentWidth minus BLOCK_TEXT_PADDING (154)', async () => {
+    await printContentAsPdf('[poem]\nAny poem text here\n[/poem]', 'test')
+
+    const splitCalls = mockDoc.splitTextToSize.mock.calls as [string, number][]
+    expect(splitCalls.some(([, w]) => w === 154)).toBe(true)
+  })
+
+  it('sizes the bubble from wrapped line count, not raw line count', async () => {
+    // Override splitTextToSize: return 2 wrapped lines for the body text
+    mockDoc.splitTextToSize.mockImplementation((text: string, width: number) =>
+      width === 154 ? ['first wrapped line', 'second wrapped line'] : [text],
+    )
+
+    await printContentAsPdf('[poem]\nA very long poem line that exceeds the column width\n[/poem]', 'test')
+
+    // blockH = BLOCK_QUOTE_MARK_H(8) + 2*BLOCK_LINE_H(6) + BLOCK_QUOTE_MARK_H(8) + 2*BLOCK_PADDING(6) = 40
+    const rectCalls = mockDoc.roundedRect.mock.calls as number[][]
+    expect(rectCalls.some((args) => args[3] === 40)).toBe(true)
+  })
+
+  it('renders all wrapped body lines via doc.text()', async () => {
+    mockDoc.splitTextToSize.mockImplementation((text: string, width: number) =>
+      width === 154 ? ['first poem line', 'second poem line'] : [text],
+    )
+
+    await printContentAsPdf('[poem]\nA long poem line that wraps\n[/poem]', 'test')
+
+    const texts = allTextStrings()
+    expect(texts).toContain('first poem line')
+    expect(texts).toContain('second poem line')
+  })
+
+  it('renders opening and closing quotation marks', async () => {
+    await printContentAsPdf('[poem]\nShort poem\n[/poem]', 'test')
+
+    const texts = allTextStrings()
+    expect(texts).toContain('\u201C')
+    expect(texts).toContain('\u201D')
+  })
+})
