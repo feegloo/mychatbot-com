@@ -377,7 +377,13 @@ def build_conversation_wiki(
         return None
 
     if language is None:
-        language = detect_language(welcome_message[:2000]) or "en"
+        # Strip embedded [mindmap]...[/mindmap] blocks before detection: they
+        # are generated from the source document and often contain exotic-script
+        # text (e.g. Arabic) that causes lang-detect to mis-identify an English
+        # or Polish welcome message as the source document's language.
+        import re as _re
+        sample = _re.sub(r"\[mindmap\].*?\[/mindmap\]", "", welcome_message, flags=_re.DOTALL)
+        language = detect_language(sample[:2000]) or "en"
 
     title = (conversation_title or "").strip() or "Conversation"
     welcome_clipped = welcome_message[:_MAX_WELCOME_CHARS]
