@@ -350,7 +350,7 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
     await flushMicrotasks()
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/m/msg42'))
-    expect(btn.text()).toContain('Skopiowano link!')
+    expect(btn.text()).toContain('Link copied!')
   })
 
   it('falls back to execCommand when clipboard.writeText rejects, and shows success state', async () => {
@@ -370,7 +370,7 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
     await flushMicrotasks()
 
     expect(execCommand).toHaveBeenCalledWith('copy')
-    expect(btn.text()).toContain('Skopiowano link!')
+    expect(btn.text()).toContain('Link copied!')
   })
 
   it('opens the URL in a new tab when both clipboard paths fail', async () => {
@@ -413,7 +413,7 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
     // First click
     await btn.trigger('click')
     await Promise.resolve()
-    expect(btn.text()).toContain('Skopiowano link!')
+    expect(btn.text()).toContain('Link copied!')
 
     // Advance 1 second (still within the 2-second window)
     vi.advanceTimersByTime(1000)
@@ -426,12 +426,12 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
     vi.advanceTimersByTime(1000)
     await nextTick()
     // Still showing success because the second timer (reset at t=1s) expires at t=3s
-    expect(btn.text()).toContain('Skopiowano link!')
+    expect(btn.text()).toContain('Link copied!')
 
     // Advance to the second timer's expiry
     vi.advanceTimersByTime(1000)
     await nextTick()
-    expect(btn.text()).not.toContain('Skopiowano link!')
+    expect(btn.text()).not.toContain('Link copied!')
 
     vi.useRealTimers()
   })

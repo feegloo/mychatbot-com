@@ -997,13 +997,15 @@ describe("LanguageToggle", () => {
       expect(detectLanguageMock).not.toHaveBeenCalled();
     });
 
-    it("auto-translates to homePageLang when it differs from browser lang ([language] tag path)", async () => {
+    it("does NOT auto-translate when [language] tag matches homePageLang (content already in preferred language)", async () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
       // User explicitly chose English as their home page language
       homeLangRef.value = 'en'
 
-      // Document is English, welcome was generated in Polish (browser lang)
-      const welcome = "[language]en[/language]\n# Romeo and Juliet 🎭 🇬🇧\n\nA long enough welcome message about the uploaded English document.";
+      // Image was uploaded: backend received userLanguage='en', generated welcome IN English,
+      // and the [language]en[/language] tag confirms the response language is English.
+      // The content is already in English — no auto-translation should happen.
+      const welcome = "[language]en[/language]\n# IndoorPortrait 📸\n\nA long enough welcome message about the uploaded photo, already in English.";
       const wrapper = mount(LanguageToggle, {
         props: { messages: makeMessages([welcome]) },
       });
@@ -1011,14 +1013,41 @@ describe("LanguageToggle", () => {
       await nextTick();
 
       const vm = wrapper.vm as any;
+      // tag matches homeLang → content language = tag language
       expect(vm.sourceLang).toBe("en");
-      expect(vm.detectedLang).toBe("pl");
-      // homePageLang='en' differs from browserLang='pl' → auto-translated to English
+      expect(vm.detectedLang).toBe("en");
+      // Content is already in English — no translation needed
       expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(false);
+      expect(translateTextsMock).not.toHaveBeenCalled();
+      expect(wrapper.emitted("translated")).toBeFalsy();
+      expect(detectLanguageMock).not.toHaveBeenCalled();
+    });
+
+    it("can translate to browser lang (pl) after receiving English content with homeLang=en", async () => {
+      Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
+      homeLangRef.value = 'en'
+
+      const welcome = "[language]en[/language]\n# IndoorPortrait 📸\n\nA long enough welcome in English, generated because homeLang=en.";
+      const wrapper = mount(LanguageToggle, {
+        props: { messages: makeMessages([welcome]) },
+      });
+      await flushPromises();
+      await nextTick();
+
+      const vm = wrapper.vm as any;
+      expect(vm.detectedLang).toBe("en");
+      expect(vm.currentLang).toBe("en");
+      expect(vm.isTranslated).toBe(false);
+
+      // Clicking toggle should translate to Polish (the browser language)
+      await wrapper.find(".lang-toggle-btn").trigger("click");
+      await flushPromises();
+
+      expect(vm.currentLang).toBe("pl");
       expect(vm.isTranslated).toBe(true);
       expect(translateTextsMock).toHaveBeenCalled();
       expect(wrapper.emitted("translated")).toBeTruthy();
-      expect(detectLanguageMock).not.toHaveBeenCalled();
     });
 
     it("shows toggle with availableLangs = {pl, en} when tag is [language]en[/language] and browser=pl", async () => {
@@ -1032,7 +1061,7 @@ describe("LanguageToggle", () => {
       await nextTick();
 
       const vm = wrapper.vm as any;
-      // availableLangs = {pl (browser/detected), en (source), en} → deduplicated = {pl, en}
+      // availableLangs = {en (detected/tag matches homeLang='en'), pl (browser), en (always)} → {en, pl}
       expect(vm.availableLangs).toContain("pl");
       expect(vm.availableLangs).toContain("en");
       // Toggle should be visible (2 distinct languages)

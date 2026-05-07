@@ -523,26 +523,35 @@ watch(
     }
 
     // Check for [language]xx[/language] tag emitted by the model in the welcome message.
-    // Semantics depend on conversation age:
-    //   NEW (file metadata has detected_language): tag = content/response language.
-    //   LEGACY (no metadata): tag = source document language, content is in browser language.
+    // The [language] tag is ONLY emitted by build_user_language_addendum() in the Python backend,
+    // which is only called when the frontend explicitly sends a userLanguage (homeLang at upload
+    // time). The tag represents the RESPONSE language — the language the welcome was generated in.
+    //
+    // When file metadata has detected_language, we also know the source document language.
+    // When metadata is absent (e.g. image-only uploads), we infer the content language from the
+    // tag, using the user's preferred language as the confirmation signal.
     const langTagMatch = firstAssistant.content.match(/\[language\]([a-z]{2,3})\[\/language\]/i)
     if (langTagMatch) {
       const tagLang = langTagMatch[1].toLowerCase()
       const fileSourceLang = props.files?.[0]?.metadata?.['detected_language'] as string | undefined
+      const preferredLang = storedLang || homeLang.value
       if (fileSourceLang) {
-        // New format: tag = response language, metadata = source doc language.
+        // Metadata present: tag = response/content language, metadata = source doc language.
         detectedLang.value = tagLang
         sourceLang.value = fileSourceLang.toLowerCase()
+      } else if (tagLang === preferredLang.toLowerCase()) {
+        // No metadata but tag matches the user's preferred language: the content was generated
+        // in that language (userLanguage=homeLang was sent to the backend, e.g. for image uploads).
+        // Treat the content as already in the preferred language — no auto-translate needed.
+        detectedLang.value = tagLang
+        sourceLang.value = tagLang
       } else {
-        // Legacy format: tag = source doc language, content is in browser language.
+        // Tag differs from preferred language: source document language in tag, content in
+        // browser language (the backend generated the welcome in the user's browser language
+        // but the tag identifies the source document's language).
         sourceLang.value = tagLang
         detectedLang.value = browserLang.value
       }
-      // Prefer stored lang → homePageLang preference over plain browser lang.
-      // This ensures that if the user has set a home page language (e.g. 'en') that differs
-      // from their browser language (e.g. 'pl'), the conversation defaults to their preference.
-      const preferredLang = storedLang || homeLang.value
       if (!currentLang.value) {
         // Fast-path (cached translations) was not applied — initialise currentLang to the actual
         // content language so translateTo() doesn't short-circuit its targetLang === currentLang guard.
