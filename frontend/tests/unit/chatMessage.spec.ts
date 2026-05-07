@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatMessage from '../../src/components/ChatMessage.vue'
+import { homeLang } from '../../src/i18n/homeLocale'
 import { vDropdownHideSpy } from '../setup'
 
 vi.mock('../../src/api', async (importOriginal) => {
@@ -301,9 +302,12 @@ describe('ChatMessage — openFilePreview SVG stretch', () => {
 })
 
 describe('ChatMessage — shareMessage (Udostępnij button)', () => {
+  const originalHomeLang = homeLang.value
+
   afterEach(() => {
     document.body.innerHTML = ''
     vi.restoreAllMocks()
+    homeLang.value = originalHomeLang
   })
 
   /** Flush pending microtasks (e.g. resolved/rejected Promises) */
@@ -333,6 +337,39 @@ describe('ChatMessage — shareMessage (Udostępnij button)', () => {
       },
     })
   }
+
+  it('shows English button labels when homeLang is en', async () => {
+    homeLang.value = 'en'
+    const wrapper = mountShare('msg-en')
+    await nextTick()
+    const btn = wrapper.find('.msg-action-btn')
+    expect(btn.text()).toContain('Share')
+    expect(btn.text()).not.toContain('Udostępnij')
+  })
+
+  it('shows Polish button labels when homeLang is pl', async () => {
+    homeLang.value = 'pl'
+    const wrapper = mountShare('msg-pl')
+    await nextTick()
+    const btn = wrapper.find('.msg-action-btn')
+    expect(btn.text()).toContain('Udostępnij')
+    expect(btn.text()).not.toContain('Share')
+  })
+
+  it('shows Polish copy-success label when homeLang is pl', async () => {
+    homeLang.value = 'pl'
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    })
+    const wrapper = mountShare('msg-pl2')
+    await nextTick()
+    const btn = wrapper.find('.msg-action-btn')
+    await btn.trigger('click')
+    await nextTick()
+    await flushMicrotasks()
+    expect(btn.text()).toContain('Skopiowano link!')
+  })
 
   it('copies the share URL via clipboard API and shows success state', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
