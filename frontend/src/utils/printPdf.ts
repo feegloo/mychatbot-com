@@ -1039,12 +1039,18 @@ async function renderMarkdownBlock(
     const BLOCK_LINE_H = 6
     const BLOCK_QUOTE_MARK_H = 8
     const BLOCK_PADDING = 6
+    // Horizontal padding reserved inside the bubble so text never overflows the border
+    const BLOCK_TEXT_PADDING = 16
 
     const poemPlaceholder = line.trim().match(/^\[POEM_BLOCK_(\d+)\]$/)
     if (poemPlaceholder) {
       const idx = parseInt(poemPlaceholder[1], 10)
       const pLines = poemBlocks[idx]
-      const blockH = BLOCK_QUOTE_MARK_H + pLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
+      // Set body font before splitTextToSize so metrics match the rendered output
+      doc.setFont(PDF_FONT, 'italic')
+      doc.setFontSize(11)
+      const splitPLines = pLines.flatMap((l) => doc.splitTextToSize(l, layout.contentWidth - BLOCK_TEXT_PADDING) as string[])
+      const blockH = BLOCK_QUOTE_MARK_H + splitPLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
       ensureNewPage(doc, yRef, layout, blockH)
 
       doc.setFillColor(248, 245, 255)
@@ -1061,7 +1067,7 @@ async function renderMarkdownBlock(
       doc.setFont(PDF_FONT, 'italic')
       doc.setFontSize(11)
       doc.setTextColor(80, 80, 80)
-      for (const pLine of pLines) {
+      for (const pLine of splitPLines) {
         doc.text(pLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
         yRef.y += BLOCK_LINE_H
       }
@@ -1080,7 +1086,11 @@ async function renderMarkdownBlock(
     if (quotePlaceholder) {
       const idx = parseInt(quotePlaceholder[1], 10)
       const qLines = quoteBlocks[idx]
-      const blockH = BLOCK_QUOTE_MARK_H + qLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
+      // Set body font before splitTextToSize so metrics match the rendered output
+      doc.setFont(PDF_FONT, 'italic')
+      doc.setFontSize(11)
+      const splitQLines = qLines.flatMap((l) => doc.splitTextToSize(l, layout.contentWidth - BLOCK_TEXT_PADDING) as string[])
+      const blockH = BLOCK_QUOTE_MARK_H + splitQLines.length * BLOCK_LINE_H + BLOCK_QUOTE_MARK_H + BLOCK_PADDING * 2
       ensureNewPage(doc, yRef, layout, blockH)
 
       // Amber/gold background to differentiate from poem's purple
@@ -1098,7 +1108,7 @@ async function renderMarkdownBlock(
       doc.setFont(PDF_FONT, 'italic')
       doc.setFontSize(11)
       doc.setTextColor(80, 70, 40)
-      for (const qLine of qLines) {
+      for (const qLine of splitQLines) {
         doc.text(qLine, layout.marginLeft + layout.contentWidth / 2, yRef.y, { align: 'center' })
         yRef.y += BLOCK_LINE_H
       }

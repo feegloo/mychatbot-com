@@ -1301,6 +1301,7 @@ function navigateFilePreview(delta: number) {
   background: rgba(167, 139, 250, 0.04);
   border-radius: 12px;
   border: 1px solid rgba(167, 139, 250, 0.1);
+  overflow: hidden;
 }
 :deep(.poem-quote-mark) {
   font-family: Georgia, 'Times New Roman', serif;
@@ -1317,6 +1318,8 @@ function navigateFilePreview(delta: number) {
   font-style: italic;
   padding: 0 8px;
   letter-spacing: 0.01em;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Quote block — same layout as poem, amber/gold accent to differentiate. */
@@ -1327,6 +1330,7 @@ function navigateFilePreview(delta: number) {
   background: rgba(251, 191, 36, 0.05);
   border-radius: 12px;
   border: 1px solid rgba(251, 191, 36, 0.15);
+  overflow: hidden;
 }
 :deep(.quote-mark) {
   font-family: Georgia, 'Times New Roman', serif;
@@ -1343,6 +1347,8 @@ function navigateFilePreview(delta: number) {
   font-style: italic;
   padding: 0 8px;
   letter-spacing: 0.01em;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Colored text markers. */
