@@ -997,7 +997,7 @@ describe("LanguageToggle", () => {
       expect(detectLanguageMock).not.toHaveBeenCalled();
     });
 
-    it("does NOT auto-translate when [language] tag matches homeLang (content already in preferred language)", async () => {
+    it("does not auto-translate when [language] tag matches homeLang (content already in preferred language)", async () => {
       Object.defineProperty(navigator, "language", { value: "pl", configurable: true });
       // User explicitly chose English as their home page language
       homeLangRef.value = 'en'
