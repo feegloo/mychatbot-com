@@ -1189,7 +1189,8 @@ def _index_documents_inline(
                     conversation_title=wiki_title,
                     welcome_message=welcome_message,
                     storage_dir=storage_dir,
-                    language=detected_language,
+                    # language omitted: auto-detected from welcome_message, which
+                    # is already in the user's language (not the source language).
                     page_count=wiki_page_count,
                 )
             if wiki_text and on_progress:

@@ -619,7 +619,7 @@ async def describe_url_endpoint(req: DescribeUrlRequest):
                     conversation_title=page_title,
                     welcome_message=welcome_message,
                     storage_dir=None,
-                    language=detected_language,
+                    # language omitted: auto-detected from welcome_message.
                 )
                 if wiki_text:
                     result["wiki_message"] = wiki_text
