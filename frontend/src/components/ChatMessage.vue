@@ -12,10 +12,10 @@
         <AppButton
           v-if="isFirstMessage && c4Ready"
           class="msg-action-btn"
-          title="Mapa Myśli"
+          :title="mindMapLabel"
           @click="$emit('show-c4')"
         >
-          💡 Mapa Myśli
+          💡 {{ mindMapLabel }}
         </AppButton>
         <AppButton
           v-if="isFirstMessage && wikiReady"
@@ -29,7 +29,7 @@
         <a
           :href="shareUrl"
           class="msg-action-btn"
-          :title="shareCopied ? 'Skopiowano link!' : 'Udostępnij tę odpowiedź'"
+          :title="shareCopied ? shareCopiedLabel : shareTitleLabel"
           style="text-decoration: none;"
           @click.prevent="shareMessage"
         >
@@ -61,7 +61,7 @@
           >
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          {{ shareCopied ? 'Skopiowano link!' : 'Udostępnij' }}
+          {{ shareCopied ? shareCopiedLabel : shareLabel }}
         </a>
         <AppButton
           v-if="canDownloadPdf"
@@ -367,6 +367,7 @@ import type { ChatMessage, ConversationStatus } from '../api'
 import { getStorageUrl } from '../api'
 import { getUserId } from '../utils/fingerprint'
 import { appReady } from '../composables/appReady'
+import { homeLang } from '../i18n/homeLocale'
 import AppButton from './AppButton.vue'
 import TextFade from './TextFade.vue'
 import ImageModal from './ImageModal.vue'
@@ -627,6 +628,15 @@ const senderLabel = computed(() => {
   }
   return 'You'
 })
+
+// Button labels for UI chrome (Mind Map, Share) follow the home-page language setting.
+const isEnUI = computed(() => homeLang.value === 'en')
+const mindMapLabel = computed(() => isEnUI.value ? 'Mind Map' : 'Mapa Myśli')
+const shareLabel = computed(() => isEnUI.value ? 'Share' : 'Udostępnij')
+const shareCopiedLabel = computed(() => isEnUI.value ? 'Link copied!' : 'Skopiowano link!')
+const shareTitleLabel = computed(() =>
+  isEnUI.value ? 'Share this answer' : 'Udostępnij tę odpowiedź'
+)
 // --- TextFade trigger for assistant messages ------------------------------
 // During streaming the message has no id yet. Using `msg.content` as the
 // key would remount MessageContent on every streamed token, causing
