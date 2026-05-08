@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 4
 _DEFAULT_TOKEN_BUDGET = 300_000
 _MAX_WELCOME_CHARS = 6_000  # welcome is concentrated framing — full clip rarely needed
-_MAX_OUTPUT_CHARS = 16_000  # ~4000 tokens; extra headroom for rich large-doc diagrams
+_MAX_OUTPUT_CHARS = 25_000  # ~6000 tokens; extra headroom for rich large-doc diagrams
 _TOP_K_CHUNKS = 20  # vector neighbours retrieved against the welcome message (doubled for breadth)
 
 
