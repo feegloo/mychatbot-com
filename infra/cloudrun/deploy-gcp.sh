@@ -307,7 +307,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --memory 4Gi \
   --cpu 4 \
   --cpu-boost \
-  --timeout=600 \
+  --timeout=1800 \
   --min-instances 0 \
   --max-instances 1 \
   --startup-probe "httpGet.path=/health,httpGet.port=8080,initialDelaySeconds=10,periodSeconds=10,timeoutSeconds=5,failureThreshold=20" \
