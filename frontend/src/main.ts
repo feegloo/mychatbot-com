@@ -9,9 +9,10 @@ import router from './router'
 import './style.css'
 import { initDatabase } from './utils/database'
 import { migrateLocalStorageToIndexedDB } from './utils/migration'
-import { initTokensCache } from './api'
+import { initTokensCache, saveConversationToken } from './api'
 import { initFingerprintCache } from './utils/fingerprint'
 import { initHomeLang } from './i18n/homeLocale'
+import { decodeConversationTokens, CONVERSATIONS_PARAM } from './utils/conversationLink'
 
 const app = createApp(App)
 
@@ -66,6 +67,33 @@ FloatingVue.options.themes['more-questions'] = {
   placement: 'top-start',
 }
 
+/**
+ * If the page was opened with a ?conversations=<encoded> query param, decode
+ * the token bundle, persist each entry to IndexedDB (via saveConversationToken),
+ * and then strip the param from the URL so it doesn't linger in the address bar
+ * or get accidentally shared again.
+ */
+function importConversationsFromUrl(): void {
+  const params = new URLSearchParams(window.location.search)
+  const encoded = params.get(CONVERSATIONS_PARAM)
+  if (!encoded) return
+
+  const entries = decodeConversationTokens(encoded)
+  if (entries && entries.length > 0) {
+    for (const { conversationId, token } of entries) {
+      saveConversationToken(conversationId, token)
+    }
+  } else {
+    console.warn('[chatrag] ?conversations= param present but could not be decoded')
+  }
+
+  // Clean up: remove the param so it's not visible to the user or bookmarked.
+  params.delete(CONVERSATIONS_PARAM)
+  const newSearch = params.toString()
+  const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash
+  window.history.replaceState(null, '', newUrl)
+}
+
 // Initialize IndexedDB, run one-time LS migration, populate in-memory caches,
 // then mount the app. All synchronous LS reads have been replaced by these
 // cache-backed equivalents — the app only mounts once caches are ready.
@@ -73,6 +101,11 @@ async function bootstrap() {
   initDatabase()
   await migrateLocalStorageToIndexedDB()
   await Promise.all([initTokensCache(), initFingerprintCache(), initHomeLang()])
+
+  // Import shared conversations from ?conversations= URL param (shareable link).
+  // Must run after initTokensCache() so saveConversationToken writes into a
+  // fully-initialised cache before the sidebar loads.
+  importConversationsFromUrl()
   app.use(router).use(FloatingVue)
 
   // floating-vue 5.2.2: the v-tooltip directive hook destructures its second

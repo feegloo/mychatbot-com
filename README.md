@@ -8,6 +8,46 @@ A production-oriented hybrid RAG application with:
 - **Chroma** vector store
 - **PostgreSQL** for app metadata
 
+## Shareable multi-conversation links
+
+You can generate a single URL that gives any recipient instant access to a set of conversations (they appear in the left sidebar automatically).
+
+### 1. Prepare a tokens JSON file
+
+Create a file (e.g. `my-tokens.json`) with the viewer tokens for the conversations you want to share:
+
+```json
+[
+  { "conversationId": "abc123XYZ789", "token": "tok_viewer_abc..." },
+  { "conversationId": "def456UVW012", "token": "tok_viewer_def..." }
+]
+```
+
+You can find each conversation's **viewer token** in the PostgreSQL `conversation_access_tokens` table (`role = 'viewer'`), or from the chatrag.app debug panel.
+
+### 2. Generate the shareable link
+
+```bash
+node scripts/generate-conversations-link.mjs my-tokens.json
+# → https://chatrag.app?conversations=<base64url-encoded-tokens>
+```
+
+Custom base URL (e.g. for staging):
+
+```bash
+node scripts/generate-conversations-link.mjs my-tokens.json https://staging.chatrag.app
+```
+
+### 3. Share the link
+
+Send the generated URL to any user. When they open it:
+
+1. The frontend decodes the `conversations=` query parameter.
+2. Each `{conversationId, token}` pair is saved into their local IndexedDB.
+3. The conversations appear in their left sidebar immediately.
+4. The `?conversations=` param is removed from the URL so it doesn't persist in the address bar.
+
+
 ## How it works
 
 The web app uploads files to the Node backend. The backend stores files on disk (can be swapped for S3), creates a unique conversation URL, and delegates document indexing to the Python engine.
