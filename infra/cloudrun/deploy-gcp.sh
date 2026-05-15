@@ -295,6 +295,7 @@ fi
 # No Pub/Sub topic or chatrag-worker needed.
 info "Step 8a/9: Skipped Pub/Sub setup (WORKER_MODE=inline)"
 
+# --cpu-boost \
 gcloud run deploy "$SERVICE_NAME" \
   --image "${IMAGE}:latest" \
   --region "$REGION" \
@@ -306,7 +307,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --port 8080 \
   --memory 2Gi \
   --cpu 2 \
-  # --cpu-boost \
   --timeout=1800 \
   --min-instances 0 \
   --max-instances 1 \
