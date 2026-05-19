@@ -1,6 +1,6 @@
 import type { ChatMessage } from '../api'
 import { announceImage, generateImageStream, getStorageUrl } from '../api'
-import { getUserId } from '../utils/fingerprint'
+import { getBrowserFingerprint } from '../utils/fingerprint'
 
 export type ImageGenStreamResponse = {
   answer: string
@@ -35,7 +35,7 @@ export async function runImageGenStream(options: {
   question: string
   reactiveMsg: ChatMessage
   timeoutMs?: number
-  useUserId?: boolean
+  fingerprint?: string
   language?: string
   referenceImageFileNames?: string[]
   onAnnouncement?: () => void
@@ -44,7 +44,7 @@ export async function runImageGenStream(options: {
     conversationId,
     question,
     reactiveMsg,
-    useUserId = true,
+    fingerprint,
     language,
     referenceImageFileNames,
     onAnnouncement,
@@ -72,7 +72,11 @@ export async function runImageGenStream(options: {
     })
     .catch(() => {})
 
-  const userId = useUserId ? getUserId() || undefined : undefined
+  // Non-critical: if fingerprint computation fails, the request proceeds anonymously (userId=0 server-side).
+  const resolvedFingerprint = fingerprint ?? await getBrowserFingerprint().catch((err) => {
+    console.warn('[getBrowserFingerprint]', err)
+    return undefined
+  })
   const minMorphMs = 700
   let firstPartialAt: number | null = null
 
@@ -95,7 +99,7 @@ export async function runImageGenStream(options: {
       reject(new Error('Request timed out'))
     }, timeoutMs)
 
-    generateImageStream(conversationId, question, userId, {
+    generateImageStream(conversationId, question, resolvedFingerprint, {
       onPromptReady: (data) => {
         if (data.image_prompt) {
           reactiveMsg.imageDetailedPrompt = data.image_prompt

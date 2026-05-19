@@ -8,6 +8,7 @@ import {
   insertConversationMessage,
   resolveConversationRole,
   appendToMessageContent,
+  resolveUserByFingerprint,
 } from '../repositories/conversations.js'
 import {
   getUserWiki,
@@ -43,7 +44,7 @@ import { resolveConversationLanguage } from '../utils/conversation-language.js'
 const askSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
   question: z.string().min(1),
-  userId: z.number().int().min(0).optional(),
+  fingerprint: z.string().min(8).max(128).optional(),
   language: z.string().trim().min(2).max(16).optional(),
 })
 
@@ -57,7 +58,7 @@ askRouter.post('/ask', async (ctx) => {
     return
   }
 
-  const { conversationId, question, userId, language } = parsed.data
+  const { conversationId, question, fingerprint, language } = parsed.data
   const conversationLanguage = resolveConversationLanguage(language)
 
   // Only owners/editors can post questions
@@ -68,6 +69,11 @@ askRouter.post('/ask', async (ctx) => {
     ctx.body = { error: 'Only the conversation owner can reply' }
     return
   }
+
+  const userAgent = ctx.request.headers['user-agent']
+  const userId = fingerprint
+    ? await resolveUserByFingerprint(fingerprint, userAgent)
+    : 0
 
   const data = await getConversation(conversationId)
 

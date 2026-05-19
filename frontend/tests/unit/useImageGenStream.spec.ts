@@ -17,7 +17,7 @@ vi.mock('../../src/api', () => ({
 }))
 
 vi.mock('../../src/utils/fingerprint', () => ({
-  getUserId: () => 123,
+  getBrowserFingerprint: () => Promise.resolve('test-fingerprint-abc123'),
 }))
 
 import { runImageGenStream } from '../../src/composables/useImageGenStream'
@@ -48,7 +48,7 @@ describe('runImageGenStream', () => {
     getStorageUrlMock.mockReturnValue('https://example.local/final.png')
 
     generateImageStreamMock.mockImplementation(
-      async (_conversationId: string, _question: string, _userId: number | undefined, callbacks: {
+      async (_conversationId: string, _question: string, _fingerprint: string | undefined, callbacks: {
         onComplete: (data: {
           answer: string
           citations: []
@@ -75,6 +75,9 @@ describe('runImageGenStream', () => {
       timeoutMs: 5000,
     })
 
+    // Two microtask ticks: one for getBrowserFingerprint() resolution,
+    // one for the generateImageStream mock to invoke callbacks synchronously.
+    await Promise.resolve()
     await Promise.resolve()
 
     expect(reactiveMsg.imagePartialDataUrl).toBe('https://example.local/final.png')

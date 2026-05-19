@@ -246,7 +246,7 @@ import {
 } from '../api'
 import { runImageGenStream } from '../composables/useImageGenStream'
 import { cleanFileName, isUrl } from '../utils/text'
-import { getUserId } from '../utils/fingerprint'
+import { getBrowserFingerprint, ensureUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
 import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
@@ -918,13 +918,14 @@ async function ask() {
 
   // Viewer mode: create a new conversation thread and navigate to it
   if (isViewer.value) {
-    const userId = getUserId()
-    if (!userId) return
     asking.value = true
     const pendingQuestion = question.value.trim()
     question.value = ''
     try {
-      const result = await createConversationThread(conversationId, userId)
+      // Resolve userId lazily so the "YOU" display works after the first action.
+      // Non-critical: failure just means "YOU" label won't appear; thread creation still proceeds.
+      await ensureUserId().catch((err) => console.warn('[ensureUserId]', err))
+      const result = await createConversationThread(conversationId)
       saveConversationToken(result.conversationId, result.ownerPassword)
       routerInstance.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } })
     } catch (err: unknown) {
@@ -970,6 +971,7 @@ async function ask() {
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     const refFileNames = pendingRefImageFileNames.value.slice()
     pendingRefImageFileNames.value = []
+    const fingerprint = await getBrowserFingerprint().catch(() => undefined)
     const response = isImageGen
       ? await runImageGenStream({
           conversationId,
@@ -977,6 +979,7 @@ async function ask() {
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
           language: promptLanguage,
+          fingerprint,
           referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
           onAnnouncement: () => {
             nextTick(() => scrollToBottom(true, false, true))
@@ -986,7 +989,7 @@ async function ask() {
           askQuestion(
             conversationId,
             currentQuestion,
-            getUserId() || undefined,
+            fingerprint,
             promptLanguage,
           ),
           timeout,
