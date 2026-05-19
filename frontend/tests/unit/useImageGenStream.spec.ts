@@ -75,7 +75,8 @@ describe('runImageGenStream', () => {
       timeoutMs: 5000,
     })
 
-    // Two ticks: one for getBrowserFingerprint(), one for generateImageStream mock.
+    // Two microtask ticks: one for getBrowserFingerprint() resolution,
+    // one for the generateImageStream mock to invoke callbacks synchronously.
     await Promise.resolve()
     await Promise.resolve()
 

@@ -144,7 +144,8 @@ async function startThread() {
   const pendingQuestion = replyText.value.trim()
   try {
     // Resolve userId lazily so the "YOU" display works after the first action.
-    await ensureUserId().catch(() => {})
+    // Non-critical: failure just means "YOU" label won't appear; thread creation still proceeds.
+    await ensureUserId().catch((err) => console.warn('[ensureUserId]', err))
     const result = await createThread(props.messageId)
     // Save the owner token so user can continue chatting
     saveConversationToken(result.conversationId, result.ownerPassword)

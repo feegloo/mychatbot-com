@@ -923,7 +923,8 @@ async function ask() {
     question.value = ''
     try {
       // Resolve userId lazily so the "YOU" display works after the first action.
-      await ensureUserId().catch(() => {})
+      // Non-critical: failure just means "YOU" label won't appear; thread creation still proceeds.
+      await ensureUserId().catch((err) => console.warn('[ensureUserId]', err))
       const result = await createConversationThread(conversationId)
       saveConversationToken(result.conversationId, result.ownerPassword)
       routerInstance.push({ path: `/c/${result.conversationId}`, state: { pendingQuestion } })

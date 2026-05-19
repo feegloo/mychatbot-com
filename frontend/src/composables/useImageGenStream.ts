@@ -72,7 +72,11 @@ export async function runImageGenStream(options: {
     })
     .catch(() => {})
 
-  const resolvedFingerprint = fingerprint ?? await getBrowserFingerprint().catch(() => undefined)
+  // Non-critical: if fingerprint computation fails, the request proceeds anonymously (userId=0 server-side).
+  const resolvedFingerprint = fingerprint ?? await getBrowserFingerprint().catch((err) => {
+    console.warn('[getBrowserFingerprint]', err)
+    return undefined
+  })
   const minMorphMs = 700
   let firstPartialAt: number | null = null
 
