@@ -852,9 +852,7 @@ conversationsRouter.get('/messages/:messageId/threads', async (ctx) => {
 })
 
 // POST /messages/:messageId/threads — create a new thread conversation from a shared message
-const createThreadSchema = z.object({
-  userId: z.number().int().min(1),
-})
+const createThreadSchema = z.object({})
 
 conversationsRouter.post('/messages/:messageId/threads', async (ctx) => {
   const messageId = ctx.params.messageId
@@ -934,9 +932,7 @@ conversationsRouter.get('/conversations/:conversationId/threads', async (ctx) =>
 })
 
 // POST /conversations/:conversationId/threads — create a new thread from a shared conversation (viewer reply)
-const createConvThreadSchema = z.object({
-  userId: z.number().int().min(1),
-})
+const createConvThreadSchema = z.object({})
 
 conversationsRouter.post('/conversations/:conversationId/threads', async (ctx) => {
   const conversationId = ctx.params.conversationId

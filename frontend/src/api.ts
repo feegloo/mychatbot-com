@@ -293,12 +293,12 @@ export async function getConversation(conversationId: string) {
 export async function askQuestion(
   conversationId: string,
   question: string,
-  userId?: number,
+  fingerprint?: string,
   language?: string,
 ) {
   const response = await api.post(
     '/ask',
-    { conversationId, question, ...(userId ? { userId } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(fingerprint ? { fingerprint } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -320,12 +320,12 @@ export async function askQuestion(
 export async function generateImage(
   conversationId: string,
   question: string,
-  userId?: number,
+  fingerprint?: string,
   language?: string,
 ) {
   const response = await api.post(
     '/generate-image',
-    { conversationId, question, ...(userId ? { userId } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(fingerprint ? { fingerprint } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -397,7 +397,7 @@ export type ImageGenStreamCallbacks = {
 export async function generateImageStream(
   conversationId: string,
   question: string,
-  userId: number | undefined,
+  fingerprint: string | undefined,
   callbacks: ImageGenStreamCallbacks,
   language?: string,
   referenceImageFileNames?: string[],
@@ -465,7 +465,7 @@ export async function generateImageStream(
     body: JSON.stringify({
       conversationId,
       question,
-      ...(userId ? { userId } : {}),
+      ...(fingerprint ? { fingerprint } : {}),
       ...(language ? { language } : {}),
       ...(referenceImageFileNames?.length ? { referenceImageFileNames } : {}),
     }),
@@ -703,8 +703,8 @@ export async function getMessageThreads(messageId: string) {
   return response.data as { threads: ThreadSummary[] }
 }
 
-export async function createThread(messageId: string, userId: number) {
-  const response = await api.post(`/messages/${messageId}/threads`, { userId })
+export async function createThread(messageId: string) {
+  const response = await api.post(`/messages/${messageId}/threads`, {})
   return response.data as { conversationId: string; ownerPassword: string; url: string }
 }
 
@@ -713,8 +713,8 @@ export async function getConversationThreads(conversationId: string) {
   return response.data as { threads: ThreadSummary[] }
 }
 
-export async function createConversationThread(conversationId: string, userId: number) {
-  const response = await api.post(`/conversations/${conversationId}/threads`, { userId })
+export async function createConversationThread(conversationId: string) {
+  const response = await api.post(`/conversations/${conversationId}/threads`, {})
   return response.data as { conversationId: string; ownerPassword: string; url: string }
 }
 

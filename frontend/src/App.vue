@@ -38,8 +38,6 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ConversationNav from './components/ConversationNav.vue'
-import { getBrowserFingerprint, getUserId, setUserId } from './utils/fingerprint'
-import { resolveFingerprint } from './api'
 import { ConfigurationsTable } from './utils/database'
 
 const sidebarOpen = ref(false)
@@ -74,14 +72,5 @@ onMounted(async () => {
   }
   // Unlock transitions after the initial paint is settled.
   requestAnimationFrame(() => { sidebarNoTransition.value = false })
-
-  try {
-    if (getUserId() !== null) return // already resolved
-    const fingerprint = await getBrowserFingerprint()
-    const { userId } = await resolveFingerprint(fingerprint)
-    await setUserId(userId)
-  } catch (err) {
-    console.error('[fingerprint init]', err)
-  }
 })
 </script>

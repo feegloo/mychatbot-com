@@ -99,7 +99,7 @@ import {
   type SharedMessage,
   type ThreadSummary,
 } from '../api'
-import { getUserId } from '../utils/fingerprint'
+import { getUserId, ensureUserId } from '../utils/fingerprint'
 import ChatMessageItem from '../components/ChatMessage.vue'
 
 const props = defineProps<{ messageId: string }>()
@@ -140,15 +140,12 @@ async function load() {
 
 async function startThread() {
   if (!replyText.value.trim() || creatingThread.value) return
-  const userId = getUserId()
-  if (!userId) {
-    error.value = 'Could not identify your browser. Please reload.'
-    return
-  }
   creatingThread.value = true
   const pendingQuestion = replyText.value.trim()
   try {
-    const result = await createThread(props.messageId, userId)
+    // Resolve userId lazily so the "YOU" display works after the first action.
+    await ensureUserId().catch(() => {})
+    const result = await createThread(props.messageId)
     // Save the owner token so user can continue chatting
     saveConversationToken(result.conversationId, result.ownerPassword)
     // Navigate to the new thread conversation with the pending question
