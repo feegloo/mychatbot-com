@@ -298,7 +298,7 @@ export async function askQuestion(
 ) {
   const response = await api.post(
     '/ask',
-    { conversationId, question, ...(userId ? { userId } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(userId !== undefined ? { userId } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -325,7 +325,7 @@ export async function generateImage(
 ) {
   const response = await api.post(
     '/generate-image',
-    { conversationId, question, ...(userId ? { userId } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(userId !== undefined ? { userId } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -465,7 +465,7 @@ export async function generateImageStream(
     body: JSON.stringify({
       conversationId,
       question,
-      ...(userId ? { userId } : {}),
+      ...(userId !== undefined ? { userId } : {}),
       ...(language ? { language } : {}),
       ...(referenceImageFileNames?.length ? { referenceImageFileNames } : {}),
     }),
