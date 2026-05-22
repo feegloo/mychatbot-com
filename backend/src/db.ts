@@ -17,22 +17,6 @@ export async function query<T extends QueryResultRow = any>(sql: string, params:
   return pool.query<T>(sql, params)
 }
 
-// Idempotent bootstrap for the user-fingerprints table (migrations 004 + 006).
-// Applied on every startup so deployments that haven't run the SQL migrations
-// manually still get the table — mirroring the pattern used for generated_images,
-// pdf_pages, etc.
-const USER_FINGERPRINTS_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS user_fingerprints (
-     fingerprint  TEXT PRIMARY KEY,
-     user_id      SERIAL NOT NULL UNIQUE,
-     user_agent   TEXT,
-     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-   )`,
-  // Migration 006: add user_agent column to pre-existing tables.
-  `ALTER TABLE user_fingerprints ADD COLUMN IF NOT EXISTS user_agent TEXT`,
-  'CREATE INDEX IF NOT EXISTS idx_user_fingerprints_fingerprint ON user_fingerprints(fingerprint)',
-]
-
 // Indexes used by the /debug page. Kept idempotent so it's safe to run on
 // every startup; Postgres skips any that already exist.
 const DEBUG_INDEX_STATEMENTS = [
@@ -256,13 +240,6 @@ const WORKERS_JOBS_STATEMENTS = [
 ]
 
 export async function ensureDebugIndexes(): Promise<void> {
-  for (const stmt of USER_FINGERPRINTS_STATEMENTS) {
-    try {
-      await pool.query(stmt)
-    } catch (err) {
-      console.warn('[db] ensureUserFingerprintsSchema failed:', (err as Error).message)
-    }
-  }
   for (const stmt of DEBUG_INDEX_STATEMENTS) {
     try {
       await pool.query(stmt)
