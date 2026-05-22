@@ -71,9 +71,15 @@ askRouter.post('/ask', async (ctx) => {
   }
 
   const userAgent = ctx.request.headers['user-agent']
-  const userId = fingerprint
-    ? await resolveUserByFingerprint(fingerprint, userAgent)
-    : 0
+  let userId = 0
+  if (fingerprint) {
+    try {
+      userId = await resolveUserByFingerprint(fingerprint, userAgent)
+    } catch (err) {
+      logger.warn({ err, fingerprint }, 'fingerprint userId resolution failed, falling back to 0')
+      Sentry.captureException(err, { tags: { feature: 'fingerprint-resolve' } })
+    }
+  }
 
   const data = await getConversation(conversationId)
 
@@ -98,7 +104,7 @@ askRouter.post('/ask', async (ctx) => {
     conversationId,
     role: 'user',
     content: question,
-    userId: userId || 0,
+    userId,
   })
 
   // Ensure vector collection has data (re-index if Chroma was lost on container restart).
