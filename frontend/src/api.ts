@@ -293,12 +293,12 @@ export async function getConversation(conversationId: string) {
 export async function askQuestion(
   conversationId: string,
   question: string,
-  fingerprint?: string,
+  userId?: number,
   language?: string,
 ) {
   const response = await api.post(
     '/ask',
-    { conversationId, question, ...(fingerprint ? { fingerprint } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(userId !== undefined ? { userId } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -320,12 +320,12 @@ export async function askQuestion(
 export async function generateImage(
   conversationId: string,
   question: string,
-  fingerprint?: string,
+  userId?: number,
   language?: string,
 ) {
   const response = await api.post(
     '/generate-image',
-    { conversationId, question, ...(fingerprint ? { fingerprint } : {}), ...(language ? { language } : {}) },
+    { conversationId, question, ...(userId !== undefined ? { userId } : {}), ...(language ? { language } : {}) },
     {
       headers: authHeaders(conversationId),
     },
@@ -397,7 +397,7 @@ export type ImageGenStreamCallbacks = {
 export async function generateImageStream(
   conversationId: string,
   question: string,
-  fingerprint: string | undefined,
+  userId: number | undefined,
   callbacks: ImageGenStreamCallbacks,
   language?: string,
   referenceImageFileNames?: string[],
@@ -465,7 +465,7 @@ export async function generateImageStream(
     body: JSON.stringify({
       conversationId,
       question,
-      ...(fingerprint ? { fingerprint } : {}),
+      ...(userId !== undefined ? { userId } : {}),
       ...(language ? { language } : {}),
       ...(referenceImageFileNames?.length ? { referenceImageFileNames } : {}),
     }),

@@ -128,7 +128,7 @@ import { homeT, homeLang } from '../i18n/homeLocale'
 import { IMAGE_GEN_REGEX } from '../utils/markdown'
 import { isUrl } from '../utils/text'
 import { extractPastedFiles } from '../composables/useFilePaste'
-import { getBrowserFingerprint } from '../utils/fingerprint'
+import { getUserId } from '../utils/fingerprint'
 
 const t = homeT
 
@@ -308,20 +308,20 @@ async function submitQuestion() {
       setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS),
     )
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
-    const fingerprint = await getBrowserFingerprint().catch(() => undefined)
+    const userId = getUserId() ?? undefined
     const response = isImageGen
       ? await runImageGenStream({
           conversationId: convId,
           question: currentQuestion,
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
-          fingerprint,
+          userId,
           language: promptLanguage,
           onAnnouncement: () => {
             nextTick(() => scrollToBottom(true))
           },
         })
-      : await Promise.race([askQuestion(convId, currentQuestion, fingerprint, promptLanguage), timeout])
+      : await Promise.race([askQuestion(convId, currentQuestion, userId, promptLanguage), timeout])
     reactiveMsg.generatingImage = false
     reactiveMsg.imagePartialDataUrl = undefined
     reactiveMsg.imageDetailedPrompt = undefined
