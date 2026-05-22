@@ -6,7 +6,6 @@ import {
   getConversation,
   insertConversationMessage,
   resolveConversationRole,
-  resolveUserByFingerprint,
 } from '../repositories/conversations.js'
 import { announceImage, generateImage, generateImageStream } from '../python/image-gen.js'
 import { registerReusableImage } from '../python/reusable-image.js'
@@ -29,7 +28,7 @@ const SAFE_FILE_NAME_RE = /^[^/\\]+$/
 const imageGenSchema = z.object({
   conversationId: z.string().regex(SHORT_ID_RE),
   question: z.string().min(1),
-  fingerprint: z.string().min(8).max(128).optional(),
+  userId: z.number().int().nonnegative().optional(),
   language: z.string().trim().min(2).max(16).optional(),
   referenceImageFileNames: z
     .array(z.string().regex(SAFE_FILE_NAME_RE).refine((n) => !n.includes('..'), 'invalid file name'))
@@ -185,7 +184,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     return
   }
 
-  const { conversationId, question, fingerprint, language, referenceImageFileNames } = parsed.data
+  const { conversationId, question, userId: bodyUserId, language, referenceImageFileNames } = parsed.data
   const conversationLanguage = resolveConversationLanguage(language)
 
   const token = getConversationToken(ctx)
@@ -203,10 +202,7 @@ imageGenRouter.post('/generate-image', async (ctx) => {
     return
   }
 
-  const userAgent = ctx.request.headers['user-agent']
-  const userId = fingerprint
-    ? await resolveUserByFingerprint(fingerprint, userAgent)
-    : 0
+  const userId = bodyUserId ?? 0
 
   // Insert user message (the image generation request)
   const userMsgId = await insertConversationMessage({
@@ -337,7 +333,7 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
     return
   }
 
-  const { conversationId, question, fingerprint, language, referenceImageFileNames } = parsed.data
+  const { conversationId, question, userId: bodyUserId, language, referenceImageFileNames } = parsed.data
   const conversationLanguage = resolveConversationLanguage(language)
 
   const token = getConversationToken(ctx)
@@ -355,10 +351,7 @@ imageGenRouter.post('/generate-image-stream', async (ctx) => {
     return
   }
 
-  const userAgent = ctx.request.headers['user-agent']
-  const userId = fingerprint
-    ? await resolveUserByFingerprint(fingerprint, userAgent)
-    : 0
+  const userId = bodyUserId ?? 0
 
   const userMsgId = await insertConversationMessage({
     conversationId,

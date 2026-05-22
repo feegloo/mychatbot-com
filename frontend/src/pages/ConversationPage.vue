@@ -246,7 +246,7 @@ import {
 } from '../api'
 import { runImageGenStream } from '../composables/useImageGenStream'
 import { cleanFileName, isUrl } from '../utils/text'
-import { getBrowserFingerprint, ensureUserId } from '../utils/fingerprint'
+import { getUserId, ensureUserId } from '../utils/fingerprint'
 import { getData, setData } from '../utils/localData'
 import { useRoute, useRouter } from 'vue-router'
 import ConversationHeader from '../components/ConversationHeader.vue'
@@ -971,7 +971,7 @@ async function ask() {
     const isImageGen = IMAGE_GEN_REGEX.test(currentQuestion)
     const refFileNames = pendingRefImageFileNames.value.slice()
     pendingRefImageFileNames.value = []
-    const fingerprint = await getBrowserFingerprint().catch(() => undefined)
+    const userId = getUserId() ?? undefined
     const response = isImageGen
       ? await runImageGenStream({
           conversationId,
@@ -979,7 +979,7 @@ async function ask() {
           reactiveMsg,
           timeoutMs: TIMEOUT_MS,
           language: promptLanguage,
-          fingerprint,
+          userId,
           referenceImageFileNames: refFileNames.length ? refFileNames : undefined,
           onAnnouncement: () => {
             nextTick(() => scrollToBottom(true, false, true))
@@ -989,7 +989,7 @@ async function ask() {
           askQuestion(
             conversationId,
             currentQuestion,
-            fingerprint,
+            userId,
             promptLanguage,
           ),
           timeout,
