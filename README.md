@@ -1,12 +1,12 @@
-# ChatRAG Hybrid RAG App
+# ChatRAG
 
-A production-oriented hybrid RAG application with:
+Hybrid RAG app: upload files, chat with them, share links.
 
-- **Vue 3 + TypeScript** frontend
-- **Node.js + Koa + TypeScript** backend
-- **Python indexing/query engine** (FastAPI server + shared modules)
-- **Chroma** vector store
-- **PostgreSQL** for app metadata
+- **Frontend** — Vue 3 + TypeScript
+- **Backend** — Node.js + Koa + TypeScript
+- **Python engine** — FastAPI server + LangChain (indexing & answering)
+- **Vector store** — Chroma
+- **Metadata DB** — PostgreSQL
 
 ## Shareable multi-conversation links
 
@@ -48,36 +48,9 @@ Send the generated URL to any user. When they open it:
 4. The `?conversations=` param is removed from the URL so it doesn't persist in the address bar.
 
 
-## How it works
+See [ARCHITECTURE.md](ARCHITECTURE.md) for flow diagrams.
 
-The web app uploads files to the Node backend. The backend stores files on disk (can be swapped for S3), creates a unique conversation URL, and delegates document indexing to the Python engine.
-
-Python performs:
-- file loading and extraction (PDF, DOCX, XLSX, images, plain text)
-- paragraph / markdown / heading-aware splitting
-- smaller overlapping chunking
-- embeddings generation
-- vector storage in Chroma (one collection per conversation)
-- welcome message generation and suggested questions
-
-The user visits a shareable URL:
-
-- `https://chatrag.app/c/<conversationId>`
-
-and asks questions. The backend calls Python again to retrieve relevant chunks and generate a contextual answer with citations.
-
-## Architecture
-
-```text
-frontend (Vue)  →  backend (Koa/TypeScript)  →  python FastAPI engine  →  Chroma
-                                  |
-                                  v
-                              PostgreSQL
-```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams.
-
-## Python indexing entry points
+## Python debugging entry points
 
 The backend calls the Python FastAPI server (`src/server.py`) over HTTP. For local debugging:
 
@@ -215,7 +188,7 @@ curl -sS http://localhost:8085/v1/projects/chatrag-local/subscriptions
 - Chroma HTTP: `http://localhost:8000`
 - PostgreSQL: `localhost:5432`
 
-## Production deployment options
+## Production deployment
 
 ### GCP
 Recommended simple route:
@@ -227,7 +200,7 @@ Recommended simple route:
 
 Cloud Run supports mapping a custom domain to a service after verifying the domain.
 
-## Domain example: chatrag.app
+## Domain: chatrag.app
 
 If you buy the domain on GoDaddy:
 1. deploy the app first and get its target hostname / service endpoint
@@ -242,17 +215,7 @@ If you buy the domain on GoDaddy:
 
 That URL is shareable and reopens the same uploaded knowledge base.
 
-## Notes on Chroma
-
-Chroma collections are the main storage unit — one collection per conversation. Querying the collection is the retrieval step used by the RAG flow. `shared.vector_store` handles create / open / upsert / query.
-
-## Notes on notebook execution
-
-Papermill support has been removed. All indexing now runs through the Python FastAPI server (`src/server.py`) or the one-shot CLI scripts.
-
-# misc
-
-get latest error logs from production:
+## Production debugging
 
 ```
 # App errors (Cloud Run)
@@ -262,9 +225,9 @@ gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=2000 --f
 gcloud logging read 'resource.type="cloudsql_database" AND resource.labels.database_id="chatbotqa-app:chatrag-db-instance" AND log_name="projects/chatbotqa-app/logs/cloudsql.googleapis.com%2Fpostgres.log"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'
 ```
 
-# remote SQL
+## Remote SQL access
 
-install
+Install the Cloud SQL proxy:
 
 ```
 gcloud components install cloud-sql-proxy

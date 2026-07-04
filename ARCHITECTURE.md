@@ -1,16 +1,12 @@
-# Whole Solution Architecture
+# Architecture
 
-This document describes the full hybrid architecture of **ChatRAG**.
+## Services
 
-## Overview
-
-The system is split into 3 main parts:
-
-- **Frontend** - Vue 3 + TypeScript
-- **Backend** - Node.js + Koa + TypeScript
-- **Python AI Engine** - LangChain + notebook/scripts
-- **Vector DB** - Chroma
-- **Metadata DB** - PostgreSQL
+- **Frontend** — Vue 3 + TypeScript
+- **Backend** — Node.js + Koa + TypeScript
+- **Python engine** — LangChain + FastAPI
+- **Vector DB** — Chroma
+- **Metadata DB** — PostgreSQL
 
 ## High-level diagram
 
@@ -41,7 +37,7 @@ The system is split into 3 main parts:
                            ▼
                 ┌───────────────────────┐
                 │        Python         │
-                │  LangChain + Notebook │
+                │  LangChain + FastAPI  │
                 │                       │
                 │ - extract text        │
                 │ - split/chunk         │
@@ -220,51 +216,10 @@ text
 embedding
 ```
 
-### PostgreSQL
+## PostgreSQL tables
+
 - conversations
 - uploaded_files
 - suggested_questions
 - conversation_access_tokens
 - access_requests
-
-## Deployment shape
-
-```text
-chatrag.app
-   │
-   ▼
-Frontend
-   │
-   ▼
-Backend API
-   │
-   ├── PostgreSQL
-   ├── Chroma
-   └── Python engine
-```
-
-## Root URL behavior
-
-```text
-https://chatrag.app/
-    -> blank upload page
-
-https://chatrag.app/c/<conversationId>
-    -> shareable conversation page
-```
-
-## Key idea
-
-```text
-Uploaded files
-   ↓
-Text extraction
-   ↓
-Chunking
-   ↓
-Embeddings
-   ↓
-Vector search
-   ↓
-LLM answer with citations
-```

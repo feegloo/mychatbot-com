@@ -84,23 +84,9 @@ After deployment, conversations work at:
 https://chatrag.app/c/742a8554-5660-4418-b8bd-d0b4ef089180
 ```
 
-- deploy backend image to Cloud Run
-- use Cloud SQL for PostgreSQL
-- use Cloud Storage when you switch away from disk
-- keep Chroma on a VM or container service if you want Chroma HTTP mode
-
-Cloud Run supports mapping a custom domain after domain verification. citeturn966466search2turn966466search14
-
-## Example flow
-
-1. Buy domain, for example on GoDaddy.
-2. Deploy backend to Cloud Run.
-3. In Google Cloud, verify `chatrag.app`.
-4. Add the DNS records Google gives you at your registrar.
-5. Point `chatrag.app` to the frontend entry and `api.chatrag.app` if you choose separate backend hostnames.
-
 ## Notes
 
 - Cloud Run is simple for demos and shareable links.
-- Root route `/` can serve the upload page.
-- Dynamic routes like `/c/:conversationId` work well behind one frontend app.
+- Root route `/` serves the upload page.
+- Dynamic routes like `/c/:conversationId` work behind a single frontend app.
+- Use Cloud SQL for PostgreSQL, Cloud Storage for files (once off disk), and a VM or container service for Chroma in HTTP mode.
