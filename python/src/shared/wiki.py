@@ -430,7 +430,7 @@ def build_conversation_wiki(
     )
 
     try:
-        language_name = _LANG_NAMES.get(language, language.upper())
+        language_name = _LANG_NAMES.get(language, language)
         wiki_text, _usage = traced_llm_call(
             chain=chain,
             params={
