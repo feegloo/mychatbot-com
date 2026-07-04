@@ -16,11 +16,11 @@
         </button>
       </div>
       <div class="mermaid-action-group">
-        <button class="mermaid-tool-btn" @click="mode = 'text'">
+        <button class="mermaid-tool-btn" aria-label="Fullscreen diagram" title="Fullscreen" @click="openPopup">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" />
+            <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
           </svg>
-          Switch to text
+          Fullscreen
         </button>
         <button class="mermaid-tool-btn" @click="downloadSvg">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -28,11 +28,11 @@
           </svg>
           Download
         </button>
-        <button class="mermaid-tool-btn" aria-label="Fullscreen diagram" title="Fullscreen" @click="openPopup">
+        <button class="mermaid-tool-btn" @click="mode = 'text'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+            <polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" />
           </svg>
-          Fullscreen
+          Switch to text
         </button>
       </div>
     </div>
