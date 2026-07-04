@@ -47,7 +47,7 @@ def _format_conversation_wikis(wikis: list[dict]) -> str:
             continue
         # Clip long wikis — the master wiki can't process >40k chars anyway
         if len(content) > _MAX_WIKI_INPUT_CHARS:
-            content = content[:_MAX_WIKI_INPUT_CHARS].rstrip() + "\n_(trimmed)_"
+            content = content[:_MAX_WIKI_INPUT_CHARS].rstrip() + "\n[... trimmed]"
         parts.append(f"=== Conversation {i} (id: {conv_id}) ===\n{content}")
 
     return "\n\n--\n\n".join(parts) if parts else "(no conversation wikis available)"
@@ -131,7 +131,7 @@ def build_user_wiki(
             len(wiki_text),
             user_id,
         )
-        wiki_text = wiki_text[:_MAX_OUTPUT_CHARS].rstrip() + "\n\n_(trimmed)_"
+        wiki_text = wiki_text[:_MAX_OUTPUT_CHARS].rstrip() + "\n\n[... trimmed]"
 
     logger.info(
         "📚 [user-wiki] Generated (user=%d, %d sources, %d chars)",

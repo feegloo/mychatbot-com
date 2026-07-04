@@ -471,7 +471,7 @@ def build_conversation_wiki(
             len(wiki_text),
             conversation_id,
         )
-        wiki_text = wiki_text[:_MAX_OUTPUT_CHARS].rstrip() + "\n\n_(trimmed)_"
+        wiki_text = wiki_text[:_MAX_OUTPUT_CHARS].rstrip() + "\n\n[... trimmed]"
 
     logger.info(
         "📚 Wiki generated (conv=%s, lang=%s, %d chars)",

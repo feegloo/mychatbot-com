@@ -409,8 +409,8 @@ class TestBuildConversationWiki:
                 p.stop()
 
         assert result is not None
-        assert len(result) <= 16_000 + len("\n\n_(trimmed)_")
-        assert result.endswith("_(trimmed)_")
+        assert len(result) <= 16_000 + len("\n\n[... trimmed]")
+        assert result.endswith("[... trimmed]")
 
     def test_returns_none_for_empty_llm_output(self):
         patches = self._patch_all(wiki_text="")
