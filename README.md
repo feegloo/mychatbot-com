@@ -1,99 +1,14 @@
-# ChatRAG Hybrid RAG App
+# [chatrag.app](https://chatrag.app)
 
-A production-oriented hybrid RAG application with:
+Hybrid RAG app: upload files, chat with them, share links.
 
-- **Vue 3 + TypeScript** frontend
-- **Node.js + Koa + TypeScript** backend
-- **Python indexing/query engine** (FastAPI server + shared modules)
-- **Chroma** vector store
-- **PostgreSQL** for app metadata
+- **Frontend** — Vue 3 + TypeScript
+- **Backend** — Node.js + Koa + TypeScript
+- **Python engine** — FastAPI server + LangChain (indexing & answering)
+- **Vector store** — Chroma
+- **Metadata DB** — PostgreSQL
 
-## Shareable multi-conversation links
-
-You can generate a single URL that gives any recipient instant access to a set of conversations (they appear in the left sidebar automatically).
-
-### 1. Prepare a tokens JSON file
-
-Create a file (e.g. `my-tokens.json`) with the viewer tokens for the conversations you want to share:
-
-```json
-[
-  { "conversationId": "abc123XYZ789", "token": "tok_viewer_abc..." },
-  { "conversationId": "def456UVW012", "token": "tok_viewer_def..." }
-]
-```
-
-You can find each conversation's **viewer token** in the PostgreSQL `conversation_access_tokens` table (`role = 'viewer'`), or from the chatrag.app debug panel.
-
-### 2. Generate the shareable link
-
-```bash
-node scripts/generate-conversations-link.mjs my-tokens.json
-# → https://chatrag.app?conversations=<base64url-encoded-tokens>
-```
-
-Custom base URL (e.g. for staging):
-
-```bash
-node scripts/generate-conversations-link.mjs my-tokens.json https://staging.chatrag.app
-```
-
-### 3. Share the link
-
-Send the generated URL to any user. When they open it:
-
-1. The frontend decodes the `conversations=` query parameter.
-2. Each `{conversationId, token}` pair is saved into their local IndexedDB.
-3. The conversations appear in their left sidebar immediately.
-4. The `?conversations=` param is removed from the URL so it doesn't persist in the address bar.
-
-
-## How it works
-
-The web app uploads files to the Node backend. The backend stores files on disk (can be swapped for S3), creates a unique conversation URL, and delegates document indexing to the Python engine.
-
-Python performs:
-- file loading and extraction (PDF, DOCX, XLSX, images, plain text)
-- paragraph / markdown / heading-aware splitting
-- smaller overlapping chunking
-- embeddings generation
-- vector storage in Chroma (one collection per conversation)
-- welcome message generation and suggested questions
-
-The user visits a shareable URL:
-
-- `https://chatrag.app/c/<conversationId>`
-
-and asks questions. The backend calls Python again to retrieve relevant chunks and generate a contextual answer with citations.
-
-## Architecture
-
-```text
-frontend (Vue)  →  backend (Koa/TypeScript)  →  python FastAPI engine  →  Chroma
-                                  |
-                                  v
-                              PostgreSQL
-```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams.
-
-## Python indexing entry points
-
-The backend calls the Python FastAPI server (`src/server.py`) over HTTP. For local debugging:
-
-```bash
-# Index a file directly
-python3.11 python/src/index_documents.py \
-  --conversation-id <id> \
-  --collection-name <collection> \
-  --file /absolute/path/file.pdf
-
-# Ask a question directly
-python3.11 python/src/answer_question.py \
-  --conversation-id <id> \
-  --collection-name <collection> \
-  --question "What is this document about?"
-```
+See [ARCHITECTURE.md](ARCHITECTURE.md) for flow diagrams.
 
 ## Supported file types
 
@@ -215,7 +130,7 @@ curl -sS http://localhost:8085/v1/projects/chatrag-local/subscriptions
 - Chroma HTTP: `http://localhost:8000`
 - PostgreSQL: `localhost:5432`
 
-## Production deployment options
+## Production deployment
 
 ### GCP
 Recommended simple route:
@@ -227,7 +142,7 @@ Recommended simple route:
 
 Cloud Run supports mapping a custom domain to a service after verifying the domain.
 
-## Domain example: chatrag.app
+## Domain: chatrag.app
 
 If you buy the domain on GoDaddy:
 1. deploy the app first and get its target hostname / service endpoint
@@ -242,17 +157,7 @@ If you buy the domain on GoDaddy:
 
 That URL is shareable and reopens the same uploaded knowledge base.
 
-## Notes on Chroma
-
-Chroma collections are the main storage unit — one collection per conversation. Querying the collection is the retrieval step used by the RAG flow. `shared.vector_store` handles create / open / upsert / query.
-
-## Notes on notebook execution
-
-Papermill support has been removed. All indexing now runs through the Python FastAPI server (`src/server.py`) or the one-shot CLI scripts.
-
-# misc
-
-get latest error logs from production:
+## Production debugging
 
 ```
 # App errors (Cloud Run)
@@ -262,9 +167,27 @@ gcloud logging read 'severity>="ERROR"' --project=chatbotqa-app --limit=2000 --f
 gcloud logging read 'resource.type="cloudsql_database" AND resource.labels.database_id="chatbotqa-app:chatrag-db-instance" AND log_name="projects/chatbotqa-app/logs/cloudsql.googleapis.com%2Fpostgres.log"' --project=chatbotqa-app --limit=50 --freshness=1h --format='value(timestamp, severity, textPayload)'
 ```
 
-# remote SQL
+## Python debugging entry points
 
-install
+The backend calls the Python FastAPI server (`src/server.py`) over HTTP. For local debugging:
+
+```bash
+# Index a file directly
+python3.11 python/src/index_documents.py \
+  --conversation-id <id> \
+  --collection-name <collection> \
+  --file /absolute/path/file.pdf
+
+# Ask a question directly
+python3.11 python/src/answer_question.py \
+  --conversation-id <id> \
+  --collection-name <collection> \
+  --question "What is this document about?"
+```
+
+## Remote SQL access
+
+Install the Cloud SQL proxy:
 
 ```
 gcloud components install cloud-sql-proxy
@@ -299,3 +222,43 @@ source infra/cloudrun/.env.gcp && \
   PGPASSWORD="$DB_PASSWORD" gcloud sql connect chatrag-db-instance \
     --user=chatrag --database=chatrag --project="$GCP_PROJECT_ID"
 ```
+
+## Shareable multi-conversation links
+
+You can generate a single URL that gives any recipient instant access to a set of conversations (they appear in the left sidebar automatically).
+
+### 1. Prepare a tokens JSON file
+
+Create a file (e.g. `my-tokens.json`) with the viewer tokens for the conversations you want to share:
+
+```json
+[
+  { "conversationId": "abc123XYZ789", "token": "tok_viewer_abc..." },
+  { "conversationId": "def456UVW012", "token": "tok_viewer_def..." }
+]
+```
+
+You can find each conversation's **viewer token** in the PostgreSQL `conversation_access_tokens` table (`role = 'viewer'`), or from the chatrag.app debug panel.
+
+### 2. Generate the shareable link
+
+```bash
+node scripts/generate-conversations-link.mjs my-tokens.json
+# → https://chatrag.app?conversations=<base64url-encoded-tokens>
+```
+
+Custom base URL (e.g. for staging):
+
+```bash
+node scripts/generate-conversations-link.mjs my-tokens.json https://staging.chatrag.app
+```
+
+### 3. Share the link
+
+Send the generated URL to any user. When they open it:
+
+1. The frontend decodes the `conversations=` query parameter.
+2. Each `{conversationId, token}` pair is saved into their local IndexedDB.
+3. The conversations appear in their left sidebar immediately.
+4. The `?conversations=` param is removed from the URL so it doesn't persist in the address bar.
+
