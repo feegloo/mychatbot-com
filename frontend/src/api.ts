@@ -470,7 +470,6 @@ export async function generateImageStream(
       ...(referenceImageFileNames?.length ? { referenceImageFileNames } : {}),
     }),
     signal: callbacks.signal,
-    credentials: 'include',
   })
   if (!response.ok || !response.body) {
     const text = await response.text().catch(() => '')
