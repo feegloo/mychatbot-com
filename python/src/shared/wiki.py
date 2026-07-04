@@ -26,6 +26,7 @@ import logging
 from langchain_core.output_parsers import StrOutputParser
 
 from .lang_detect import detect_language
+from .languages import LANG_NAMES as _LANG_NAMES
 from .llm_instrument import traced_llm_call
 from .prompts.wiki import WIKI_PROMPT
 
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 4
 _DEFAULT_TOKEN_BUDGET = 300_000
 _MAX_WELCOME_CHARS = 10_000  # welcome is concentrated framing — full clip rarely needed
-_MAX_OUTPUT_CHARS = 80_000  # ~10_000 tokens; extra headroom for rich large-doc diagrams
+_MAX_OUTPUT_CHARS = 120_000  # ~15_000 tokens; extra headroom for rich large-doc diagrams
 _TOP_K_CHUNKS = 20  # vector neighbours retrieved against the welcome message (doubled for breadth)
 
 
@@ -429,11 +430,12 @@ def build_conversation_wiki(
     )
 
     try:
+        language_name = _LANG_NAMES.get(language, language)
         wiki_text, _usage = traced_llm_call(
             chain=chain,
             params={
                 "conversation_title": title,
-                "language": language,
+                "language": language_name,
                 "welcome_message": welcome_clipped,
                 "raw_material": raw_material,
                 "document_scale_hint": document_scale_hint,
